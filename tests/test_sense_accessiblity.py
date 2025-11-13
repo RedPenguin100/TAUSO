@@ -37,7 +37,7 @@ def get_init_df(target_mrna, aso_sizes=[16, 20], canonical_name='DDX11L1'):
     return df
 
 
-@pytest.mark.slow
+# @pytest.mark.slow
 def test_regression(short_mrna, n_compare=10, path="avg_sense_access.txt", use_saved=True):
     df = get_init_df(short_mrna.full_mrna, [16])
     print("Length mRNA: ", len(short_mrna.full_mrna))
@@ -59,8 +59,6 @@ def test_regression(short_mrna, n_compare=10, path="avg_sense_access.txt", use_s
         np.array(avg_sense_predictions[:n_compare]),
         np.array(avg_sense_regression[:n_compare])
     )
-
-
 
 def test_parsing(dataframe_regression):
     with open(TESTS_PATH / "trig_raccess.txt", "r") as f:

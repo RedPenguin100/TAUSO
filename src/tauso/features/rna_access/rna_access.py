@@ -51,13 +51,16 @@ class RNAAccess(object):
     # segment [pos, pos + segment_size - 1]
     USED_RT = 0.61633008  # [kcal/mol]
 
-    def __init__(self, segment_sizes=None, max_span=None):
+    def __init__(self, segment_sizes=None, max_span=None, exe_path=None):
         self.segment_sizes = segment_sizes
         self.max_span = max_span
 
         self.uuid_str = None
-        exe_name = "run_raccess"
-        self.exe_path = FileUtil.get_3rd_path(exe_name)
+        if exe_path is None:
+            exe_name = "run_raccess"
+            self.exe_path = FileUtil.get_3rd_path(exe_name)
+        else:
+            self.exe_path = exe_path
 
     def set_uuid_for_web(self, uuid_str):
         self.uuid_str = uuid_str
