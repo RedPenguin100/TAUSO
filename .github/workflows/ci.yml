@@ -40,13 +40,12 @@ jobs:
           channels: conda-forge,bioconda,defaults
           auto-activate-base: false
           auto-update-conda: false
-          activate-environment: tauso       # Name of the conda environment defined in environment.yml
+          activate-environment: tauso-ci       # Name of the conda environment defined in environment.yml
           environment-file: environment.yml # Use an environment file to define your dependencies
 #          use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
 
       - name: Install tauso
-        run: |
-          conda develop .
+        run: pip install -e .
       - name: Run tests
         run: |
           pytest
