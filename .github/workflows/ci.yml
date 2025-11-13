@@ -1,0 +1,52 @@
+name: Build and Test Python
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+#      - name: Run Make
+#        run: make
+#        working-directory: external/risearch/RIsearch1
+#      TODO: fix the cache, could be nice performance boost to CI
+#      - name: Cache-miniconda
+#        uses: actions/cache@v3
+#        env:
+#          CACHE_NUMBER: 0 # Update this number if you want the cache to refresh
+#        with:
+#          path: ~/conda_pkgs_dir
+#          key:
+#            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          python-version: 3.11             # Specify your desired Python version
+          channels: conda-forge,bioconda,defaults
+          auto-activate-base: false
+          auto-update-conda: false
+          activate-environment: aso_design       # Name of the conda environment defined in environment.yml
+          environment-file: environment.yml # Use an environment file to define your dependencies
+#          use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
+
+      - name: Install asodesigner
+        run: |
+          conda develop .
+      - name: Run tests
+        run: |
+          pytest
