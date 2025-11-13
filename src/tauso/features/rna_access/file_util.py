@@ -20,7 +20,7 @@ class FileUtil(object):
 
     @classmethod
     def get_output_dir(cls):
-        return os.path.join(cls.get_root_dir(), 'output')
+        return '/dev/shm/tauso/_raccess/output'
 
     @classmethod
     def get_output_path(cls, file_name):
