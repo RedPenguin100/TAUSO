@@ -34,18 +34,15 @@ jobs:
 #          key:
 #            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
       - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+      - uses: mamba-org/setup-micromamba@v1
         with:
-          python-version: 3.11             # Specify your desired Python version
-          channels: conda-forge,bioconda,defaults
-          auto-activate-base: false
-          auto-update-conda: false
-          activate-environment: tauso-ci       # Name of the conda environment defined in environment.yml
-          environment-file: environment.yml # Use an environment file to define your dependencies
-#          use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
+          python-version: 3.11
+          environment-file: environment.yml
+          environment-name: tauso
+          cache-env: true           # <— THIS enables caching
+          cache-downloads: true     # <— Also caches pkgs
 
       - name: Install tauso
-        run: pip install -e .
+        run: micromamba run -n tauso pip install -e .
       - name: Run tests
-        run: |
-          pytest
+        run: micromamba run -n tauso pytest -vvvs
