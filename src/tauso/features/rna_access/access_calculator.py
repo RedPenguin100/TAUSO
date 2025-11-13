@@ -89,7 +89,9 @@ class AccessCalculator(object):
         ra.set_uuid_for_web(uuid_str)
         access_query = [('rna', rna_seq)]
         res = ra.calculate(access_query)
+
         access_res = res['rna']
+        cols_np = {s: access_res[s].to_numpy() for s in seed_sizes}
 
         ind_info_list = []
         for pos in range(0, rna_size - access_size + 1):
@@ -97,11 +99,13 @@ class AccessCalculator(object):
             for super_seed_size in seed_sizes:
                 step = super_seed_size // 2
                 # n_samples = trigger_binding_site_size / step
-                rel_offsets = list(range(0, access_size - super_seed_size, step))
-                rel_offsets.append(access_size - super_seed_size)
+                rel_offsets = np.arange(0, access_size - super_seed_size, step)
+                rel_offsets = np.append(rel_offsets, access_size - super_seed_size)
 
-                abs_offsets = list(map(lambda x: x + pos, rel_offsets))
-                bind_energies = access_res[super_seed_size][abs_offsets]
+                abs_offsets = rel_offsets + pos
+                vals = cols_np[super_seed_size][len(cols_np[super_seed_size]) - 1 - abs_offsets]
+                bind_energies = pd.Series(vals, index=abs_offsets)
+
                 norm_factor = access_size / super_seed_size
                 norm_bind_energies = bind_energies * norm_factor
 

@@ -9,6 +9,40 @@ from Bio.SeqRecord import SeqRecord
 from .file_util import FileUtil
 
 
+def parse_line(line_str, d_empty):
+    pos, multi_data = line_str.split('\t')
+    pos = int(pos)
+    multi_data_list = list(filter(len, multi_data.split(';')))
+    d = dict(s.split(',') for s in multi_data_list)
+
+    d = {int(k): float(v) for k, v in d.items()}
+
+    # removed not needed DataFrame already added Nan where no value
+    # d = {k: d.get(k, float('nan')) for k in d_empty}
+
+    return pos, d
+
+def parse_single(data, segment_sizes):
+    d_empty = {k: '' for k in segment_sizes}
+
+    lines = data.splitlines()
+
+    id_str = lines[0].rstrip()
+
+    ind_rec_list = list(map(lambda line: parse_line(line, d_empty), filter(len, lines[1:])))
+
+    # df = pd.DataFrame(info_list, index=, columns=segment_sizes)
+    indexes = list(zip(*ind_rec_list))[0]
+    records = list(zip(*ind_rec_list))[1]
+    df = pd.DataFrame(records, index=indexes)
+
+    return id_str, df
+
+def parse(data, segment_sizes):
+    seq_res_list = list(filter(len, data.split('>')))
+    res = map(lambda seq_red: parse_single(seq_red, segment_sizes), seq_res_list)
+    return dict(res)
+
 # TODO review usage in parallel since it is writing temporal file needs uuid prefix for file and maybe delete it after
 #  usage
 class RNAAccess(object):
@@ -22,6 +56,8 @@ class RNAAccess(object):
         self.max_span = max_span
 
         self.uuid_str = None
+        exe_name = "run_raccess"
+        self.exe_path = FileUtil.get_3rd_path(exe_name)
 
     def set_uuid_for_web(self, uuid_str):
         self.uuid_str = uuid_str
@@ -36,47 +72,7 @@ class RNAAccess(object):
         )
         return seq_rec
 
-    @staticmethod
-    def parse_line(line_str, d_empty):
-        pos, multi_data = line_str.split('\t')
-        pos = int(pos)
-        multi_data_list = list(filter(len, multi_data.split(';')))
-        d = dict(s.split(',') for s in multi_data_list)
-
-        d = {int(k): float(v) for k, v in d.items()}
-
-        # removed not needed DataFrame already added Nan where no value
-        # d = {k: d.get(k, float('nan')) for k in d_empty}
-
-        return pos, d
-
-    @classmethod
-    def parse_single(cls, data, segment_sizes):
-        d_empty = {k: '' for k in segment_sizes}
-
-        lines = data.splitlines()
-
-        id_str = lines[0].rstrip()
-
-        ind_rec_list = list(map(lambda line: cls.parse_line(line, d_empty), filter(len, lines[1:])))
-
-        # df = pd.DataFrame(info_list, index=, columns=segment_sizes)
-        indexes = list(zip(*ind_rec_list))[0]
-        records = list(zip(*ind_rec_list))[1]
-        df = pd.DataFrame(records, index=indexes)
-
-        return id_str, df
-
-    @classmethod
-    def parse(cls, data, segment_sizes):
-        seq_res_list = list(filter(len, data.split('>')))
-        res = map(lambda seq_red: cls.parse_single(seq_red, segment_sizes), seq_res_list)
-        return dict(res)
-
     def calculate(self, seq_id_list):
-        exe_name = "run_raccess"
-        exe_path = FileUtil.get_3rd_path(exe_name)
-
         seq_file_name = 'trig_seq.fa'
         if self.uuid_str:
             seq_file_name = self.uuid_str + '_' + seq_file_name
@@ -91,17 +87,15 @@ class RNAAccess(object):
         out_path = FileUtil.get_output_path(out_file_name)
 
         segment_sizes_str = ','.join(map(str, self.segment_sizes))
-        cmd = (f"{exe_path} -outfile={out_path} -seqfile={seq_path} "
+        cmd = (f"{self.exe_path} -outfile={out_path} -seqfile={seq_path} "
                f"-access_len={segment_sizes_str} -max_span={self.max_span}")
 
         command = shlex.split(cmd)
-        p = subprocess.run(command, capture_output=True)
+        p = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-        res_str = p.stdout.decode('utf-8')
-
-        f = open(out_path, "r")
-        data = f.read()
-        res = self.parse(data, self.segment_sizes)
+        with open(out_path, 'r') as f:
+            data = f.read()
+        res = parse(data, self.segment_sizes)
         return res
 
 

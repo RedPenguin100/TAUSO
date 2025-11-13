@@ -10,7 +10,7 @@ from collections import Counter
 
 from ..util import get_antisense
 
-from ..features.suffix_array import longest_prefix
+from ..algorithms.suffix_array import longest_prefix
 
 from primer3 import calc_hairpin
 from collections import defaultdict
