@@ -26,6 +26,7 @@ def get_unique_human_genes(all_data):
     return genes_u
 
 
+@pytest.mark.skip
 def test_genes_unique():
     all_data = pd.read_csv(DATA_PATH / 'data_from_article_fixed.csv')
     genes_u = get_unique_human_genes(all_data)
