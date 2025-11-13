@@ -38,5 +38,7 @@ jobs:
           init-shell: bash
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
+      - name: Install raccess
+        run: tauso-setup-raccess
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs

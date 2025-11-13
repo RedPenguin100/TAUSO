@@ -14,6 +14,15 @@ authors = [{name = "Michael Kovaliov"}]
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.package-data]
+"tauso._raccess" = [
+    "install_raccess.sh",
+    "patches/*.patch"
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["tauso*"]
+
+[project.scripts]
+tauso-setup-raccess = "tauso._raccess.cli:main"
