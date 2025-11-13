@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from tauso.features.fold import get_weighted_energy
+from tauso.features.vienna_fold import get_weighted_energy
 
 
 def test_window_average():
