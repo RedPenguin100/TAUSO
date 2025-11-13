@@ -31,4 +31,5 @@ dependencies:
 
   # tooling
   - pytest
+  - pytest-regressions
   - conda-build

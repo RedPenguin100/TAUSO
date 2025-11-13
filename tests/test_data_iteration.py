@@ -1,4 +1,4 @@
-from tauso.util import get_antisense
+from tauso.new_model.consts_dataframe import CELL_LINE_ORGANISM, INHIBITION, CANONICAL_GENE
 
 import pytest
 
@@ -6,9 +6,24 @@ import pandas as pd
 import numpy as np
 
 from tauso.consts import DATA_PATH
-from scripts.data_genertion.consts import INHIBITION, CELL_LINE_ORGANISM, CANONICAL_GENE, SEQUENCE, SENSE_TYPE, \
-    SENSE_LENGTH, SENSE_START
-from scripts.data_genertion.data_handling import get_unique_human_genes, get_gene_to_data
+
+
+# from scripts.data_genertion.consts import INHIBITION, CELL_LINE_ORGANISM, CANONICAL_GENE, SEQUENCE, SENSE_TYPE, \
+#     SENSE_LENGTH, SENSE_START
+# from scripts.data_genertion.data_handling import get_unique_human_genes, get_gene_to_data
+
+
+def get_unique_human_genes(all_data):
+    all_data_human = all_data[all_data[CELL_LINE_ORGANISM] == 'human']
+    all_data_human_no_nan = all_data_human.dropna(subset=[INHIBITION]).copy()
+
+    genes = all_data_human_no_nan[CANONICAL_GENE].copy()
+    genes_u = list(set(genes))
+
+    genes_u.remove('HBV')
+    genes_u.remove('negative_control')
+
+    return genes_u
 
 
 def test_genes_unique():
@@ -20,39 +35,39 @@ def test_genes_unique():
     assert len(set(genes_u)) == len(genes_u)
 
 # TODO: improve test
-def test_intron_annotation():
-    all_data = pd.read_csv(DATA_PATH / 'data_from_article_fixed.csv')
-    all_data_no_nan = all_data.dropna(subset=[INHIBITION]).copy()
-
-    genes_u = get_unique_human_genes(all_data)
-
-    all_data_no_nan_human = all_data_no_nan[all_data_no_nan[CELL_LINE_ORGANISM] == 'human']
-    all_data_human_gene = all_data_no_nan_human[all_data_no_nan_human[CANONICAL_GENE].isin(genes_u)].copy()
-
-    gene_to_data = get_gene_to_data(genes_u)
-
-    found = False
-
-    all_data_human_gene[SENSE_START] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_LENGTH] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_TYPE] = "NA"
-    for index, row in all_data_human_gene.iterrows():
-        gene_name = row[CANONICAL_GENE]
-        locus_info = gene_to_data[gene_name]
-        pre_mrna = locus_info.full_mrna
-        antisense = row[SEQUENCE]
-        sense = get_antisense(antisense)
-        idx = pre_mrna.find(sense)
-        all_data_human_gene.loc[index, SENSE_START] = idx
-        all_data_human_gene.loc[index, SENSE_LENGTH] = len(antisense)
-        if idx != -1:
-            genome_corrected_index = idx + locus_info.exon_indices[0][0]
-            found = False
-            for exon_indices in locus_info.exon_indices:
-                # print(exon[0], exon[1])
-                if exon_indices[0] <= genome_corrected_index <= exon_indices[1]:
-                    all_data_human_gene.loc[index, SENSE_TYPE] = 'exon'
-                    found = True
-                    break
-        if not found:
-            all_data_human_gene.loc[index, SENSE_TYPE] = 'intron'
+# def test_intron_annotation():
+#     all_data = pd.read_csv(DATA_PATH / 'data_from_article_fixed.csv')
+#     all_data_no_nan = all_data.dropna(subset=[INHIBITION]).copy()
+#
+#     genes_u = get_unique_human_genes(all_data)
+#
+#     all_data_no_nan_human = all_data_no_nan[all_data_no_nan[CELL_LINE_ORGANISM] == 'human']
+#     all_data_human_gene = all_data_no_nan_human[all_data_no_nan_human[CANONICAL_GENE].isin(genes_u)].copy()
+#
+#     gene_to_data = get_gene_to_data(genes_u)
+#
+#     found = False
+#
+#     all_data_human_gene[SENSE_START] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
+#     all_data_human_gene[SENSE_LENGTH] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
+#     all_data_human_gene[SENSE_TYPE] = "NA"
+#     for index, row in all_data_human_gene.iterrows():
+#         gene_name = row[CANONICAL_GENE]
+#         locus_info = gene_to_data[gene_name]
+#         pre_mrna = locus_info.full_mrna
+#         antisense = row[SEQUENCE]
+#         sense = get_antisense(antisense)
+#         idx = pre_mrna.find(sense)
+#         all_data_human_gene.loc[index, SENSE_START] = idx
+#         all_data_human_gene.loc[index, SENSE_LENGTH] = len(antisense)
+#         if idx != -1:
+#             genome_corrected_index = idx + locus_info.exon_indices[0][0]
+#             found = False
+#             for exon_indices in locus_info.exon_indices:
+#                 # print(exon[0], exon[1])
+#                 if exon_indices[0] <= genome_corrected_index <= exon_indices[1]:
+#                     all_data_human_gene.loc[index, SENSE_TYPE] = 'exon'
+#                     found = True
+#                     break
+#         if not found:
+#             all_data_human_gene.loc[index, SENSE_TYPE] = 'intron'

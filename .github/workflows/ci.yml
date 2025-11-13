@@ -24,14 +24,18 @@ jobs:
 #      - name: Run Make
 #        run: make
 #        working-directory: external/risearch/RIsearch1
-      - name: Set up Miniconda
+      - name: Compute env hash
+        id: envhash
+        run: echo "hash=$(sha256sum environment.yml | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+      - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: environment.yml
           environment-name: tauso
           cache-env: true           # <— THIS enables caching
           cache-downloads: true     # <— Also caches pkgs
-
+          cache-environment-key: ${{ runner.os }}-tauso-${{ steps.envhash.outputs.hash }}
+          init-shell: bash
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
       - name: Run tests
