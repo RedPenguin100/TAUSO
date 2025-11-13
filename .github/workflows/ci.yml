@@ -18,25 +18,15 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 #      - name: Run Make
 #        run: make
 #        working-directory: external/risearch/RIsearch1
-#      TODO: fix the cache, could be nice performance boost to CI
-#      - name: Cache-miniconda
-#        uses: actions/cache@v3
-#        env:
-#          CACHE_NUMBER: 0 # Update this number if you want the cache to refresh
-#        with:
-#          path: ~/conda_pkgs_dir
-#          key:
-#            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
       - name: Set up Miniconda
-      - uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v1
         with:
-          python-version: 3.11
           environment-file: environment.yml
           environment-name: tauso
           cache-env: true           # <— THIS enables caching
