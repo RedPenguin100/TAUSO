@@ -6,6 +6,7 @@ import pandas as pd
 from Bio.SeqUtils import gc_fraction
 
 from .rna_access import RNAAccess
+from ..._raccess.core import find_raccess
 
 
 def get_sense_with_flanks(pre_mrna: str, sense_start: int, sense_length: int, flank_size: int) -> str:
@@ -84,7 +85,7 @@ class AccessCalculator(object):
 
         seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
         assert seed_sizes
-        cls.rna_access = RNAAccess(seed_sizes, max_span)
+        cls.rna_access = RNAAccess(seed_sizes, max_span, find_raccess())
         ra = cls.rna_access
         ra.set_uuid_for_web(uuid_str)
         access_query = [('rna', rna_seq)]

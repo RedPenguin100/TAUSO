@@ -60,8 +60,6 @@ def test_regression(short_mrna, n_compare=10, path="avg_sense_access.txt", use_s
         np.array(avg_sense_regression[:n_compare])
     )
 
-
-
 def test_parsing(dataframe_regression):
     with open(TESTS_PATH / "trig_raccess.txt", "r") as f:
         data = f.read()

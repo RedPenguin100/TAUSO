@@ -1,5 +1,6 @@
 import shlex
 import subprocess
+from pathlib import Path
 
 import pandas as pd
 from Bio import SeqIO
@@ -22,6 +23,7 @@ def parse_line(line_str, d_empty):
 
     return pos, d
 
+
 def parse_single(data, segment_sizes):
     d_empty = {k: '' for k in segment_sizes}
 
@@ -38,10 +40,12 @@ def parse_single(data, segment_sizes):
 
     return id_str, df
 
+
 def parse(data, segment_sizes):
     seq_res_list = list(filter(len, data.split('>')))
     res = map(lambda seq_red: parse_single(seq_red, segment_sizes), seq_res_list)
     return dict(res)
+
 
 # TODO review usage in parallel since it is writing temporal file needs uuid prefix for file and maybe delete it after
 #  usage
@@ -51,13 +55,20 @@ class RNAAccess(object):
     # segment [pos, pos + segment_size - 1]
     USED_RT = 0.61633008  # [kcal/mol]
 
-    def __init__(self, segment_sizes=None, max_span=None):
+    def __init__(self, segment_sizes=None, max_span=None, exe_path=None):
         self.segment_sizes = segment_sizes
         self.max_span = max_span
 
         self.uuid_str = None
-        exe_name = "run_raccess"
-        self.exe_path = FileUtil.get_3rd_path(exe_name)
+        if exe_path is None:
+            exe_name = "run_raccess"
+            self.exe_path = FileUtil.get_3rd_path(exe_name)
+        else:
+            self.exe_path = exe_path
+
+        out_dir = FileUtil.get_output_dir()
+        p = Path(out_dir).expanduser().resolve()
+        p.mkdir(parents=True, exist_ok=True)
 
     def set_uuid_for_web(self, uuid_str):
         self.uuid_str = uuid_str
@@ -102,7 +113,8 @@ class RNAAccess(object):
 if __name__ == "__main__":
     # FileUtil.set_root_dir()
 
-    YEAST_M_CHERRY = 'ATGTCTAAGGGGGAAGAAGACAATATGGCGATTATTAAAGAGTTTATGAGATTTAAAGTACATATGGAAGGAAGTGTTAATGGTCACGAGTTTGAGATCGAAGGTGAAGGTGAAGGTCGTCCATATGAGGGTACGCAAACAGCAAAACTAAAGGTGACTAAAGGGGGACCATTACCTTTCGCTTGGGATATACTGTCACCACAATTCATGTACGGATCGAAAGCTTACGTAAAGCACCCGGCCGACATTCCTGATTATTTAAAGTTGTCTTTCCCTGAAGGGTTCAAATGGGAAAGAGTTATGAATTTTGAGGATGGAGGTGTTGTGACGGTAACTCAAGATTCATCTTTGCAAGATGGCGAATTCATTTATAAAGTTAAATTGAGAGGAACTAACTTTCCAAGCGATGGTCCAGTCATGCAAAAAAAGACCATGGGCTGGGAAGCTAGCTCAGAACGGATGTACCCGGAAGACGGCGCATTAAAGGGAGAGATCAAGCAGCGACTTAAGTTAAAAGATGGCGGGCATTATGATGCAGAAGTAAAGACAACCTACAAAGCCAAAAAACCCGTGCAGCTGCCTGGTGCGTATAATGTTAACATAAAACTAGACATTACATCCCACAACGAAGACTACACTATAGTCGAACAATACGAAAGGGCAGAAGGTAGACATTCGACAGGTGGTATGGATGAGTTGTATAAATAA'.replace('T', 'U')
+    YEAST_M_CHERRY = 'ATGTCTAAGGGGGAAGAAGACAATATGGCGATTATTAAAGAGTTTATGAGATTTAAAGTACATATGGAAGGAAGTGTTAATGGTCACGAGTTTGAGATCGAAGGTGAAGGTGAAGGTCGTCCATATGAGGGTACGCAAACAGCAAAACTAAAGGTGACTAAAGGGGGACCATTACCTTTCGCTTGGGATATACTGTCACCACAATTCATGTACGGATCGAAAGCTTACGTAAAGCACCCGGCCGACATTCCTGATTATTTAAAGTTGTCTTTCCCTGAAGGGTTCAAATGGGAAAGAGTTATGAATTTTGAGGATGGAGGTGTTGTGACGGTAACTCAAGATTCATCTTTGCAAGATGGCGAATTCATTTATAAAGTTAAATTGAGAGGAACTAACTTTCCAAGCGATGGTCCAGTCATGCAAAAAAAGACCATGGGCTGGGAAGCTAGCTCAGAACGGATGTACCCGGAAGACGGCGCATTAAAGGGAGAGATCAAGCAGCGACTTAAGTTAAAAGATGGCGGGCATTATGATGCAGAAGTAAAGACAACCTACAAAGCCAAAAAACCCGTGCAGCTGCCTGGTGCGTATAATGTTAACATAAAACTAGACATTACATCCCACAACGAAGACTACACTATAGTCGAACAATACGAAAGGGCAGAAGGTAGACATTCGACAGGTGGTATGGATGAGTTGTATAAATAA'.replace(
+        'T', 'U')
     g_seq = YEAST_M_CHERRY
 
     g_ra = RNAAccess([6], 120)
