@@ -3,7 +3,7 @@ import numpy as np
 
 from ViennaRNA import RNA
 
-from ..fold import calculate_energies, get_weighted_energy
+from ..features.vienna_fold import calculate_energies, get_weighted_energy
 from ..util import get_antisense
 from ..features.seq_features import palindromic_fraction, homooligo_count, hairpin_score, seq_entropy, \
     gc_skew, at_skew, \

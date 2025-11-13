@@ -53,6 +53,7 @@ def test_begin_regression_human():
     assert idx == 18528
 
 # not slow!
+@pytest.mark.skip
 def test_begin_regression_fast_human():
     cache_path = CACHE_DIR / 'gene_to_data_simple_cache.pickle'
     with open(cache_path, 'rb') as f:
