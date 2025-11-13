@@ -2,7 +2,7 @@ import pytest
 import pickle
 import numpy as np
 
-from tauso.fold import get_weighted_energy, calculate_energies
+from tauso.features.vienna_fold import get_weighted_energy, calculate_energies
 from tests.conftest import TEST_CACHE_PATH
 from tauso.read_human_genome import get_locus_to_data_dict
 
