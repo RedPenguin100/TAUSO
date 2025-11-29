@@ -17,6 +17,18 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
+      # --- START OF DISK CLEANER ---
+      - name: Free Disk Space (Ubuntu)
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+      # --- END OF DISK CLEANER ---
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -40,7 +52,7 @@ jobs:
         run: micromamba run -n tauso pip install -e .
       - name: Install raccess
         run: tauso install-raccess
-#      - name: Install genome
-#        run: tauso setup-genome
+      - name: Install genome
+        run: tauso setup-genome
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs
