@@ -3,7 +3,7 @@ from xgboost import XGBRanker
 import pickle
 from ..util import get_antisense
 import pandas as pd
-from ..read_human_genome import get_locus_to_data_dict
+from ..genome.read_human_genome import get_locus_to_data_dict
 from pathlib import Path
 
 mod_type_dic = {'moe': 'MMMMMddddddddddMMMMM', 'lna': 'LLLddddddddddLLL'}

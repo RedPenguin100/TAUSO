@@ -4,7 +4,7 @@ set -euo pipefail
 # --- Check for GCC availability ---
 if ! command -v gcc >/dev/null 2>&1; then
     echo "ERROR: GCC compiler not found."
-    echo "You must install GCC before running tauso-setup-raccess."
+    echo "You must install GCC before running tauso install-raccess."
     echo ""
     echo "On Debian/Ubuntu:"
     echo "    sudo apt-get install build-essential"
