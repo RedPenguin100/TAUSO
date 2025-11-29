@@ -25,4 +25,5 @@ where = ["src"]
 include = ["tauso*"]
 
 [project.scripts]
-tauso-setup-raccess = "tauso._raccess.cli:main"
+
+tauso = "tauso.cli:main"

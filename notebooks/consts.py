@@ -3,6 +3,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(os.path.dirname(os.path.dirname(__file__)))
 NOTEBOOK_PATH = PROJECT_ROOT / 'notebooks'
+SAVED_FEATURES = NOTEBOOK_PATH / 'saved_features'
 CACHE_DIR = PROJECT_ROOT / 'cache'
 
 SEQUENCE = 'Sequence'

@@ -3,7 +3,7 @@ import pytest
 import os
 import pickle
 from pathlib import Path
-from tauso.read_human_genome import get_locus_to_data_dict
+from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 
 TESTS_PATH =  Path(os.path.dirname(__file__))

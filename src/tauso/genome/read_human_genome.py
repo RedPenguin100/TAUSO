@@ -2,10 +2,11 @@ import bisect
 from pathlib import Path
 
 import gffutils
-from .consts import HUMAN_GFF, HUMAN_DB_BASIC_INTRONS, HUMAN_DB_BASIC_INTRONS_GZ
-from .file_utils import read_human_genome_fasta_dict
+
+from .genome import load_db, load_genome
+from ..consts import HUMAN_GFF, HUMAN_DB_BASIC_INTRONS, HUMAN_DB_BASIC_INTRONS_GZ
 from .LocusInfo import LocusInfo
-from .timer import Timer
+from ..timer import Timer
 
 
 def cond_print(text, verbose=False):
@@ -13,38 +14,13 @@ def cond_print(text, verbose=False):
         print(text)
 
 
-def create_human_genome_db(path: Path, create_introns=False):
-    print("Creating human genome database. WARNING - this is slow!")
+def get_locus_to_data_dict(include_introns=True, gene_subset=None):
     with Timer() as t:
-        db = gffutils.create_db(str(HUMAN_GFF), dbfn=str(path), force=True, keep_order=True,
-                                merge_strategy='merge', sort_attribute_values=True)
-        if create_introns:
-            db.update(list(db.create_introns()))
-    print(f"DB create took: {t.elapsed_time}s")
-    return db
+        db = load_db()
+    print("Elapsed DB: ", t.elapsed_time)
+    fasta_dict = load_genome()
+    print("Elapsed Fasta: ", t.elapsed_time)
 
-
-def get_human_genome_annotation_db(create_db=False):
-    db_path = HUMAN_DB_BASIC_INTRONS
-
-    if not db_path.is_file():
-        if HUMAN_DB_BASIC_INTRONS_GZ.is_file():
-            raise ValueError(
-                f"DB file is not unzipped: {HUMAN_DB_BASIC_INTRONS_GZ}, please unzip to use! (Consider README.md)")
-
-        if create_db:
-            db = create_human_genome_db(db_path, create_introns=True)
-        else:
-            raise ValueError(
-                f"DB not found in path: {str(db_path)}, either download it or create (please consider README.md)")
-    else:
-        db = gffutils.FeatureDB(str(db_path))
-    return db
-
-
-def get_locus_to_data_dict(create_db=False, include_introns=False, gene_subset=None):
-    db = get_human_genome_annotation_db(create_db)
-    fasta_dict = read_human_genome_fasta_dict()
     print("Length: ", len(fasta_dict))
 
     locus_to_data = dict()
@@ -57,7 +33,32 @@ def get_locus_to_data_dict(create_db=False, include_introns=False, gene_subset=N
     else:
         feature_types = basic_features
 
-    for feature in db.features_of_type(feature_types, order_by='start'):
+    # --- OPTIMIZATION START ---
+    iterator = []
+
+    # If we have specific genes, don't scan the whole genome.
+    if gene_subset:
+        target_names = set(gene_subset)
+
+        # 2. Iterate ONLY genes (Fast, ~60k items vs millions)
+        # Note: If you have Gene IDs (ENSG...), you could do db[id] which is O(1).
+        # Since you use names (KLKB1), we scan the genes.
+        for gene in db.features_of_type('gene'):
+            name_list = gene.attributes.get('gene_name', [])
+            if name_list and name_list[0] in target_names:
+                # Add the gene itself
+                iterator.append(gene)
+
+                # Add its children (exons, introns, etc.)
+                # db.children() uses the DB index = INSTANT
+                children = db.children(gene, featuretype=feature_types, order_by='start')
+                iterator.extend(list(children))
+    else:
+        # Full genome scan
+        iterator = db.features_of_type(feature_types, order_by='start')
+    # --- OPTIMIZATION END ---
+
+    for feature in iterator:
         chrom = feature.seqid
         if 'chrM' == chrom:
             continue
@@ -78,10 +79,11 @@ def get_locus_to_data_dict(create_db=False, include_introns=False, gene_subset=N
 
         if feature.featuretype == 'exon':
             exon = feature
-            seq = fasta_dict[chrom].seq[exon.start - 1: exon.end]
+            # seq = fasta_dict[chrom].seq[exon.start - 1: exon.end]
+            seq = fasta_dict[chrom][exon.start - 1: exon.end]
             if exon.strand == '-':
                 seq = seq.reverse_complement()
-            seq = seq.upper()
+            seq = str(seq).upper()
 
             bisect.insort(locus_info.exons, (exon.start - 1, seq))
             bisect.insort(locus_info.exon_indices, (exon.start - 1, exon.end))
@@ -89,11 +91,12 @@ def get_locus_to_data_dict(create_db=False, include_introns=False, gene_subset=N
 
         elif feature.featuretype == 'intron' and include_introns:
             intron = feature
-            seq = fasta_dict[chrom].seq[intron.start - 1: intron.end]
+            # seq = fasta_dict[chrom].seq[intron.start - 1: intron.end]
+            seq = fasta_dict[chrom][intron.start - 1: intron.end]
 
             if intron.strand == '-':
                 seq = seq.reverse_complement()
-            seq = seq.upper()
+            seq = str(seq).upper()
 
             bisect.insort(locus_info.introns, (intron.start - 1, seq))
             bisect.insort(locus_info.intron_indices, (intron.start - 1, intron.end))
@@ -101,11 +104,12 @@ def get_locus_to_data_dict(create_db=False, include_introns=False, gene_subset=N
 
         elif feature.featuretype == 'gene':
             gene = feature
-            seq = fasta_dict[chrom].seq[gene.start - 1: gene.end]
+            # seq = fasta_dict[chrom].seq[gene.start - 1: gene.end]
+            seq = fasta_dict[chrom][gene.start - 1: gene.end]
 
             if gene.strand == '-':
                 seq = seq.reverse_complement()
-            seq = seq.upper()
+            seq = str(seq).upper()
 
             locus_info.strand = gene.strand
             locus_info.cds_start = gene.start - 1
@@ -121,10 +125,6 @@ def get_locus_to_data_dict(create_db=False, include_introns=False, gene_subset=N
             locus_info.stop_codons.append((feature.start, feature.end))
         else:
             print("Feature type: ", feature.featuretype)
-
-        locus_info = locus_to_data[locus_tag]
-        gene_type = feature.attributes['gene_type']
-        locus_info.gene_type = gene_type
 
 
     for locus_tag in locus_to_data:
