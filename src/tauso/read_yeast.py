@@ -15,7 +15,7 @@ from .file_utils import read_yeast_genome_fasta_dict
 from .timer import Timer
 from .util import get_longer_string
 from .validate import validate_yeast_files
-from .LocusInfo import LocusInfo
+from .genome.LocusInfo import LocusInfo
 
 def cond_print(text, verbose=False):
     if verbose:

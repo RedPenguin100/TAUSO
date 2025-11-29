@@ -1,10 +1,9 @@
 import pickle
 
-import pandas as pd
 import numpy as np
 
 from notebooks.consts import INHIBITION, CACHE_DIR
-from tauso.read_human_genome import get_locus_to_data_dict
+from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 
 def log_correction(df, correction=0.01):

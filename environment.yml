@@ -23,6 +23,8 @@ dependencies:
   - zipp
   - pympler
   - multiprocess
+  - click
+  - mysql-connector-python
 
   # your domain-specific stuff
   - codon-bias==0.3.5
