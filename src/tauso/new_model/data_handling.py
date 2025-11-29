@@ -10,6 +10,7 @@ from ..features.seq_features import palindromic_fraction, homooligo_count, hairp
     nucleotide_diversity, stop_codon_count, get_gc_content, at_rich_region_score, poly_pyrimidine_stretch
 from .consts_dataframe import CELL_LINE_ORGANISM, CANONICAL_GENE, SEQUENCE, SENSE_LENGTH, SENSE_START
 from .utils import INHIBITION
+from ..genome.read_human_genome import get_locus_to_data_dict
 
 
 def get_unique_human_genes(all_data):
@@ -26,7 +27,6 @@ def get_unique_human_genes(all_data):
 
 
 def get_gene_to_data(genes_u):
-    from ..read_human_genome import get_locus_to_data_dict
     import pickle
     from ..consts import CACHE_DIR
 
