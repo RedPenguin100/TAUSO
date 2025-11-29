@@ -1,3 +1,4 @@
 .idea/
-/src/tauso.egg-info/
-data/
+./src/tauso.egg-info/
+./data/
+./src/data/
