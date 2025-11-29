@@ -17,30 +17,47 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # We don't need to mount a new volume, just delete junk
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      # ---------------------------------------
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: true
-#      - name: Run Make
-#        run: make
-#        working-directory: external/risearch/RIsearch1
+
       - name: Compute env hash
         id: envhash
         run: echo "hash=$(sha256sum environment.yml | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: environment.yml
           environment-name: tauso
-          cache-env: true           # <— THIS enables caching
-          cache-downloads: true     # <— Also caches pkgs
+          cache-env: true
+          cache-downloads: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ steps.envhash.outputs.hash }}
-          init-shell: bash
+          # init-shell: bash  <-- You usually don't need this line if you use 'shell: bash -el {0}' above
+
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
+
       - name: Install raccess
         run: tauso install-raccess
-#      - name: Install genome
-#        run: tauso setup-genome
+
+      # This will now work because we have ~30GB free space
+      - name: Install genome
+        run: tauso setup-genome
+
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs
