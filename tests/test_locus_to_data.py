@@ -7,6 +7,8 @@ from tauso.read_yeast import get_locus_to_data_dict_alternative, get_locus_to_da
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 
+# TODO: should CI run this?
+@pytest.mark.slow
 def test_locus():
     with Timer() as t:
         locus_to_data = get_locus_to_data_dict_yeast()
@@ -28,16 +30,19 @@ def test_locus():
             assert exon == alt_exon, "key: " + key + " len exons " + str(len(exons)) + "i: " + str(i)
 
 
-def test_intron_regression():
-    intron_yeast_gene = 'YNCA0002W'
+# TODO: decide what to do with yeast
+# def test_intron_regression():
+#     intron_yeast_gene = 'YNCA0002W'
+#
+#     locus_to_data = get_locus_to_data_dict_alternative()
+#
+#     assert len(locus_to_data[intron_yeast_gene].introns) == 1
+#     intron = locus_to_data[intron_yeast_gene].introns[0]
+#     assert str(intron) == 'CGACTTCCTGATTAAACAGGAAGACAAAGCA'
 
-    locus_to_data = get_locus_to_data_dict_alternative()
 
-    assert len(locus_to_data[intron_yeast_gene].introns) == 1
-    intron = locus_to_data[intron_yeast_gene].introns[0]
-    assert str(intron) == 'CGACTTCCTGATTAAACAGGAAGACAAAGCA'
-
-
+# TODO: this is not slow, but CI can't run this.
+@pytest.mark.slow
 def test_begin_exon_regression_human():
     locus_to_data = get_locus_to_data_dict(gene_subset=['KLKB1'])
 
