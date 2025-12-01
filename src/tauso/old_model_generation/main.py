@@ -162,6 +162,7 @@ def enrich_chemistry_features(df: pd.DataFrame, mod_type: str) -> pd.DataFrame:
 
     return df
 
+
 parent = Path(__file__).parent
 
 
@@ -233,6 +234,7 @@ def enrich_with_off_targets(
 
 DEFAULT_GENOME = 'GRCh38'
 
+
 def design_asos(
         gene_name: str,
         organism: str = 'human',
@@ -240,7 +242,9 @@ def design_asos(
         top_k: int = 10,
         include_details: bool = True,
         run_off_target: bool = True,
-        mod_type: List[str] = ['moe', 'lna']
+        return_seq: bool = False,
+        mod_type: List[str] = ['moe', 'lna'],
+
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, str]]:
     """
     Main pipeline entry point.
@@ -264,14 +268,6 @@ def design_asos(
     if not gene_name:
         raise ValueError("TODO")
     locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[gene_name])
-
-
-    # 2. Generate Base Candidates (Tiling)
-    # We do this once for the sequence
-    base_df = get_init_df(target_seq)
-
-    # 3. Run Prediction for each Chemistry
-    results_list = []
 
     # 1. Group chemistries by ASO length
     # Example: {20: ['moe', 'gapmer'], 16: ['lna']}
@@ -376,6 +372,9 @@ def design_asos(
         # Ensure we don't duplicate
         extra_cols = [c for c in all_cols if c not in output_cols]
         output_cols.extend(extra_cols)
+
+    if return_seq:
+        return top_results[output_cols], target_seq
 
     return top_results[output_cols]
 
