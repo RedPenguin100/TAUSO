@@ -1,5 +1,7 @@
+import os
 import shlex
 import subprocess
+import uuid
 from pathlib import Path
 
 import pandas as pd
@@ -7,6 +9,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from ..._raccess.core import find_raccess
 from .file_util import FileUtil
 
 
@@ -61,8 +64,7 @@ class RNAAccess(object):
 
         self.uuid_str = None
         if exe_path is None:
-            exe_name = "run_raccess"
-            self.exe_path = FileUtil.get_3rd_path(exe_name)
+            self.exe_path = find_raccess()
         else:
             self.exe_path = exe_path
 
@@ -84,30 +86,39 @@ class RNAAccess(object):
         return seq_rec
 
     def calculate(self, seq_id_list):
+        if not self.uuid_str:
+            uuid_str = str(uuid.uuid4().hex)
+        else:
+            uuid_str = self.uuid_str
+
         seq_file_name = 'trig_seq.fa'
-        if self.uuid_str:
-            seq_file_name = self.uuid_str + '_' + seq_file_name
+        seq_file_name = uuid_str + '_' + seq_file_name
         seq_path = FileUtil.get_output_path(seq_file_name)
 
-        seq_rec_list = map(self.to_seq_rec, seq_id_list)
-        SeqIO.write(seq_rec_list, seq_path, "fasta")
-
         out_file_name = 'trig_raccess.txt'
-        if self.uuid_str:
-            out_file_name = self.uuid_str + '_' + out_file_name
+        out_file_name = uuid_str + '_' + out_file_name
         out_path = FileUtil.get_output_path(out_file_name)
 
-        segment_sizes_str = ','.join(map(str, self.segment_sizes))
-        cmd = (f"{self.exe_path} -outfile={out_path} -seqfile={seq_path} "
-               f"-access_len={segment_sizes_str} -max_span={self.max_span}")
+        try:
+            seq_rec_list = map(self.to_seq_rec, seq_id_list)
+            SeqIO.write(seq_rec_list, seq_path, "fasta")
 
-        command = shlex.split(cmd)
-        p = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            segment_sizes_str = ','.join(map(str, self.segment_sizes))
+            cmd = (f"{self.exe_path} -outfile={out_path} -seqfile={seq_path} "
+                   f"-access_len={segment_sizes_str} -max_span={self.max_span}")
 
-        with open(out_path, 'r') as f:
-            data = f.read()
-        res = parse(data, self.segment_sizes)
-        return res
+            command = shlex.split(cmd)
+            p = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+            with open(out_path, 'r') as f:
+                data = f.read()
+            res = parse(data, self.segment_sizes)
+            return res
+        finally:
+            if os.path.exists(seq_path):
+                os.remove(seq_path)
+            if os.path.exists(out_path):
+                os.remove(out_path)
 
 
 if __name__ == "__main__":
