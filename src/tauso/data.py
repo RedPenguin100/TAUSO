@@ -1,4 +1,5 @@
 import os
+
 import gffutils
 from pyfaidx import Fasta
 from platformdirs import user_data_dir
@@ -6,8 +7,16 @@ from platformdirs import user_data_dir
 APP_NAME = "tauso"
 
 def get_data_dir():
-    """Returns the base data directory."""
-    d = user_data_dir(APP_NAME)
+    # 1. Check for Docker/Render Environment Variable override
+    env_path = os.environ.get('TAUSO_DATA_DIR')
+
+    if env_path:
+        d = env_path
+    else:
+        # 2. Fallback to standard User Data Dir (e.g., ~/.local/share/tauso)
+        d = user_data_dir(APP_NAME)
+
+    # Ensure the directory exists (works for both paths)
     os.makedirs(d, exist_ok=True)
     return d
 
