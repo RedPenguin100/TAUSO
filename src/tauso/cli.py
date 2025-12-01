@@ -24,7 +24,7 @@ def get_gencode_urls(subset):
     """Returns URLs for the PRIMARY ASSEMBLY (Human Default)."""
     fasta_url = f"{GENCODE_BASE_URL}/GRCh38.primary_assembly.genome.fa.gz"
     if subset == 'basic':
-        gtf_name = f"gencode.v{GENCODE_RELEASE}.primary_assembly.basic.annotation.gtf.gz"
+        gtf_name = f"gencode.v{GENCODE_RELEASE}.basic.annotation.gtf.gz"
     else:
         gtf_name = f"gencode.v{GENCODE_RELEASE}.primary_assembly.annotation.gtf.gz"
     gtf_url = f"{GENCODE_BASE_URL}/{gtf_name}"
