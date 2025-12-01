@@ -10,7 +10,7 @@ from tauso.new_model.populate.populate_sense_accessibility import populate_sense
 
 from tauso.new_model.consts_dataframe import SEQUENCE
 from tauso.util import get_antisense
-from tests.conftest import TESTS_PATH
+from tests.common.consts import UNIT_TESTS_PATH
 
 FLANK_SIZE = 120
 ACCESS_SIZE = 13
@@ -61,7 +61,7 @@ def test_regression(short_mrna, n_compare=10, path="avg_sense_access.txt", use_s
     )
 
 def test_parsing(dataframe_regression):
-    with open(TESTS_PATH / "trig_raccess.txt", "r") as f:
+    with open(UNIT_TESTS_PATH / "trig_raccess.txt", "r") as f:
         data = f.read()
 
     for i in range(10000):
