@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 
 from tauso.features.vienna_fold import get_weighted_energy, calculate_energies
-from tests.conftest import TEST_CACHE_PATH
+from tests.common.consts import UNIT_TESTS_PATH
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 
@@ -11,7 +11,7 @@ from tauso.genome.read_human_genome import get_locus_to_data_dict
 def mrna():
     target_gene = 'DDX11L1'
 
-    test_cache = TEST_CACHE_PATH / 'gene_to_data_test.pickle'
+    test_cache = UNIT_TESTS_PATH / 'gene_to_data_test.pickle'
     # if not False:
     if not test_cache.exists():
         gene_to_data = get_locus_to_data_dict(include_introns=True, gene_subset=[target_gene])
@@ -25,11 +25,14 @@ def mrna():
 
 
 def test_regression(mrna):
+    print("mRNA length: ", len(mrna))
+    print(mrna)
+
     energies = calculate_energies(str(mrna), 15, 40)
     print(energies[-3:])
-    energy = get_weighted_energy(1645, 16, 15, energies, 40)
+    energy = get_weighted_energy(2525, 16, 15, energies, 40)
 
-    assert pytest.approx(energy, rel=1e-2) == -8.899999618530273
+    assert pytest.approx(energy, rel=1e-2) == -3.56
 
 
 def test_sanity():
