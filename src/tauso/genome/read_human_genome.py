@@ -1,10 +1,6 @@
 import bisect
-from pathlib import Path
 
-import gffutils
-
-from .genome import load_db, load_genome
-from ..consts import HUMAN_GFF, HUMAN_DB_BASIC_INTRONS, HUMAN_DB_BASIC_INTRONS_GZ
+from ..data import load_db, load_genome
 from .LocusInfo import LocusInfo
 from ..timer import Timer
 
