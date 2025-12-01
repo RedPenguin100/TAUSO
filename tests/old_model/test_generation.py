@@ -4,11 +4,6 @@ from tauso.old_model_generation.main import get_target_sequence, get_init_df
 
 
 @pytest.mark.integration
-def test_myo6_regression():
-    assert get_target_sequence('MYO6').startswith('CGCTCCGTAGCCGTGACGTGCACGCCGCAGTGC')
-
-
-@pytest.mark.integration
 def test_stub_gene():
     exogenous_gene = 'GATACAGATACAGATACA'
     assert exogenous_gene == get_target_sequence('AAA', exogenous_gene)

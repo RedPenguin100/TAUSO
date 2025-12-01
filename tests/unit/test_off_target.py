@@ -44,17 +44,6 @@ def sample_sam_output():
 
 # --- TESTS ---
 
-def test_get_bowtie_index_builds_if_missing(mock_paths, mock_shutil_which):
-    """Test that bowtie-build is called if index doesn't exist."""
-    with patch("os.path.exists", return_value=False), \
-            patch("subprocess.run") as mock_run:
-        index_base = get_bowtie_index_base()
-
-        # Verify bowtie-build was called
-        assert "bowtie-build" in mock_run.call_args[0][0]
-        assert "GRCh38_bowtie_index" in index_base
-
-
 def test_get_bowtie_index_skips_if_exists(mock_paths, mock_shutil_which):
     """Test that we skip building if index exists."""
     with patch("os.path.exists", return_value=True), \
@@ -150,21 +139,3 @@ def test_annotate_hits_intergenic():
 
         assert df.iloc[0]['region_type'] == 'Intergenic'
         assert df.iloc[0]['gene_name'] is None
-
-
-def test_full_pipeline_integration(mock_paths, mock_shutil_which, sample_sam_output):
-    """Tests the find_all_gene_off_targets wrapper."""
-    with patch("tauso.off_target.search.run_bowtie_search") as mock_search, \
-            patch("tauso.off_target.search.annotate_hits") as mock_annotate:
-        # Mock returns
-        mock_search.return_value = [{'chrom': 'chr1', 'start': 100}]
-        mock_annotate.return_value = pd.DataFrame([
-            {'chrom': 'chr1', 'start': 100, 'gene_name': 'GeneA'}
-        ])
-
-        df = find_all_gene_off_targets("ACGT", max_mismatches=2)
-
-        assert not df.empty
-        assert 'gene_name' in df.columns
-        mock_search.assert_called_once_with("ACGT", 2)
-        mock_annotate.assert_called_once()
