@@ -271,7 +271,7 @@ def design_asos(
 
     if custom_sequence:
         locus_data = dict()
-        locus_data[gene_name] = LocusInfo(gene_name)
+        locus_data[gene_name] = LocusInfo(custom_sequence)
     else:
         locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[gene_name])
 
