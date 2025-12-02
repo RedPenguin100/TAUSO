@@ -132,6 +132,7 @@ def get_populate_fold(df, genes_u, gene_to_data, fold_variants=[(40, 15)]):
                 sense = get_antisense(antisense)
                 l = row[SENSE_LENGTH]
                 sense_start = row[SENSE_START]
+                print("Sense start internal: ", sense_start)
                 mean_fold = get_weighted_energy(sense_start, l, step_size, energies, window_size)
                 mean_fold_end = get_weighted_energy(sense_start, l, step_size, energies, window_size)
                 mean_fold_start = get_weighted_energy(sense_start, l, step_size, energies, window_size)
