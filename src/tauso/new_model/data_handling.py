@@ -39,6 +39,9 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
         sense = get_antisense(antisense)
 
         idx = pre_mrna.upper().replace("T", "U").find(sense.upper().replace("T", "U"))
+        print("PremRNA: ", pre_mrna[index, index+16])
+        print("11sense: ", sense)
+        print("idx")
 
         all_data_human_gene.loc[index, SENSE_START] = idx
         all_data_human_gene.loc[index, SENSE_START_FROM_END] = np.abs(
