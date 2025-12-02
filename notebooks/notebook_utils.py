@@ -2,7 +2,7 @@ import pickle
 
 import numpy as np
 
-from notebooks.consts import INHIBITION, CACHE_DIR
+from notebooks.consts import INHIBITION, CACHE_DIR, CELL_LINE_ORGANISM, CANONICAL_GENE
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 
@@ -21,3 +21,16 @@ def read_cached_gene_to_data(genes_u):
         with open(cache_path, 'rb') as f:
             gene_to_data = pickle.load(f)
     return gene_to_data
+
+
+def get_unique_human_genes(all_data):
+    all_data_human = all_data[all_data[CELL_LINE_ORGANISM] == 'human']
+    all_data_human_no_nan = all_data_human.dropna(subset=[INHIBITION]).copy()
+
+    genes = all_data_human_no_nan[CANONICAL_GENE].copy()
+    genes_u = list(set(genes))
+
+    genes_u.remove('HBV')
+    genes_u.remove('negative_control')
+
+    return genes_u

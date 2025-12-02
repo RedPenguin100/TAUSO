@@ -134,7 +134,7 @@ def populate_cai_for_aso_dataframe(aso_df, locus_info, cell_line='A431'):
                     for gpos in range(exon_start, exon_end):
                         if mrna_idx >= len(pre_mrna):
                             break
-                        if locus_info.cds_start <= gpos <= locus_info.cds_end:
+                        if locus_info.gene_start <= gpos <= locus_info.gene_end:
                             cds_seq.append(pre_mrna[mrna_idx])
                             genome_to_mrna_map[gpos] = len(cds_seq) - 1
                         mrna_idx += 1
@@ -148,7 +148,7 @@ def populate_cai_for_aso_dataframe(aso_df, locus_info, cell_line='A431'):
 
             # If within CDS, extract local CDS context (unchanged logic; .at + str)
             if (
-                    locus_info.cds_start <= genome_corrected_index <= locus_info.cds_end
+                    locus_info.gene_start <= genome_corrected_index <= locus_info.gene_end
                     and genome_corrected_index in genome_to_mrna_map
             ):
                 aso_df.at[index, IN_CODING_REGION] = True

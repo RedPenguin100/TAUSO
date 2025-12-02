@@ -8,40 +8,9 @@ from ..util import get_antisense
 from ..features.seq_features import palindromic_fraction, homooligo_count, hairpin_score, seq_entropy, \
     gc_skew, at_skew, \
     nucleotide_diversity, stop_codon_count, get_gc_content, at_rich_region_score, poly_pyrimidine_stretch
-from .consts_dataframe import CELL_LINE_ORGANISM, CANONICAL_GENE, SEQUENCE, SENSE_LENGTH, SENSE_START
+from .consts_dataframe import CELL_LINE_ORGANISM, CANONICAL_GENE, SEQUENCE, SENSE_LENGTH, SENSE_START, \
+    SENSE_START_FROM_END, SENSE_EXON, SENSE_INTRON, SENSE_UTR, SENSE_TYPE
 from .utils import INHIBITION
-from ..genome.read_human_genome import get_locus_to_data_dict
-
-
-def get_unique_human_genes(all_data):
-    all_data_human = all_data[all_data[CELL_LINE_ORGANISM] == 'human']
-    all_data_human_no_nan = all_data_human.dropna(subset=[INHIBITION]).copy()
-
-    genes = all_data_human_no_nan[CANONICAL_GENE].copy()
-    genes_u = list(set(genes))
-
-    genes_u.remove('HBV')
-    genes_u.remove('negative_control')
-
-    return genes_u
-
-
-def get_gene_to_data(genes_u):
-    import pickle
-    from ..consts import CACHE_DIR
-
-    cache_path = CACHE_DIR / 'gene_to_data_simple_cache.pickle'
-
-    # TODO: hash the pickled file to avoid mis-reads
-    if not cache_path.exists():
-        gene_to_data = get_locus_to_data_dict(include_introns=True, gene_subset=genes_u)
-        with open(cache_path, 'wb') as f:
-            pickle.dump(gene_to_data, f)
-    else:
-        with open(cache_path, 'rb') as f:
-            gene_to_data = pickle.load(f)
-
-    return gene_to_data
 
 
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
@@ -52,13 +21,6 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
     all_data_human = df_copy[df_copy[CELL_LINE_ORGANISM] == 'human']
     all_data_human_no_nan = all_data_human.dropna(subset=[INHIBITION]).copy()
     all_data_human_gene = all_data_human_no_nan[all_data_human_no_nan[CANONICAL_GENE].isin(genes_u)].copy()
-    SENSE_START = 'sense_start'
-    SENSE_START_FROM_END = 'sense_start_from_end'
-    SENSE_LENGTH = 'sense_length'
-    SENSE_TYPE = 'sense_type'
-    SENSE_EXON = 'sense_exon'
-    SENSE_INTRON = 'sense_intron'
-    SENSE_UTR = 'sense_utr'
 
     found = 0
     all_data_human_gene[SENSE_START] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
@@ -74,15 +36,14 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
         pre_mrna = locus_info.full_mrna
         antisense = row[SEQUENCE]
         sense = get_antisense(antisense)
-        print("Sense: ", sense)
-        print("PremRNA: ", pre_mrna[row:row+20])
+
         idx = pre_mrna.find(sense)
         all_data_human_gene.loc[index, SENSE_START] = idx
         all_data_human_gene.loc[index, SENSE_START_FROM_END] = np.abs(
-            locus_info.exon_indices[-1][1] - locus_info.cds_start - idx)
+            locus_info.exon_indices[-1][1] - locus_info.gene_start - idx)
         all_data_human_gene.loc[index, SENSE_LENGTH] = len(antisense)
         if idx != -1:
-            genome_corrected_index = idx + locus_info.cds_start
+            genome_corrected_index = idx + locus_info.gene_start
             found = False
             for exon_indices in locus_info.exon_indices:
                 # print(exon[0], exon[1])

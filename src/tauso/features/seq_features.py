@@ -25,7 +25,7 @@ def hairpin_dG_energy(seq: str):
     Negative values indicate stronger/stable hairpins that may interfere with ASO activity.
     """
     hairpin = calc_hairpin(seq)
-    print("structure_found:", hairpin.structure_found)  # ← נוספה שורה לבדיקת הדגל
+
     if not hairpin.structure_found:
         return 0
     return hairpin.dg if len(seq) > 0 else 0

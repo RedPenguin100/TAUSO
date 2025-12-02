@@ -108,8 +108,8 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None):
             seq = str(seq).upper()
 
             locus_info.strand = gene.strand
-            locus_info.cds_start = gene.start - 1
-            locus_info.cds_end = gene.end
+            locus_info.gene_start = gene.start - 1
+            locus_info.gene_end = gene.end
             locus_info.full_mrna = seq
             locus_to_strand[locus_tag] = gene.strand
 
