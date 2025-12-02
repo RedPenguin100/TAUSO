@@ -9,8 +9,8 @@ class LocusInfo:
         self.three_prime_utr = ""
         self.exon_concat = None
         self.full_mrna = None
-        self.cds_start = None
-        self.cds_end = None
+        self.gene_start = None
+        self.gene_end = None
         self.strand = None
         self.gene_type = None
         self.utr_indices = []
@@ -18,8 +18,8 @@ class LocusInfo:
         if seq is not None:
             self.exons = [seq]
             self.exon_indices = [(0, len(seq) - 1)]
-            self.cds_start = 0
-            self.cds_end = len(seq) - 1
+            self.gene_start = 0
+            self.gene_end = len(seq) - 1
             self.strand = "+"
             self.gene_type = "unknown"
             self.exon_concat = seq
