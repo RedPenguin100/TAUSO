@@ -7,6 +7,7 @@ import pandas as pd
 from xgboost import XGBRanker
 
 from tauso.features.mod_features import compute_mod_min_distance_to_3prime
+from tauso.genome.LocusInfo import LocusInfo
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.new_model.data_handling import get_populate_fold, populate_features, get_populated_df_with_structure_features
 from tauso.new_model.feature_creation import add_RNaseH1_Krel
@@ -265,9 +266,11 @@ def design_asos(
     # 1. Get Sequence
     target_seq = get_target_sequence(gene_name, custom_sequence)
 
-    if not gene_name:
-        raise ValueError("TODO")
-    locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[gene_name])
+    if custom_sequence:
+        locus_data = dict()
+        locus_data['one_exon'] = LocusInfo(gene_name)
+    else:
+        locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[gene_name])
 
     # 1. Group chemistries by ASO length
     # Example: {20: ['moe', 'gapmer'], 16: ['lna']}

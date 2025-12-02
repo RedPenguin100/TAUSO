@@ -1,5 +1,5 @@
 class LocusInfo:
-    def __init__(self):
+    def __init__(self, seq=None):
         self.exons = []
         self.introns = []
         self.exon_indices = []
@@ -14,3 +14,18 @@ class LocusInfo:
         self.strand = None
         self.gene_type = None
         self.utr_indices = []
+
+        if seq is not None:
+            self.exons = [seq]
+            self.exon_indices = [(0, len(seq) - 1)]
+            self.cds_start = 0
+            self.cds_end = len(seq) - 1
+            self.strand = "+"
+            self.gene_type = "unknown"
+            self.exon_concat = seq
+            self.full_mrna = seq
+
+    def __repr__(self):
+        print("LocusInfo:")
+        for field, value in self.__dict__.items():
+            print(f"  {field}: {value}")
