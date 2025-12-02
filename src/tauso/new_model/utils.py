@@ -63,7 +63,7 @@ def get_init_df(target_mrna, end, mod_type='moe'):
             counter = + 1
             continue
         set_candidates.add(target)
-        candidates.append(get_antisense(str(target)))
+        candidates.append(get_antisense(str(target)).upper().replace('T', 'U'))
         sense_starts.append(i)
         sense_lengths.append(s)
         sense_starts_from_end.append(end - i)

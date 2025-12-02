@@ -30,6 +30,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
     all_data_human_gene[SENSE_INTRON] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
     all_data_human_gene[SENSE_UTR] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
     all_data_human_gene[SENSE_TYPE] = "NA"
+
     for index, row in all_data_human_gene.iterrows():
         gene_name = row[CANONICAL_GENE]
         locus_info = gene_to_data[gene_name]
@@ -37,7 +38,8 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
         antisense = row[SEQUENCE]
         sense = get_antisense(antisense)
 
-        idx = pre_mrna.find(sense)
+        idx = pre_mrna.upper().replace("T", "U").find(sense.upper().replace("T", "U"))
+
         all_data_human_gene.loc[index, SENSE_START] = idx
         all_data_human_gene.loc[index, SENSE_START_FROM_END] = np.abs(
             locus_info.exon_indices[-1][1] - locus_info.gene_start - idx)
