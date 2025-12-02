@@ -1,1 +1,2 @@
 include src/tauso/new_model/populate/cai_cache/weights_cache.json
+include src/tauso/old_model_generation/model.json
