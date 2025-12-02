@@ -28,7 +28,7 @@ def get_target_sequence(
     by querying the local genome database.
     """
     if custom_sequence:
-        return custom_sequence.upper().replace('U', 'T')
+        return custom_sequence.upper().replace('T', 'U')
 
     # Use the optimized subset loader from read_human_genome.py
     print(f"Fetching sequence for {target_name}...")
