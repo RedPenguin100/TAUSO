@@ -126,9 +126,17 @@ def enrich_shared_features(
     df['normalized_start'] = df[SENSE_START] / seq_len
     df['normalized_sense_start_from_end'] = df['sense_start_from_end'] / seq_len
 
+    # --- DEBUG CHECK ---
+    print("DEBUG0: Checking sense_start after structure features...")
+    print(df[SENSE_START].head(10))
+
     # 3. Structural Features (EXPENSIVE)
     # Folding the candidate and checking target structure
     df = get_populated_df_with_structure_features(df, genes_lst, gene_to_data)
+
+    # --- DEBUG CHECK ---
+    print("DEBUG1: Checking sense_start after structure features...")
+    print(df[SENSE_START].head(10))
 
     # 4. Sequence Features (GC, Skew, etc.)
     easy_to_populate = [
