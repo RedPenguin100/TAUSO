@@ -24,6 +24,7 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
     """
     Returns the base path for the Bowtie index of the specific genome.
     """
+    print("Getting index ")
     if not shutil.which("bowtie"):
         raise RuntimeError("Bowtie binary not found. Please install: 'micromamba install -c bioconda bowtie'")
 
