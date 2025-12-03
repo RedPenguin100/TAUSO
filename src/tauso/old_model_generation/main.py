@@ -144,7 +144,8 @@ def enrich_shared_features(
 
     # 6. Gene-Level Features (EXPENSIVE)
     # Accessibility and CAI depend on the target gene, not the ASO chemistry
-    populate_sense_accessibility(df, gene_to_data[gene])
+    # TODO: uncomment
+    # populate_sense_accessibility(df, gene_to_data[gene])
     populate_cai_for_aso_dataframe(df, gene_to_data[gene])
 
     return df
@@ -157,6 +158,9 @@ def enrich_chemistry_features(df: pd.DataFrame, mod_type: str) -> pd.DataFrame:
     """
     mod_pattern = MOD_TYPE_DICT[mod_type]
     df['mod_pattern'] = mod_pattern
+
+    # --- MINIMAL CHANGE: Store the chemistry name for later sorting ---
+    df['chemistry_type'] = mod_type
 
     # Distance depends on the specific pattern string
     df['Modification_min_distance_to_3prime'] = compute_mod_min_distance_to_3prime(mod_pattern)
@@ -352,16 +356,37 @@ def design_asos(
 
     full_results = pd.concat(results_list)
 
-    # 4. Sort and Filter Top K
-    # Sort by score descending
-    full_results = full_results.sort_values(by='score', ascending=False)
+    # ---------------------------------------------------------
+    # 4. STRATIFIED SORTING (Top K per Chemistry)
+    # ---------------------------------------------------------
+    stratified_results = []
 
-    # Take top K *before* expensive off-target search
-    top_results = full_results.head(top_k).copy()
+    # Loop through the user's requested order (e.g., ['moe', 'lna'])
+    for chem_name in mod_type:
+        # Filter: Get all rows for this specific chemistry
+        subset = full_results[full_results['chemistry_type'] == chem_name]
+
+        if subset.empty:
+            continue
+
+        # Sort: Order by score descending and take Top K
+        subset_top = subset.sort_values(by='score', ascending=False).head(top_k)
+
+        stratified_results.append(subset_top)
+
+    # Combine: Stack them in order (Top MOEs, then Top LNAs)
+    if stratified_results:
+        top_results = pd.concat(stratified_results)
+    else:
+        # Fallback if something went wrong (e.g. no results found)
+        top_results = full_results.sort_values(by='score', ascending=False).head(top_k)
 
     # 5. Run Off-Target Analysis (Expensive Step)
+    print("Checking if should run off-target analysis: ")
     if run_off_target and organism == 'human':
+        print("Starting to run off-target: ")
         top_results = enrich_with_off_targets(top_results, genome=DEFAULT_GENOME)
+
 
     # 6. Select Columns for Output
     # Basic identification info
