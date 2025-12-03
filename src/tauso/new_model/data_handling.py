@@ -39,9 +39,6 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
         sense = get_antisense(antisense)
 
         idx = pre_mrna.upper().replace("T", "U").find(sense.upper().replace("T", "U"))
-        print("PremRNA: ", pre_mrna[index: index+16])
-        print("11sense: ", sense)
-        print("idx")
 
         all_data_human_gene.loc[index, SENSE_START] = idx
         all_data_human_gene.loc[index, SENSE_START_FROM_END] = np.abs(
@@ -100,7 +97,6 @@ def get_populate_fold(df, genes_u, gene_to_data, fold_variants=[(40, 15)]):
                 sense = get_antisense(antisense)
                 l = row[SENSE_LENGTH]
                 sense_start = row[SENSE_START]
-                print("Sense start internal: ", sense_start)
                 mean_fold = get_weighted_energy(sense_start, l, step_size, energies, window_size)
                 mean_fold_end = get_weighted_energy(sense_start, l, step_size, energies, window_size)
                 mean_fold_start = get_weighted_energy(sense_start, l, step_size, energies, window_size)
