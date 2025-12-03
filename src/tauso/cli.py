@@ -13,7 +13,7 @@ import time
 from pyfaidx import Fasta
 from gffutils.iterators import DataIterator
 from tauso.data import get_paths, get_data_dir
-from tauso.off_target.search import find_all_gene_off_targets
+from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
 # --- CONFIGURATION ---
 GENCODE_RELEASE = "34"
@@ -221,6 +221,24 @@ def run_off_target(sequence, genome, mismatches, output):
     """
     Search for off-target binding sites for a given ASO sequence.
     """
+    try:
+        paths = get_paths(genome)
+        # Construct the expected path to the "SUCCESS" sentinel file
+        # This mirrors the logic in get_bowtie_index_base
+        fasta_dir = os.path.dirname(paths['fasta'])
+        sentinel_path = os.path.join(fasta_dir, f"{genome}_bowtie_index", "SUCCESS")
+
+        if not os.path.exists(sentinel_path):
+            click.echo(click.style(f"❌ Error: Bowtie index for '{genome}' is missing.", fg="red"))
+            click.echo("The search cannot run because the genome index has not been built.")
+            click.echo(f"\nPlease run this command first:\n  tauso setup-bowtie --genome {genome}")
+            sys.exit(1)
+
+    except Exception as e:
+        # Catch issues like get_paths failing (e.g. if setup-genome wasn't run)
+        click.echo(click.style(f"Error checking environment: {e}", fg="red"))
+        sys.exit(1)
+
     original_seq = sequence
     sequence = sequence.upper().replace("U", "T")
 
@@ -265,6 +283,35 @@ def run_off_target(sequence, genome, mismatches, output):
     if output:
         hits_df.to_csv(output, index=False)
         click.echo(f"\nFull results saved to: {output}")
+
+
+@main.command()
+@click.option('--genome', default='GRCh38', help='Genome name (default: GRCh38).')
+@click.option('--force', is_flag=True, help="Force rebuild of the index.")
+def setup_bowtie(genome, force):
+    """
+    Generates (or validates) the Bowtie index for the specified genome.
+    Requires 'setup-genome' to be run first to ensure the FASTA file exists.
+    """
+    click.echo(f"Initializing Bowtie setup for {genome}...")
+
+    try:
+        # We assume the FASTA exists. If not, get_bowtie_index_base throws FileNotFoundError
+        # This function handles the logic:
+        # 1. Check if index exists -> return if so.
+        # 2. If --force or missing -> run bowtie-build.
+        index_path = get_bowtie_index_base(genome=genome, force_rebuild=force)
+
+        click.echo(click.style(f"✓ Bowtie index ready at: {index_path}", fg="green"))
+
+    except FileNotFoundError:
+        click.echo(click.style(f"Error: FASTA file for {genome} not found.", fg="red"))
+        click.echo(f"Please run 'tauso setup-genome --genome {genome}' first.")
+        sys.exit(1)
+    except Exception as e:
+        click.echo(click.style(f"Error building Bowtie index: {e}", fg="red"))
+        sys.exit(1)
+
 
 @main.command(context_settings=dict(
     ignore_unknown_options=True,
