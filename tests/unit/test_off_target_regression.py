@@ -49,7 +49,7 @@ def test_regression():
 
     try:
         # Use the high-level function that returns a DataFrame
-        hits_df = find_all_gene_off_targets(sequence, genome='GRCm39', max_mismatches=mismatches)
+        hits_df = find_all_gene_off_targets(sequence, genome='GRCh38', max_mismatches=mismatches)
     except Exception as e:
         print(f"\nCRITICAL FAILURE during search: {e}")
         sys.exit(1)
