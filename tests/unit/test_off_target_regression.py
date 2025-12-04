@@ -13,15 +13,17 @@ import pandas as pd
 from tauso.off_target.search import find_all_gene_off_targets
 from tauso.data import get_paths
 
+def test_regression():
+    # parser = argparse.ArgumentParser(description="Search for ASO off-targets in the real genome.")
+    # # Default is the KLKB1 fragment
+    # parser.add_argument("sequence", nargs="?", default="AGTGCCACATTAGAACAGCT",
+    #                     help="ASO sequence to search (default: KLKB1 fragment)")
+    # parser.add_argument("--mismatches", "-m", type=int, default=3, help="Max mismatches allowed")
+    #
+    # args = parser.parse_args()
 
-def main():
-    parser = argparse.ArgumentParser(description="Search for ASO off-targets in the real genome.")
-    # Default is the KLKB1 fragment
-    parser.add_argument("sequence", nargs="?", default="AGTGCCACATTAGAACAGCT",
-                        help="ASO sequence to search (default: KLKB1 fragment)")
-    parser.add_argument("--mismatches", "-m", type=int, default=3, help="Max mismatches allowed")
-
-    args = parser.parse_args()
+    sequence = 'AGTGCCACATTAGAACAGCT'
+    mismatches = 3
 
     # 1. Verify Environment
     print("Checking genome installation...")
@@ -38,16 +40,16 @@ def main():
 
     # 2. Run Search
     print(f"\n--- Starting Off-Target Search ---")
-    print(f"Query: {args.sequence}")
-    print(f"Length: {len(args.sequence)} bp")
-    print(f"Max Mismatches: {args.mismatches}")
+    print(f"Query: {sequence}")
+    print(f"Length: {len(sequence)} bp")
+    print(f"Max Mismatches: {mismatches}")
     print("Loading index and searching...")
 
     start_time = time.time()
 
     try:
         # Use the high-level function that returns a DataFrame
-        hits_df = find_all_gene_off_targets(args.sequence, max_mismatches=args.mismatches)
+        hits_df = find_all_gene_off_targets(sequence, genome='GRCm39', max_mismatches=mismatches)
     except Exception as e:
         print(f"\nCRITICAL FAILURE during search: {e}")
         sys.exit(1)
@@ -58,6 +60,11 @@ def main():
     # 3. Report Results
     print(f"\n--- Results ---")
     print(f"Time taken: {duration:.4f} seconds")
+
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', 1000)
+    print(hits_df)
+
 
     # FIX: Check if DataFrame is empty using .empty attribute
     if not hits_df.empty:
@@ -82,7 +89,3 @@ def main():
             count += 1
     else:
         print("No matches found within mismatch threshold.")
-
-
-if __name__ == "__main__":
-    main()
