@@ -273,7 +273,7 @@ def design_asos(
     Returns:
         DataFrame of designed ASOs.
     """
-    genome = ORGANISM_TO_GENOME[organism]
+    genome = ORGANISM_TO_GENOME.get(organism)
 
     # 1. Get Sequence
     target_seq = get_target_sequence(gene_name, custom_sequence)
