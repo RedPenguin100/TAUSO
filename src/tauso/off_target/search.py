@@ -24,7 +24,6 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
     """
     Returns the base path for the Bowtie index of the specific genome.
     """
-    print("Getting index ")
     if not shutil.which("bowtie"):
         raise RuntimeError("Bowtie binary not found. Please install: 'micromamba install -c bioconda bowtie'")
 
@@ -116,14 +115,17 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
 
 def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
     """
-    Runs Bowtie 1 alignment against the specified genome.
+    Runs Bowtie 1 alignment.
+    Returns:
+        hits_list: List of all hit dictionaries (for annotation)
+        counts_dict: Dictionary of counts {'mismatches0': X, 'mismatches1': Y...}
     """
     index_base = get_bowtie_index_base(genome=genome)
 
     cmd = [
         "bowtie",
         "-v", str(max_mismatches),
-        "-a", "--best", "--strata",
+        "-a",  # Report all valid alignments
         "-S", "--sam-nohead",
         index_base,
         "-c", sequence
@@ -133,23 +135,35 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
         process = subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
         logger.error(f"Bowtie search failed: {e.stderr}")
-        return []
+        return [], {f'mismatches{i}': 0 for i in range(max_mismatches + 1)}
 
     hits = []
+
+    # --- IMPLEMENTATION OF YOUR REQUEST ---
+    # Initialize the columns/counters you wanted
+    counts = {f'mismatches{i}': 0 for i in range(max_mismatches + 1)}
+
     for line in process.stdout.splitlines():
         if not line.strip(): continue
         parts = line.split('\t')
         flag = int(parts[1])
-        if flag & 4: continue
+        if flag & 4: continue  # Unmapped
 
         chrom = parts[2]
         start_pos = int(parts[3]) - 1
 
+        # Parse mismatches from NM tag
         mismatches = 0
         for tag in parts[11:]:
             if tag.startswith("NM:i:"):
                 mismatches = int(tag.split(":")[2])
+                break
 
+        # 1. Do the ++ for the specific mismatch column
+        if mismatches <= max_mismatches:
+            counts[f'mismatches{mismatches}'] += 1
+
+        # 2. Keep the hit data (needed for 'annotate_hits' later)
         hits.append({
             'chrom': chrom,
             'start': start_pos,
@@ -159,7 +173,7 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
             'sequence': sequence
         })
 
-    return hits
+    return hits, counts
 
 
 def annotate_hits(hits_list, genome="GRCh38"):
@@ -189,20 +203,30 @@ def annotate_hits(hits_list, genome="GRCh38"):
 
         for feat in features:
             f_type = feat.featuretype
+
+            # --- UPDATED PRIORITY LOGIC ---
             if f_type == 'exon':
-                priority = 3
+                priority = 4
+            elif f_type == 'CDS':  # Added for Bacteria/Yeast compatibility
+                priority = 4
             elif f_type == 'intron':
                 priority = 2
             elif f_type == 'gene':
                 priority = 1
             else:
                 priority = 0
+            # ------------------------------
 
             if priority > current_priority:
                 current_priority = priority
                 feature_type = f_type
+                # Ensembl sometimes uses 'gene_name', sometimes 'Name', sometimes just 'gene_id'
+                # This fallback chain covers Human (gene_name) and Bacteria (Name)
+                gene_name = feat.attributes.get('gene_name',
+                                                feat.attributes.get('Name',
+                                                                    feat.attributes.get('gene_id', [None])))[0]
+
                 gene_id = feat.attributes.get('gene_id', [None])[0]
-                gene_name = feat.attributes.get('gene_name', [None])[0]
 
         hit_copy = hit.copy()
         hit_copy['gene_id'] = gene_id
@@ -215,8 +239,15 @@ def annotate_hits(hits_list, genome="GRCh38"):
 
 def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
     """
-    Main entry point.
+    Main entry point for CLI.
     """
-    raw_hits = run_bowtie_search(sequence, genome=genome, max_mismatches=max_mismatches)
-    df = annotate_hits(raw_hits, genome=genome)
+    # Unpack the tuple (hits, counts)
+    hits_list, counts_dict = run_bowtie_search(sequence, genome=genome, max_mismatches=max_mismatches)
+
+    # Use the hits list for annotation as before
+    df = annotate_hits(hits_list, genome=genome)
+
+    # Optional: You could print the counts_dict here if debugging
+    # print(f"Counts: {counts_dict}")
+
     return df

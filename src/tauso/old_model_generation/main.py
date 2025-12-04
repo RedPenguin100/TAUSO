@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any, Union, Tuple
 
 import numpy as np
 import pandas as pd
+from pandas import Series, DataFrame
 
 from xgboost import XGBRanker
 
@@ -13,7 +14,7 @@ from tauso.new_model.data_handling import get_populate_fold, populate_features, 
 from tauso.new_model.populate.populate_cai import populate_cai_for_aso_dataframe
 from tauso.new_model.populate.populate_rnase import add_RNaseH1_Krel
 from tauso.new_model.populate.populate_sense_accessibility import populate_sense_accessibility
-from tauso.off_target.search import find_all_gene_off_targets
+from tauso.off_target.search import run_bowtie_search, annotate_hits
 from tauso.old_model_generation.consts_dataframe import SEQUENCE, SENSE_START, SENSE_LENGTH, MOD_TYPE_DICT, \
     TREATMENT_PERIOD, VOLUME, INHIBITION, CELL_LINE_ORGANISM, CANONICAL_GENE
 from tauso.util import get_antisense
@@ -182,65 +183,68 @@ def create_and_load_model(json_weight=str(parent / "model.json"), seed=42):
     return model
 
 
-def enrich_with_off_targets(
-        df: pd.DataFrame,
-        genome: str = 'GRCh38',
-        max_mismatches: int = 3
-) -> pd.DataFrame:
+def enrich_with_off_targets(df: pd.DataFrame, genome="GRCh38") -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Runs the new Bowtie-based off-target search (tauso.off_target.search)
-    Only runs on the provided rows (efficient for top-k).
+    Runs off-target search.
+    Returns:
+        1. df: Original DataFrame enriched with mismatch COUNT columns.
+        2. zero_mm_df: Separate DataFrame containing detailed annotations for all 0-mismatch hits.
     """
-    print(f"Running off-target analysis for {len(df)} candidates...")
+    print(f"Running off-target search for {len(df)} candidates...")
 
-    results = []
+    # 1. Initialize count columns in the main DataFrame
+    new_cols = ['mismatches0', 'mismatches1', 'mismatches2', 'mismatches3']
+    for col in new_cols:
+        df[col] = 0
 
-    for _, row in df.iterrows():
-        aso_seq = row[SEQUENCE]
+    # We will collect all 0-mismatch hits here
+    all_zero_mm_hits = []
 
-        # Call the new search.py function
-        try:
-            hits_df = find_all_gene_off_targets(
-                aso_seq,
-                genome=genome,
-                max_mismatches=max_mismatches
-            )
+    for idx, row in df.iterrows():
+        seq = row['Sequence']
 
-            if hits_df.empty:
-                count_0mm = 0
-                count_total = 0
-                summary = "No off-targets"
-            else:
-                count_0mm = len(hits_df[hits_df['mismatches'] == 0])
-                count_total = len(hits_df)
+        # Run search
+        hits, counts = run_bowtie_search(seq, genome=genome, max_mismatches=3)
 
-                # Create a concise summary string (e.g., "GAPDH(0mm); ACTB(1mm)")
-                # Prioritize low mismatches and genes
-                top_hits = hits_df.sort_values(['mismatches', 'gene_name']).head(3)
-                summary_parts = []
-                for _, h in top_hits.iterrows():
-                    gname = h['gene_name'] if h['gene_name'] else h['chrom']
-                    summary_parts.append(f"{gname}({h['mismatches']})")
-                summary = "; ".join(summary_parts)
+        # 2. Update Counts in Main DataFrame
+        for col in new_cols:
+            df.at[idx, col] = counts.get(col, 0)
 
-        except Exception as e:
-            print(f"Warning: Search failed for {aso_seq}: {e}")
-            count_0mm = -1
-            count_total = -1
-            summary = "Search Error"
+        # 3. Collect 0-mismatch hits for the second DataFrame
+        zero_hits = [h for h in hits if h['mismatches'] == 0]
 
-        results.append({
-            'off_target_0mm': count_0mm,
-            'off_target_total': count_total,
-            'off_target_summary': summary
-        })
+        for h in zero_hits:
+            # Important: Add the ASO sequence (or ID) so you can link this hit back to the parent ASO
+            h['parent_aso_sequence'] = seq
+            # Optional: If your main DF has an ID column, add that too
+            # h['parent_aso_id'] = f"ASO_{idx}"
 
-    ot_df = pd.DataFrame(results)
-    # Join back to original DF
-    return pd.concat([df.reset_index(drop=True), ot_df], axis=1)
+            all_zero_mm_hits.append(h)
+
+    # 4. Create the second DataFrame (Annotated)
+    if all_zero_mm_hits:
+        # annotate_hits returns a DataFrame with gene names, regions, etc.
+        zero_mm_df = annotate_hits(all_zero_mm_hits, genome=genome)
+
+        # Reorder columns to put the parent link first
+        cols = ['parent_aso_sequence', 'gene_name', 'region_type', 'chrom', 'start', 'strand']
+        # Add any other columns present in the hits but not in our preferred list
+        existing_cols = zero_mm_df.columns.tolist()
+        final_cols = cols + [c for c in existing_cols if c not in cols]
+
+        zero_mm_df = zero_mm_df[final_cols]
+    else:
+        # Return empty DF with expected columns if no hits found
+        zero_mm_df = pd.DataFrame(
+            columns=['parent_aso_sequence', 'gene_name', 'region_type', 'chrom', 'start', 'strand'])
+
+    return df, zero_mm_df
 
 
-DEFAULT_GENOME = 'GRCh38'
+ORGANISM_TO_GENOME = {
+    'human': 'GRCh38',
+    'mouse': 'GRCm39'
+}
 
 
 def design_asos(
@@ -253,13 +257,13 @@ def design_asos(
         return_seq: bool = False,
         mod_type: List[str] = ['moe', 'lna'],
 
-) -> Union[pd.DataFrame, Tuple[pd.DataFrame, str]]:
+) -> tuple[Any, DataFrame | None, str] | tuple[Any, DataFrame | None]:
     """
     Main pipeline entry point.
 
     Args:
         gene_name: Name of gene (e.g. 'MALAT1')
-        organism: 'human' triggers DB lookup and off-target search.
+        organism:
         custom_sequence: Optional override for sequence.
         top_k: Number of candidates to return.
         include_details: If True, returns feature columns.
@@ -269,6 +273,7 @@ def design_asos(
     Returns:
         DataFrame of designed ASOs.
     """
+    genome = ORGANISM_TO_GENOME[organism]
 
     # 1. Get Sequence
     target_seq = get_target_sequence(gene_name, custom_sequence)
@@ -381,20 +386,18 @@ def design_asos(
         # Fallback if something went wrong (e.g. no results found)
         top_results = full_results.sort_values(by='score', ascending=False).head(top_k)
 
+    annotated_off_targets = None
     # 5. Run Off-Target Analysis (Expensive Step)
     print("Checking if should run off-target analysis: ")
-    if run_off_target and organism == 'human':
+    if run_off_target:
         print("Starting to run off-target: ")
-        top_results = enrich_with_off_targets(top_results, genome=DEFAULT_GENOME)
+        top_results, annotated_off_targets = enrich_with_off_targets(top_results, genome=genome)
 
+        # 6. Select Columns for Output
+        # Basic identification info (Added chemistry_type as it's useful for sorting)
+        output_cols = [SEQUENCE, SENSE_START, 'mod_pattern', 'score', 'gc_content', 'chemistry_type']
 
-    # 6. Select Columns for Output
-    # Basic identification info
-    output_cols = [SEQUENCE, SENSE_START, 'mod_pattern', 'score', 'gc_content']
-
-    # Off-target info
-    if run_off_target and organism == 'human':
-        output_cols.extend(['off_target_0mm', 'off_target_summary'])
+        output_cols.extend(['mismatches0', 'mismatches1', 'mismatches2', 'mismatches3'])
 
     # Detailed features if requested
     if include_details:
@@ -405,9 +408,9 @@ def design_asos(
         output_cols.extend(extra_cols)
 
     if return_seq:
-        return top_results[output_cols], target_seq
+        return top_results[output_cols], annotated_off_targets, target_seq
 
-    return top_results[output_cols]
+    return top_results[output_cols], annotated_off_targets
 
 
 # --- Demo Execution ---
