@@ -5,7 +5,7 @@ from tauso.old_model_generation.main import get_target_sequence, get_init_df
 
 @pytest.mark.integration
 def test_stub_gene():
-    exogenous_gene = 'GATACAGATACAGATACA'
+    exogenous_gene = 'GAUACAGAUACAGAUACA'
     assert exogenous_gene == get_target_sequence('AAA', exogenous_gene)
 
 

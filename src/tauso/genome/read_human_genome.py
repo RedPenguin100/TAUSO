@@ -10,11 +10,11 @@ def cond_print(text, verbose=False):
         print(text)
 
 
-def get_locus_to_data_dict(include_introns=True, gene_subset=None):
+def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh38'):
     with Timer() as t:
-        db = load_db()
+        db = load_db(genome)
     print("Elapsed DB: ", t.elapsed_time)
-    fasta_dict = load_genome()
+    fasta_dict = load_genome(genome)
     print("Elapsed Fasta: ", t.elapsed_time)
 
     print("Length: ", len(fasta_dict))
@@ -108,8 +108,8 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None):
             seq = str(seq).upper()
 
             locus_info.strand = gene.strand
-            locus_info.cds_start = gene.start - 1
-            locus_info.cds_end = gene.end
+            locus_info.gene_start = gene.start - 1
+            locus_info.gene_end = gene.end
             locus_info.full_mrna = seq
             locus_to_strand[locus_tag] = gene.strand
 

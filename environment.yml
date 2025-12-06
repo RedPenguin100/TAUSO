@@ -26,7 +26,8 @@ dependencies:
   - click
   - mysql-connector-python
 
-  # your domain-specific stuff
+  - bowtie
+
   - codon-bias==0.3.5
   - viennarna==2.7.0
   - gget

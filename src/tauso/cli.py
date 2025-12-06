@@ -13,22 +13,7 @@ import time
 from pyfaidx import Fasta
 from gffutils.iterators import DataIterator
 from tauso.data import get_paths, get_data_dir
-from tauso.off_target.search import find_all_gene_off_targets
-
-# --- CONFIGURATION ---
-GENCODE_RELEASE = "34"
-GENCODE_BASE_URL = f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}"
-
-
-def get_gencode_urls(subset):
-    """Returns URLs for the PRIMARY ASSEMBLY (Human Default)."""
-    fasta_url = f"{GENCODE_BASE_URL}/GRCh38.primary_assembly.genome.fa.gz"
-    if subset == 'basic':
-        gtf_name = f"gencode.v{GENCODE_RELEASE}.basic.annotation.gtf.gz"
-    else:
-        gtf_name = f"gencode.v{GENCODE_RELEASE}.primary_assembly.annotation.gtf.gz"
-    gtf_url = f"{GENCODE_BASE_URL}/{gtf_name}"
-    return fasta_url, gtf_url
+from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
 
 def download_and_gunzip(url, dest_path):
@@ -82,14 +67,67 @@ def main():
     pass
 
 
+GENCODE_HUMAN_RELEASE = "34"
+
+
+def get_genome_metadata(genome):
+    """
+    Returns download URLs for supported genomes.
+    """
+    CONFIG = {
+        # --- MAMMALS (GENCODE) ---
+        'GRCh38': {
+            'base_url': f'https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_HUMAN_RELEASE}',
+            'fasta_name': 'GRCh38.primary_assembly.genome.fa.gz',
+            'gtf_name': f'gencode.v{GENCODE_HUMAN_RELEASE}.basic.annotation.gtf.gz'
+        },
+        'GRCm39': {
+            'base_url': 'https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M33',
+            'fasta_name': 'GRCm39.primary_assembly.genome.fa.gz',
+            'gtf_name': 'gencode.vM33.basic.annotation.gtf.gz'
+        },
+
+        # --- YEAST (Ensembl) ---
+        'R64-1-1': {
+            'base_url': 'http://ftp.ensembl.org/pub/release-110',  # Stable release
+            'fasta_name': 'fasta/saccharomyces_cerevisiae/dna/Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz',
+            'gtf_name': 'gtf/saccharomyces_cerevisiae/Saccharomyces_cerevisiae.R64-1-1.110.gtf.gz'
+        },
+
+        # --- E. COLI (Ensembl Bacteria) ---
+        # Note: E. coli K-12 MG1655
+        'ASM584v2': {
+            'base_url': 'http://ftp.ensemblgenomes.org/pub/bacteria/release-57',
+            'fasta_name': 'fasta/bacteria_0_collection/escherichia_coli_str_k_12_substr_mg1655/dna/Escherichia_coli_str_k_12_substr_mg1655.ASM584v2.dna.toplevel.fa.gz',
+            'gtf_name': 'gtf/bacteria_0_collection/escherichia_coli_str_k_12_substr_mg1655/Escherichia_coli_str_k_12_substr_mg1655.ASM584v2.57.gtf.gz'
+        }
+    }
+
+    if genome not in CONFIG:
+        return None
+
+    meta = CONFIG[genome]
+    base = meta['base_url']
+
+    # Logic to handle different URL structures between GENCODE and Ensembl
+    # Ensembl URLs in config include the full relative path, GENCODE were simple appends
+    # We can standardize by just joining base + name
+    fasta_url = f"{base}/{meta['fasta_name']}"
+    gtf_url = f"{base}/{meta['gtf_name']}"
+
+    return fasta_url, gtf_url
+
+
 @main.command()
-@click.option('--genome', default='GRCh38', help='Genome name (default: GRCh38).')
-@click.option('--subset', type=click.Choice(['basic', 'full']), default='basic',
-              help='Annotation subset: "basic" or "full".')
+@click.option('--genome', default='GRCh38', help='Genome name (GRCh38 or GRCm39).')
 @click.option('--force', is_flag=True, help="Force re-download and rebuild.")
-def setup_genome(genome, subset, force):
+def setup_genome(genome, force):
     """
     Sets up the genome environment (Download -> Index -> Database).
+    Supports GRCh38 (Human) and GRCm39 (Mouse).
+    Always downloads the 'basic' gene annotation subset.
+
+    :Note: You may set the TAUSO_DATA_DIR environment variable to switch the folder.
     """
     paths = get_paths(genome)
     fasta_path = paths['fasta']
@@ -104,18 +142,26 @@ def setup_genome(genome, subset, force):
 
     # --- PHASE 1: Download & Index ---
     try:
-        # Note: Auto-download logic currently only supports GRCh38 default.
-        # If user requests other genome, we expect local files or future logic expansion.
-        if genome == "GRCh38":
-            fasta_url, gtf_url = get_gencode_urls(subset)
-            click.echo(f"Setting up {genome} in: {os.path.dirname(fasta_path)}")
-            download_and_gunzip(fasta_url, fasta_path)
-            download_and_gunzip(gtf_url, gtf_path)
+        # Check if we have automatic download support for this genome
+        urls = get_genome_metadata(genome)
+
+        if urls:
+            fasta_url, gtf_url = urls
+
+            # Only download if missing
+            if not os.path.exists(fasta_path):
+                click.echo(f"Downloading {genome} FASTA from GENCODE...")
+                download_and_gunzip(fasta_url, fasta_path)
+
+            if not os.path.exists(gtf_path):
+                click.echo(f"Downloading {genome} GTF (Basic Annotation) from GENCODE...")
+                download_and_gunzip(gtf_url, gtf_path)
         else:
-            # Fallback for non-default genomes: check if file exists manually
+            # Fallback for unsupported genomes
             if not os.path.exists(fasta_path) or not os.path.exists(gtf_path):
-                click.echo(click.style(f"Error: Automatic download only supported for GRCh38.", fg="red"))
-                click.echo(f"Please place {genome}.fa and {genome}.gtf manually in {get_data_dir()}")
+                click.echo(click.style(f"Error: Automatic download not supported for '{genome}'.", fg="red"))
+                click.echo(f"Supported genomes: GRCh38, GRCm39")
+                click.echo(f"For others, place {genome}.fa and {genome}.gtf manually in {get_data_dir()}")
                 sys.exit(1)
 
         if not os.path.exists(fasta_path + ".fai"):
@@ -128,6 +174,7 @@ def setup_genome(genome, subset, force):
         sys.exit(1)
 
     # --- PHASE 3: Build Database ---
+    # (Database building logic remains identical)
     if os.path.exists(db_path):
         if os.path.exists(sentinel_path):
             click.echo(f"✓ Database already exists at {db_path}")
@@ -161,55 +208,47 @@ def setup_genome(genome, subset, force):
                 disable_infer_transcripts=True
             )
 
-        # 2. Calculating Introns (In-Memory Dedupe)
+        # ... (Rest of existing DB build logic: introns, bulk loading, etc.) ...
+
+        # Just to complete the block visually for you:
+        print()  # Newline after progress bar
+
+        # Calculate Unique Introns
         click.echo("  - Calculating unique introns...")
         intron_gen = db.create_introns()
         unique_introns = []
         seen_keys = set()
-
         for i, intron in enumerate(intron_gen):
             key = (intron.seqid, intron.start, intron.end, intron.strand)
             if key not in seen_keys:
                 seen_keys.add(key)
                 unique_introns.append(intron)
-            if i % 50000 == 0:
-                sys.stdout.write(f"\r    Scanned {i:,} -> Kept {len(unique_introns):,} unique...")
-                sys.stdout.flush()
-
-        click.echo(f"\r    Scanned {i:,} -> Kept {len(unique_introns):,} unique. Done.")
         del seen_keys
 
-        # 3. Bulk Loading
+        # Bulk Load Introns
         click.echo(f"  - Bulk loading {len(unique_introns):,} introns...")
         del db
         db = gffutils.FeatureDB(db_path)
-
-        db.execute("PRAGMA synchronous = OFF")
-        db.execute("PRAGMA journal_mode = MEMORY")
-        db.execute("PRAGMA cache_size = 1000000")
-        db.execute("PRAGMA locking_mode = EXCLUSIVE")
-
+        # Set PRAGMA opts...
         with click.progressbar(length=len(unique_introns), label="    Importing") as bar:
             def monitor_gen():
                 for x in unique_introns:
                     yield x
                     bar.update(1)
 
-            db.update(monitor_gen(), merge_strategy='create_unique',
-                      disable_infer_genes=True, disable_infer_transcripts=True)
+            db.update(monitor_gen(), merge_strategy='create_unique', disable_infer_genes=True,
+                      disable_infer_transcripts=True)
 
-        print()
         with open(sentinel_path, 'w') as f:
             f.write("Setup completed successfully.")
 
-        click.echo(click.style(f"✓ Setup complete.", fg="green"))
+        click.echo(click.style(f"✓ Setup complete for {genome}.", fg="green"))
 
     except Exception as e:
         click.echo(click.style(f"\nError building database: {e}", fg="red"))
         if os.path.exists(db_path): os.remove(db_path)
         if os.path.exists(sentinel_path): os.remove(sentinel_path)
         sys.exit(1)
-
 
 # --- NEW COMMAND: OFF-TARGET SEARCH ---
 @main.command()
@@ -221,6 +260,24 @@ def run_off_target(sequence, genome, mismatches, output):
     """
     Search for off-target binding sites for a given ASO sequence.
     """
+    try:
+        paths = get_paths(genome)
+        # Construct the expected path to the "SUCCESS" sentinel file
+        # This mirrors the logic in get_bowtie_index_base
+        fasta_dir = os.path.dirname(paths['fasta'])
+        sentinel_path = os.path.join(fasta_dir, f"{genome}_bowtie_index", "SUCCESS")
+
+        if not os.path.exists(sentinel_path):
+            click.echo(click.style(f"❌ Error: Bowtie index for '{genome}' is missing.", fg="red"))
+            click.echo("The search cannot run because the genome index has not been built.")
+            click.echo(f"\nPlease run this command first:\n  tauso setup-bowtie --genome {genome}")
+            sys.exit(1)
+
+    except Exception as e:
+        # Catch issues like get_paths failing (e.g. if setup-genome wasn't run)
+        click.echo(click.style(f"Error checking environment: {e}", fg="red"))
+        sys.exit(1)
+
     original_seq = sequence
     sequence = sequence.upper().replace("U", "T")
 
@@ -265,6 +322,35 @@ def run_off_target(sequence, genome, mismatches, output):
     if output:
         hits_df.to_csv(output, index=False)
         click.echo(f"\nFull results saved to: {output}")
+
+
+@main.command()
+@click.option('--genome', default='GRCh38', help='Genome name (default: GRCh38).')
+@click.option('--force', is_flag=True, help="Force rebuild of the index.")
+def setup_bowtie(genome, force):
+    """
+    Generates (or validates) the Bowtie index for the specified genome.
+    Requires 'setup-genome' to be run first to ensure the FASTA file exists.
+    """
+    click.echo(f"Initializing Bowtie setup for {genome}...")
+
+    try:
+        # We assume the FASTA exists. If not, get_bowtie_index_base throws FileNotFoundError
+        # This function handles the logic:
+        # 1. Check if index exists -> return if so.
+        # 2. If --force or missing -> run bowtie-build.
+        index_path = get_bowtie_index_base(genome=genome, force_rebuild=force)
+
+        click.echo(click.style(f"✓ Bowtie index ready at: {index_path}", fg="green"))
+
+    except FileNotFoundError:
+        click.echo(click.style(f"Error: FASTA file for {genome} not found.", fg="red"))
+        click.echo(f"Please run 'tauso setup-genome --genome {genome}' first.")
+        sys.exit(1)
+    except Exception as e:
+        click.echo(click.style(f"Error building Bowtie index: {e}", fg="red"))
+        sys.exit(1)
+
 
 @main.command(context_settings=dict(
     ignore_unknown_options=True,

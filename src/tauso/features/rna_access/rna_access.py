@@ -50,8 +50,6 @@ def parse(data, segment_sizes):
     return dict(res)
 
 
-# TODO review usage in parallel since it is writing temporal file needs uuid prefix for file and maybe delete it after
-#  usage
 class RNAAccess(object):
     # column in dataframe are segment sizes
     # pos 0-based coordinate
