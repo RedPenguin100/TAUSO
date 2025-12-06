@@ -87,15 +87,12 @@ def get_init_df(target_mrna: str, mod_type: str = 'moe') -> pd.DataFrame:
         # Note: Index 0 is 5' end. Distance from 3' end decreases as i increases.
         sense_starts_from_end.append(target_len - i)
 
-    print("Sense starts: ", sense_starts)
-
     df = pd.DataFrame({
         SEQUENCE: candidates,
         SENSE_START: sense_starts,
         SENSE_LENGTH: sense_lengths,
         "sense_start_from_end": sense_starts_from_end
     })
-    print(df)
 
     return df
 
@@ -145,8 +142,7 @@ def enrich_shared_features(
 
     # 6. Gene-Level Features (EXPENSIVE)
     # Accessibility and CAI depend on the target gene, not the ASO chemistry
-    # TODO: uncomment
-    # populate_sense_accessibility(df, gene_to_data[gene])
+    populate_sense_accessibility(df, gene_to_data[gene])
     populate_cai_for_aso_dataframe(df, gene_to_data[gene])
 
     return df
@@ -386,18 +382,19 @@ def design_asos(
         # Fallback if something went wrong (e.g. no results found)
         top_results = full_results.sort_values(by='score', ascending=False).head(top_k)
 
+
+    output_cols = [SEQUENCE, SENSE_START, 'mod_pattern', 'score', 'gc_content', 'chemistry_type']
+
     annotated_off_targets = None
     # 5. Run Off-Target Analysis (Expensive Step)
     print("Checking if should run off-target analysis: ")
     if run_off_target:
         print("Starting to run off-target: ")
         top_results, annotated_off_targets = enrich_with_off_targets(top_results, genome=genome)
-
-        # 6. Select Columns for Output
-        # Basic identification info (Added chemistry_type as it's useful for sorting)
-        output_cols = [SEQUENCE, SENSE_START, 'mod_pattern', 'score', 'gc_content', 'chemistry_type']
-
         output_cols.extend(['mismatches0', 'mismatches1', 'mismatches2', 'mismatches3'])
+
+    # 6. Select Columns for Output
+    # Basic identification info (Added chemistry_type as it's useful for sorting)
 
     # Detailed features if requested
     if include_details:
