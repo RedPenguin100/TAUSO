@@ -63,11 +63,10 @@ def test_run_bowtie_search_parsing(mock_paths, mock_shutil_which, sample_sam_out
         mock_process.stdout = sample_sam_output
         mock_run.return_value = mock_process
 
-        hits = run_bowtie_search("ACGT", max_mismatches=2)
+        hits, counts = run_bowtie_search("ACGT", max_mismatches=2)
 
         assert len(hits) == 2  # The unmapped read should be skipped
 
-        # Check Hit 1 (+ strand, 0 mismatches)
         assert hits[0]['chrom'] == "chr1"
         assert hits[0]['start'] == 99  # 1-based SAM 100 -> 0-based 99
         assert hits[0]['strand'] == "+"
