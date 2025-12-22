@@ -37,7 +37,7 @@ jobs:
 
       - name: Compute env hash
         id: envhash
-        run: echo "hash=$(sha256sum environment.yml | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+        run: echo "hash=$(cat environment.yml environment-dev.yml | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
