@@ -49,6 +49,10 @@ jobs:
           cache-environment-key: ${{ runner.os }}-tauso-${{ steps.envhash.outputs.hash }}
           # init-shell: bash  <-- You usually don't need this line if you use 'shell: bash -el {0}' above
 
+      - name: Install Dev Dependencies
+        run: micromamba install -n tauso -f environment-dev.yml -y
+
+
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
 
