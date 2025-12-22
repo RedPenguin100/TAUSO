@@ -2,3 +2,4 @@
 /src/tauso.egg-info/
 ./data/
 ./src/data/
+*.Identifier
