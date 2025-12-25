@@ -132,6 +132,27 @@ md_moe_weights_pb = df.set_index('nucleotide')['G_PB'].to_dict()
 md_moe_weights_gb = df.set_index('nucleotide')['G_GB'].to_dict()
 
 
+def get_2moe_md_diff(seq: str, chemical_pattern, simul_type='gb'):
+    seq = seq.replace('T', 'U')
+
+    total_hybridization = 0
+    for i in range(len(seq) - 1):
+        L, R = seq[i], seq[i + 1]
+        if chemical_pattern[i] == 'M':
+            L += "*"
+        else:
+            L += "'"
+        if chemical_pattern[i + 1] == 'M':
+            R += '*'
+        else:
+            R += "'"
+        if "'" in R and "'" in L:
+            continue
+        if simul_type == 'gb':
+            total_hybridization += md_moe_weights_gb[L + R]
+        if simul_type == 'pb':
+            total_hybridization += md_moe_weights_pb[L + R]
+    return total_hybridization
 
 def get_md_2_moe_hybridization(seq: str, moe=[0, 1, 2, 3, 4, 19, 18, 17, 16, 15]) -> float:
     total_hybridization = 0
