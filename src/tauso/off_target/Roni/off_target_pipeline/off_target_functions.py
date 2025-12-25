@@ -1,4 +1,4 @@
-from asodesigner.fold import get_trigger_mfe_scores_by_risearch
+from src.tauso.hybridization.fast_hybridization import get_trigger_mfe_scores_by_risearch
 from Bio import SeqIO
 import pandas as pd
 from io import StringIO

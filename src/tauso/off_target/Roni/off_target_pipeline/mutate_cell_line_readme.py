@@ -87,5 +87,5 @@ pip install pandas biopython
 This project is part of the ASO Design pipeline and is for research use only.
 """
 
-with open("README_mutate_cell_line_transcriptome.md", "w") as f:
+with open("../README_mutate_cell_line_transcriptome.md", "w") as f:
     f.write(readme_text)

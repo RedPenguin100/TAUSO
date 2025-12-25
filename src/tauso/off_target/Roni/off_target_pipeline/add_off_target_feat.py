@@ -1,11 +1,8 @@
 from src.tauso.hybridization.fast_hybridization import get_trigger_mfe_scores_by_risearch
-from src.tauso.off_target.Roni.off_target_functions import dna_to_rna_reverse_complement, parse_risearch_output, aggregate_off_targets
-from mutate_cell_line_transcriptome import celline_list
+from src.tauso.off_target.Roni.off_target_pipeline.off_target_functions import dna_to_rna_reverse_complement, parse_risearch_output, aggregate_off_targets
 
 import pandas as pd
 import numpy as np
-from io import StringIO
-import os
 
 '''
 
