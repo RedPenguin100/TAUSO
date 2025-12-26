@@ -77,21 +77,11 @@ class AccessCalculator(object):
 
         return df
 
+
     @classmethod
-    def calc_access_energies(
-            cls, rna_seq, access_size, seed_sizes, max_span, uuid_str, cache=None):
+    def calc_access_energies_from_access_res( #new
+            cls, access_res, rna_size, access_size, seed_sizes):
 
-        rna_size = len(rna_seq)
-
-        seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
-        assert seed_sizes
-        cls.rna_access = RNAAccess(seed_sizes, max_span, find_raccess())
-        ra = cls.rna_access
-        ra.set_uuid_for_web(uuid_str)
-        access_query = [('rna', rna_seq)]
-        res = ra.calculate(access_query)
-
-        access_res = res['rna']
         cols_np = {s: access_res[s].to_numpy() for s in seed_sizes}
 
         ind_info_list = []
@@ -131,6 +121,55 @@ class AccessCalculator(object):
         records = list(zip(*ind_info_list))[1]
         df = pd.DataFrame(records, index=indexes)
         return df
+
+    @classmethod
+    def calc_access_energies( #new
+            cls, rna_seq, access_size, seed_sizes, max_span, uuid_str, cache=None):
+
+        rna_size = len(rna_seq)
+
+        seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
+        assert seed_sizes
+        cls.rna_access = RNAAccess(seed_sizes, max_span, find_raccess())
+        ra = cls.rna_access
+        ra.set_uuid_for_web(uuid_str)
+        access_query = [('rna', rna_seq)]
+        res = ra.calculate(access_query)
+
+        access_res = res['rna']
+        df = cls.calc_access_energies_from_access_res(
+            access_res, rna_size, access_size, seed_sizes
+        )
+        return df
+
+    @classmethod
+    def calc_access_energies_batch( #new
+            cls, rna_seqs, access_size, seed_sizes, max_span, uuid_str=None, cache=None
+    ):
+        """
+        :param rna_seqs: list of (rna_id, rna_seq) tuples
+        :return: dict mapping rna_id -> DataFrame of access energies
+        """
+        assert rna_seqs
+        seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
+        assert seed_sizes
+
+        cls.rna_access = RNAAccess(seed_sizes, max_span, find_raccess())
+        ra = cls.rna_access
+        ra.set_uuid_for_web(uuid_str)
+        res = ra.calculate(rna_seqs)
+
+        out = {}
+        for rna_id, rna_seq in rna_seqs:
+            access_res = res[rna_id]
+            rna_size = len(rna_seq)
+            df = cls.calc_access_energies_from_access_res(
+            access_res, rna_size, access_size, seed_sizes
+            )
+            out[rna_id] = df
+
+        return out
+
 
     @classmethod
     def calc(
@@ -190,3 +229,56 @@ class AccessCalculator(object):
         df = pd.concat(df_list, join='outer', axis=0).fillna(float('nan'))
 
         return df
+
+    @classmethod
+    def calc_new(
+            cls,
+            rna_seqs,
+            access_size,
+            access_win_size,
+            access_seed_sizes,
+            uuid_str=None,
+            temperature=None,
+            cache=None,
+            **kwargs
+    ):
+        """
+        rna_seqs: list of (rna_id, rna_seq) tuples
+
+        Returns:
+            DataFrame with columns:
+            - avg_access
+            - rna_id
+            (index = position in sequence)
+        """
+
+        access_res_dict = cls.calc_access_energies_batch(
+            rna_seqs,
+            access_size,
+            access_seed_sizes,
+            access_win_size,
+            uuid_str,
+            cache=cache,
+        )
+
+        df_list = []
+
+        for rna_id, _ in rna_seqs:
+            access_energies = access_res_dict[rna_id]
+
+            # compute avg_access
+            target_cols = [f"{s}_avg" for s in access_seed_sizes]
+            available_cols = [c for c in target_cols if c in access_energies.columns]
+
+            if available_cols:
+                access_energies["avg_access"] = access_energies[available_cols].mean(axis=1)
+            else:
+                access_energies["avg_access"] = 0.0
+
+            # tag RNA
+            access_energies["rna_id"] = rna_id
+
+            df_list.append(
+                access_energies[["rna_id", "avg_access"]])
+
+        return pd.concat(df_list, ignore_index=True)
