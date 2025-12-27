@@ -756,7 +756,7 @@ gtf_file = path_1 + "gencode.v48.chr_patch_hapl_scaff.annotation.gtf"
 def mutate_transcriptome(expression, mutations, annotation_dict):
     print('Mutating transcriptomes...')
     exp_data_indexed = expression.set_index('Transcript_ID')
-    exp_data_indexed["Mutated Transcript Sequence"] = ""
+    exp_data_indexed["Mutated Transcript Sequence"] = None
     for idx, row in mutations.iterrows():
         mut_dict = mutation_dict(row)
 
@@ -772,7 +772,6 @@ def mutate_transcriptome(expression, mutations, annotation_dict):
                         seq = exp_data_indexed.at[tid, 'Original Transcript Sequence']
                     else:
                         seq = exp_data_indexed.at[tid, 'Mutated Transcript Sequence']
-
                     mutated_seq = mutate(mut_dict, shift, seq)
                     exp_data_indexed.at[tid, 'Mutated Transcript Sequence'] = mutated_seq
                     if seq != mutated_seq:
