@@ -1,52 +1,98 @@
 import pandas as pd
 from Bio import SeqIO
 import re
+import csv
+import os
 
 """
 This code might not work if RAM has less than 8 GB (relevant for working with pre-mRNA (long) sequences)
 """
 
-def get_expression_of_cell_line(cell_line, expression_file):
-    # read header to get gene names
-    """
-    Returns DataFrame containing expression levels of cell line genes
-    """
-    with open(expression_file, 'r') as f:
-        header = f.readline().strip().split(',')
 
-    # find the cell line's row
+def get_expression_of_cell_line(cell_line, expression_file, output_dir):
+    """
+    Reads a large CSV line-by-line to find a specific cell_line (ModelID),
+    ignores metadata columns, and returns a clean Gene Expression DataFrame.
+    """
+    # 1. Normalize input to match file format (e.g., 'ach-001' -> 'ACH-001')
+    target_id = cell_line.upper()
+
     target_row = None
+    header = None
+
+    # We use csv.reader which handles large files without loading everything to RAM
     with open(expression_file, 'r') as f:
-        next(f)  # Skip header
-        for line in f:
-            if line.startswith(cell_line + ','):
-                target_row = line.strip().split(',')
+        reader = csv.reader(f)
+
+        # Read the header first
+        try:
+            header = next(reader)
+        except StopIteration:
+            raise ValueError("File appears to be empty.")
+
+        # --- A. Find the Metadata Columns ---
+        # Find which column index holds the 'ModelID'
+        try:
+            model_idx = header.index("ModelID")
+        except ValueError:
+            raise ValueError("Column 'ModelID' was not found in the CSV header.")
+
+        # --- B. Find where Genes Start ---
+        # Heuristic: Metadata cols are plain text, Genes usually look like "Gene (ID)"
+        # We look for the first column that contains parentheses "(".
+        # Based on your file, this should be index 6 (7th column).
+        gene_start_idx = 0
+        for i, col_name in enumerate(header):
+            if "(" in col_name and ")" in col_name:
+                gene_start_idx = i
+                break
+
+        # Fallback: if no parentheses found, assume standard DepMap layout (skip first 6 cols)
+        if gene_start_idx == 0:
+            gene_start_idx = 6
+
+        # --- C. Stream the file to find the row ---
+        for row in reader:
+            # Check the specific ModelID column
+            if len(row) > model_idx and row[model_idx] == target_id:
+                target_row = row
                 break
 
     if target_row is None:
         raise ValueError(f"Cell line '{cell_line}' not found in file.")
 
-    # build df from the row
-    gene_names = header[1:]  # first column is the cell line name
-    expression_values = target_row[1:]
-    expression_series = pd.Series(expression_values, index=gene_names, name=cell_line).astype(float)
+    # --- D. Extract only Gene Data ---
+    # Slice the lists to keep only the gene columns
+    gene_names = header[gene_start_idx:]
+    expression_values = target_row[gene_start_idx:]
+
+    # Create the Series (Genes as index)
+    # coerce errors='coerce' turns non-numeric strings to NaN, just in case
+    expression_series = pd.to_numeric(pd.Series(expression_values, index=gene_names), errors='coerce')
+    expression_series.name = f'{cell_line}_expression_norm'
+
+    # Convert to DataFrame
     expression_df = expression_series.reset_index()
     expression_df.columns = ['Gene', f'{cell_line}_expression_norm']
 
-    # calculate TPM
+    # --- E. Calculate TPM (Reversing the log2(x+1)) ---
+    # Note: Ensure your input data is indeed log2(TPM+1) before doing this
     expression_df['expression_TPM'] = (2 ** expression_df[f'{cell_line}_expression_norm']) - 1
 
-    # filter and sort
+    # --- F. Filter and Sort ---
     expression_df = expression_df[expression_df['expression_TPM'] > 0]
     expression_df = expression_df.sort_values(by='expression_TPM', ascending=False).reset_index(drop=True)
 
-    # save and return
-    expression_df.to_csv(f'{cell_line}_expression.csv', index=False)
+    # Save and return
+    output_filename = f'{cell_line}_expression.csv'
+    #expression_df.to_csv(output_filename, index=False)
+    expression_df.to_csv(os.path.join(output_dir, output_filename), index=False)
 
+    print(f"Successfully processed {target_id}. Found {len(expression_df)} expressed genes.")
     return expression_df
 
 
-def get_mutations_of_cell_line(cell_line, mutation_file):
+def get_mutations_of_cell_line(cell_line, mutation_file, output_dir):
     """
     Creates a DataFrame that contains all mutations of the cell line
     """
@@ -57,7 +103,9 @@ def get_mutations_of_cell_line(cell_line, mutation_file):
 
     # filter by cell line
     cell_line_mutation = mutation_data[mutation_data['ModelID'] == cell_line]
-    cell_line_mutation.to_csv(f'{cell_line}_mutations.csv', index=False)
+    #cell_line_mutation.to_csv(f'{cell_line}_mutations.csv', index=False)
+    cell_line_mutation.to_csv(os.path.join(output_dir, f'{cell_line}_mutations.csv'), index=False)
+    print(f"Obtained mutation data for {cell_line}")
     return cell_line_mutation
 
 
@@ -705,3 +753,32 @@ gtf_file = path_1 + "gencode.v48.chr_patch_hapl_scaff.annotation.gtf"
 
 # final_func(seq_file, exp_file, mut_file, gtf_file, A549, 30000)
 
+def mutate_transcriptome(expression, mutations, annotation_dict):
+    print('Mutating transcriptomes...')
+    exp_data_indexed = expression.set_index('Transcript_ID')
+    exp_data_indexed["Mutated Transcript Sequence"] = ""
+    for idx, row in mutations.iterrows():
+        mut_dict = mutation_dict(row)
+
+        if mut_dict is not None:
+            tid = mut_dict['id']
+            mut_idx = mut_dict['start']
+
+            if tid in exp_data_indexed.index:
+                try:
+                    shift = find_shift(annotation_dict[tid], mut_idx)
+                    print(f"{tid} shift: {shift}")
+                    if pd.isna(exp_data_indexed.at[tid, 'Mutated Transcript Sequence']):
+                        seq = exp_data_indexed.at[tid, 'Original Transcript Sequence']
+                    else:
+                        seq = exp_data_indexed.at[tid, 'Mutated Transcript Sequence']
+
+                    mutated_seq = mutate(mut_dict, shift, seq)
+                    exp_data_indexed.at[tid, 'Mutated Transcript Sequence'] = mutated_seq
+                    if seq != mutated_seq:
+                        print(f'really mutated {tid}')
+                    else:
+                        print(f'didnt really do anything... check {tid}')
+                except Exception as e:
+                    print(f"Skipping {tid} due to error: {e}")
+    return exp_data_indexed

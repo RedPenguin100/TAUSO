@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from off_target_functions import dna_to_rna_reverse_complement, normalize_chrom, name2accession
+from gtf_functions import build_gene_to_transcript_index, select_best_transcript
 import pickle
 from pathlib import Path
 
@@ -8,10 +9,10 @@ from pathlib import Path
 This code extracts the mRNA sequences 
 """
 # Get the directory of the current script
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+#PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Full path to cell line data folder
-DATA_DIR = os.path.join(PROJECT_ROOT, "scripts", "data_genertion", "cell_line_expression")
+#DATA_DIR = os.path.join(PROJECT_ROOT, "scripts", "data_genertion", "cell_line_expression")
 
 
 # cell_line2data = {
@@ -23,12 +24,12 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "scripts", "data_genertion", "cell_line_ex
 #     "ACH-000232": [os.path.join(DATA_DIR, "ACH-000232_transcriptome.csv"), os.path.join(DATA_DIR, "ACH-000232_mutations.csv")]
 # }
 
-cell_line2data = {"ACH-000681": [os.path.join(DATA_DIR, "ACH-000681_transcriptome.csv"), os.path.join(DATA_DIR, "ACH-000681_mutations.csv")]}
+#cell_line2data = {"ACH-000681": [os.path.join(DATA_DIR, "ACH-000681_transcriptome.csv"), os.path.join(DATA_DIR, "ACH-000681_mutations.csv")]}
 
 
 # Reference file paths
-fasta_path = os.path.join(DATA_DIR, "Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa")
-gtf_path = os.path.join(DATA_DIR, "gencode.v48.chr_patch_hapl_scaff.annotation.gtf")
+#fasta_path = os.path.join(DATA_DIR, "Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa")
+#gtf_path = os.path.join(DATA_DIR, "gencode.v48.chr_patch_hapl_scaff.annotation.gtf")
 
 def load_pickle_if_needed(obj, name="object"):
     """
@@ -49,18 +50,21 @@ def load_pickle_if_needed(obj, name="object"):
         f"got {type(obj)}"
     )
 
-def get_relevant_exp_data(cell_line):
-    exp_fl = cell_line2data[cell_line][0]
-    mut_fl = cell_line2data[cell_line][1]
-    if isinstance(cell_line2data[cell_line][0], pd.DataFrame):
+def get_relevant_exp_data(cell_line_dict, cell_line):
+    exp_fl = cell_line_dict[cell_line][0]
+    mut_fl = cell_line_dict[cell_line][1]
+    print(exp_fl, mut_fl)
+    if isinstance(cell_line_dict[cell_line][0], pd.DataFrame):
         exp_data = exp_fl
+        print("hi")
     else:
-        exp_data = pd.read_csv(cell_line2data[cell_line][0], usecols=[0, 1, 2, 3])
+        print("hmmm")
+        exp_data = pd.read_csv(cell_line_dict[cell_line][0], usecols=[0, 1, 2, 3])
 
-    if isinstance(cell_line2data[cell_line][1], pd.DataFrame):
+    if isinstance(cell_line_dict[cell_line][1], pd.DataFrame):
         mut_data = mut_fl
     else:
-        mut_data = pd.read_csv(cell_line2data[cell_line][1])
+        mut_data = pd.read_csv(cell_line_dict[cell_line][1])
 
     exp_data = exp_data[exp_data["Transcript_ID"].str.contains("ENST", na=False)]
     ###
@@ -83,80 +87,7 @@ def add_original_sequence(exp_data, fasta_dict):
     exp_data["Original Transcript Sequence"] = exp_data.apply(fetch_sequence, axis=1)
     return exp_data
 
-"""
 
-def final_func_premrna(cell_line_dict, genome_pkl, annotation_pkl):
-    # Load from pre-generated pickle files
-    with open(annotation_pkl, 'rb') as f:
-        gtf_dict = pickle.load(f)
-    print('Read GTF.')
-    with open(genome_pkl, 'rb') as f:
-        print("About to read FASTA")
-        fasta_dict = pickle.load(f)
-        print("Successfully read FASTA")
-
-    print(f'fasta keys: {list(fasta_dict.keys())[:5]}')  # limit to 5 keys
-    print('Read FASTA.')
-
-    print(fasta_dict.keys())
-
-    all_results = {}
-
-    for cell_line, _ in cell_line_dict.items():
-        print(f"Processing {cell_line}...")
-
-        # Load expression and mutation data
-        exp_data, mut_data = get_relevant_exp_data(cell_line)
-
-        original_seqs = []
-        for idx, row in exp_data.iterrows():
-            transcript_id_full = row["Transcript_ID"]
-            transcript_id = transcript_id_full.split('.')[0]  # remove version
-
-            transcript_info = gtf_dict.get(transcript_id_full) or gtf_dict.get(transcript_id)
-            #print(transcript_info)
-
-            if not transcript_info:
-                original_seqs.append(None)
-                #print(f"Transcript {transcript_id_full} not found in GTF.")
-                continue
-
-            chrom = transcript_info["chrom"]
-            strand = transcript_info["strand"]
-            start = transcript_info["start"]
-            end = transcript_info["end"]
-
-            #norm_chrom = normalize_chrom(chrom)
-            if chrom not in name2accession:
-                original_seqs.append(None)
-                print(f"Skipping transcript {transcript_id_full}: chromosome {chrom} not in accession map.")
-                continue
-            norm_chrom = name2accession[chrom]
-            try:
-                seq = fasta_dict[norm_chrom][start - 1:end]  # extract using 0-based indexing
-                if strand == "-":
-                    seq = dna_to_rna_reverse_complement(seq)
-                else:
-                    seq = seq.replace("T", "U")
-                original_seqs.append(seq)
-            except Exception as e:
-                print(norm_chrom in fasta_dict)  # Should return True or False
-                print("Trying chrom:", norm_chrom)
-                print(f"Error extracting for {transcript_id_full}: {e}")
-                original_seqs.append(None)
-
-        exp_data["Original Transcript Sequence"] = original_seqs
-        exp_data["Mutated Transcript Sequence"] = None  # for future use
-
-        # Save output
-        output_path = f"{cell_line}_transcriptome_premRNA.csv"
-        exp_data.to_csv(output_path, index=False)
-        print(f"Saved {output_path}")
-
-        all_results[cell_line] = exp_data
-
-    return all_results
-"""
 
 def final_func_premrna(cell_line_dict, genome, annotation):
     # Load dicts if needed
@@ -172,7 +103,7 @@ def final_func_premrna(cell_line_dict, genome, annotation):
         print(f"Processing {cell_line}...")
 
         # Load expression and mutation data
-        exp_data, mut_data = get_relevant_exp_data(cell_line)
+        exp_data, mut_data = get_relevant_exp_data(cell_line_dict, cell_line)
 
         original_seqs = []
 
@@ -230,6 +161,77 @@ def final_func_premrna(cell_line_dict, genome, annotation):
     return all_results
 
 
+def enrich_expression_data_with_sequence(cell_line_dict, curr_cell_line, fasta_dict, gtf_annotations):
+    """
+    Modifies cell_line_dict in-place.
+    Adds 'Transcript_ID' and 'Original Transcript Sequence' to the exp_data DataFrame.
+
+    Args:
+        cell_line_dict: { 'ACH-###': [exp_df, mut_df] }
+        fasta_dict: { 'chr1': 'ATCG...' } (Keys must match GTF chrom names)
+        gtf_annotations: Dictionary from parse_gtf (MUST include 'gene_name')
+    """
+
+    # 1. Build the index once to speed up lookups
+    print("Building Gene -> Transcript index...")
+    gene_to_tids = build_gene_to_transcript_index(gtf_annotations)
+
+    exp_data = cell_line_dict[curr_cell_line][0]
+    mut_data = cell_line_dict[curr_cell_line][1]
+    # 2. Iterate through each cell line
+
+    print(f"Processing {curr_cell_line}...")
+
+    # Prepare lists to collect new column data
+    transcript_ids = []
+    sequences = []
+
+    # 3. Iterate through genes in the expression dataframe
+    # Assuming format: "MT-ATP8 (4509)"
+    for full_gene_str in exp_data['Gene']:
+
+        # Extract pure symbol "MT-ATP8" from "MT-ATP8 (4509)"
+        gene_symbol = full_gene_str.split(' ')[0]
+
+        # Find best transcript
+        tid = select_best_transcript(gene_symbol, gene_to_tids, gtf_annotations)
+
+        seq_str = None
+
+        if tid:
+            # Get coordinates
+            annot = gtf_annotations[tid]
+            chrom = annot['chrom']
+            start = annot['start']  # 1-based from GTF
+            end = annot['end']  # 1-based from GTF
+            strand = annot['strand']
+
+            # Check if chromosome exists in FASTA (handle 'chr' prefix mismatches if needed)
+            if chrom in fasta_dict:
+                # Python slicing is 0-based: [start-1 : end]
+                # We grab the whole genomic span (pre-mRNA)
+                raw_seq = fasta_dict[chrom][start - 1: end]
+
+                # Handle Strand
+                if strand == '-':
+                    seq_str = dna_to_rna_reverse_complement(raw_seq)
+                else:
+                        seq_str = raw_seq
+            else:
+                print(f"Warning: Chromosome {chrom} not found in Fasta.")
+
+        transcript_ids.append(tid)
+        sequences.append(seq_str)
+
+        # 4. Assign new columns
+    exp_data['Transcript_ID'] = transcript_ids
+    exp_data['Original Transcript Sequence'] = sequences
+
+    # Update the dictionary (redundant since lists are mutable, but clear)
+    cell_line_dict[curr_cell_line][0] = exp_data
+
+    print("Enrichment complete.")
+    return cell_line_dict
 
 # genome_path = '/home/oni/ASOdesign/scripts/data_genertion/cell_line_expression/chr_1_4.pkl'
 # annotation_path = '/home/oni/ASOdesign/scripts/data_genertion/cell_line_expression/_gtf_annotations.pkl'

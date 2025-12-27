@@ -53,14 +53,12 @@ def aggregate_off_targets(df: pd.DataFrame) -> pd.DataFrame:
     return grouped
 
 def parse_gtf(gtf_path, cache_path=None):
-    import pickle, os
+    # if not cache_path:
+    #     cache_path = os.path.splitext(os.path.basename(gtf_path))[0] + "_gtf_annotations.pkl"
 
-    if not cache_path:
-        cache_path = os.path.splitext(os.path.basename(gtf_path))[0] + "_gtf_annotations.pkl"
-
-    if os.path.exists(cache_path):
-        with open(cache_path, 'rb') as f:
-            return pickle.load(f)
+    # if os.path.exists(cache_path):
+    #     with open(cache_path, 'rb') as f:
+    #         return pickle.load(f)
 
     annotations = {}
     with open(gtf_path) as f:
@@ -80,6 +78,8 @@ def parse_gtf(gtf_path, cache_path=None):
                 [attr.strip().split(' ') for attr in attributes.split(';') if attr.strip()]
             }
             transcript_id = attr_dict.get("transcript_id")
+            gene_name = attr_dict.get("gene_name")
+
             if not transcript_id:
                 continue
 
@@ -89,6 +89,7 @@ def parse_gtf(gtf_path, cache_path=None):
                 annotations[transcript_id] = {
                     "chrom": chrom,
                     "strand": strand,
+                    "gene_name": gene_name,
                     "exons": [],
                     "cds": [],
                     "utrs": [],
@@ -115,6 +116,7 @@ def parse_gtf(gtf_path, cache_path=None):
     with open(cache_path, 'wb') as f:
         pickle.dump(annotations, f)
 
+    print("Read GTF file")
     return annotations
 
 
