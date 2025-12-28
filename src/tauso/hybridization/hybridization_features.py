@@ -210,12 +210,11 @@ def calculate_dna(antisense, temp_c=37.0):
     return round(total_dG, 3)
 
 
-def calc_methylcytosines(sequence, chemical_pattern, modification):
+def calc_methylcytosines(sequence, modification):
     if 'methylcytosines' not in modification:
         return 0
     gap_count = 0
-    for base, char in zip(sequence, chemical_pattern):
-        if char == 'd':
-            if base == 'C':
-                gap_count +=1
+    for base in sequence:
+        if base == 'C':
+            gap_count +=1
     return gap_count
