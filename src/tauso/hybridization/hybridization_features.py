@@ -1,5 +1,3 @@
-from typing import List
-
 from tauso.hybridization.weights.dna import DNA_DNA_WEIGHTS
 from tauso.hybridization.weights.lna import LNA_DNA_WEIGHTS
 from tauso.util import get_nucleotide_watson_crick
@@ -83,6 +81,19 @@ def get_exp_dna_rna_hybridization(seq: str, temp=37) -> float:
     return total_hybridization
 
 
+def get_exp_psrna_hybridization_diff(seq: str, temp=37) -> float:
+    seq = seq.replace('T', 'U')
+
+    total_hybridization = 0
+    for i in range(len(seq) - 1):
+        L, R = seq[i], seq[i + 1]
+        if temp == 37:
+            total_hybridization += exp_ps_diff_weights_37[L + R]
+        else:
+            total_hybridization = 0
+    return total_hybridization
+
+
 def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
     seq = seq.replace('T', 'U')
 
@@ -100,10 +111,7 @@ def get_exp_psrna_hybridization_normalized(seq: str, temp=50) -> float:
     return get_exp_psrna_hybridization(seq, temp) / len(seq)
 
 
-# --- Usage ---
-# Replace 'ACTIVITY_SCORE' with your actual target column name (e.g., 'Kd', 'Tm', 'Inhibition')
-# target_column = 'ACTIVITY_SCORE'
-def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, lna_params, temp_c=37.0, letter='L'):
+def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter='L'):
     # Reverse to 5'->3' for processing
     seq = seq_3to5.upper()[::-1]
     fmt = fmt_3to5.upper()[::-1]
@@ -128,7 +136,6 @@ def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, lna_params, temp_c=37.0, letter='
         if m1 == 'd' and m2 == 'd':
             continue
         else:
-            # CASE B: LNA Involved (Use Owczarzy/McTigue)
             if m1 == letter and m2 == letter:
                 top = f"+{b1}+{b2}"
             elif m1 == 'd' and m2 == letter:
@@ -141,9 +148,9 @@ def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, lna_params, temp_c=37.0, letter='
             c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
             key = f"{top}/{c1}{c2}"
 
-            if key in lna_params:
-                total_dH += lna_params[key]['dH']
-                total_dS += lna_params[key]['dS']
+            if key in params:
+                total_dH += params[key]['dH']
+                total_dS += params[key]['dS']
             else:
                 print("Whoops")
 
