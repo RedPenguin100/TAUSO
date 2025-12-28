@@ -1,4 +1,6 @@
-from typing import List
+from tauso.hybridization.weights.dna import DNA_DNA_WEIGHTS
+from tauso.hybridization.weights.lna import LNA_DNA_WEIGHTS
+from tauso.util import get_nucleotide_watson_crick
 
 # https://pmc.ncbi.nlm.nih.gov/articles/PMC9116672/#ack1
 
@@ -52,28 +54,54 @@ exp_rna_weights_37 = {
     'CU': -180,
     'AU': -90,
     'UG': -90,
-    'GG' : -210,
-    'CG' : -170,
-    'AG' : -90,
-    'UC' : -130,
-    'GC' : -270,
-    'CC' : -290,
-    'AC' : -110,
-    'UA' : -60,
-    'GA' : -150,
-    'CA' : -160,
-    'AA' : -20
+    'GG': -210,
+    'CG': -170,
+    'AG': -90,
+    'UC': -130,
+    'GC': -270,
+    'CC': -290,
+    'AC': -110,
+    'UA': -60,
+    'GA': -150,
+    'CA': -160,
+    'AA': -20
 }
 
 
-def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
+def get_exp_dna_rna_hybridization(seq: str, temp=37) -> float:
+    seq = seq.replace('T', 'U')
+
     total_hybridization = 0
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
-        # if temp == 50:
-        #     total_hybridization += exp_rna_weights_37[L+R] - exp_ps_diff_weights_50[L + R]
         if temp == 37:
-            total_hybridization += exp_rna_weights_37[L+R] - exp_ps_diff_weights_37[L + R]
+            total_hybridization += exp_rna_weights_37[L + R]
+        else:
+            total_hybridization = 0
+    return total_hybridization
+
+
+def get_exp_psrna_hybridization_diff(seq: str, temp=37) -> float:
+    seq = seq.replace('T', 'U')
+
+    total_hybridization = 0
+    for i in range(len(seq) - 1):
+        L, R = seq[i], seq[i + 1]
+        if temp == 37:
+            total_hybridization += exp_ps_diff_weights_37[L + R]
+        else:
+            total_hybridization = 0
+    return total_hybridization
+
+
+def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
+    seq = seq.replace('T', 'U')
+
+    total_hybridization = 0
+    for i in range(len(seq) - 1):
+        L, R = seq[i], seq[i + 1]
+        if temp == 37:
+            total_hybridization += exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
         else:
             total_hybridization = 0
     return total_hybridization
@@ -81,3 +109,112 @@ def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
 
 def get_exp_psrna_hybridization_normalized(seq: str, temp=50) -> float:
     return get_exp_psrna_hybridization(seq, temp) / len(seq)
+
+
+def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter='L'):
+    # Reverse to 5'->3' for processing
+    seq = seq_3to5.upper()[::-1]
+    fmt = fmt_3to5.upper()[::-1]
+
+    if len(seq) != len(fmt): return None
+
+    temp_k = temp_c + 273.15
+
+    total_dH = 0.0
+    total_dS = 0.0
+
+    # --- 1. Add Initiation Penalty (Once per strand) ---
+    # total_dH += INITIATION['dH']
+    # total_dS += INITIATION['dS']
+
+    # --- 2. Iterate Stacks ---
+    for i in range(len(seq) - 1):
+        b1, b2 = seq[i], seq[i + 1]
+        m1, m2 = fmt[i], fmt[i + 1]
+
+        # Determine Lookup Key
+        if m1 == 'd' and m2 == 'd':
+            continue
+        else:
+            if m1 == letter and m2 == letter:
+                top = f"+{b1}+{b2}"
+            elif m1 == 'd' and m2 == letter:
+                top = f"{b1}+{b2}"
+            elif m1 == letter and m2 == 'd':
+                top = f"+{b1}{b2}"
+            else:
+                continue
+
+            c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
+            key = f"{top}/{c1}{c2}"
+
+            if key in params:
+                total_dH += params[key]['dH']
+                total_dS += params[key]['dS']
+            else:
+                print("Whoops")
+
+    # Final dG calculation
+    total_dG = total_dH - (temp_k * (total_dS / 1000.0))
+    return round(total_dG, 3)
+
+
+def calculate_lna(antisense, chemical_pattern):
+    return calculate_3rd_gen_diff(
+        antisense,
+        chemical_pattern,
+        LNA_DNA_WEIGHTS,  # Your existing LNA Dict
+    )
+
+def calculate_cet(antisense, chemical_pattern):
+    return calculate_3rd_gen_diff(
+        antisense,
+        chemical_pattern,
+        LNA_DNA_WEIGHTS,  # Your existing LNA Dict
+        letter='C'
+    )
+
+
+
+def calculate_dna(antisense, temp_c=37.0):
+    # Reverse to 5'->3' for processing
+    seq = antisense.upper()[::-1]
+    seq = seq.replace('U', 'T')
+
+    temp_k = temp_c + 273.15
+
+    total_dH = 0.0
+    total_dS = 0.0
+
+    # --- 1. Add Initiation Penalty (Once per strand) ---
+    # total_dH += INITIATION['dH']
+    # total_dS += INITIATION['dS']
+
+    # --- 2. Iterate Stacks ---
+    for i in range(len(seq) - 1):
+        b1, b2 = seq[i], seq[i + 1]
+
+
+        top = f"{b1}{b2}"
+        c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
+        key = f"{top}/{c1}{c2}"
+
+        if key in DNA_DNA_WEIGHTS:
+            total_dH += DNA_DNA_WEIGHTS[key]['dH']
+            total_dS += DNA_DNA_WEIGHTS[key]['dS']
+        else:
+            print("Whoops")
+
+    # Final dG calculation
+    total_dG = total_dH - (temp_k * (total_dS / 1000.0))
+    return round(total_dG, 3)
+
+
+def calc_methylcytosines(sequence, modification):
+    if 'methylcytosines' not in modification:
+        return 0
+    gap_count = 0
+    for base in sequence:
+        if base == 'C':
+            gap_count +=1
+    return gap_count
