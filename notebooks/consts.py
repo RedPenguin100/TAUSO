@@ -22,6 +22,8 @@ PREMRNA_FOUND = 'pre_mrna_found'
 SENSE_START = 'sense_start'
 SENSE_LENGTH = 'sense_length'
 SENSE_TYPE = 'sense_type'
+SENSE_SEQUENCE = 'sense_sequence'
+PRE_MRNA_SEQUENCE = 'pre_mrna_sequence'
 SENSE_AVG_ACCESSIBILITY = 'sense_avg_accessibility'
 
 
