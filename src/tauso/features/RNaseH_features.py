@@ -1,3 +1,4 @@
+
 import pandas as pd
 
 def rnaseh1_dict(label) :
@@ -672,3 +673,184 @@ def compute_rnaseh_features(df,seq_col="Sequence",experiments=("R4a", "R4b", "R7
             )
 
     return df
+
+
+#################################################################################
+
+def add_rnaseh1_scores_best_window_nt(
+    df: pd.DataFrame,
+    seq_col: str = "Sequence",
+    experiments: tuple[str, ...] = ("R4a", "R4b", "R7"),
+    best_window_start_nt: dict | None = None,
+    out_prefix: str = "RNaseH1_score_",
+) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Add RNaseH1 nucleotide-based scores using a best window_start per (experiment, sequence length).
+
+    Returns:
+        (df, feature_cols)
+    """
+
+    # Default mapping if user did not supply one
+    if best_window_start_nt is None:
+        best_window_start_nt = {
+            "R4a": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 2, 18: 2, 19: 4, 20: 3, 21: 0, 22: 0, 25: 0},
+            "R4b": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 1, 20: 3, 21: 0, 22: 0, 25: 0},
+            "R7":  {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 3, 17: 2, 18: 4, 19: 1, 20: 4, 21: 0, 22: 0, 25: 0},
+        }
+
+    feature_cols: list[str] = []
+
+    # Small helper: robust length
+    def safe_len(x) -> int:
+        return len(x) if isinstance(x, str) else 0
+
+    for exp in experiments:
+        weights = rnaseh1_dict(exp)
+        col_name = f"{out_prefix}{exp}"
+        feature_cols.append(col_name)
+
+        # Compute per row
+        def score_row(row) -> float:
+            seq = row.get(seq_col, None)
+            if not isinstance(seq, str) or len(seq) == 0:
+                return 0.0
+            L = len(seq)
+            pos = best_window_start_nt.get(exp, {}).get(L, 0)
+            return compute_rnaseh1_score(seq, weights, window_start=pos)
+
+        df[col_name] = df.apply(score_row, axis=1)
+
+    return df, feature_cols
+
+###############################################################################
+
+def add_rnaseh1_scores_best_window_dinuc(
+    df: pd.DataFrame,
+    seq_col: str = "Sequence",
+    experiments: tuple[str, ...] = ("R4a_dinuc", "R4b_dinuc", "R7_dinuc"),
+    best_window_start_dinuc: dict | None = None,
+    out_prefix: str = "RNaseH1_score_dinucleotide_",
+) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Add RNaseH1 dinucleotide-based scores using a best window_start per (experiment, sequence length).
+
+    Returns:
+        (df, feature_cols)
+    """
+
+    # Default mapping if user did not supply one
+    if best_window_start_dinuc is None:
+        best_window_start_dinuc = {
+            "R4a_dinuc": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 3, 17: 3, 18: 2, 19: 4, 20: 6, 21: 0, 22: 0, 25: 0},
+            "R4b_dinuc": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 3, 19: 1, 20: 3, 21: 0, 22: 0, 25: 0},
+            "R7_dinuc":  {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 3, 18: 4, 19: 6, 20: 3, 21: 0, 22: 0, 25: 0},
+        }
+
+    feature_cols: list[str] = []
+
+    for exp in experiments:
+        weights = rnaseh1_dict(exp)
+        col_name = f"{out_prefix}{exp}"
+        feature_cols.append(col_name)
+
+        def score_row2(row) -> float:
+            seq = row.get(seq_col, None)
+            if not isinstance(seq, str) or len(seq) < 2:
+                return 0.0
+
+            L = len(seq)
+            pos = best_window_start_dinuc.get(exp, {}).get(L, 0)
+            return compute_rnaseh1_dinucleotide_score(seq, weights, window_start=pos)
+
+        df[col_name] = df.apply(score_row2, axis=1)
+
+    return df, feature_cols
+
+################################################################################################
+
+def add_rnaseh1_scores_best_window_krel_nt(
+    df: pd.DataFrame,
+    seq_col: str = "Sequence",
+    experiments: tuple[str, ...] = ("R4a_krel", "R4b_krel", "R7_krel"),
+    best_window_start_krel: dict | None = None,
+    out_prefix: str = "RNaseH1_Krel_score_",
+) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Add RNaseH1 Krel nucleotide-based scores using a best window_start per (experiment, sequence length).
+
+    Returns:
+        (df, feature_cols)
+    """
+
+    # Default mapping if user did not supply one
+    if best_window_start_krel is None:
+        best_window_start_krel = {
+            "R4a_krel": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 3, 18: 2, 19: 4, 20: 3, 21: 0, 22: 0, 25: 0},
+            "R4b_krel": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 1, 18: 3, 19: 1, 20: 3, 21: 0, 22: 0, 25: 0},
+            "R7_krel":  {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 3, 17: 2, 18: 4, 19: 6, 20: 4, 21: 0, 22: 0, 25: 0},
+        }
+
+    feature_cols: list[str] = []
+
+    for exp in experiments:
+        weights = rnaseh1_dict(exp)
+        col_name = f"{out_prefix}{exp}"
+        feature_cols.append(col_name)
+
+        def score_row3(row) -> float:
+            seq = row.get(seq_col, None)
+            if not isinstance(seq, str) or len(seq) == 0:
+                return 0.0
+
+            L = len(seq)
+            pos = best_window_start_krel.get(exp, {}).get(L, 0)
+            return compute_rnaseh1_score(seq, weights, window_start=pos)
+
+        df[col_name] = df.apply(score_row3, axis=1)
+
+    return df, feature_cols
+
+############################################################################################
+
+def add_rnaseh1_scores_best_window_krel_dinuc(
+    df: pd.DataFrame,
+    seq_col: str = "Sequence",
+    experiments: tuple[str, ...] = ("R4a_krel_dinuc", "R4b_krel_dinuc", "R7_krel_dinuc"),
+    best_window_start_krel_dinuc: dict | None = None,
+    out_prefix: str = "RNaseH1_Krel_dinucleotide_score_",
+) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Add RNaseH1 Krel dinucleotide-based scores using a best window_start per (experiment, sequence length).
+
+    Returns:
+        (df, feature_cols)
+    """
+
+    # Default mapping if user did not supply one
+    if best_window_start_krel_dinuc is None:
+        best_window_start_krel_dinuc = {
+            "R4a_krel_dinuc": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 2, 17: 1, 18: 2, 19: 4, 20: 6, 21: 0, 22: 0, 25: 0},
+            "R4b_krel_dinuc": {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 3, 19: 1, 20: 3, 21: 0, 22: 0, 25: 0},
+            "R7_krel_dinuc":  {10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 3, 18: 4, 19: 6, 20: 3, 21: 0, 22: 0, 25: 0},
+        }
+
+    feature_cols: list[str] = []
+
+    for exp in experiments:
+        weights = rnaseh1_dict(exp)
+        col_name = f"{out_prefix}{exp}"
+        feature_cols.append(col_name)
+
+        def score_row4(row) -> float:
+            seq = row.get(seq_col, None)
+            if not isinstance(seq, str) or len(seq) < 2:
+                return 0.0
+
+            L = len(seq)
+            pos = best_window_start_krel_dinuc.get(exp, {}).get(L, 0)
+            return compute_rnaseh1_dinucleotide_score(seq, weights, window_start=pos)
+
+        df[col_name] = df.apply(score_row4, axis=1)
+
+    return df, feature_cols
