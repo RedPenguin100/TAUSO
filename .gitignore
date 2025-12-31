@@ -3,3 +3,6 @@
 ./data/
 ./src/data/
 *.Identifier
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
