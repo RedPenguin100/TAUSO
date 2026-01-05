@@ -2,6 +2,8 @@ name: tauso
 channels:
   - conda-forge
 dependencies:
+  - shap
+  - gdown
   - jupyterlab
   - matplotlib
   - seaborn
