@@ -18,7 +18,7 @@ path = '/home/oni/ASOdesign/scripts/data_genertion/cell_line_expression/'
 # Using the mutated pre-mRNA sequences
 sequences = '.mutated_transcriptome_premRNA.100.csv'
 
-cell_line_list = ['ACH-001328', 'ACH-000463', 'ACH-001188', 'ACH-001086', 'ACH-000739', 'ACH-000232']
+
 
 cellline_to_filename = {
     'A431': 'ACH-001328',

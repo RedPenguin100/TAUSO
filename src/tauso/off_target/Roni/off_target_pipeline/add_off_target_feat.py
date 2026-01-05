@@ -4,62 +4,62 @@ from src.tauso.off_target.Roni.off_target_pipeline.off_target_functions import d
 import pandas as pd
 import numpy as np
 
-'''
-
-path = '/home/oni/ASOdesign/scripts/data_genertion/cell_line_expression/'
-sequences = '.mutated_transcriptome_premRNA.merged.csv'
 
 
-
-# Set base directory relative to script
-script_dir = os.path.dirname(__file__)
-data_dir = os.path.abspath(os.path.join(script_dir, "..", "data_genertion"))
-
-# ========================================== Pre-Processing Main ASO data =============================================
-# Load the main ASO dataset
-data_path = os.path.join(data_dir, "data_updated_inhibition.csv")
-may_df = pd.read_csv(data_path)
-may_df = may_df.head(1)
-
-# Expression files path
-
-# Load each transcriptome file
-A431_df = pd.read_csv(path+celline_list[0]+sequences)
-print("1")
-NCI_H460_df = pd.read_csv(path+celline_list[1]+sequences)
-print("2")
-SH_SY5Y_df = pd.read_csv(path+celline_list[2]+sequences)
-print("3")
-HeLa_df = pd.read_csv(path+celline_list[3]+sequences)
-print("4")
-HepG2_df = pd.read_csv(path+celline_list[4]+sequences)
-print("5")
-U_251MG_df = pd.read_csv(path+celline_list[5]+sequences)
-print("6")
-
-# ============================ Cut to top n expressed ==============================
-n = 1
-A431_df = A431_df.head(n)
-NCI_H460_df = NCI_H460_df.head(n)
-SH_SY5Y_df = SH_SY5Y_df.head(n)
-HeLa_df = HeLa_df.head(n)
-HepG2_df = HepG2_df.head(n)
-U_251MG_df = U_251MG_df.head(n)
- # =============================================== Cell lines  ========================================================
-cell_line_list = ['ACH-001328', 'ACH-000463', 'ACH-001188', 'ACH-001086', 'ACH-000739', 'ACH-000232']
-
-cell_line2df_ = {'A431':A431_df,
-                'A-431':A431_df,
-                'NCI-H460':NCI_H460_df,
-                'SH_SY5Y':SH_SY5Y_df,
-                'HeLa':HeLa_df,
-                'HepG2':HepG2_df,
-                'U-251MG':U_251MG_df}
-'''
+# path = '/home/oni/ASOdesign/scripts/data_genertion/cell_line_expression/'
+# sequences = '.mutated_transcriptome_premRNA.merged.csv'
+#
+#
+#
+# # Set base directory relative to script
+# script_dir = os.path.dirname(__file__)
+# data_dir = os.path.abspath(os.path.join(script_dir, "..", "data_genertion"))
+#
+# # ========================================== Pre-Processing Main ASO data =============================================
+# # Load the main ASO dataset
+# data_path = os.path.join(data_dir, "data_updated_inhibition.csv")
+# may_df = pd.read_csv(data_path)
+# may_df = may_df.head(1)
+#
+# # Expression files path
+#
+# # Load each transcriptome file
+# A431_df = pd.read_csv(path+celline_list[0]+sequences)
+# print("1")
+# NCI_H460_df = pd.read_csv(path+celline_list[1]+sequences)
+# print("2")
+# SH_SY5Y_df = pd.read_csv(path+celline_list[2]+sequences)
+# print("3")
+# HeLa_df = pd.read_csv(path+celline_list[3]+sequences)
+# print("4")
+# HepG2_df = pd.read_csv(path+celline_list[4]+sequences)
+# print("5")
+# U_251MG_df = pd.read_csv(path+celline_list[5]+sequences)
+# print("6")
+#
+# # ============================ Cut to top n expressed ==============================
+# n = 1
+# A431_df = A431_df.head(n)
+# NCI_H460_df = NCI_H460_df.head(n)
+# SH_SY5Y_df = SH_SY5Y_df.head(n)
+# HeLa_df = HeLa_df.head(n)
+# HepG2_df = HepG2_df.head(n)
+# U_251MG_df = U_251MG_df.head(n)
+#  # =============================================== Cell lines  ========================================================
+# cell_line_list = ['ACH-001328', 'ACH-000463', 'ACH-001188', 'ACH-001086', 'ACH-000739', 'ACH-000232']
+#
+# cell_line2df_ = {'A431':A431_df,
+#                 'A-431':A431_df,
+#                 'NCI-H460':NCI_H460_df,
+#                 'SH_SY5Y':SH_SY5Y_df,
+#                 'HeLa':HeLa_df,
+#                 'HepG2':HepG2_df,
+#                 'U-251MG':U_251MG_df}
+#
 # =============================================== Function ============================================================
 
 
-def get_off_target_feature(cell_line2df, ASO_df, cutoff, method=0):
+def add_off_target_feat(cell_line_dict, cell_line2df, ASO_df, cutoff, method=0):
     index_score_vec_TPM = {}
     index_score_vec_norm = {}
     index_score_vec_MS = {}
@@ -69,7 +69,8 @@ def get_off_target_feature(cell_line2df, ASO_df, cutoff, method=0):
     for idx, row in ASO_df.iterrows(): # For ASO
 
         index = row['index']
-        cell_line = row['Cell_line']
+        exp_cell_line = row['Cell_line']
+        cell_line = cell_line_dict[exp_cell_line]
         ASO_seq = row['Sequence']
         trigger = dna_to_rna_reverse_complement(ASO_seq)
         target_gene = row['Canonical Gene Name']
@@ -78,6 +79,7 @@ def get_off_target_feature(cell_line2df, ASO_df, cutoff, method=0):
             continue
 
         curr_df = cell_line2df[cell_line]
+        print(curr_df.head())
 
         name_to_seq = {}
         name_to_exp_TPM = {}
@@ -99,7 +101,7 @@ def get_off_target_feature(cell_line2df, ASO_df, cutoff, method=0):
 
             mRNA_seq = mut_seq if not pd.isna(mut_seq) else og_seq
             exp_TPM = gene_row['expression_TPM']
-            exp_norm = gene_row['expression_norm']
+            exp_norm = gene_row[f'{cell_line}_expression_norm']
 
             name_to_seq[curr_gene] = mRNA_seq
             name_to_exp_TPM[curr_gene] = exp_TPM
