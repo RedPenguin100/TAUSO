@@ -1,4 +1,4 @@
-,ISIS,Transfection,Linkage,Linkage_Location,Canonical Gene Name,Cell_line,ASO_volume(nM),Treatment_Period(hours),Sequence,Modification,Chemical_Pattern,target_inhibition,probe_std,probe_count,total_replicate_count,Cohort
+,ISIS,Transfection,Linkage,Linkage_Location,Canonical Gene Name,Cell_line,ASO_volume(nM),Treatment_Period(hours),Sequence,Modification,Chemical_Pattern,Inhibition(%),probe_std,probe_count,total_replicate_count,Cohort
 128,76577,free uptake,phosphorothioate,else,IRF5,KARPAS-229,4000.0,48,GTCTAGTGTCATGGAA,cEt/5-methylcytosines/deoxy,CCCddddddddddCCC,38.0,0.0,1,1,IRF5 (KARPAS-229)
 129,146143,electroporation,phosphorothioate,else,SOD1,HepG2,187.5,16,TCAGCACGCACACGGCCTTC,MOE/5-methylcytosines/deoxy,MMMMMddddddddddMMMMM,6.0,0.0,1,1,SOD1 (HepG2)
 130,146143,electroporation,phosphorothioate,else,SOD1,HepG2,750.0,16,TCAGCACGCACACGGCCTTC,MOE/5-methylcytosines/deoxy,MMMMMddddddddddMMMMM,12.0,0.0,1,1,SOD1 (HepG2)
