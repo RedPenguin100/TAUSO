@@ -31,7 +31,9 @@ def get_unique_human_genes(all_data):
     genes = all_data_human_no_nan[CANONICAL_GENE].copy()
     genes_u = list(set(genes))
 
-    genes_u.remove('HBV')
-    genes_u.remove('negative_control')
+    if 'HBV' in genes_u:
+        genes_u.remove('HBV')
+    if 'negative_control' in genes_u:
+        genes_u.remove('negative_control')
 
     return genes_u

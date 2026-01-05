@@ -1,3 +1,4 @@
+import gdown
 import os
 import subprocess
 import sys
@@ -14,6 +15,19 @@ from pyfaidx import Fasta
 from gffutils.iterators import DataIterator
 from tauso.data import get_paths, get_data_dir
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
+
+import requests
+import os
+import sys
+import click
+
+
+# --- MAIN COMMAND ---
+
+@click.group()
+def main():
+    """Tauso: ASO Design Toolkit"""
+    pass
 
 
 def download_and_gunzip(url, dest_path):
@@ -59,12 +73,61 @@ def batch_iterator(iterator, batch_size=1000):
         yield batch
 
 
-# --- MAIN COMMAND ---
+@main.command()
+@click.option('--force', is_flag=True, help="Force redownload if file exists.")
+def setup_mrna_halflife(force):
+    """
+    Downloads the 'species_stability_no_threshold.csv.gz' dataset from the TTDB source.
+    This file contains mRNA half-life data required for the stability features.
+    """
+    # The specific File ID
+    FILE_ID = "1GekvDui-B2tSAQ6wgO3tIXpKd54EGRbn"
 
-@click.group()
-def main():
-    """Tauso: ASO Design Toolkit"""
-    pass
+    # gdown works best with the 'uc' (User Content) export URL format
+    url = f'https://drive.google.com/uc?id={FILE_ID}'
+
+    # Assuming get_data_dir() is defined in your utils or imported
+    data_dir = get_data_dir()
+
+    # Ensure the directory exists
+    os.makedirs(data_dir, exist_ok=True)
+
+    destination = os.path.join(data_dir, 'mrna_half_life.csv.gz')
+
+    click.echo(f"Initializing Stability Data setup...")
+    click.echo(f"Target path: {destination}")
+
+    if os.path.exists(destination) and not force:
+        click.echo(click.style(f"✓ File already exists at {destination}. Use --force to overwrite.", fg="green"))
+        return
+
+    try:
+        click.echo("Contacting Google Drive via gdown...")
+
+        # gdown.download automatically handles the "virus scan warning" confirmation
+        # quiet=False allows you to see the progress bar
+        output = gdown.download(url, destination, quiet=False)
+
+        if not output:
+            raise Exception("Download failed (no output file).")
+
+        click.echo(click.style(f"✓ Download complete: {destination}", fg="green"))
+
+        # Verify it is a valid gzip (Crucial check for partial downloads)
+        try:
+            with gzip.open(destination, 'rb') as f:
+                f.read(1)
+            click.echo(click.style(f"✓ Integrity check passed (valid gzip).", fg="green"))
+        except Exception:
+            click.echo(
+                click.style(f"⚠ Warning: The downloaded file is not a valid gzip. It might be an HTML error page.",
+                            fg="red"))
+            click.echo(click.style(f"Try deleting {destination} and running with --force.", fg="yellow"))
+            sys.exit(1)
+
+    except Exception as e:
+        click.echo(click.style(f"Error downloading file: {e}", fg="red"))
+        sys.exit(1)
 
 
 GENCODE_HUMAN_RELEASE = "34"
