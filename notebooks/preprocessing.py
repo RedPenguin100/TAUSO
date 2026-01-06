@@ -1,14 +1,24 @@
 # Imports
-import sys
-from pathlib import Path
 import pandas as pd
 import numpy as np
-current_file_path = Path(__file__).resolve()
-project_root = current_file_path.parents[2]
-sys.path.append(str(project_root))
+import tauso
 from notebooks.consts import *
 from notebooks.notebook_utils import log_correction, read_cached_gene_to_data
 from tauso.util import get_antisense
+
+
+def process_row(row,gene_to_data):
+    gene_name = row[CANONICAL_GENE]
+    if gene_name not in gene_to_data:
+        return -1, 0, "", ""
+
+    locus_info = gene_to_data[gene_name]
+    pre_mrna = locus_info.full_mrna
+    antisense = getattr(row, SEQUENCE)
+    sense = get_antisense(antisense)
+    idx = pre_mrna.find(sense)  # the index in the pre_mrna the sense is found
+
+    return idx, len(antisense), sense, pre_mrna
 
 
 def preprocess_aso_data(csv_path):
@@ -42,26 +52,13 @@ def preprocess_aso_data(csv_path):
 
     # 5. Sequence Mapping (Mapping ASO to pre-mRNA)
 
-    # Initialize nwe columns
+    # Initialize new columns
     df[SENSE_SEQUENCE] = ""
     df[PRE_MRNA_SEQUENCE] = ""
     df[SENSE_START] = -1  # initialize to -1 to find errors
     df[SENSE_LENGTH] = 0
 
-    def process_row(row):
-        gene_name = row[CANONICAL_GENE]
-        if gene_name not in gene_to_data:
-            return -1, 0, "", ""
-
-        locus_info = gene_to_data[gene_name]
-        pre_mrna = locus_info.full_mrna
-        antisense = getattr(row, SEQUENCE)
-        sense = get_antisense(antisense)
-        idx = pre_mrna.find(sense) #the index in the pre_mrna the sense is found
-
-        return idx, len(antisense), sense, pre_mrna
-
-    results = df.apply(lambda row: process_row(pd.Series(row)), axis=1)
+    results = df.apply(lambda row: process_row(row,gene_to_data), axis=1)
 
     df[[SENSE_START, SENSE_LENGTH, SENSE_SEQUENCE, PRE_MRNA_SEQUENCE]] = pd.DataFrame(results.tolist(), index=df.index)
 
