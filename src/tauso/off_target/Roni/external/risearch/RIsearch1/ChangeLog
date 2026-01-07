@@ -1,0 +1,12 @@
+013-04-22  Anne Wenzel  <wenzel@rth.dk>
+	* include energy threshold
+	* added alternative output formats
+
+020-03-29 Giulia Corsi <giulia@rth.dk>
+	* added scoring matrices for RNA-DNA and DNA-DNA interactions
+	* new option -f to force start and end of interactions
+	* new option -w to weight stacking base pair contributions
+
+021-06-15 Giulia Corsi <giulia@rth.dk>
+	* added error if any of the options -f -s -n -l -e -p are used
+	together with -f and -w

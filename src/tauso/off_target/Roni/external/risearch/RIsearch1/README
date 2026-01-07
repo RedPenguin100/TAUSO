@@ -1,0 +1,50 @@
+/***********************************************************
+  RIsearch v1.2   --   RNA-RNA, RNA-DNA, DNA-DNA interaction search
+
+  Copyright 2012 Anne Wenzel <wenzel@rth.dk> (RIsearch v.1.0 and v.1.1)
+  Copyright 2021 Giulia I Corsi <giulia@rth.dk> (Extension of RIsearch v.1.1 in RIsearch v.1.2)
+
+  This file is part of RIsearch.
+
+  RIsearch is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  RIsearch is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with RIsearch, see file COPYING.
+  If not, see <http://www.gnu.org/licenses/>.
+
+***********************************************************/
+
+
+
+=== HOWTO: compile & run ===
+
+$ make RISEARCH
+$ ./RIsearch -q query.fa -t target.fa
+
+query and target may contain several sequences, RIsearch will scan all vs. all
+Alternatively single sequences can be given directly on commandline with
+-Q acgu -T acgu
+
+See the Manual included in the RIsearch folder for a complete list of options and usage examples.
+
+=== Citation ===
+
+If you find this software useful for your research, please cite the following work:
+
+Anne Wenzel, Erdinç Akbaşlı, and Jan Gorodkin.
+RIsearch: fast RNA–RNA interaction search using a simplified nearest-neighbor energy model.
+Bioinformatics (2012) 28(21): 2738–2746. 
+
+=== Contact ===
+
+wenzel@rth.dk
+
+

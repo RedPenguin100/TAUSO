@@ -1,0 +1,8 @@
+*.so
+RIsearch
+__pycache__
+.ipynb_checkpoints
+RIsearch.dbg
+*.o
+log.txt
+*.ipynb

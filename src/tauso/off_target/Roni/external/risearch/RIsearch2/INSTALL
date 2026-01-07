@@ -1,0 +1,87 @@
+
+================================== RIsearch2 ===================================
+
+If you are on a modern 64bit linux based system, you should be able to run 
+the risearch2.x binary in the bin directory already. If not you will have to
+rebuild the binary.
+
+================================================================================
+
+
+================================================================================
+================================== REBUILDING ==================================
+================================================================================
+
+First, make sure that you have the following programs installed:
+
+a) the GNU C compiler
+b) CMake
+
+
+=== Ubuntu LINUX ===
+
+On ubuntu linux they are installed using the following command:
+
+sudo apt-get install gcc cmake
+
+
+=== Mac OSX ===
+
+### installing brew ###
+
+To install brew, that helps installing gcc, you need to execute the following 
+command.
+
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+
+### gcc compiler ###
+
+If you do not have the gcc compiler, to install it on Mac OSX you can run
+the following command. This might take up to 1h.
+
+brew install gcc --without-multilib
+
+If you already have gcc on your Mac OSX, please make sure that your gcc 
+compiler can compile OpenMP programs. If this is not the case you might
+have to reinstall your gcc compiler with the following command. This might
+take up to 1h.
+
+brew reinstall gcc --without-multilib
+
+
+### OpenMP libraries ###
+
+brew install clang-omp
+
+
+### CMake ###
+
+To learn how to install cmake on Mac OSX, visit https://cmake.org/install/
+
+After the installation, please make sure that you can execute cmake in your 
+terminal by typing "cmake -h".
+
+
+! HINT for Mac OSX: If you have reinstalled the gcc compiler, you might 
+! have to change the line "CC = gcc", within the file "src/Makefile", to 
+! "CC = gcc-6", or to another version of gcc that enables compiling OpenMP 
+! programs.
+
+
+===================
+
+Now, you should attempt to recompile the binary using the following command:
+
+./rebuild.sh
+
+
+If that does not work, and you have the gcc and CMake programs installed, please
+report back to the author.
+
+
+============================= EXECUTING RIsearch2 ==============================
+
+For more convenient use of RIsearch2, add the installation folder to your PATH 
+or copy the binary to a location that is in $PATH.
+

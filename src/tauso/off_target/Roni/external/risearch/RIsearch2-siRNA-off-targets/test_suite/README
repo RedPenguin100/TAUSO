@@ -1,0 +1,79 @@
+
+ This is the test suite for siRNA discovery pipeline.
+ You will use the siRNA off-target discovery pipeline to compute 
+ an off-targeting potential for a given siRNA and to detect the
+ potential off-target transcripts.
+
+ !! You first need to make sure that risearch2.x and RNAplfold
+    commands are both executable from terminal.
+
+#####################################################################
+ You can run the following commands from the test_suite folder, 
+ to compute a genome-wide off-targeting potential with dummy data.
+
+==================
+ mkdir gw_test
+ cd gw_test
+ mkdir RIsearch2_results
+ cd RIsearch2_results
+ risearch2.x -c ../../genome.fa -o genome.pksuf
+ risearch2.x -q ../../sirna.fa -i genome.pksuf -s 1:12/6 -e -10 -l 20
+ cd ..
+ mkdir accessibility_results
+ cd accessibility_results
+ ../../../src/run_RNAplfold_and_pack_results.py ../../genome.fa 80 40 +
+ ../../../src/run_RNAplfold_and_pack_results.py ../../genome.fa 80 40 -
+ cd .. 
+ ../../src/pipeline.py -r RIsearch2_results/risearch_siRNAID.out.gz \
+    -t ../expression_data.gtf -feature transcript -expmetric RPKM \
+    -p accessibility_results/ -q siRNAID -os ../sirna.fa \
+    -o sirna_gw_off_targets.txt --offPs -oi onTarget --sort 
+ cd ..
+==================
+
+ This run should have generated the gw_test/sirna_gw_off_targets.txt file 
+ that reports the off-targeting probabilities of potential transcripts and
+ off-targeting potential of the siRNA with an ID of siRNAID.
+
+ You can compare this file with gw.results file we provide within the 
+ test suite, to see if you have actually generated the right results.
+
+ diff gw_test/sirna_gw_off_targets.txt gw.results
+
+ # !!! WARNING: This might fail if you are not using Vienna package 2.2.5
+
+#####################################################################
+
+ To make a transcriptome_wide prediction with dummy data, you can run the 
+ following commands.
+
+==================
+ mkdir tw_test
+ cd tw_test
+ mkdir RIsearch2_results
+ cd RIsearch2_results
+ risearch2.x -c ../../transcripts.fa -o transcripts.pksuf
+ risearch2.x -q ../../sirna.fa -i transcripts.pksuf -s 1:12/6 -e -10 -l 20
+ cd ..
+ mkdir accessibility_results
+ cd accessibility_results/
+ ../../../src/run_RNAplfold_and_pack_results.py ../../transcripts.fa 80 40 +
+ cd ..
+ ../../src/pipeline.py -r RIsearch2_results/risearch_siRNAID.out.gz --less \
+    -type tw -t ../expression_data.bed -p accessibility_results/ -q siRNAID \
+    -os ../sirna.fa -o sirna_tw_off_targets.txt --offPs \
+    -of ../onTarget.fa -oexp 1000
+===================
+
+ 
+ This run should have generated the tw_test/sirna_tw_off_targets.txt file 
+ that reports the off-targeting probabilities of potential transcripts and
+ off-targeting potential of the siRNA with an ID of siRNAID.
+
+ You can compare this file with tw.results file we provide within the 
+ test suite, to see if you have actually generated the right results.
+
+ diff tw_test/sirna_tw_off_targets.txt tw.results
+
+ # !!! WARNING: This might fail if you are not using Vienna package 2.2.5
+
