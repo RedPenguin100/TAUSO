@@ -1,7 +1,12 @@
-#new version
+
+from __future__ import annotations
 import re
 import math
 from typing import List, Union, Dict
+from pathlib import Path
+from typing import Iterable, List, Optional
+import pandas as pd
+
 
 STOP_CODONS = {"TAA", "TAG", "TGA"}
 
@@ -144,3 +149,74 @@ def calc_CAI(seq: str,
 
     return math.exp(s_log / max(N, 1))
 
+
+############################################################################################################
+# CAI reference weights from cell-line transcriptomes
+DEFAULT_TRANSCRIPTOME_FILENAMES: List[str] = [
+    "ACH-000232_transcriptome.csv",
+    "ACH-000463_transcriptome.csv",
+    "ACH-000681_transcriptome.csv",
+    "ACH-000739_transcriptome.csv",
+    "ACH-001086_transcriptome.csv",
+    "ACH-001188_transcriptome.csv",
+    "ACH-001328_transcriptome.csv",
+]
+
+
+
+
+def build_cai_reference_weights_from_transcriptomes(
+    *,
+    transcriptome_dir: Optional[Path] = None,
+    transcriptome_filenames: Iterable[str] = DEFAULT_TRANSCRIPTOME_FILENAMES,
+    top_n: int = 300,
+    expr_col: str = "expression_norm",
+    mutated_seq_col: str = "Mutated Transcript sequence",
+    original_seq_col: str = "Original Transcript sequence",
+) -> dict:
+    """
+    Build CAI reference weights from top-N transcript sequences by expression.
+
+    Returns:
+      weights_flat: dict[str, float]
+        Codon -> CAI weight mapping used as the reference set.
+    """
+    if top_n <= 0:
+        raise ValueError(f"top_n must be positive. Got: {top_n}")
+
+    # Resolve default data path relative to this file (repo-stable)
+    if transcriptome_dir is None:
+        project_root = Path(__file__).resolve().parents[3]
+        transcriptome_dir = project_root / "notebooks" / "transcripts" / "cell_line_expression"
+
+    transcriptome_dir = Path(transcriptome_dir)
+
+    files = [transcriptome_dir / fn for fn in transcriptome_filenames]
+    missing = [p.name for p in files if not p.exists()]
+    if missing:
+        raise FileNotFoundError(f"Missing transcriptome files in {transcriptome_dir}: {missing}")
+
+    dfs = [pd.read_csv(p) for p in files]
+    transcript_df = pd.concat(dfs, ignore_index=True).drop_duplicates().copy()
+
+    # Required columns
+    for col in (expr_col, mutated_seq_col, original_seq_col):
+        if col not in transcript_df.columns:
+            raise KeyError(f"Missing required column '{col}' in transcriptome data.")
+
+    # Prefer mutated, fallback to original
+    transcript_df["ref_sequence"] = transcript_df[mutated_seq_col].fillna(
+        transcript_df[original_seq_col]
+    )
+
+    # Top-N by expression
+    ref_df = transcript_df.sort_values(expr_col, ascending=False).head(top_n)
+
+    reference_seqs = ref_df["ref_sequence"].dropna().astype(str).tolist()
+    if not reference_seqs:
+        raise ValueError("No reference sequences found for CAI reference set.")
+
+    # Build CAI weights
+    _, weights_flat = calc_CAI_weight(reference_seqs)
+
+    return weights_flat
