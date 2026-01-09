@@ -1,24 +1,11 @@
-import pandas as pd
 import os
-from pyprojroot import here
+import pandas as pd
 from src.tauso.off_target.Roni.off_target_pipeline.off_target_functions import parse_gtf, parse_fasta
-from src.tauso.off_target.Roni.off_target_pipeline.get_premRNA_sequences import enrich_expression_data_with_sequence
+from src.tauso.off_target.Roni.off_target_pipeline.get_premRNA_sequences import enrich_expression_data_with_sequence, general_exp_data
 from src.tauso.off_target.Roni.off_target_pipeline.mutate_cell_line_transcriptome import get_expression_of_cell_line, get_mutations_of_cell_line, mutate_transcriptome
 
-PROJECT_ROOT = here()
-DATA_DIR = os.path.join(PROJECT_ROOT, "src", "tauso", "off_target", "Roni", "data")
 
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, "src", "tauso", "off_target", "Roni", "outputs")
-
-fasta_path = os.path.join(DATA_DIR, "GRCh38.p13.genome.fa")
-gtf_path = os.path.join(DATA_DIR, "gencode.v34.chr_patch_hapl_scaff.annotation.gtf")
-exp_path = os.path.join(DATA_DIR, "OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv")
-mut_path = os.path.join(DATA_DIR, "OmicsSomaticMutations.csv")
-
-cell_line_lst = ["ACH-000681"]
-save_csv = True
-
-def generate_cell_lines_transcriptomes(
+def run_transcriptome_pipeline(
     fasta_fl_path, gtf_fl_path, expression_fl_path, mutation_fl_path,
     output_dir, cell_line_list, save_csv=False):
     """
@@ -54,8 +41,12 @@ def generate_cell_lines_transcriptomes(
 
     for cell_line in cell_line_list:
 
-        exp_data = get_expression_of_cell_line(cell_line, expression_fl_path, output_dir)
-        mut_data = get_mutations_of_cell_line(cell_line, mutation_fl_path, output_dir)
+        if cell_line == "general":
+            exp_data = general_exp_data(expression_fl_path)
+            mut_data = exp_data
+        else:
+            exp_data = get_expression_of_cell_line(cell_line, expression_fl_path, output_dir)
+            mut_data = get_mutations_of_cell_line(cell_line, mutation_fl_path, output_dir)
 
         transcriptomes[cell_line] = [exp_data, mut_data]
 
@@ -71,9 +62,6 @@ def generate_cell_lines_transcriptomes(
 
         if save_csv:
             df = pd.DataFrame(transcriptomes[cell_line][-1])
-            df.to_csv(os.path.join(OUTPUT_DIR, cell_line + "_transcriptome.csv"), index=False)
+            df.to_csv(os.path.join(output_dir, cell_line + "_transcriptome.csv"), index=False)
 
     return transcriptomes
-
-
-generate_cell_lines_transcriptomes(fasta_path, gtf_path, exp_path, mut_path, OUTPUT_DIR, cell_line_lst, save_csv=save_csv)

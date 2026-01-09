@@ -238,3 +238,24 @@ def enrich_expression_data_with_sequence(cell_line_dict, curr_cell_line, fasta_d
 # final_func_premrna(cell_line2data, genome_path, annotation_path)
 #
 # print('test')
+
+def general_exp_data(EXP_path):
+    # load expression matrix
+    exp_data = pd.read_csv(EXP_path)
+
+    # keep only gene columns (gene name + number in parentheses)
+    gene_cols = exp_data.columns[exp_data.columns.str.contains(r"\(")]
+    exp_data = exp_data[gene_cols]
+
+    # average across cell lines → one value per gene
+    mean_exp = exp_data.mean(axis=0)
+
+    # convert Series → DataFrame with two columns
+    mean_exp_data = mean_exp.reset_index()
+    mean_exp_data.columns = ["Gene", "general_expression_norm"]
+    mean_exp_data = mean_exp_data.sort_values("general_expression_norm", ascending=False)
+
+    # back-transform to TPM (assuming log2(TPM))
+    mean_exp_data["expression_TPM"] = 2 ** mean_exp_data["general_expression_norm"]
+
+    return mean_exp_data
