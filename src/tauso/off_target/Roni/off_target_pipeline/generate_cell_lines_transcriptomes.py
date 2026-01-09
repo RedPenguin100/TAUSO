@@ -15,5 +15,5 @@ mut_path = os.path.join(DATA_DIR, "OmicsSomaticMutations.csv")
 #cell_line_lst = ["ACH-000681"]
 cell_line_lst = ["general", "ACH-001328", "ACH-000463", "ACH-001188", "ACH-001086", "ACH-000739", "ACH-000232"]
 
-def generate_cell_lines_transcriptomes(save_csv=False):
-    return run_transcriptome_pipeline(fasta_path, gtf_path, exp_path, mut_path, OUTPUT_DIR, cell_line_lst, save_csv=save_csv)
+def generate_cell_lines_transcriptomes(cell_line_list=cell_line_lst, save_csv=False):
+    return run_transcriptome_pipeline(fasta_path, gtf_path, exp_path, mut_path, OUTPUT_DIR, cell_line_list, save_csv=save_csv)

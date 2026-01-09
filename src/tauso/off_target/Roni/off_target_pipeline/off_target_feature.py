@@ -1,4 +1,4 @@
-# from src.tauso.off_target.Roni.off_target_pipeline.add_off_target_feat import  add_off_target_feat
+from notebooks.features.feature_extraction import save_feature
 from src.tauso.off_target.Roni.off_target_pipeline.add_off_target_feat import  compute_general_vector_and_cache, compute_specific_vector_optimized
 import pandas as pd
 import os
@@ -162,25 +162,25 @@ def run_single_configuration(
     )
 
     # 2. Save Specific Scores (Always expected)
+    spec_feature_name = f"off_target.{method_label}.specific.top{top_n}.cutoff{cutoff}"
     df_spec = pd.DataFrame({
         "index": list(spec_scores.keys()),
-        f"off_target_score_{method_label}_specific": list(spec_scores.values())
+        spec_feature_name: list(spec_scores.values())
     })
 
-    out_name_spec = f"off_target.{method_label}.specific.top{top_n}.cutoff{cutoff}.csv"
-    df_spec.to_csv(os.path.join(output_dir, out_name_spec), index=False)
-    print(f"Saved Specific scores to {out_name_spec}")
+    save_feature(df_spec, spec_feature_name)
+    print(f"Saved Specific scores to {spec_feature_name}.csv")
 
     # 3. Save General Scores (Only if they exist)
     if gen_scores:
+        gen_feature_name = f"off_target.{method_label}.general.top{top_n}.cutoff{cutoff}"
         df_gen = pd.DataFrame({
             "index": list(gen_scores.keys()),
-            f"off_target_score_{method_label}_general": list(gen_scores.values())
+            gen_feature_name: list(gen_scores.values())
         })
 
-        out_name_gen = f"off_target.{method_label}.general.top{top_n}.cutoff{cutoff}.csv"
-        df_gen.to_csv(os.path.join(output_dir, out_name_gen), index=False)
-        print(f"Saved General scores to {out_name_gen}")
+        save_feature(df_gen, gen_feature_name)
+        print(f"Saved General scores to {gen_feature_name}.csv")
 
 
 def run_off_target_pipeline(
@@ -214,7 +214,7 @@ def run_off_target_pipeline(
             # Save Specific Scores
             df_spec = pd.DataFrame({
                 "index": list(spec_scores.keys()),
-                f"off_target_score_{method_label}_specific": list(spec_scores.values())
+                f"off_target_score_specific_{method_label}_n{top_n}_c{cutoff}": list(spec_scores.values())
             })
             out_spec = f"off_target.{method_label}.specific.top{top_n}.cutoff{cutoff}.csv"
             df_spec.to_csv(os.path.join(output_dir, out_spec), index=False)
@@ -223,7 +223,7 @@ def run_off_target_pipeline(
             if gen_scores:
                 df_gen = pd.DataFrame({
                     "index": list(gen_scores.keys()),
-                    f"off_target_score_{method_label}_general": list(gen_scores.values())
+                    f"off_target_score_general_{method_label}_n{top_n}_c{cutoff}": list(gen_scores.values())
                 })
                 out_gen = f"off_target.{method_label}.general.top{top_n}.cutoff{cutoff}.csv"
                 df_gen.to_csv(os.path.join(output_dir, out_gen), index=False)

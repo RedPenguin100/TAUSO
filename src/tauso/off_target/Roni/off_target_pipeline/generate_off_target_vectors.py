@@ -25,11 +25,16 @@ cellline_name_to_depmap = {
     'U251': 'ACH-000232'
 }
 
-def generate_off_target_vectors(transcriptomes):
+def generate_off_target_vectors(transcriptomes, top_ns, cutoffs, method=0):
+    """
+    transcriptomes is a dictionary with cell line depmap ids as keys and a list of expression data, mutation data and transcriptome data as values
+    top_ns is a list of top n transcripts to consider as potential off-targets
+    cutoffs is a list of cutoff values to consider as meaningful off-targets
+    """
     return run_off_target_pipeline(
         ASO_df=aso_df,
         cell_line2data=transcriptomes ,
-        output_dir=OUTPUT_DIR, top_n_list=[75, 100, 125],
-        cutoff_list=[1100, 1200, 1300], method=0,
+        output_dir=OUTPUT_DIR, top_n_list=top_ns,
+        cutoff_list=cutoffs, method=method,
         name_to_depmap=cellline_name_to_depmap
     )
