@@ -1,0 +1,44 @@
+================================= RIsearch2 ==================================
+
+RIsearch2 is a program for fast RNA-RNA interaction prediction.
+It uses a seed-and-extend approach, applying suffix arrays in the first stage to
+locate initial seed matches (allowing for G-U wobble matches) and using dynamic
+programming to extend those matches with a simplified energy model.
+
+
+For installation instructions see file INSTALL
+
+
+For instructions on how to run RIsearch2 see file Manual.pdf 
+
+
+For testing the RIsearch2 with example data see test_suite/README
+
+
+All correspondence should be addressed to: gorodkin@rth.dk
+
+
+=============================== License ======================================
+
+Copyright (c) 2016-2024 by the contributors (see AUTHORS file)
+
+  RIsearch2 is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  RIsearch2 is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with RIsearch2, see file COPYING.
+  If not, see <http://www.gnu.org/licenses/>.
+
+
+
+Note that libdivsufsort-2.0.1 which is included with the source comes with its
+own separate license, included in COPYING.libdivsufsort-2.0.1
+
+==============================================================================
