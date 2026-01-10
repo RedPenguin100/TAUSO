@@ -117,7 +117,7 @@ def plot_binned_trend(df, feature_name, bins=10,x_label=None,
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(8, 6))
-        local_df = df.copy()
+    local_df = df.copy()
 
     x = df[feature_name]
     y = df['log_inhibition']
@@ -146,7 +146,7 @@ def plot_binned_trend(df, feature_name, bins=10,x_label=None,
     # Points representing the bins
     ax.errorbar(
         X_binned, Y_binned, yerr=Y_error,
-        fmt='o', color='blue', ecolor='lightblue', elinewidth=2, capsize=4,
+        fmt='o', color='blue', ecolor='black', elinewidth=2, capsize=4,
         markersize=8, alpha=0.9, zorder=5,
         label='Bin Mean $\pm$ S.E.M.'
     )

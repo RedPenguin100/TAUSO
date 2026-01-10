@@ -45,7 +45,7 @@ def populate_sense_accessibility(aso_dataframe):
         )
         aso_dataframe.loc[idx, SENSE_AVG_ACCESSIBILITY] = avg_sense_access
 
-def populate_sense_accessibility_batch(aso_dataframe, batch_size=1000):
+def calculate_sense_accessibility_batch(aso_dataframe, batch_size=1000):
 
     if 'pre_mrna_sequence' not in aso_dataframe.columns:
         raise ValueError("DataFrame must contain 'pre_mrna_sequence' column used for extraction.")
