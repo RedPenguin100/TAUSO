@@ -1,0 +1,118 @@
+chr1	source	transcript	23	1990	0	+	.	gene_id "gene_1"; transcript_id "transcript_21"; RPKM "1000"
+chr1	source	exon	23	1523	0	+	.	gene_id "gene_1"; transcript_id "transcript_21"; RPKM "1000"; exon_number "1";
+chr1	source	exon	1660	1990	0	+	.	gene_id "gene_1"; transcript_id "transcript_21"; RPKM "1000"; exon_number "2";
+chr1	source	transcript	2923	5690	0	+	.	gene_id "gene_1"; transcript_id "transcript_22"; RPKM "900"
+chr1	source	exon	2923	3583	0	+	.	gene_id "gene_1"; transcript_id "transcript_22"; RPKM "900"; exon_number "1";
+chr1	source	exon	4030	5690	0	+	.	gene_id "gene_1"; transcript_id "transcript_22"; RPKM "900"; exon_number "2";
+chr1	source	transcript	9834	15690	0	+	.	gene_id "gene_2"; transcript_id "transcript_23"; RPKM "700"
+chr1	source	exon	9834	10134	0	+	.	gene_id "gene_2"; transcript_id "transcript_23"; RPKM "700"; exon_number "1";
+chr1	source	exon	10820	14840	0	+	.	gene_id "gene_2"; transcript_id "transcript_23"; RPKM "700"; exon_number "2";
+chr1	source	exon	15003	15690	0	+	.	gene_id "gene_2"; transcript_id "transcript_23"; RPKM "700"; exon_number "3";
+chr1	source	transcript	21555	35672	0	+	.	gene_id "gene_2"; transcript_id "transcript_24"; RPKM "3000"
+chr1	source	exon	21555	31641	0	+	.	gene_id "gene_2"; transcript_id "transcript_24"; RPKM "3000"; exon_number "1";
+chr1	source	exon	32555	35672	0	+	.	gene_id "gene_2"; transcript_id "transcript_24"; RPKM "3000"; exon_number "2";
+chr1	source	transcript	41777	44256	0	+	.	gene_id "gene_2"; transcript_id "transcript_25"; RPKM "42000"
+chr1	source	exon	41777	42258	0	+	.	gene_id "gene_2"; transcript_id "transcript_25"; RPKM "42000"; exon_number "1";
+chr1	source	exon	42797	44256	0	+	.	gene_id "gene_2"; transcript_id "transcript_25"; RPKM "42000"; exon_number "2";
+chr1	source	transcript	51886	60008	0	+	.	gene_id "gene_3"; transcript_id "transcript_26"; RPKM "11000"
+chr1	source	exon	51886	52088	0	+	.	gene_id "gene_3"; transcript_id "transcript_26"; RPKM "11000"; exon_number "1";
+chr1	source	exon	53381	56492	0	+	.	gene_id "gene_3"; transcript_id "transcript_26"; RPKM "11000"; exon_number "2";
+chr1	source	exon	57971	58985	0	+	.	gene_id "gene_3"; transcript_id "transcript_26"; RPKM "11000"; exon_number "3";
+chr1	source	exon	59123	60008	0	+	.	gene_id "gene_3"; transcript_id "transcript_26"; RPKM "11000"; exon_number "4";
+chr1	source	transcript	61909	65432	0	+	.	gene_id "gene_3"; transcript_id "transcript_27"; RPKM "2000"
+chr1	source	exon	61909	62939	0	+	.	gene_id "gene_3"; transcript_id "transcript_27"; RPKM "2000"; exon_number "1";
+chr1	source	exon	63809	65432	0	+	.	gene_id "gene_3"; transcript_id "transcript_27"; RPKM "2000"; exon_number "2";
+chr1	source	transcript	69996	71118	0	+	.	gene_id "gene_4"; transcript_id "transcript_28"; RPKM "1000"
+chr1	source	exon	69996	71118	0	+	.	gene_id "gene_4"; transcript_id "transcript_28"; RPKM "1000"; exon_number "1";
+chr1	source	transcript	7389	10882	0	-	.	gene_id "gene_5"; transcript_id "transcript_29"; RPKM "1200"
+chr1	source	exon	7389	8999	0	-	.	gene_id "gene_5"; transcript_id "transcript_29"; RPKM "1200"; exon_number "1";
+chr1	source	exon	9321	10882	0	-	.	gene_id "gene_5"; transcript_id "transcript_29"; RPKM "1200"; exon_number "2";
+chr1	source	transcript	11023	23001	0	-	.	gene_id "gene_6"; transcript_id "transcript_30"; RPKM "1300"
+chr1	source	exon	11023	15256	0	-	.	gene_id "gene_6"; transcript_id "transcript_30"; RPKM "1300"; exon_number "1";
+chr1	source	exon	16009	21010	0	-	.	gene_id "gene_6"; transcript_id "transcript_30"; RPKM "1300"; exon_number "2";
+chr1	source	exon	22007	23001	0	-	.	gene_id "gene_6"; transcript_id "transcript_30"; RPKM "1300"; exon_number "3";
+chr1	source	transcript	31983	35090	0	-	.	gene_id "gene_7"; transcript_id "transcript_31"; RPKM "1700"
+chr1	source	exon	31983	32677	0	-	.	gene_id "gene_7"; transcript_id "transcript_31"; RPKM "1700"; exon_number "1";
+chr1	source	exon	32871	33099	0	-	.	gene_id "gene_7"; transcript_id "transcript_31"; RPKM "1700"; exon_number "2";
+chr1	source	exon	33583	33892	0	-	.	gene_id "gene_7"; transcript_id "transcript_31"; RPKM "1700"; exon_number "3";
+chr1	source	exon	34123	35090	0	-	.	gene_id "gene_7"; transcript_id "transcript_31"; RPKM "1700"; exon_number "4";
+chr1	source	transcript	39231	55690	0	-	.	gene_id "gene_8"; transcript_id "transcript_32"; RPKM "800"
+chr1	source	exon	39231	46069	0	-	.	gene_id "gene_8"; transcript_id "transcript_32"; RPKM "800"; exon_number "1";
+chr1	source	exon	51231	55690	0	-	.	gene_id "gene_8"; transcript_id "transcript_32"; RPKM "800"; exon_number "2";
+chr1	source	transcript	59993	61611	0	-	.	gene_id "gene_8"; transcript_id "transcript_33"; RPKM "300"
+chr1	source	exon	59993	60156	0	-	.	gene_id "gene_8"; transcript_id "transcript_33"; RPKM "300"; exon_number "1";
+chr1	source	exon	60993	61326	0	-	.	gene_id "gene_8"; transcript_id "transcript_33"; RPKM "300"; exon_number "2";
+chr1	source	exon	61500	61611	0	-	.	gene_id "gene_8"; transcript_id "transcript_33"; RPKM "300"; exon_number "3";
+chr1	source	transcript	65245	70168	0	-	.	gene_id "gene_8"; transcript_id "transcript_34"; RPKM "1000"
+chr1	source	exon	65245	67333	0	-	.	gene_id "gene_8"; transcript_id "transcript_34"; RPKM "1000"; exon_number "1";
+chr1	source	exon	68245	70168	0	-	.	gene_id "gene_8"; transcript_id "transcript_34"; RPKM "1000"; exon_number "2";
+chr1	source	transcript	72923	75590	0	-	.	gene_id "gene_8"; transcript_id "transcript_35"; RPKM "600"
+chr1	source	exon	72923	75590	0	-	.	gene_id "gene_8"; transcript_id "transcript_35"; RPKM "600"; exon_number "1";
+chr2	source	transcript	120	6213	0	+	.	gene_id "gene_9"; transcript_id "transcript_1"; RPKM "100"
+chr2	source	exon	120	4235	0	+	.	gene_id "gene_9"; transcript_id "transcript_1"; RPKM "100"; exon_number "1";
+chr2	source	exon	5230	6213	0	+	.	gene_id "gene_9"; transcript_id "transcript_1"; RPKM "100"; exon_number "2";
+chr2	source	transcript	8135	9787	0	+	.	gene_id "gene_10"; transcript_id "transcript_2"; RPKM "2000"
+chr2	source	exon	8135	9787	0	+	.	gene_id "gene_10"; transcript_id "transcript_2"; RPKM "2000"; exon_number "1";
+chr2	source	transcript	10620	36151	0	+	.	gene_id "gene_10"; transcript_id "onTarget"; RPKM "1000"
+chr2	source	exon	10620	36151	0	+	.	gene_id "gene_10"; transcript_id "onTarget"; RPKM "1000"; exon_number "1";
+chr2	source	transcript	43512	53290	0	+	.	gene_id "gene_11"; transcript_id "transcript_3"; RPKM "550"
+chr2	source	exon	43512	48868	0	+	.	gene_id "gene_11"; transcript_id "transcript_3"; RPKM "550"; exon_number "1";
+chr2	source	exon	50333	53290	0	+	.	gene_id "gene_11"; transcript_id "transcript_3"; RPKM "550"; exon_number "2";
+chr2	source	transcript	67123	69823	0	+	.	gene_id "gene_11"; transcript_id "transcript_4"; RPKM "1100"
+chr2	source	exon	67123	68223	0	+	.	gene_id "gene_11"; transcript_id "transcript_4"; RPKM "1100"; exon_number "1";
+chr2	source	exon	68911	69823	0	+	.	gene_id "gene_11"; transcript_id "transcript_4"; RPKM "1100"; exon_number "2";
+chr2	source	transcript	70513	76324	0	+	.	gene_id "gene_11"; transcript_id "transcript_5"; RPKM "1300"
+chr2	source	exon	70513	72499	0	+	.	gene_id "gene_11"; transcript_id "transcript_5"; RPKM "1300"; exon_number "1";
+chr2	source	exon	72944	76324	0	+	.	gene_id "gene_11"; transcript_id "transcript_5"; RPKM "1300"; exon_number "2";
+chr2	source	transcript	77345	80678	0	+	.	gene_id "gene_11"; transcript_id "transcript_6"; RPKM "500"
+chr2	source	exon	77345	78776	0	+	.	gene_id "gene_11"; transcript_id "transcript_6"; RPKM "500"; exon_number "1";
+chr2	source	exon	79001	80678	0	+	.	gene_id "gene_11"; transcript_id "transcript_6"; RPKM "500"; exon_number "2";
+chr2	source	transcript	81821	83769	0	+	.	gene_id "gene_12"; transcript_id "transcript_7"; RPKM "900"
+chr2	source	exon	81821	82789	0	+	.	gene_id "gene_12"; transcript_id "transcript_7"; RPKM "900"; exon_number "1";
+chr2	source	exon	83221	83769	0	+	.	gene_id "gene_12"; transcript_id "transcript_7"; RPKM "900"; exon_number "2";
+chr2	source	transcript	84345	85678	0	+	.	gene_id "gene_12"; transcript_id "transcript_8"; RPKM "12100"
+chr2	source	exon	84345	84676	0	+	.	gene_id "gene_12"; transcript_id "transcript_8"; RPKM "12100"; exon_number "1";
+chr2	source	exon	85345	85678	0	+	.	gene_id "gene_12"; transcript_id "transcript_8"; RPKM "12100"; exon_number "2";
+chr2	source	transcript	85888	96712	0	+	.	gene_id "gene_13"; transcript_id "transcript_9"; RPKM "100"
+chr2	source	exon	85888	89999	0	+	.	gene_id "gene_13"; transcript_id "transcript_9"; RPKM "100"; exon_number "1";
+chr2	source	exon	91123	92312	0	+	.	gene_id "gene_13"; transcript_id "transcript_9"; RPKM "100"; exon_number "2";
+chr2	source	exon	94444	96712	0	+	.	gene_id "gene_13"; transcript_id "transcript_9"; RPKM "100"; exon_number "3";
+chr2	source	transcript	543	8327	0	-	.	gene_id "gene_14"; transcript_id "transcript_10"; RPKM "550"
+chr2	source	exon	543	4566	0	-	.	gene_id "gene_14"; transcript_id "transcript_10"; RPKM "550"; exon_number "1";
+chr2	source	exon	6144	8327	0	-	.	gene_id "gene_14"; transcript_id "transcript_10"; RPKM "550"; exon_number "2";
+chr2	source	transcript	12887	21723	0	-	.	gene_id "gene_14"; transcript_id "transcript_11"; RPKM "3500"
+chr2	source	exon	12887	15356	0	-	.	gene_id "gene_14"; transcript_id "transcript_11"; RPKM "3500"; exon_number "1";
+chr2	source	exon	16002	17553	0	-	.	gene_id "gene_14"; transcript_id "transcript_11"; RPKM "3500"; exon_number "2";
+chr2	source	exon	18550	19669	0	-	.	gene_id "gene_14"; transcript_id "transcript_11"; RPKM "3500"; exon_number "3";
+chr2	source	exon	20885	21723	0	-	.	gene_id "gene_14"; transcript_id "transcript_11"; RPKM "3500"; exon_number "4";
+chr2	source	transcript	25252	32123	0	-	.	gene_id "gene_14"; transcript_id "transcript_12"; RPKM "1200"
+chr2	source	exon	25252	29556	0	-	.	gene_id "gene_14"; transcript_id "transcript_12"; RPKM "1200"; exon_number "1";
+chr2	source	exon	30987	32123	0	-	.	gene_id "gene_14"; transcript_id "transcript_12"; RPKM "1200"; exon_number "2";
+chr2	source	transcript	35252	40125	0	-	.	gene_id "gene_15"; transcript_id "transcript_13"; RPKM "200"
+chr2	source	exon	35252	36898	0	-	.	gene_id "gene_15"; transcript_id "transcript_13"; RPKM "200"; exon_number "1";
+chr2	source	exon	38996	39962	0	-	.	gene_id "gene_15"; transcript_id "transcript_13"; RPKM "200"; exon_number "2";
+chr2	source	exon	40000	40125	0	-	.	gene_id "gene_15"; transcript_id "transcript_13"; RPKM "200"; exon_number "3";
+chr2	source	transcript	45252	59001	0	-	.	gene_id "gene_15"; transcript_id "transcript_14"; RPKM "90"
+chr2	source	exon	45252	47892	0	-	.	gene_id "gene_15"; transcript_id "transcript_14"; RPKM "90"; exon_number "1";
+chr2	source	exon	48125	52337	0	-	.	gene_id "gene_15"; transcript_id "transcript_14"; RPKM "90"; exon_number "2";
+chr2	source	exon	54269	56480	0	-	.	gene_id "gene_15"; transcript_id "transcript_14"; RPKM "90"; exon_number "3";
+chr2	source	exon	56997	57267	0	-	.	gene_id "gene_15"; transcript_id "transcript_14"; RPKM "90"; exon_number "4";
+chr2	source	exon	58002	59001	0	-	.	gene_id "gene_15"; transcript_id "transcript_14"; RPKM "90"; exon_number "5";
+chr2	source	transcript	62626	64466	0	-	.	gene_id "gene_15"; transcript_id "transcript_15"; RPKM "1300"
+chr2	source	exon	62626	63336	0	-	.	gene_id "gene_15"; transcript_id "transcript_15"; RPKM "1300"; exon_number "1";
+chr2	source	exon	63963	64466	0	-	.	gene_id "gene_15"; transcript_id "transcript_15"; RPKM "1300"; exon_number "2";
+chr2	source	transcript	65252	72129	0	-	.	gene_id "gene_15"; transcript_id "transcript_16"; RPKM "5200"
+chr2	source	exon	65252	68777	0	-	.	gene_id "gene_15"; transcript_id "transcript_16"; RPKM "5200"; exon_number "1";
+chr2	source	exon	68999	70962	0	-	.	gene_id "gene_15"; transcript_id "transcript_16"; RPKM "5200"; exon_number "2";
+chr2	source	exon	71666	72129	0	-	.	gene_id "gene_15"; transcript_id "transcript_16"; RPKM "5200"; exon_number "3";
+chr2	source	transcript	73333	80000	0	-	.	gene_id "gene_16"; transcript_id "transcript_17"; RPKM "100"
+chr2	source	exon	73333	75669	0	-	.	gene_id "gene_16"; transcript_id "transcript_17"; RPKM "100"; exon_number "1";
+chr2	source	exon	77565	80000	0	-	.	gene_id "gene_16"; transcript_id "transcript_17"; RPKM "100"; exon_number "2";
+chr2	source	transcript	82134	85674	0	-	.	gene_id "gene_16"; transcript_id "transcript_18"; RPKM "800"
+chr2	source	exon	82134	85674	0	-	.	gene_id "gene_16"; transcript_id "transcript_18"; RPKM "800"; exon_number "1";
+chr2	source	transcript	86326	90123	0	-	.	gene_id "gene_17"; transcript_id "transcript_19"; RPKM "9500"
+chr2	source	exon	86326	88963	0	-	.	gene_id "gene_17"; transcript_id "transcript_19"; RPKM "9500"; exon_number "1";
+chr2	source	exon	89126	90123	0	-	.	gene_id "gene_17"; transcript_id "transcript_19"; RPKM "9500"; exon_number "2";
+chr2	source	transcript	95252	97000	0	-	.	gene_id "gene_18"; transcript_id "transcript_20"; RPKM "12000"
+chr2	source	exon	95252	96000	0	-	.	gene_id "gene_18"; transcript_id "transcript_20"; RPKM "12000"; exon_number "1";
+chr2	source	exon	96256	97000	0	-	.	gene_id "gene_18"; transcript_id "transcript_20"; RPKM "12000"; exon_number "2";

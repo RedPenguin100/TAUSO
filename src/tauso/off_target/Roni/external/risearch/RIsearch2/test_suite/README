@@ -1,0 +1,81 @@
+=========================================================================
+===================== TEST SUITE FOR RIsearch2 ==========================
+=========================================================================
+
+ This is a test directory for RISearch2 containing some query and target
+ sequences to be able to test-run it on a very small dataset.
+
+ !!! query.fa and target.fa files are the actual files used to generate
+ !!! the examples given in the User Manual
+
+ Our test case is predicting the binding sites of hsa-miR-24-3p and
+ hsa-miR-876-5p miRNAs on the transcripts that are part of Rhoc gene
+ (ENSG00000155366). Note that this gene has already been reported as
+ target gene for these miRNAs.
+
+ 1) In order to carry out the predictions, you first need to build the 
+    index structure of target sequence by using the RIsearch2 itself. 
+    You can do this by executing the following commands. 
+    (Replace the "path_to_the_code_package" with correspondig path.)
+
+    cd /path_to_the_code_package/test_suite/
+    ../bin/risearch2.x -c RHOC.fa -o RHOC.pksuf
+ 
+ 2) After this, you can continue to prediction stage and run RIsearch2
+    with default parameter settings (-s6 -l 20 -e -20) by typing:
+
+    ../bin/risearch2.x -q mirnas.fa -i RHOC.pksuf
+ 
+ 3) Executing the above command should have generated two files in this
+    directory that contains the binding sites predicted on these transcripts
+    and their antisense. Predictions on antisense are labeled with "-" in 
+    these files. Filenames are 
+    "risearch_hsa-miR-24-3p.out.gz" and "risearch_hsa-miR-876-5p.out.gz"
+    You can see all predictions with the following command.
+
+    zcat risearch_hsa-miR-24-3p.out.gz risearch_hsa-miR-876-5p.out.gz
+
+    ... or to see the results excluding the binding sites on antisense.
+
+    zcat risearch_hsa-miR-* | grep '+'
+
+ 4) You can also compare the results you obtained for hsa-miR-24-3p
+    with our precompiled results to make sure that RIsearch2 is working. 
+    Type the next command and if you dont see any warning,
+    it means everything is working well.
+    
+    diff risearch_hsa-miR-24-3p.out.gz precompiled_results
+
+ 5) As you might have noticed, there are no binding sites predicted on
+    hsa-miR-876-5p transcript. This is due to low default energy 
+    threshold (-20) for miRNA interactions. You can change this threshold 
+    in following way. (PLEASE READ THE USER MANUAL as well!)
+
+    ../bin/risearch2.x -q mirnas.fa -i RHOC.pksuf -e -15
+    zcat risearch_hsa-miR-* | grep '+'
+
+    Now you can see that there are two binding sites predicted for that
+    miRNA as well.
+ 
+ 6) Now lets try with conventional miRNA seed constraints.
+    (PLEASE READ THE USER MANUAL!)
+
+   ../bin/risearch2.x -q mirnas.fa -i RHOC.pksuf -e -15 -s 2:7
+   zcat risearch_hsa-miR-* | grep '+'
+
+ 7) Play around by changing the seed, energy and the other parameter settings.
+    Note that with each run you will overwrite the results from previous
+    run as long as you keep working in this directory. A few example runs;
+
+    ../bin/risearch2.x -q mirnas.fa -i RHOC.pksuf -e -15 -s 2:7/5
+    ../bin/risearch2.x -q mirnas.fa -i RHOC.pksuf -e -10 -s 2:7
+    ../bin/risearch2.x -q mirnas.fa -i RHOC.pksuf -e -15 -s 6 -l 0
+    ../bin/risearch2.x -q mirnas.fa -i RHOC.pksuf -e -15 -s 2:7/5 -p2
+
+=============================================================================
+
+    Please read the USER MANUAL to understand all parameters you can
+    set when running RIsearch2 and you are very much encouraged to try
+    making new RIsearch2 predictions with different constraint settings.
+
+=============================================================================

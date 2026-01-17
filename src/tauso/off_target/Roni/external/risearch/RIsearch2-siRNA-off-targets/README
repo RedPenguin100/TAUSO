@@ -1,0 +1,65 @@
+
+============= siRNA off-target Dicovery Pipeline v1.0 ==============
+====================================================================
+ Pipeline package is composed of two executable Python scripts, 
+ a user manual and a dummy data to be used in example runs 
+ as explained in the user manual.
+
+!!! PLEASE READ THE USER MANUAL before running any off-target !!!
+!!!  predictions with this pipeline.                          !!!
+
+========================== Prerequisites ===========================
+ Both scripts use only main Python libraries that comes with Python
+ itself, however, you need to have RIsearch2 and RNAplfold packages
+ already installed and running in your system to be able to execute
+ these scripts. 
+
+ In case you are using an older Python version than 2.7, we provide 
+ the "argparse" python package together with the code. 
+
+============================== Scripts =============================
+ ./src/pipeline.py : siRNA off-target Discovery Pipeline.
+
+ ./src/run_RNAplfold_and_pack_results.py : Script that divides the 
+    input target sequence in 100kb pieces, runs RNAplfold with them
+    and packs the results into a binary format to be able to pass 
+    them into the pipeline.
+
+ Both scripts are executable.
+============================= Citation =============================
+ If you find this software useful for your research, 
+ please cite the following work:
+
+ RIsearch2: suffix array-based large-scale prediction of RNA-RNA 
+  interactions and siRNA off-targets, Alkan F, Wenzel A, Palasca O, 
+  Kerpedjiev P, Rudebeck AF, Stadler PF, Hofacker IL, Gorodkin J, 
+  Nucleic Acids Res., 2017,  doi: 10.1093/nar/gkw1325 
+
+============================== Contact =============================
+ferro@rth.dk
+gorodkin@rth.dk
+
+============================ Licensing ============================
+    --- siRNA off-target Discovery Pipeline v1.0 --- 
+  siRNA off-targeting potential and off-targets prediction tool
+
+  Copyright 2016 Ferhat Alkan <ferro@rth.dk>
+
+  This file is part of siRNA off-target Discovery Pipeline.
+
+  siRNA off-target Discovery Pipeline is free software: you can 
+  redistribute it and/or modify it under the terms of the 
+  GNU General Public License as published by the 
+  Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  siRNA off-target Discovery Pipeline is distributed in the hope
+  that it will be useful, but WITHOUT ANY WARRANTY; without even 
+  the implied warranty of MERCHANTABILITY or 
+  FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with siRNA off-target Discovery Pipeline, see file COPYING.
+  If not, see <http://www.gnu.org/licenses/>.
+====================================================================
