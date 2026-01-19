@@ -2,16 +2,16 @@ import pytest
 import pandas as pd
 
 # Imports from your project
-from notebooks.consts import UPDATED_CSV, CANONICAL_GENE, SEQUENCE
+from notebooks.consts import UPDATED_CSV
 from notebooks.preprocessing import preprocess_aso_data, get_unique_genes
+from tauso.data.data import get_paths
 from tauso.genome.TranscriptMapper import GeneCoordinateMapper, build_gene_sequence_registry
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.util import get_antisense
-from tauso.algorithms.genomic_context_windows import add_external_mrna_and_context_columns, DEFAULT_DB_PATH
+from tauso.algorithms.genomic_context_windows import add_external_mrna_and_context_columns
 
 
 def test_pipeline_data_regression(data_regression):
-    # 1. Load & Preprocess
+        # 1. Load & Preprocess
     full_data = preprocess_aso_data(UPDATED_CSV)
     df_subset = full_data.copy()
 
@@ -20,7 +20,7 @@ def test_pipeline_data_regression(data_regression):
     genes_subset = get_unique_genes(df_subset)
 
     # B. Initialize Mapper (DB connection)
-    mapper = GeneCoordinateMapper(DEFAULT_DB_PATH)
+    mapper = GeneCoordinateMapper(get_paths()['db'])
 
     # C. Load raw genomic data
     gene_to_data = get_locus_to_data_dict(include_introns=True, gene_subset=genes_subset)
