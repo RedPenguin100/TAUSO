@@ -1,4 +1,3 @@
-
 import pandas as pd
 
 def rnaseh1_dict(label) :
@@ -261,6 +260,22 @@ def score_window(subseq: str, weights_df) -> float:
             score += weights_df.loc[base, col]
     return score / len(subseq)
 
+def score_window_dict(subseq: str, weights: dict) -> float:
+    if not subseq:
+        return 0.0
+
+    score = 0.0
+    for i, base in enumerate(subseq):
+        # Direct list access: O(1) and instant
+        # weights['A'][0] corresponds to position 1
+        try:
+            score += weights[base][i]
+        except (KeyError, IndexError):
+             # Handle invalid base or sequence longer than weights
+             pass
+
+    return score / len(subseq)
+
 #################################################################################################
 def score_window_dinuc(subseq: str, weights_df) -> float:
     """
@@ -278,94 +293,26 @@ def score_window_dinuc(subseq: str, weights_df) -> float:
             score += weights_df.loc[dimer, col]
 
     return score / len(subseq)
-      
-        
-##############################################################################################
-def old_compute_rnaseh1_score(aso_sequence: str, weights: dict) -> float:
+
+
+def score_window_dinuc_dict(subseq: str, weights: dict) -> float:
     """
-    General RNase H1 cleavage score based on single nucleotide weights.
-    Adapts to variable-length weight tables.
-
-    Parameters:
-    -----------
-    aso_sequence : str
-        ASO sequence (A/C/G/T only)
-    weights : dict
-        Dictionary mapping bases (A/C/G/T) to a list of position-specific weights
-
-    Returns:
-    --------
-    float
-        Cleavage score based on supplied weights
+    Computes a dinucleotide-based score for a given subsequence using position-specific weights (Dict version).
     """
-    import pandas as pd
-
-    weights_df = pd.DataFrame(weights).T
-    weights_df.columns = [f'Pos_{i+1}' for i in range(weights_df.shape[1])]
-    max_window = weights_df.shape[1]  # e.g. 14
-
-    seq = aso_sequence.upper().replace("U", "T")
-    L = len(seq)
-
-    if L == 0:
+    if not subseq or len(subseq) < 2:
         return 0.0
 
-    if L < max_window:
-        return score_window(seq, weights_df)
+    score = 0.0
+    # Iterate through valid dinucleotide start positions (0 to L-2)
+    for i in range(len(subseq) - 1):
+        dimer = subseq[i:i + 2]
 
-    elif L % 2 == 0:
-        start = (L - max_window) // 2
-        subseq = seq[start:start + max_window]
-        if len(subseq) == 0:
-            return 0.0
-        return score_window(subseq, weights_df)
+        # Check if dimer exists in weights and if index i is valid for that weight list.
+        # This mirrors the 'Pos_{i+1}' lookup from the DataFrame version.
+        if dimer in weights and i < len(weights[dimer]):
+            score += weights[dimer][i]
 
-    else:
-        offset1 = (L - max_window) // 2
-        offset2 = offset1 + 1
-        s1 = score_window(seq[offset1:offset1 + max_window], weights_df)
-        s2 = score_window(seq[offset2:offset2 + max_window], weights_df)
-        return (s1 + s2) / 2
-
-
-#################################################################################################
-
-def old_compute_rnaseh1_dinucleotide_score(aso_sequence: str, dinuc_weights) -> float:
-    """
-    Computes RNase H1 cleavage score based on dinucleotide weights from R4a experiment.
-
-    Uses a  central window (or shorter if sequence is shorter).
-    For odd-length sequences, averages two overlapping central windows.
-    """
-
-    import pandas as pd
-
-    weights_df = pd.DataFrame(dinuc_weights).T
-    weights_df.columns = [f'Pos_{i+1}' for i in range(weights_df.shape[1])]
-
-    max_window = weights_df.shape[1]  # usually 13
-    seq = aso_sequence.upper().replace("U", "T")
-    L = len(seq)
-
-    if L == 0:
-        return 0.0
-
-    if L < max_window:
-        return score_window_dinuc(seq, weights_df)
-
-    elif L % 2 == 0:
-        start = (L - max_window) // 2
-        subseq = seq[start:start + max_window]
-        if len(subseq) < 2:
-            return 0.0
-        return score_window_dinuc(subseq, weights_df)
-
-    else:
-        offset1 = (L - max_window) // 2
-        offset2 = offset1 + 1
-        s1 = score_window_dinuc(seq[offset1:offset1 + max_window], weights_df)
-        s2 = score_window_dinuc(seq[offset2:offset2 + max_window], weights_df)
-        return (s1 + s2) / 2
+    return score / len(subseq)
 
 
 #######################################################################################################
@@ -394,133 +341,102 @@ def check_motif_presence(aso_sequence: str, motif: str) -> float:
     motif = motif.upper()
     return 1.0 if motif in seq else 0.0
 
-#########################################################################################################
+
 def compute_rnaseh1_score(aso_sequence: str, weights: dict, window_start: int = None) -> float:
     """
     Computes the RNase H1 cleavage score for a given ASO sequence using single-nucleotide weights.
-
-    Behavior:
-    ---------
-    - If the sequence is shorter than the weight window, score the entire sequence.
-    - If `window_start` is provided:
-        • If it's within bounds but the window extends past the end, slice until the end.
-        • If it's invalid (negative or beyond sequence length), return 0.
-    - If `window_start` is not provided:
-        • Use the default behavior: centered window (averaging if sequence length is odd).
-
-    Parameters:
-    -----------
-    aso_sequence : str
-        The antisense oligonucleotide (ASO) sequence (A/C/G/T/U only).
-    weights : dict
-        Dictionary mapping nucleotides (A/C/G/T) to lists of position-specific weights.
-    window_start : int, optional
-        Start index for the scoring window. If None, a centered window will be used (default behavior).
-
-    Returns:
-    --------
-    float
-        The cleavage score computed using the provided nucleotide weights.
+    Refactored to use raw dictionary lookups for high performance.
     """
-    import pandas as pd
 
-    weights_df = pd.DataFrame(weights).T
-    weights_df.columns = [f'Pos_{i+1}' for i in range(weights_df.shape[1])]
-    max_window = weights_df.shape[1]  # e.g., 14 positions
+    # 1. Determine max_window from the weights dictionary
+    # We assume all nucleotide lists in 'weights' are the same length.
+    if not weights:
+        return 0.0
 
+    # Get the length of the weight vector from the first key (e.g., 'A')
+    max_window = len(next(iter(weights.values())))
+
+    # 2. Preprocess Sequence
     seq = aso_sequence.upper().replace("U", "T")
     L = len(seq)
 
     if L == 0:
         return 0.0
 
-    # If sequence is shorter than the window, score the full sequence
-    if L < max_window:
-        return score_window(seq, weights_df)
+    # 3. Logic Branching
 
-    # If a specific window_start is given
+    # Case A: Sequence is shorter than the weight window -> Score full sequence
+    if L < max_window:
+        return score_window_dict(seq, weights)
+
+    # Case B: Explicit window_start provided
     if window_start is not None:
         if window_start < 0 or window_start >= L:
             return 0.0
-        subseq = seq[window_start:window_start + max_window]  # may be shorter near the end
-        return score_window(subseq, weights_df)
+        # Slice from start. Python handles slicing past end automatically.
+        subseq = seq[window_start: window_start + max_window]
+        return score_window_dict(subseq, weights)
 
-    # Default behavior — center-aligned window
+    # Case C: Default behavior (Center-aligned)
     if L % 2 == 0:
+        # Even length: One central window
         start = (L - max_window) // 2
-        subseq = seq[start:start + max_window]
-        if len(subseq) == 0:
-            return 0.0
-        return score_window(subseq, weights_df)
+        subseq = seq[start: start + max_window]
+        return score_window_dict(subseq, weights)
     else:
+        # Odd length: Average of two central windows
         offset1 = (L - max_window) // 2
         offset2 = offset1 + 1
-        s1 = score_window(seq[offset1:offset1 + max_window], weights_df)
-        s2 = score_window(seq[offset2:offset2 + max_window], weights_df)
+
+        s1 = score_window_dict(seq[offset1: offset1 + max_window], weights)
+        s2 = score_window_dict(seq[offset2: offset2 + max_window], weights)
         return (s1 + s2) / 2
+
+
 #########################################################################################################3
-def compute_rnaseh1_dinucleotide_score(aso_sequence: str, dinuc_weights, window_start: int = None) -> float:
+def compute_rnaseh1_dinucleotide_score(aso_sequence: str, dinuc_weights: dict, window_start: int = None) -> float:
     """
     Computes the RNase H1 cleavage score for a given ASO sequence using dinucleotide weights.
-
-    Behavior:
-    ---------
-    - If the sequence is shorter than the weight window, use the full sequence.
-    - If `window_start` is provided:
-        • If it's within bounds but extends beyond the end, slice until the end (no padding or truncation to window size).
-        • If it's invalid (negative or beyond sequence length), return 0.
-    - If `window_start` is not provided:
-        • Use the default behavior: central window (averaging if sequence length is odd).
-
-    Parameters:
-    -----------
-    aso_sequence : str
-        The antisense oligonucleotide (ASO) sequence (A/C/G/T/U only).
-    dinuc_weights : dict
-        Dictionary mapping dinucleotides (e.g., "AA", "AC", ...) to lists of position-specific weights.
-    window_start : int, optional
-        Start index for the scoring window. If None, a centered window will be used (default behavior).
-
-    Returns:
-    --------
-    float
-        The cleavage score computed using the provided dinucleotide weights.
+    (Optimized Dict Version)
     """
-    import pandas as pd
 
-    weights_df = pd.DataFrame(dinuc_weights).T
-    weights_df.columns = [f'Pos_{i+1}' for i in range(weights_df.shape[1])]
-    max_window = weights_df.shape[1]  # e.g., 13 positions
+    # 1. Determine max_window (length of the weight lists)
+    if not dinuc_weights:
+        return 0.0
+    max_window = len(next(iter(dinuc_weights.values())))
 
+    # 2. Preprocess Sequence
     seq = aso_sequence.upper().replace("U", "T")
     L = len(seq)
 
     if L == 0:
         return 0.0
 
-    # If sequence is shorter than the window, score the entire sequence
-    if L < max_window:
-        return score_window_dinuc(seq, weights_df)
+    # 3. Logic Branching
 
-    # If a specific window_start is given
+    # Case A: Sequence is shorter than the weight window -> Score full sequence
+    if L < max_window:
+        return score_window_dinuc_dict(seq, dinuc_weights)
+
+    # Case B: Explicit window_start provided
     if window_start is not None:
         if window_start < 0 or window_start >= L:
             return 0.0
-        subseq = seq[window_start:window_start + max_window]  # may be shorter than max_window near the end
-        return score_window_dinuc(subseq, weights_df)
+        # Slice from start
+        subseq = seq[window_start: window_start + max_window]
+        return score_window_dinuc_dict(subseq, dinuc_weights)
 
-    # Default behavior — central window logic
+    # Case C: Default behavior (Center-aligned)
     if L % 2 == 0:
         start = (L - max_window) // 2
-        subseq = seq[start:start + max_window]
-        if len(subseq) < 2:
-            return 0.0
-        return score_window_dinuc(subseq, weights_df)
+        subseq = seq[start: start + max_window]
+        return score_window_dinuc_dict(subseq, dinuc_weights)
     else:
         offset1 = (L - max_window) // 2
         offset2 = offset1 + 1
-        s1 = score_window_dinuc(seq[offset1:offset1 + max_window], weights_df)
-        s2 = score_window_dinuc(seq[offset2:offset2 + max_window], weights_df)
+
+        s1 = score_window_dinuc_dict(seq[offset1: offset1 + max_window], dinuc_weights)
+        s2 = score_window_dinuc_dict(seq[offset2: offset2 + max_window], dinuc_weights)
         return (s1 + s2) / 2
 
 
