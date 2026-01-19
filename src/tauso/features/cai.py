@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import re
 import math
@@ -84,7 +83,7 @@ def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
     # Normalize each family by its maximum count
     weights_list: List[Dict[str, float]] = []
     for fam in families:
-        m = max(fam.values()) if fam else 0
+        m = max(fam.values()) if fam     else 0
         if m > 0:
             weights_list.append({k: (v / m) for k, v in fam.items()})
         else:
