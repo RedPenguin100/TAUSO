@@ -129,7 +129,7 @@ def test_annotate_hits_intergenic():
     """Test that hits with no DB overlap are labeled Intergenic."""
     raw_hits = [{'chrom': 'chr1', 'start': 1000, 'end': 1020}]
 
-    with patch("tauso.data.load_db") as mock_load_db:
+    with patch("tauso.data.data.load_db") as mock_load_db:
         mock_db = MagicMock()
         mock_db.region.return_value = []  # No features found
         mock_load_db.return_value = mock_db

@@ -8,7 +8,7 @@ import glob
 import time
 import itertools
 import pandas as pd
-from tauso.data import get_paths, load_db
+from tauso.data.data import get_paths, load_db
 
 # Setup logger
 logger = logging.getLogger(__name__)

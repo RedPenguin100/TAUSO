@@ -1,3 +1,4 @@
+from notebooks.preprocessing import get_unique_genes
 from tauso.new_model.consts_dataframe import CELL_LINE_ORGANISM, INHIBITION, CANONICAL_GENE
 
 import pytest
@@ -7,29 +8,10 @@ import numpy as np
 
 from tauso.consts import DATA_PATH
 
-
-# from scripts.data_genertion.consts import INHIBITION, CELL_LINE_ORGANISM, CANONICAL_GENE, SEQUENCE, SENSE_TYPE, \
-#     SENSE_LENGTH, SENSE_START
-# from scripts.data_genertion.data_handling import get_unique_human_genes, get_gene_to_data
-
-
-def get_unique_human_genes(all_data):
-    all_data_human = all_data[all_data[CELL_LINE_ORGANISM] == 'human']
-    all_data_human_no_nan = all_data_human.dropna(subset=[INHIBITION]).copy()
-
-    genes = all_data_human_no_nan[CANONICAL_GENE].copy()
-    genes_u = list(set(genes))
-
-    genes_u.remove('HBV')
-    genes_u.remove('negative_control')
-
-    return genes_u
-
-
 @pytest.mark.skip
 def test_genes_unique():
     all_data = pd.read_csv(DATA_PATH / 'data_from_article_fixed.csv')
-    genes_u = get_unique_human_genes(all_data)
+    genes_u = get_unique_genes(all_data)
 
     assert 'KRAS' in genes_u
     assert 'HBV' not in genes_u

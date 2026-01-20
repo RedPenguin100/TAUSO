@@ -4,3 +4,13 @@
 ./src/data/
 *.Identifier
 /notebooks/competitors/pfred_temp_io/
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Local-only large dataset
+notebooks/features/RBP/OmicsExpressionProteinCodingGenesTPMLogp1.csv
+
+# Local-only large dataset
+notebooks/features/RBP/OmicsExpressionProteinCodingGenesTPMLogp1.csv

@@ -4,7 +4,7 @@ import gzip
 from pathlib import Path
 from Bio import SeqIO
 
-from .data import get_paths
+from .data.data import get_paths
 from .timer import Timer
 
 
