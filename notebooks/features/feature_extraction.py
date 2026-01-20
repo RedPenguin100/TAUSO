@@ -17,7 +17,10 @@ def load_all_features(filenames=None, light=True, verbose=False):
         raise FileNotFoundError(f"No CSV files found in {feature_dir}")
 
     if light:
-        filenames.remove('Smiles.csv')
+        try:
+            filenames.remove('Smiles.csv')
+        except Exception:
+            pass
 
     if verbose:
         print(f"Loading features from: {filenames}")
