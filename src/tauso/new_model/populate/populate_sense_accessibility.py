@@ -5,6 +5,7 @@ from ...features.feature_names import SENSE_LENGTH
 from ...features.rna_access.access_calculator import get_cache, get_sense_with_flanks
 from ...features.rna_access.sense_accessibility import compute_sense_accessibility_value
 from ...features.rna_access.access_calculator import AccessCalculator
+from ...features.rna_access.access_calculator import AccessBindingCalculator
 SENSE_AVG_ACCESSIBILITY = 'sense_avg_accessibility'
 
 # --- CONSTANTS ---
@@ -45,11 +46,14 @@ def populate_sense_accessibility(aso_dataframe):
         )
         aso_dataframe.loc[idx, SENSE_AVG_ACCESSIBILITY] = avg_sense_access
 
-def calculate_sense_accessibility_batch(aso_dataframe, batch_size=1000):
+def calculate_sense_accessibility_batch(aso_dataframe, batch_size=1000,flank_size=FLANK_SIZE,
+    access_size=ACCESS_SIZE,
+    seed_sizes=SEED_SIZES,
+    access_win_size=ACCESS_WIN_SIZE):
 
     if 'pre_mrna_sequence' not in aso_dataframe.columns:
         raise ValueError("DataFrame must contain 'pre_mrna_sequence' column used for extraction.")
-    access_cache = get_cache(SEED_SIZES, access_size=ACCESS_SIZE)
+    access_cache = get_cache(seed_sizes, access_size=access_size)
 
     valid_rows = [
         (idx, row) for idx, row in aso_dataframe.iterrows()
@@ -65,23 +69,24 @@ def calculate_sense_accessibility_batch(aso_dataframe, batch_size=1000):
         sense_start_map = {}
 
         for idx, row in batch_rows:
+            current_id = str(row['index'])
             full_mrna_seq = str(row['pre_mrna_sequence'])
             current_sense_start = row[SENSE_START]
-            flank_start = max(0, current_sense_start - FLANK_SIZE)
+            flank_start = max(0, current_sense_start - flank_size)
             relative_start = current_sense_start - flank_start
 
             flanked_sense = get_sense_with_flanks(
                 full_mrna_seq,
                 current_sense_start,
                 row[SENSE_LENGTH],
-                flank_size=FLANK_SIZE
+                flank_size=flank_size
             )
-            if not flanked_sense or len(flanked_sense) < ACCESS_SIZE:
+            if not flanked_sense or len(flanked_sense) < access_size:
                 continue
             flanked_sense = flanked_sense.upper().replace('T', 'U')
-            rna_seqs.append((str(idx), flanked_sense))
-            sense_len_map[str(idx)] = row[SENSE_LENGTH]
-            sense_start_map[str(idx)] = relative_start
+            rna_seqs.append((str(current_id), flanked_sense))
+            sense_len_map[str(current_id)] = row[SENSE_LENGTH]
+            sense_start_map[str(current_id)] = relative_start
 
         if not rna_seqs:
             continue
@@ -89,12 +94,12 @@ def calculate_sense_accessibility_batch(aso_dataframe, batch_size=1000):
         # calculating the accessibility for a batch
         df = AccessCalculator.calc_new(
             rna_seqs,
-            access_size=ACCESS_SIZE,
+            access_size=access_size,
             min_gc=0,
             max_gc=100,
             gc_ranges=1,
-            access_win_size=ACCESS_WIN_SIZE,
-            access_seed_sizes=SEED_SIZES,
+            access_win_size=access_win_size,
+            access_seed_sizes=seed_sizes,
             cache=access_cache)
 
 
@@ -118,3 +123,5 @@ def calculate_sense_accessibility_batch(aso_dataframe, batch_size=1000):
         return pd.DataFrame(columns=['rna_id', 'access'])
 
     return pd.concat(all_results, ignore_index=True)
+
+
