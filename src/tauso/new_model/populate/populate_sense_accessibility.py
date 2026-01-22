@@ -5,7 +5,7 @@ from ...features.feature_names import SENSE_LENGTH
 from ...features.rna_access.access_calculator import get_cache, get_sense_with_flanks
 from ...features.rna_access.sense_accessibility import compute_sense_accessibility_value
 from ...features.rna_access.access_calculator import AccessCalculator
-from ...features.rna_access.access_calculator import AccessBindingCalculator
+
 SENSE_AVG_ACCESSIBILITY = 'sense_avg_accessibility'
 
 # --- CONSTANTS ---
