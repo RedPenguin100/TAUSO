@@ -6,7 +6,6 @@ import pandas as pd
 from Bio.SeqUtils import gc_fraction
 
 from .rna_access import RNAAccess
-from .rna_access import RNAAccessBinding
 from ..._raccess.core import find_raccess
 
 
@@ -285,39 +284,5 @@ class AccessCalculator(object):
         return pd.concat(df_list, ignore_index=True)
 
 
-class AccessBindingCalculator(AccessCalculator):
-    """
-    Extensions for binding energy calculation.
-    """
-
-    @classmethod
-    def calc_binding_batch(cls, rna_seqs, access_size, seed_sizes, max_span,
-                           bind_dna=True, bind_range_str=None, uuid_str=None):
-        """
-        Calculates binding energy instead of pure accessibility.
-        """
-        assert rna_seqs
-        seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
-        assert seed_sizes
-
-        # Use the NEW RNAAccessBinding class
-        # Note: Need to make sure RNAAccessBinding is imported or available here
-        ra = RNAAccessBinding(seed_sizes, max_span, find_raccess(),
-                              bind_dna=bind_dna, bind_range_str=bind_range_str)
-
-        ra.set_uuid_for_web(uuid_str)
-        res = ra.calculate(rna_seqs)
-
-        out = {}
-        for rna_id, rna_seq in rna_seqs:
-            access_res = res[rna_id]
-            rna_size = len(rna_seq)
-            # We can reuse the logic to map results to DataFrame
-            df = cls.calc_access_energies_from_access_res(
-                access_res, rna_size, access_size, seed_sizes
-            )
-            out[rna_id] = df
-
-        return out
 
 
