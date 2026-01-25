@@ -86,8 +86,11 @@ def calc_tAI(seq: str,
     - zero-weight codon policy is configurable via allow_stop_as_zero.
     """
     s = _clean_to_dna(seq)
-    if not s or (len(s) % 3 != 0):
+    # Check if we have enough bases to form at least one codon
+    if not s or len(s) < 3:
         return float('nan')
+
+    s = s[:(len(s) // 3) * 3]  # Truncate to the nearest multiple of 3
 
     log_sum = 0.0
     counted = 0
