@@ -11,7 +11,6 @@ from tauso.features.mod_features import compute_mod_min_distance_to_3prime
 from tauso.genome.LocusInfo import LocusInfo
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.new_model.data_handling import get_populate_fold, populate_features, get_populated_df_with_structure_features
-from tauso.new_model.populate.populate_cai import populate_cai_for_aso_dataframe
 from tauso.new_model.populate.populate_rnase import add_RNaseH1_Krel
 from tauso.new_model.populate.populate_sense_accessibility import populate_sense_accessibility
 from tauso.off_target.search import run_bowtie_search, annotate_hits
@@ -143,7 +142,7 @@ def enrich_shared_features(
     # 6. Gene-Level Features (EXPENSIVE)
     # Accessibility and CAI depend on the target gene, not the ASO chemistry
     populate_sense_accessibility(df, gene_to_data[gene])
-    populate_cai_for_aso_dataframe(df, gene_to_data[gene])
+    # populate_cai_for_aso_dataframe(df, gene_to_data[gene])
 
     return df
 

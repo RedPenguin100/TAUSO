@@ -9,8 +9,4 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
-# Local-only large dataset
-notebooks/features/RBP/OmicsExpressionProteinCodingGenesTPMLogp1.csv
-
-# Local-only large dataset
-notebooks/features/RBP/OmicsExpressionProteinCodingGenesTPMLogp1.csv
+notebooks/external
