@@ -1,16 +1,13 @@
 from notebooks.preprocessing import get_unique_genes
-from tauso.new_model.consts_dataframe import CELL_LINE_ORGANISM, INHIBITION, CANONICAL_GENE
+from notebooks.consts import NOTEBOOK_PATH
 
 import pytest
 
 import pandas as pd
-import numpy as np
-
-from tauso.consts import DATA_PATH
 
 @pytest.mark.skip
 def test_genes_unique():
-    all_data = pd.read_csv(DATA_PATH / 'data_from_article_fixed.csv')
+    all_data = pd.read_csv(NOTEBOOK_PATH / 'data' / 'data_from_article_fixed.csv')
     genes_u = get_unique_genes(all_data)
 
     assert 'KRAS' in genes_u
