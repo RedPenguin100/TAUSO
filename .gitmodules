@@ -1,0 +1,3 @@
+[submodule "external/risearch"]
+	path = external/risearch
+	url = git@github.com:RedPenguin100/risearch.git

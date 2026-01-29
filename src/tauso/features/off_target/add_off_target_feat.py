@@ -1,5 +1,4 @@
 from ...hybridization.fast_hybridization import get_trigger_mfe_scores_by_risearch, Interaction
-from ...hybridization.modified_dsm import make_dsm_dna_rna
 from .off_target_functions import parse_risearch_output, aggregate_off_targets
 
 from ...new_model.consts_dataframe import SEQUENCE, CANONICAL_GENE
@@ -46,15 +45,14 @@ def compute_general_vector_and_cache(ASO_df, gene_to_data, general_df, cutoff, m
 
         trigger = get_antisense(aso_seq)
 
-        make_dsm_dna_rna(dsm_base='dsm_su95_rev_woGU_pos')
-
         # --- RIsearch (Heavy Lifting) ---
         result_dict = get_trigger_mfe_scores_by_risearch(
             trigger,
             general_seq_map,
             minimum_score=cutoff,
-            interaction_type=Interaction.MODIFIED,
-            parsing_type='2'
+            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+            parsing_type='2',
+            transpose=True
         )
         result_df = parse_risearch_output(result_dict)
         result_df_agg = aggregate_off_targets(result_df)
