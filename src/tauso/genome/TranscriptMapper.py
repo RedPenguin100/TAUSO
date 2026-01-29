@@ -104,6 +104,28 @@ class GeneCoordinateMapper:
                 parts.append(segment)
 
         return "".join(parts)
+
+    def get_gene_coords(self, gene_name: str):
+        """
+        Returns {chrom, gene_start, gene_end, strand} for the GENE feature.
+        """
+        gene_id = self.gene_name_map.get(gene_name)
+        if not gene_id:
+            return None
+
+        # Fetch the gene feature directly
+        gene = self.db[gene_id]
+
+        # Convert 1-based GFF to 0-based coordinates
+        coords = {
+            "chrom": gene.chrom,
+            "gene_start": gene.start - 1,
+            "gene_end": gene.end,
+            "strand": gene.strand
+        }
+
+        return coords
+
 # =============================================================================
 # REGISTRY BUILDER (Helper)
 # =============================================================================

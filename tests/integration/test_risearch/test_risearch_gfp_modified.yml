@@ -1,0 +1,50 @@
+bad_sample_runs:
+- input_sequence: AAAGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -29.65
+    - -17.25
+    - -12.8
+    - -10.25
+  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t2194\t-29.65\ntrigger\t2\t10\t\
+    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
+    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
+- input_sequence: ATAGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -29.65
+    - -17.25
+    - -12.8
+    - -10.25
+  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t2194\t-29.65\ntrigger\t2\t10\t\
+    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
+    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
+- input_sequence: AGAGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -29.65
+    - -17.25
+    - -12.8
+    - -10.25
+  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t2194\t-29.65\ntrigger\t2\t10\t\
+    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
+    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
+- input_sequence: ACGGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -32.55
+    - -17.25
+    - -12.8
+    - -10.25
+  risearch_result: "trigger\t1\t18\tgfp_seq\t3\t20\t2424\t-32.55\ntrigger\t2\t10\t\
+    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
+    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
+good_sample_run:
+  mfe_scores:
+  - - -33.4
+    - -17.25
+    - -12.8
+    - -10.25
+  risearch_result: "trigger\t1\t19\tgfp_seq\t2\t20\t2449\t-33.40\ntrigger\t2\t10\t\
+    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
+    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
+metadata:
+  gfp_ontarget_slice: CGGCATGGACGAGCTGTAC
+  sample_antisense: TCCTCGCCCTTGCTCACCAT
+  sample_seq: ATGGTGAGCAAGGGCGAGGA

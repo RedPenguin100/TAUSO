@@ -446,7 +446,9 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
         data_dir=Path(expression_dir),
         valid_db_genes=valid_db_genes,
         n_specific=top_n_generic,
-        n_fallback_scan=top_n_generic
+        n_fallback_scan=top_n_generic,
+        filter_mode='protein_coding',
+        genome_db=mapper.db
     )
 
     # --- PHASE 2: Build Sequence Registry ---

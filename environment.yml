@@ -27,6 +27,7 @@ dependencies:
   - mysql-connector-python
   - platformdirs
 
+  - pybigwig # For ribo-seq
   - bowtie
 
   - codon-bias==0.3.5

@@ -30,6 +30,7 @@ CELL_LINE_TO_DEPMAP = {
     'SNU-449': 'ACH-000420',
     'HeLa': 'ACH-001086',
     'A431': 'ACH-001328',
+    'A-431': 'ACH-001328',
     'SK-MEL-28': 'ACH-000615',
     'SH-SY5Y': 'ACH-001188',
     'U251': 'ACH-000232',
