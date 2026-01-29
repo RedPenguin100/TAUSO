@@ -2,6 +2,7 @@ import random
 import os
 import re
 import subprocess
+import tempfile
 
 from enum import Enum
 from pathlib import Path
@@ -9,15 +10,14 @@ from typing import Dict, List
 
 from Bio.Seq import Seq
 
-TMP_PATH = Path('/home/michael/career/tauso_article/tauso_source2/notebooks/external/risearch/RIsearch1/tmp')
+from ..common.consts import OUT_FOLDER
 
-RISEARCH1_PATH = Path('/home/michael/career/tauso_article/tauso_source2/notebooks/external/risearch/RIsearch1')
-RISEARCH1_BINARY_PATH = RISEARCH1_PATH / 'RIsearch'
+TMP_PATH = Path(tempfile.gettempdir())
 
 
 class Interaction(Enum):
     RNA_RNA = "RNA_RNA"
-    DNA_RNA_NO_WOBBLE = "DNA_RNA_NO_WOBBLE"
+    RNA_DNA_NO_WOBBLE = "RNA_DNA_NO_WOBBLE"
     DNA_DNA = "DNA_DNA"
     MODIFIED = "MODIFIED"
 
@@ -31,13 +31,20 @@ def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
     return tmp_path
 
 
+def get_risearch_path():
+    binary_path = str(OUT_FOLDER / 'risearch_executable')
+
+    if not os.path.exists(binary_path):
+        raise FileNotFoundError(f"Binary missing at {binary_path}")
+    return binary_path
+
+
 def get_trigger_mfe_scores_by_risearch(trigger: str, name_to_sequence: Dict[str, str],
-                                       interaction_type: Interaction = Interaction.DNA_RNA_NO_WOBBLE,
+                                       interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
                                        minimum_score: int = 900, neighborhood: int = 0, parsing_type=None,
-                                       target_file_cache=None, e_modified=(249, 100)) -> str:
-    if not RISEARCH1_BINARY_PATH.is_file():
-        raise FileNotFoundError(
-            f'RIsearch binary is not found at {RISEARCH1_BINARY_PATH}. Please read the "RIsearch" part of the project readme.')
+                                       target_file_cache=None, transpose=False) -> str:
+    risearch_path = get_risearch_path()
+
     # used to dump cached files
     TMP_PATH.mkdir(exist_ok=True)
 
@@ -56,32 +63,28 @@ def get_trigger_mfe_scores_by_risearch(trigger: str, name_to_sequence: Dict[str,
     with open(query_path, "w+") as f:
         f.write(f">trigger\n{Seq(trigger).reverse_complement_rna()}\n")
 
-    if interaction_type == Interaction.DNA_RNA_NO_WOBBLE:
+    if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
         m = 'su95_noGU'
     elif interaction_type == Interaction.RNA_RNA:
         m = 't04'
-    elif interaction_type == Interaction.MODIFIED:
-        e1, e2 = e_modified
-        m = f'modified {e1} {e2}'
     else:
         raise ValueError(f"Unsupported interaction type: {interaction_type}")
 
+    args = [risearch_path, "-q", str(query_path), "-t", str(target_path), "-s", f"{minimum_score}",
+            "-d", "30", "-m", m, '-n', f"{neighborhood}"]
+    if transpose:
+        args.append("-R")
+
     try:
-        args = [RISEARCH1_BINARY_PATH, "-q", str(query_path), "-t", str(target_path), "-s", f"{minimum_score}",
-                "-d", "30", "-m", m, '-n', f"{neighborhood}"]
         if parsing_type is not None:
             args.append(f'-p{parsing_type}')
 
-        result = subprocess.check_output(args, universal_newlines=True, text=True, cwd=str(RISEARCH1_PATH)
-                                         )
+        result = subprocess.check_output(args, universal_newlines=True, text=True, cwd=str(OUT_FOLDER))
     finally:
         if target_file_cache is None:
             os.remove(target_path)
         query_path.unlink()
-    # logger.info(f"finished evaluating a single trigger: {trigger}")
     return result
-
-
 
 
 '''
@@ -128,4 +131,3 @@ def get_mfe_scores(result: str, parsing_type=None) -> List[List[float]]:
         return _parse_mfe_scores_2(result)
 
     return mfe_results
-
