@@ -1,0 +1,35 @@
+bad_sample_runs:
+- input_sequence: AAAGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -25.15
+    - -15.57
+  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t1744\t-25.15\ntrigger\t2\t13\t\
+    gfp_seq\t95\t106\t1086\t-15.57\n"
+- input_sequence: ATAGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -25.15
+    - -15.57
+  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t1744\t-25.15\ntrigger\t2\t13\t\
+    gfp_seq\t95\t106\t1086\t-15.57\n"
+- input_sequence: AGAGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -25.15
+    - -15.57
+  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t1744\t-25.15\ntrigger\t2\t13\t\
+    gfp_seq\t95\t106\t1086\t-15.57\n"
+- input_sequence: ACGGTGAGCAAGGGCGAGGA
+  mfe_scores:
+  - - -27.25
+    - -15.57
+  risearch_result: "trigger\t1\t18\tgfp_seq\t3\t20\t1894\t-27.25\ntrigger\t2\t13\t\
+    gfp_seq\t95\t106\t1086\t-15.57\n"
+good_sample_run:
+  mfe_scores:
+  - - -28.8
+    - -15.57
+  risearch_result: "trigger\t1\t20\tgfp_seq\t1\t20\t1929\t-28.80\ntrigger\t2\t13\t\
+    gfp_seq\t95\t106\t1086\t-15.57\n"
+metadata:
+  gfp_ontarget_slice: CGGCATGGACGAGCTGTAC
+  sample_antisense: TCCTCGCCCTTGCTCACCAT
+  sample_seq: ATGGTGAGCAAGGGCGAGGA
