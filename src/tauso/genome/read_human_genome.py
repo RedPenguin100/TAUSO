@@ -2,7 +2,7 @@ import bisect
 
 from Bio.Seq import Seq
 
-from ..data import load_db, load_genome
+from ..data.data import load_db, load_genome
 from .LocusInfo import LocusInfo
 from ..timer import Timer
 
@@ -24,12 +24,13 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh3
     locus_to_data = dict()
     locus_to_strand = dict()
 
-    basic_features = ['exon', 'intron', 'gene', 'stop_codon', 'UTR']
+    basic_features = ['exon', 'gene', 'stop_codon', 'UTR']
+
+    feature_types = list(basic_features)
 
     if include_introns:
-        feature_types = basic_features.append('intron')
-    else:
-        feature_types = basic_features
+        feature_types.append('intron')
+
 
     # --- OPTIMIZATION START ---
     iterator = []

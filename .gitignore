@@ -4,3 +4,11 @@
 ./src/data/
 *.Identifier
 /notebooks/competitors/pfred_temp_io/
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+notebooks/external
+/src/tauso/out/
+/build/

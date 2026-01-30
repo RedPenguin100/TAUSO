@@ -1,24 +1,36 @@
-import gdown
+import zipfile
+from pathlib import Path
+
+import pandas as pd
+import json
+import re
+import numpy as np
+
+import io
+import pandas as pd
+import requests
+import click
 import os
 import subprocess
 import sys
+import gdown
 import gzip
 import shutil
 from importlib.resources import files
 
-import requests
-import click
 import gffutils
 import itertools
 import time
 from pyfaidx import Fasta
 from gffutils.iterators import DataIterator
-from tauso.data import get_paths, get_data_dir
+
+from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
+from tauso.data.data import get_paths, get_data_dir
+from tauso.features.cai import calc_CAI_weight
+from tauso.genome.TranscriptMapper import GeneCoordinateMapper, build_gene_sequence_registry
+from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
-import requests
-import os
-import sys
 import click
 
 
@@ -71,6 +83,430 @@ def batch_iterator(iterator, batch_size=1000):
         batch = list(itertools.islice(iterator, batch_size))
         if not batch: break
         yield batch
+
+
+@main.command()
+@click.option('--force', is_flag=True, help="Force redownload.")
+def setup_attract(force):
+    """
+    Downloads ATtRACT database.
+    1. Extracts 'pwm.txt' (The matrices).
+    2. Filters 'ATtRACT_db.txt' for Homo sapiens and saves as 'RBS_motifs_Homo_sapiens.csv'.
+    """
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+
+    # Define output paths
+    metadata_output = os.path.join(data_dir, "RBS_motifs_Homo_sapiens.csv")
+    pwm_output = os.path.join(data_dir, "pwm.txt")
+
+    if os.path.exists(metadata_output) and os.path.exists(pwm_output) and not force:
+        click.echo(f"✓ ATtRACT data already exists in {data_dir}")
+        return
+
+    url = "https://attract.cnic.es/attract/static/ATtRACT.zip"
+    click.echo("Downloading ATtRACT database...")
+
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+
+        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+            # 1. Find and Extract pwm.txt
+            try:
+                pwm_filename = next(name for name in z.namelist() if name.endswith('pwm.txt'))
+                click.echo(f"  Extracting {pwm_filename}...")
+                with z.open(pwm_filename) as source, open(pwm_output, "wb") as target:
+                    target.write(source.read())
+            except StopIteration:
+                raise FileNotFoundError("pwm.txt not found in the archive.")
+
+            # 2. Find and Process ATtRACT_db.txt
+            try:
+                db_filename = next(name for name in z.namelist() if name.endswith('ATtRACT_db.txt'))
+            except StopIteration:
+                raise FileNotFoundError("ATtRACT_db.txt not found in the archive.")
+
+            click.echo(f"  Processing {db_filename}...")
+            with z.open(db_filename) as f:
+                # Read original tab-separated file
+                df = pd.read_csv(f, sep='\t')
+
+                click.echo(f"  Filtering {len(df)} entries for Homo sapiens...")
+                human_df = df[df['Organism'] == 'Homo_sapiens'].copy()
+
+                if human_df.empty:
+                    raise ValueError("No Homo_sapiens entries found.")
+
+                # Save as standard CSV
+                human_df.to_csv(metadata_output, index=False)
+                click.echo(f"✓ Saved metadata to {metadata_output}")
+                click.echo(f"✓ Saved matrices to {pwm_output}")
+
+    except Exception as e:
+        click.echo(click.style(f"❌ Error: {e}", fg="red"))
+        sys.exit(1)
+
+
+@main.command()
+@click.option('--force', is_flag=True, help="Force redownload.")
+def setup_depmap(force):
+    """
+    Downloads DepMap Public 25Q3 data directly from the DepMap API.
+    Auto-fetches fresh signed URLs to ensure downloads work.
+    """
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+
+    # 1. Configuration
+    RELEASE = "DepMap Public 25Q3"
+    TARGET_FILES = {
+        # Remote Filename -> Local Filename (can be same)
+        "Model.csv": "Model.csv",  # <--- Added Model.csv here
+        "OmicsProfiles.csv": "OmicsProfiles.csv",
+        "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
+    }
+
+    click.echo(f"Initializing DepMap setup for: {RELEASE}")
+    click.echo("Fetching fresh download URLs from DepMap API...")
+
+    # 2. Fetch the Master Index CSV
+    # This endpoint returns a CSV with columns: release, filename, url, etc.
+    index_url = "https://depmap.org/portal/api/download/files"
+
+    try:
+        r = requests.get(index_url)
+        r.raise_for_status()
+        # Parse directly into Pandas
+        df = pd.read_csv(io.StringIO(r.text))
+    except Exception as e:
+        click.echo(click.style(f"❌ Error fetching DepMap index: {e}", fg="red"))
+        sys.exit(1)
+
+    # 3. Filter for 25Q3
+    # Note: Column names are 'release', 'filename', 'url'
+    release_df = df[df['release'] == RELEASE]
+
+    if release_df.empty:
+        click.echo(click.style(f"❌ Release '{RELEASE}' not found in API.", fg="red"))
+        click.echo(f"Available releases: {df['release'].unique()[:5]}...")
+        sys.exit(1)
+
+    # 4. Download Loop
+    for remote_name, local_name in TARGET_FILES.items():
+        dest = os.path.join(data_dir, local_name)
+
+        if os.path.exists(dest) and not force:
+            click.echo(f"✓ {local_name} exists.")
+            continue
+
+        # Find the row for this specific file
+        file_row = release_df[release_df['filename'] == remote_name]
+
+        if file_row.empty:
+            click.echo(click.style(f"⚠ Warning: File '{remote_name}' not found in {RELEASE}.", fg="yellow"))
+            continue
+
+        # Extract the signed URL
+        download_url = file_row.iloc[0]['url']
+
+        click.echo(f"Downloading {local_name}...")
+        try:
+            # Using wget with -O to save to destination
+            subprocess.run(["wget", "-q", "--show-progress", "-O", dest, download_url], check=True)
+            click.echo(click.style(f"✓ Downloaded {local_name}", fg="green"))
+        except subprocess.CalledProcessError:
+            click.echo(click.style(f"❌ Failed to download {local_name}", fg="red"))
+            if os.path.exists(dest): os.remove(dest)
+
+    click.echo("\nDepMap setup complete.")
+
+
+
+@main.command()
+@click.argument('cell_names', nargs=-1)
+@click.option('--reset', is_flag=True, help="Clear existing list before adding.")
+def add_cell(cell_names, reset):
+    """
+    Search for cell lines by name and add them to the project cohort.
+    Example: tauso add-cell "HepG2" "HeLa" "U251"
+    """
+    data_dir = get_data_dir()
+    profiles_path = os.path.join(data_dir, "OmicsProfiles.csv")
+    manifest_path = os.path.join(data_dir, "cell_cohort.json")
+
+    if not os.path.exists(profiles_path):
+        click.echo(click.style("Error: OmicsProfiles.csv not found. Run 'setup-depmap' first.", fg="red"))
+        sys.exit(1)
+
+    # 1. Load Existing Manifest
+    cohort = {}
+    if os.path.exists(manifest_path) and not reset:
+        with open(manifest_path, 'r') as f:
+            cohort = json.load(f)
+
+    # 2. Load Metadata (Optimized)
+    click.echo("Loading metadata...")
+    df = pd.read_csv(profiles_path, usecols=['ModelID', 'StrippedCellLineName', 'IsDefaultEntryForModel'])
+    # Normalize for fuzzy search
+    df['clean'] = df['StrippedCellLineName'].str.replace(r'[^a-zA-Z0-9]', '', regex=True).str.upper()
+
+    # 3. Search
+    for query in cell_names:
+        clean_q = query.replace('-', '').replace(' ', '').upper()
+
+        # Exact match
+        match = df[df['clean'] == clean_q]
+        # Fuzzy match
+        if match.empty:
+            match = df[df['clean'].str.contains(clean_q, na=False)]
+
+        if not match.empty:
+            # Prefer default entry
+            best = match[match['IsDefaultEntryForModel'] == True]
+            if best.empty: best = match.iloc[[0]]
+
+            found_name = best.iloc[0]['StrippedCellLineName']
+            ach_id = best.iloc[0]['ModelID']
+
+            cohort[found_name] = ach_id
+            click.echo(click.style(f"✓ Found: {query} -> {found_name} ({ach_id})", fg="green"))
+        else:
+            click.echo(click.style(f"⚠ Not Found: {query}", fg="yellow"))
+
+    # 4. Save
+    with open(manifest_path, 'w') as f:
+        json.dump(cohort, f, indent=4)
+
+    click.echo(f"Cohort saved to {manifest_path} ({len(cohort)} cell lines).")
+
+@main.command()
+@click.option('--genome', default='GRCh38', help='Genome version (default: GRCh38).')
+def build_omics(genome):
+    """
+    Generates gene-level expression files for all cell lines in the cohort.
+    Uses DepMap 'AllGenes' format (Gene Level Log2(TPM+1)).
+    """
+    if genome != 'GRCh38':
+        # While the logic is genome-agnostic now, we keep this guard if your downstream tools expect GRCh38
+        click.echo(click.style(f"⚠ Warning: This command is optimized for DepMap (Human GRCh38) data.", fg="yellow"))
+
+    data_dir = get_data_dir()
+    manifest_path = os.path.join(data_dir, "cell_cohort.json")
+    exp_path = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv")
+
+    if not os.path.exists(manifest_path):
+        click.echo(click.style("❌ No cohort found. Use 'tauso add-cell' first.", fg="red"))
+        return
+
+    if not os.path.exists(exp_path):
+        click.echo(click.style(f"❌ Expression file not found: {exp_path}", fg="red"))
+        click.echo("Run 'tauso setup-depmap' to download it.")
+        return
+
+    with open(manifest_path, 'r') as f:
+        cohort = json.load(f)
+
+    # We need the set of ACH-IDs to find in the huge CSV
+    target_ids = set(cohort.values())
+    click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
+
+    # --- Step 1: Parse Header & Clean Gene Names ---
+    click.echo(f"Scanning {os.path.basename(exp_path)}...")
+
+    with open(exp_path, 'r') as f:
+        header_line = f.readline().strip()
+        header = header_line.split(',')
+
+    try:
+        model_idx = header.index('ModelID')
+    except ValueError:
+        # DepMap CSVs usually have ModelID as the first column (index 0) if not named explicitly
+        model_idx = 0
+
+        # Identify Gene Columns: All columns AFTER the metadata (usually everything after ModelID)
+    # The header looks like: ,ENSG000..., RPH3AL-AS1 (100506388), ...
+    # We skip the first column (empty in your snippet) and ModelID column.
+
+    # We'll assume any column that isn't ModelID is a data column.
+    # Let's dynamically find the start of data.
+    data_indices = [i for i, c in enumerate(header) if i != model_idx and c.strip()]
+
+    # Pre-calculate clean gene names for the header
+    # Format 1: "RPH3AL-AS1 (100506388)" -> "RPH3AL-AS1"
+    # Format 2: "ENSG00000262038.1" -> "ENSG00000262038.1" (Keep as is, or strip version)
+    clean_genes = []
+    gene_regex = re.compile(r"^(.+?) \(\d+\)$")  # Capture "Symbol" from "Symbol (ID)"
+
+    for i in data_indices:
+        raw_col = header[i]
+        match = gene_regex.match(raw_col)
+        if match:
+            clean_genes.append(match.group(1))
+        else:
+            clean_genes.append(raw_col)
+
+    # --- Step 2: Stream & Extract ---
+    output_dir = os.path.join(data_dir, "processed_expression")
+    os.makedirs(output_dir, exist_ok=True)
+
+    found_count = 0
+
+    with open(exp_path, 'r') as f:
+        # Skip header since we read it
+        next(f)
+
+        for line in f:
+            # Optimization: Only split the start of the line to check ModelID
+            # This avoids splitting 20k+ columns for rows we don't need
+            row_start = line.split(',', model_idx + 1)
+            if len(row_start) <= model_idx: continue
+
+            curr_id = row_start[model_idx]
+
+            if curr_id in target_ids:
+                click.echo(f"  Extracting {curr_id}...")
+
+                # Now split the full line
+                parts = line.strip().split(',')
+
+                # Extract values corresponding to our data indices
+                vals = []
+                for idx in data_indices:
+                    try:
+                        # DepMap values are Log2(TPM+1)
+                        val = float(parts[idx])
+                    except (ValueError, IndexError):
+                        val = 0.0
+                    vals.append(val)
+
+                # Create DataFrame
+                # Gene: The cleaned symbol
+                # expression_norm: The value from the file (Log2(TPM+1))
+                # expression_TPM: Calculated Linear TPM (2^x - 1)
+
+                df = pd.DataFrame({
+                    'Gene': clean_genes,
+                    'expression_norm': vals
+                })
+
+                # Calculate linear TPM
+                df['expression_TPM'] = (2 ** df['expression_norm']) - 1
+
+                # Sort by expression (optional, but nice for inspection)
+                df = df.sort_values('expression_norm', ascending=False)
+
+                # Save
+                out_name = f"{curr_id}_expression.csv"
+                df.to_csv(os.path.join(output_dir, out_name), index=False)
+
+                found_count += 1
+                if found_count == len(target_ids):
+                    break
+
+    click.echo(f"✓ Processed {found_count} cell lines. Data in {output_dir}")
+
+
+@main.command()
+@click.option('--top-n', default=300, help='Genes for specific cell lines (Default: 300).')
+@click.option('--top-n-generic', default=500, help='Genes per cell for Generic pool (Default: 500).')
+@click.option('--genome', default='GRCh38', help='Genome version.')
+@click.option('--force', is_flag=True, help='Overwrite existing cai_weights.json if it exists.')
+def build_cai_weights(top_n, top_n_generic, genome, force):
+    """
+    Generates CAI weight profiles for the cohort and a Generic fallback.
+    """
+    data_dir = get_data_dir()
+    out_path = os.path.join(data_dir, "cai_weights.json")
+
+    if os.path.exists(out_path) and not force:
+        click.echo(click.style(f"✓ CAI weights already exist at {out_path}. Use --force to recalculate.", fg="green"))
+        return
+
+    manifest_path = os.path.join(data_dir, "cell_cohort.json")
+    expression_dir = os.path.join(data_dir, "processed_expression")
+
+    if not os.path.exists(manifest_path):
+        click.echo(click.style("❌ Error: cell_cohort.json not found.", fg="red"))
+        return
+
+    with open(manifest_path, 'r') as f:
+        cohort = json.load(f)
+
+    paths = get_paths(genome)
+    # 1. Initialize Mapper first to get valid gene set
+    mapper = GeneCoordinateMapper(paths['db'])
+    valid_db_genes = set(mapper.gene_name_map.keys())
+
+    # 2. PHASE 1: Use the fixed orchestrator function
+    # Note: Pass valid_db_genes here!
+
+    cell_line_top_genes, fallback_genes, global_fetch_set = load_cell_line_gene_maps(
+        cell_map=cohort,
+        data_dir=Path(expression_dir),
+        valid_db_genes=valid_db_genes,
+        n_specific=top_n_generic,
+        n_fallback_scan=top_n_generic,
+        filter_mode='protein_coding',
+        genome_db=mapper.db
+    )
+
+    # --- PHASE 2: Build Sequence Registry ---
+    all_target_genes = set().union(*cell_line_top_genes.values(), global_fetch_set)
+    click.echo(f"Fetching sequences for {len(all_target_genes)} valid genes...")
+
+    gene_to_data = get_locus_to_data_dict(include_introns=False, gene_subset=list(all_target_genes))
+
+    # Reuse the mapper we created above to save memory/time
+    ref_registry = build_gene_sequence_registry(
+        genes=list(all_target_genes),
+        gene_to_data=gene_to_data,
+        mapper=mapper
+    )
+
+    # --- PHASE 3: Calculate Weights ---
+    cai_weights_map = {}
+
+    # A. Specific Weights
+    click.echo("\nCalculating cell-specific weights (Top 300)...")
+    for cell_name, genes in cell_line_top_genes.items():
+        cds_list = [
+            ref_registry[g]['cds_sequence'] for g in genes
+            if g in ref_registry and ref_registry[g].get('cds_sequence')
+        ]
+        cds_list = cds_list[:top_n]
+
+
+        if len(cds_list) == top_n:
+            _, weights_flat = calc_CAI_weight(cds_list)
+            cai_weights_map[cell_name] = weights_flat
+            click.echo(f"  ✓ {cell_name} weights ready ({len(cds_list)} genes).")
+        else:
+            click.echo(f"  ⚠ {cell_name} has insufficient sequences.")
+
+    # B. Generic Weights (Consensus Intersection)
+    click.echo(f"\nCalculating Generic Weights (Intersection of Top {top_n_generic})...")
+
+    # Extract sequences for the consensus genes
+    fallback_cds_list = [
+        ref_registry[g]['cds_sequence'] for g in fallback_genes
+        if g in ref_registry and ref_registry[g].get('cds_sequence')
+    ]
+
+    fallback_cds_list = fallback_cds_list[:top_n]
+
+    if fallback_cds_list:
+        _, generic_weights = calc_CAI_weight(fallback_cds_list)
+        cai_weights_map['Generic'] = generic_weights
+        click.echo(f"  ✓ Generic weights ready ({len(fallback_cds_list)} genes).")
+    else:
+        click.echo("  ⚠ Warning: No sequences found for fallback genes.")
+
+    # --- PHASE 4: Save ---
+    with open(out_path, 'w') as f:
+        json.dump(cai_weights_map, f, indent=4)
+
+    click.echo(click.style(f"\nSUCCESS: CAI weights saved to {out_path}", fg="green"))
 
 
 @main.command()
@@ -130,7 +566,7 @@ def setup_mrna_halflife(force):
         sys.exit(1)
 
 
-GENCODE_HUMAN_RELEASE = "34"
+GENCODE_HUMAN_RELEASE = "38"
 
 
 def get_genome_metadata(genome):
@@ -141,13 +577,13 @@ def get_genome_metadata(genome):
         # --- MAMMALS (GENCODE) ---
         'GRCh38': {
             'base_url': f'https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_HUMAN_RELEASE}',
-            'fasta_name': 'GRCh38.primary_assembly.genome.fa.gz',
-            'gtf_name': f'gencode.v{GENCODE_HUMAN_RELEASE}.basic.annotation.gtf.gz'
+            'fasta_name' : 'GRCh38.p13.genome.fa.gz',
+            'gtf_name': f'gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gtf.gz'
         },
         'GRCm39': {
             'base_url': 'https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M33',
-            'fasta_name': 'GRCm39.primary_assembly.genome.fa.gz',
-            'gtf_name': 'gencode.vM33.basic.annotation.gtf.gz'
+            'fasta_name': 'GRCm39.genome.fa.gz',
+            'gtf_name': 'gencode.vM33.chr_patch_hapl_scaff.basic.annotation.gtf.gz'
         },
 
         # --- YEAST (Ensembl) ---

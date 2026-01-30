@@ -6,12 +6,11 @@ Usage: python scripts/run_real_search.py [SEQUENCE]
 
 import sys
 import os
-import argparse
 import time
 import pandas as pd
 
 from tauso.off_target.search import find_all_gene_off_targets
-from tauso.data import get_paths
+from tauso.data.data import get_paths
 
 def test_regression():
     # parser = argparse.ArgumentParser(description="Search for ASO off-targets in the real genome.")

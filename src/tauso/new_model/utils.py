@@ -26,6 +26,7 @@ PREMRNA_FOUND = 'pre_mrna_found'
 SENSE_START = 'sense_start'
 SENSE_LENGTH = 'sense_length'
 SENSE_TYPE = 'sense_type'
+SMILES = 'Smiles'
 
 parent = Path(__file__).parent
 
