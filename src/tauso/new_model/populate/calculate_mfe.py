@@ -1,3 +1,4 @@
+#TODO - change the location in the project
 import pandas as pd
 import numpy as np
 from notebooks.consts import *
