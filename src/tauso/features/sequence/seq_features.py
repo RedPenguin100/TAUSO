@@ -1,16 +1,15 @@
 import re
 import numpy as np
 import primer3
-import codonbias as cb
 import pandas as pd
 from numba import njit
 from scipy.stats import entropy
 from collections import Counter
-from ..util import get_antisense
-from ..algorithms.suffix_array import longest_prefix
+from ...util import get_antisense
+from ...algorithms.suffix_array import longest_prefix
 from primer3 import calc_hairpin
 from collections import defaultdict
-from src.tauso.algorithms.suffix_array import build_suffix_array
+from ...algorithms.suffix_array import build_suffix_array
 
 def hairpin_dG_energy(seq: str):
     """
@@ -68,24 +67,6 @@ def homooligo_count(seq: str) -> float:
         n += 1
         curr_seq = ''
     return tot_count / len(seq)
-
-
-def compute_ENC(seq: str) -> float:
-    """
-    Returns normalized ENC in [0,1], or NaN if the input sequence is empty/invalid.
-    """
-    if not isinstance(seq, str) or seq.strip() == "":
-        return np.nan
-
-    enc = cb.scores.EffectiveNumberOfCodons(bg_correction=True)
-    enc_score = enc.get_score(seq)
-
-    if enc_score is None or not np.isfinite(enc_score):
-        return np.nan
-
-    # Normalize ENC from [20..61] to [0..1]
-    return (enc_score - 20.0) / (61.0 - 20.0)
-
 
 def seq_entropy(seq: str) -> float:
     freqs = [seq.count(base) / len(seq) for base in "ACGT"]
