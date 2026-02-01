@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
-from notebooks.consts import *
 from notebooks.notebook_utils import log_correction, read_cached_gene_to_data
-from tauso.new_model.utils import SMILES
+from tauso.data.consts import *
 from tauso.util import get_antisense
 
 

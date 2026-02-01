@@ -3,7 +3,7 @@ import os
 from notebooks.consts import SAVED_FEATURES
 
 
-def load_all_features(filenames=None, light=True, verbose=False):
+def load_all_features(filenames=None, light=True, verbose=False, version=None):
     # this function loads all the features and the current data, merges all the features according to the index
     # and returns a merged df with all the features and the data
     # missing values would be considered as NaN!
@@ -25,8 +25,13 @@ def load_all_features(filenames=None, light=True, verbose=False):
     dfs = [pd.read_csv(os.path.join(feature_dir, f)) for f in filenames]
 
     merged_df = dfs[0]
+    if version is None:
+        index = 'index'
+    else:
+        index = 'index_' + version
+
     for df in dfs[1:]:
-        merged_df = pd.merge(merged_df, df, on='index', how='outer')
+        merged_df = pd.merge(merged_df, df, on=index, how='outer')
 
     return merged_df
 
@@ -36,14 +41,14 @@ import pandas as pd
 import numpy as np
 
 
-def _check_conflicts(new_sub_df, file_path, feature_name):
+def _check_conflicts(new_sub_df, file_path, feature_name, index):
     existing_df = pd.read_csv(file_path)
 
     # Merge on 'index' to compare aligned rows
     comparison = pd.merge(
         new_sub_df,
         existing_df,
-        on='index',
+        on=index,
         suffixes=('_new', '_existing'),
         how='inner'
     )
@@ -81,11 +86,21 @@ def _check_conflicts(new_sub_df, file_path, feature_name):
 
 
 # The main function remains the same
-def save_feature(df, feature_name, overwrite=False):
-    feature_dir = SAVED_FEATURES
+def save_feature(df, feature_name, overwrite=False, version=None):
+    if version is None:
+        feature_dir = SAVED_FEATURES
+    elif version == 'v2':
+        feature_dir = SAVED_FEATURES.with_name(f"{SAVED_FEATURES.name}_{version}")
+    else:
+        raise ValueError(f"Unknown version '{version}'")
+
     os.makedirs(feature_dir, exist_ok=True)
 
-    sub_df = df[['index', feature_name]].copy()
+    if version is None:
+        index = 'index'
+    else:
+        index = 'index_' + version
+    sub_df = df[[index, feature_name]].copy()
     file_path = os.path.join(feature_dir, f'{feature_name}.csv')
 
     file_exists = os.path.exists(file_path)
@@ -95,7 +110,7 @@ def save_feature(df, feature_name, overwrite=False):
         action = "Overwrote" if file_exists else "Saved"
         print(f"{action} feature: {feature_name}")
     else:
-        _check_conflicts(sub_df, file_path, feature_name)
+        _check_conflicts(sub_df, file_path, feature_name, index)
 
 # TODO: fix this function
 # def read_base_df():

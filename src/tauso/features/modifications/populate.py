@@ -1,4 +1,4 @@
-from tauso.features.mod_features import (
+from ..mod_features import (
     compute_mod_fraction, compute_mod_type_count, compute_mod_5prime_run,
     compute_mod_3prime_run, compute_mod_min_distance_to_5prime,
     compute_mod_min_distance_to_3prime, compute_mod_pos_std,
@@ -10,7 +10,7 @@ from tauso.features.mod_features import (
     compute_mod_longest_repeat_run, compute_mod_adjacent_pair_count,
     compute_mod_strong_repeat_group_count
 )
-from tauso.new_model.consts_dataframe import CHEMICAL_PATTERN
+from ...data.consts import CHEMICAL_PATTERN
 
 import pandas as pd
 import multiprocessing

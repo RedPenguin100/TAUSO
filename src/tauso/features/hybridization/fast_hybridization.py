@@ -10,7 +10,7 @@ from typing import Dict, List
 
 from Bio.Seq import Seq
 
-from ..common.consts import OUT_FOLDER
+from ...common.consts import OUT_FOLDER
 
 TMP_PATH = Path(tempfile.gettempdir())
 

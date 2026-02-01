@@ -1,6 +1,6 @@
-from tauso.hybridization.weights.dna import DNA_DNA_WEIGHTS
-from tauso.hybridization.weights.lna import LNA_DNA_WEIGHTS
-from tauso.util import get_nucleotide_watson_crick
+from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
+from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
+from ...util import get_nucleotide_watson_crick
 
 # https://pmc.ncbi.nlm.nih.gov/articles/PMC9116672/#ack1
 
@@ -166,6 +166,7 @@ def calculate_lna(antisense, chemical_pattern):
         LNA_DNA_WEIGHTS,  # Your existing LNA Dict
     )
 
+
 def calculate_cet(antisense, chemical_pattern):
     return calculate_3rd_gen_diff(
         antisense,
@@ -173,7 +174,6 @@ def calculate_cet(antisense, chemical_pattern):
         LNA_DNA_WEIGHTS,  # Your existing LNA Dict
         letter='C'
     )
-
 
 
 def calculate_dna(antisense, temp_c=37.0):
@@ -193,7 +193,6 @@ def calculate_dna(antisense, temp_c=37.0):
     # --- 2. Iterate Stacks ---
     for i in range(len(seq) - 1):
         b1, b2 = seq[i], seq[i + 1]
-
 
         top = f"{b1}{b2}"
         c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
@@ -216,5 +215,5 @@ def calc_methylcytosines(sequence, modification):
     gap_count = 0
     for base in sequence:
         if base == 'C':
-            gap_count +=1
+            gap_count += 1
     return gap_count

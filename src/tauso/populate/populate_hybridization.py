@@ -2,10 +2,10 @@ import pandas as pd
 import multiprocessing
 from pandarallel import pandarallel
 
-from tauso.hybridization.hybridization_features import calc_methylcytosines, calculate_lna, calculate_cet, \
+from ..data.consts import *
+from ..features.hybridization.hybridization_features import calc_methylcytosines, calculate_lna, calculate_cet, \
     get_exp_psrna_hybridization, get_exp_psrna_hybridization_diff, calculate_dna, get_exp_dna_rna_hybridization
-from tauso.hybridization.md_weights import get_2moe_md_diff, get_psdna_rna_md_total
-from tauso.new_model.consts_dataframe import *
+from ..features.hybridization.md_weights import get_2moe_md_diff, get_psdna_rna_md_total
 
 # Logic can be a lambda (row-wise) or None (for vectorized post-processing)
 HYBR_FEATURE_TO_CALCULATION = {
@@ -73,4 +73,4 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
         print("Calculating vectorized feature: DNA_HYBR_DIFF...")
         all_data['DNA_HYBR_DIFF'] = all_data['TOTAL_DNA_HYBR'] - all_data['TOTAL_DNA_RNA_HYBR']
 
-    return all_data
+    return all_data, HYBR_FEATURE_TO_CALCULATION

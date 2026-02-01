@@ -19,27 +19,6 @@ from tauso.old_model_generation.consts_dataframe import SEQUENCE, SENSE_START, S
 from tauso.util import get_antisense
 
 
-def get_target_sequence(
-        target_name: str,
-        custom_sequence: Optional[str] = None
-) -> str:
-    """
-    Retrieves the mRNA sequence either from the custom input or
-    by querying the local genome database.
-    """
-    if custom_sequence:
-        return custom_sequence.upper().replace('T', 'U')
-
-    # Use the optimized subset loader from read_human_genome.py
-    print(f"Fetching sequence for {target_name}...")
-    locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[target_name])
-
-    if target_name not in locus_data:
-        raise ValueError(f"Gene {target_name} not found in genome database.")
-
-    # Extract the full mRNA sequence from the LocusInfo object
-    return locus_data[target_name].full_mrna
-
 
 DEFAULT_ASO_LENGTH = 20
 

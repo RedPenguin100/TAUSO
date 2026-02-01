@@ -26,7 +26,7 @@ from gffutils.iterators import DataIterator
 
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.data.data import get_paths, get_data_dir
-from tauso.features.cai import calc_CAI_weight
+from tauso.features.codon_usage.cai import calc_CAI_weight
 from tauso.genome.TranscriptMapper import GeneCoordinateMapper, build_gene_sequence_registry
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
