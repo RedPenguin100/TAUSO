@@ -57,7 +57,7 @@ SK_N_AS     = 'SK-N-AS'
 SK_N_SH     = 'SK-N-SH'
 
 CELL_LINE_TO_DEPMAP = {
-    'HepG': 'ACH-000739',
+    'HepG2': 'ACH-000739',
     'SNU-449': 'ACH-000420',
     'HeLa': 'ACH-001086',
     'A431': 'ACH-001328',
