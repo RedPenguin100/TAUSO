@@ -97,7 +97,7 @@ def populate_sense_accessibility(aso_dataframe, gene_to_data):
     for idx, row in valid_rows:
         sense_start = row[SENSE_START]
         sense_length = row[SENSE_LENGTH]
-        full_mrna_seq = gene_to_data(row[CANONICAL_GENE].full_mrna)
+        full_mrna_seq = gene_to_data[row[CANONICAL_GENE]].full_mrna
 
         flanked_sense = get_sense_with_flanks(
             full_mrna_seq, sense_start, sense_length,

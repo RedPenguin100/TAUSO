@@ -24,20 +24,23 @@ def pytest_collection_modifyitems(config, items):
         if "slow" in item.keywords:
             item.add_marker(skip_slow)
 
+SHORT_GENE = 'DDX11L1'
+TESTED_GENES = [SHORT_GENE]
+
 
 @pytest.fixture
-def short_mrna():
-    target_gene = 'DDX11L1'
-
+def small_gene_to_data():
     test_cache = UNIT_TESTS_PATH / 'gene_to_data_test.pickle'
     if not test_cache.exists():
         UNIT_TESTS_PATH.mkdir(parents=True, exist_ok=True)
-        gene_to_data = get_locus_to_data_dict(include_introns=True, gene_subset=[target_gene])
+        gene_to_data = get_locus_to_data_dict(include_introns=True, gene_subset=TESTED_GENES)
         with open(test_cache, 'wb') as f:
             pickle.dump(gene_to_data, f)
     else:
         with open(test_cache, 'rb') as f:
             gene_to_data = pickle.load(f)
+    yield gene_to_data
 
-    yield gene_to_data[target_gene]
-
+@pytest.fixture
+def short_mrna(small_gene_to_data):
+    yield small_gene_to_data[SHORT_GENE]

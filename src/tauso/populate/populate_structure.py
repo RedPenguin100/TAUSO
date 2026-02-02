@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..data.consts import *
-from ..features.context.feature_names import *
+from ..features.names import *
 from ..util import get_antisense
 
 

@@ -15,6 +15,5 @@ DENSITY_UPDATED = 'Density(cells_per_well)' # Avoiding /
 MODIFICATION = 'Modification'
 PREMRNA_FOUND = 'pre_mrna_found'
 SENSE_START = 'sense_start'
-SENSE_START_FROM_END = 'sense_start_from_end'
 SENSE_LENGTH = 'sense_length'
 SENSE_TYPE = 'sense_type'
