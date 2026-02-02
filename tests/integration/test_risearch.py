@@ -1,6 +1,7 @@
 import pytest
 
-from tauso.hybridization.fast_hybridization import get_trigger_mfe_scores_by_risearch, Interaction, get_mfe_scores
+from tauso.features.hybridization.fast_hybridization import get_trigger_mfe_scores_by_risearch, Interaction, \
+    get_mfe_scores
 from tauso.util import get_antisense
 from tests.integration.target_finder import get_gfp_first_exp
 
@@ -68,7 +69,6 @@ def test_risearch_gfp_modified_transpose(data_regression):
     # --- 5. Perform Regression Check ---
     # This checks the current `regression_data` dict against the stored YAML file.
     data_regression.check(regression_data)
-
 
 
 def test_risearch_gfp_modified_original(data_regression):

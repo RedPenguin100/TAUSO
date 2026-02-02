@@ -5,11 +5,13 @@ import pandas as pd
 from numba import njit
 from scipy.stats import entropy
 from collections import Counter
-from ...util import get_antisense
-from ...algorithms.suffix_array import longest_prefix
 from primer3 import calc_hairpin
 from collections import defaultdict
+
+from ...util import get_antisense
+from ...algorithms.suffix_array import longest_prefix
 from ...algorithms.suffix_array import build_suffix_array
+
 
 def hairpin_dG_energy(seq: str):
     """
@@ -68,6 +70,7 @@ def homooligo_count(seq: str) -> float:
         curr_seq = ''
     return tot_count / len(seq)
 
+
 def seq_entropy(seq: str) -> float:
     freqs = [seq.count(base) / len(seq) for base in "ACGT"]
     return entropy(freqs) / 2
@@ -110,6 +113,7 @@ def hairpin_score(seq: str, min_overlap: int = 4) -> float:
             matches += 1
     return matches / len(seq)
 
+
 def gc_skew(seq: str) -> float:
     """
     Computes GC skew = (G - C) / (G + C)
@@ -119,17 +123,19 @@ def gc_skew(seq: str) -> float:
     G_counts = seq.count("G")
     C_counts = seq.count("C")
     if G_counts + C_counts == 0:
-        return  0.0
+        return 0.0
     return (G_counts - C_counts) / (G_counts + C_counts)
+
 
 @njit
 def get_gc_content(seq: str) -> float:
     gc_count = 0
     for i in range(len(seq)):
         if seq[i] in "GCgc":
-            gc_count +=1
+            gc_count += 1
 
     return gc_count / len(seq)
+
 
 def gc_content_3prime_end(aso_sequence: str, window: int = 5) -> float:
     """Calculate the GC content at the 3' end of the ASO sequence."""
@@ -138,6 +144,7 @@ def gc_content_3prime_end(aso_sequence: str, window: int = 5) -> float:
     three_prime_end = aso_sequence[-window:]
     gc_count = three_prime_end.count('G') + three_prime_end.count('C')
     return gc_count / window
+
 
 @njit
 def gc_skew_ends(seq: str, window: int = 5) -> float:
@@ -154,6 +161,7 @@ def gc_skew_ends(seq: str, window: int = 5) -> float:
     gc_3 = end.count("G") + end.count("C")
     return (gc_5 - gc_3) / window
 
+
 def dispersed_repeats_score(seq, min_unit=2, max_unit=6):
     """
     Counts motifs (2–6 nt) that appear more than once, even if not consecutive.
@@ -162,11 +170,10 @@ def dispersed_repeats_score(seq, min_unit=2, max_unit=6):
     unit_counter = Counter()
     for unit_len in range(min_unit, max_unit + 1):
         for i in range(len(seq) - unit_len + 1):
-            unit = seq[i:i+unit_len]
+            unit = seq[i:i + unit_len]
             unit_counter[unit] += 1
     score = sum(count - 1 for count in unit_counter.values() if count > 1)
     return score / len(seq)
-
 
 
 @njit
@@ -207,9 +214,10 @@ def toxic_motif_count(aso_sequence, motifs=['UGU', 'GGTGG', 'TGGT', 'GGGU']) -> 
 def nucleotide_diversity(seq: str) -> float:
     # checking the nucleotide diversity of the ASO sequence and normalize it by the
     # max value 16
-    nucs = [seq[i:i+2] for i in range(len(seq)-1)]
+    nucs = [seq[i:i + 2] for i in range(len(seq) - 1)]
     unique = set(nucs)
     return len(unique) / 16
+
 
 def stop_codon_count(seq: str, codons=('TAA', 'TAG', 'TGA')) -> float:
     """
@@ -222,6 +230,7 @@ def stop_codon_count(seq: str, codons=('TAA', 'TAG', 'TGA')) -> float:
     count = sum(seq.count(codon) for codon in codons)
     return count / len(seq)
 
+
 def tandem_repeats_score(seq: str, min_unit=2, max_unit=6) -> float:
     """
     Calculates how many short motifs (2–6 nt) repeat consecutively (tandem repeats).
@@ -230,15 +239,16 @@ def tandem_repeats_score(seq: str, min_unit=2, max_unit=6) -> float:
     score = 0
     for unit_len in range(min_unit, max_unit + 1):
         for i in range(len(seq) - unit_len * 2 + 1):
-            unit = seq[i:i+unit_len]
+            unit = seq[i:i + unit_len]
             repeat_count = 1
             j = i + unit_len
-            while j + unit_len <= len(seq) and seq[j:j+unit_len] == unit:
+            while j + unit_len <= len(seq) and seq[j:j + unit_len] == unit:
                 repeat_count += 1
                 j += unit_len
             if repeat_count >= 2:
                 score += repeat_count - 1
-    return score/len(seq)
+    return score / len(seq)
+
 
 def flexible_dinucleotide_fraction(seq: str) -> float:
     """
@@ -253,11 +263,12 @@ def flexible_dinucleotide_fraction(seq: str) -> float:
         return 0.0
     seq = seq.upper()
     count = 0
-    for i in range(len(seq)-1):
-        pair = seq[i:i+2]
-        if pair in ['AT','TA']:
+    for i in range(len(seq) - 1):
+        pair = seq[i:i + 2]
+        if pair in ['AT', 'TA']:
             count += 1
-    return count/(len(seq)-1)
+    return count / (len(seq) - 1)
+
 
 def hairpin_tm(seq: str) -> float:
     """
@@ -296,14 +307,14 @@ def clean_region_from_aso(region, aso):
 
 
 def add_local_chimera_features_cds(
-    df,
-    flank_windows,
-    sequence_col,
-    local_col_template="local_coding_region_around_ASO_{flank}",
-    out_col_template="chimera_score_CDS_{flank}",
-    step_size=1,
-    normalize_by_aso_len=False,
-    suffix_array_cache=None,
+        df,
+        flank_windows,
+        sequence_col,
+        local_col_template="local_coding_region_around_ASO_{flank}",
+        out_col_template="chimera_score_CDS_{flank}",
+        step_size=1,
+        normalize_by_aso_len=False,
+        suffix_array_cache=None,
 ):
     """
     Adds local CDS chimera scores for each flank window:
@@ -355,11 +366,6 @@ def add_local_chimera_features_cds(
     return df, suffix_array_cache
 
 
-import numpy as np
-from src.tauso.features.seq_features import calculate_chimera_ars
-from src.tauso.algorithms.suffix_array import build_suffix_array
-
-
 def clean_region_from_aso(region, aso):
     if not isinstance(region, str) or not isinstance(aso, str):
         return region
@@ -368,13 +374,13 @@ def clean_region_from_aso(region, aso):
 
 
 def add_global_chimera_feature_cds(
-    df,
-    sequence_col,
-    cds_sequence_col="cds_sequence",
-    out_col="chimera_score_global_CDS",
-    step_size=1,
-    normalize_by_aso_len=False,
-    suffix_array_cache=None,
+        df,
+        sequence_col,
+        cds_sequence_col="cds_sequence",
+        out_col="chimera_score_global_CDS",
+        step_size=1,
+        normalize_by_aso_len=False,
+        suffix_array_cache=None,
 ):
     """
     Adds a single global CDS chimera score:
@@ -420,19 +426,21 @@ def add_global_chimera_feature_cds(
 
 
 ###################################################################################
-def add_interaction_features(df : pd.DataFrame, feature_pairs: list[tuple[str, str]]) -> pd.DataFrame:
+def add_interaction_features(df: pd.DataFrame, feature_pairs: list[tuple[str, str]]) -> pd.DataFrame:
     """
     Given a DataFrame and a list of columns pairs (colA ,colB), create new cloumns named "colA*colB"
     containing element-wise product.
     df - DataFrame with your base features already computed
     feature_pairs : list of(str,str)
     """
-    for col_a , col_b in feature_pairs:
+    for col_a, col_b in feature_pairs:
         new_col = f"{col_a}*{col_b}"
         if new_col in df.columns:
             continue
         df[new_col] = df[col_a] * df[col_b]
     return df
+
+
 #################################################################
 
 def cg_dinucleotide_fraction(seq: str) -> float:
@@ -450,8 +458,8 @@ def cg_dinucleotide_fraction(seq: str) -> float:
     """
     seq = seq.upper()
     cg_count = 0
-    for i in range (len(seq)-1):
-        dinucleotide = seq[i:i+2]
+    for i in range(len(seq) - 1):
+        dinucleotide = seq[i:i + 2]
         if dinucleotide == 'CG':
             cg_count += 1
     total_possible_pairs = len(seq) - 1
@@ -459,6 +467,8 @@ def cg_dinucleotide_fraction(seq: str) -> float:
         return 0.0
     cg_fraction = cg_count / total_possible_pairs
     return cg_fraction
+
+
 ########################################################################
 
 def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
@@ -494,6 +504,7 @@ def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
 
     return stretch_count / len(seq) if len(seq) > 0 else 0.0
 
+
 ############################################################################
 
 def dinucleotide_entropy(seq: str) -> float:
@@ -513,11 +524,13 @@ def dinucleotide_entropy(seq: str) -> float:
     if len(seq) < 2:
         return 0.0  # too short to form any dinucleotide
 
-    dinucleotides = [seq[i:i+2] for i in range(len(seq)-1)]
+    dinucleotides = [seq[i:i + 2] for i in range(len(seq) - 1)]
     freq = pd.Series(dinucleotides).value_counts(normalize=True)
     raw_entropy = entropy(freq, base=2)
 
     return raw_entropy / 4  # normalization to range [0, 1]
+
+
 ##############################################################################
 def gc_block_length(seq):
     """
@@ -529,10 +542,11 @@ def gc_block_length(seq):
     for base in seq:
         if base in "GC":
             curr_len += 1
-            max_len = max(max_len , curr_len)
+            max_len = max(max_len, curr_len)
         else:
             curr_len = 0
     return max_len
+
 
 ################################################################################
 def purine_content(seq):
@@ -545,7 +559,9 @@ def purine_content(seq):
     if len(seq) == 0:
         return 0.0
     return count / len(seq)
-#################################################################   
+
+
+#################################################################
 def Niv_ENC(seq: str, strict: bool = False) -> float:
     """
     Calculates the Effective Number of Codons (ENC) for a DNA sequence.
@@ -563,7 +579,7 @@ def Niv_ENC(seq: str, strict: bool = False) -> float:
     """
     seq = seq.upper()
     seq = seq[:len(seq) - (len(seq) % 3)]  # Trim to full codons
-    codons = [seq[i:i+3] for i in range(0, len(seq), 3)]
+    codons = [seq[i:i + 3] for i in range(0, len(seq), 3)]
     codon_counts = defaultdict(int)
     for codon in codons:
         codon_counts[codon] += 1
@@ -610,6 +626,7 @@ def Niv_ENC(seq: str, strict: bool = False) -> float:
 
     except ZeroDivisionError:
         return 1.0  # fallback if unexpected division by 0
+
 
 ########################################################################################################
 def at_rich_region_score(seq: str, min_run_length: int = 4) -> float:
