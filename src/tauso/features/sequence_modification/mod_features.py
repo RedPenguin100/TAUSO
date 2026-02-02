@@ -1,3 +1,7 @@
+import re
+import numpy as np
+
+from collections import Counter
 
 
 def compute_mod_fraction(pattern):
@@ -11,6 +15,7 @@ def compute_mod_fraction(pattern):
         return 0.0
     modified = sum(1 for c in pattern if c != 'd')
     return modified / total
+
 
 ##########################################################################
 def compute_mod_type_count(pattern):
@@ -45,8 +50,10 @@ def compute_mod_5prime_run(pattern):
     length = len(pattern)
     if length == 0:
         return 0.0
-        
+
     return run / length
+
+
 ###########################################################################
 def compute_mod_3prime_run(pattern):
     """
@@ -64,8 +71,10 @@ def compute_mod_3prime_run(pattern):
     length = len(pattern)
     if length == 0:
         return 0.0
-        
+
     return run / length
+
+
 ###########################################################################
 def compute_mod_min_distance_to_5prime(pattern):
     """
@@ -82,6 +91,7 @@ def compute_mod_min_distance_to_5prime(pattern):
             return i / n
 
     return -1.0
+
 
 ###########################################################################
 def compute_mod_min_distance_to_3prime(pattern):
@@ -100,6 +110,7 @@ def compute_mod_min_distance_to_3prime(pattern):
 
     return -1.0
 
+
 ###########################################################################
 def compute_mod_pos_std(pattern):
     """
@@ -107,17 +118,18 @@ def compute_mod_pos_std(pattern):
     Returns -1 if there are no modifications.
     """
 
-
     pattern = str(pattern)
     mod_positions = [i for i, c in enumerate(pattern) if c != 'd']
     if not mod_positions:
         return -1
-    
+
     length = len(pattern)
     if length == 0:
         return 0.0
     std = np.std(mod_positions)
     return std / length
+
+
 ###########################################################################
 
 def compute_mod_block_count(pattern):
@@ -132,6 +144,8 @@ def compute_mod_block_count(pattern):
         return 0.0
 
     return (len(blocks)) / length
+
+
 ############################################################################
 
 def compute_mod_max_block_length(pattern):
@@ -142,6 +156,8 @@ def compute_mod_max_block_length(pattern):
     pattern = str(pattern)
     blocks = re.findall(r'[^d]+', pattern)
     return max((len(block) for block in blocks), default=0)
+
+
 ############################################################################
 
 
@@ -162,6 +178,8 @@ def compute_mod_char_entropy(pattern):
 
     max_entropy = np.log2(len(probs)) if len(probs) > 1 else 1  # to avoid /0
     return entropy / max_entropy
+
+
 ############################################################################
 
 def compute_dominant_mod_fraction(pattern):
@@ -177,6 +195,8 @@ def compute_dominant_mod_fraction(pattern):
     counts = Counter(mod_chars)
     dominant_count = counts.most_common(1)[0][1]
     return dominant_count / len(mod_chars)
+
+
 ############################################################################
 
 
@@ -187,7 +207,7 @@ def compute_mod_evenness(pattern):
     """
     pattern = str(pattern)
     positions = [i for i, c in enumerate(pattern) if c != 'd']
-    
+
     if len(positions) < 2:
         return 0.0  # no spacing to measure
 
@@ -198,6 +218,8 @@ def compute_mod_evenness(pattern):
 
     max_entropy = np.log2(len(spacings)) if len(spacings) > 1 else 1
     return entropy / max_entropy
+
+
 ############################################################################
 def compute_mod_symmetry_score(pattern):
     """
@@ -221,6 +243,8 @@ def compute_mod_symmetry_score(pattern):
         return 1.0  # no modifications = trivially symmetric
 
     return 1 - abs(left_count - right_count) / total
+
+
 ############################################################################
 def compute_mod_skew_index(pattern):
     """
@@ -244,6 +268,8 @@ def compute_mod_skew_index(pattern):
         return 0.0
 
     return (mod_5p - mod_3p) / total
+
+
 ############################################################################
 def compute_mod_mean_gap(pattern):
     """
@@ -252,7 +278,7 @@ def compute_mod_mean_gap(pattern):
     """
     pattern = str(pattern)
     positions = [i for i, c in enumerate(pattern) if c != 'd']
-    
+
     if len(positions) < 2:
         return -1
 
@@ -260,8 +286,10 @@ def compute_mod_mean_gap(pattern):
 
     length = len(pattern)
     if length == 0:
-        return 0        
-    return (gaps.mean())/length
+        return 0
+    return (gaps.mean()) / length
+
+
 ############################################################################
 def compute_mod_local_density_max(pattern, window=5):
     """
@@ -270,18 +298,20 @@ def compute_mod_local_density_max(pattern, window=5):
     """
     pattern = str(pattern)
     n = len(pattern)
-    
+
     if n < window:
         return sum(1 for c in pattern if c != 'd')  # entire pattern
 
     max_count = 0
     for i in range(n - window + 1):
-        window_seq = pattern[i:i+window]
+        window_seq = pattern[i:i + window]
         count = sum(1 for c in window_seq if c != 'd')
         if count > max_count:
             max_count = count
 
     return max_count / window
+
+
 ############################################################################
 
 def compute_mod_in_core(pattern, core_fraction=0.4):
@@ -304,6 +334,8 @@ def compute_mod_in_core(pattern, core_fraction=0.4):
 
     core_mods = sum(1 for c in pattern[core_start:core_end] if c != 'd')
     return core_mods / total_mods
+
+
 #############################################################################
 def compute_mod_longest_repeat_run(pattern):
     """
@@ -332,8 +364,10 @@ def compute_mod_longest_repeat_run(pattern):
     length = len(pattern)
     if length == 0:
         return 0  # define empty pattern as having no runs
-    
+
     return max_run / length  # normalize by pattern length for consistency
+
+
 ############################################################################
 def compute_mod_adjacent_pair_count(pattern):
     """
@@ -346,11 +380,12 @@ def compute_mod_adjacent_pair_count(pattern):
     for i in range(len(pattern) - 1):
         if pattern[i] != 'd' and pattern[i] == pattern[i + 1]:
             count += 1
-    
+
     length = len(pattern)
     if length == 0:
-        return 0        
-    return count/ length
+        return 0
+    return count / length
+
 
 ############################################################################
 def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
@@ -380,6 +415,6 @@ def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
 
     length = len(pattern)
     if length == 0:
-        return 0        
-    return count/ length
+        return 0
+    return count / length
 ############################################################################

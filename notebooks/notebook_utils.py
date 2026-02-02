@@ -3,8 +3,8 @@ import pickle
 import numpy as np
 
 from notebooks.consts import CACHE_DIR
-from tauso.data.consts import INHIBITION
 from tauso.genome.read_human_genome import get_locus_to_data_dict
+from tauso.data.consts import INHIBITION
 
 
 def log_correction(df, correction=0.01):

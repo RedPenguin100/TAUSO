@@ -1,4 +1,4 @@
-from ..mod_features import (
+from ..sequence_modification.mod_features import (
     compute_mod_fraction, compute_mod_type_count, compute_mod_5prime_run,
     compute_mod_3prime_run, compute_mod_min_distance_to_5prime,
     compute_mod_min_distance_to_3prime, compute_mod_pos_std,
@@ -74,4 +74,4 @@ def populate_modifications(df, n_cores=None):
         else:
             print(f"Warning: {feature} logic not found or not callable. Skipping.")
 
-    return all_data
+    return all_data, MODIFICATION_FEATURE_TO_CALCULATION
