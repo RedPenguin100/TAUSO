@@ -2,7 +2,7 @@ import pytest
 import ViennaRNA as RNA
 
 from tauso.random_util import generate_random_dna
-from tauso.features.seq_features import get_gc_content
+from tauso.features.sequence.seq_features import get_gc_content
 
 
 @pytest.mark.parametrize('length', [16, 17, 18, 19, 20, 21, 22])
