@@ -1,26 +1,16 @@
 import numpy as np
-
-from ..data.consts import *
-from ..features.names import *
-from ..util import get_antisense
-
-import numpy as np
-
 from ..data.consts import *
 from ..features.names import *
 from ..util import get_antisense
 
 
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
-    """
-    Populate "the data" df with features like exon/intron, start of the sense strand, if found.
-    """
     df_copy = df.copy()
     all_data_human = df_copy[df_copy[CELL_LINE_ORGANISM] == 'human']
     all_data_human_no_nan = all_data_human.dropna(subset=[INHIBITION]).copy()
     all_data_human_gene = all_data_human_no_nan[all_data_human_no_nan[CANONICAL_GENE].isin(genes_u)].copy()
 
-    # 'found' removed from here, it must be scoped per iteration
+    # Initialization
     all_data_human_gene[SENSE_START] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
     all_data_human_gene[SENSE_START_FROM_END] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
     all_data_human_gene[SENSE_LENGTH] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
@@ -42,11 +32,20 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
         all_data_human_gene.loc[index, SENSE_LENGTH] = len(antisense)
 
         if idx != -1:
-            all_data_human_gene.loc[index, SENSE_START_FROM_END] = np.abs(
-                locus_info.exon_indices[-1][1] - locus_info.gene_start - idx)
+            # FIX 1: Robust "Distance from 3' end" using transcript length
+            # (Works for both strands since pre_mrna is the transcript sequence)
+            all_data_human_gene.loc[index, SENSE_START_FROM_END] = len(pre_mrna) - idx
 
-            genome_corrected_index = idx + locus_info.gene_start
-            found = False  # FIX: Initialize found inside the check block
+            # FIX 2: Calculate Genome Corrected Index based on Strand
+            if locus_info.strand == '-':
+                # On (-) strand, idx 0 is at the genomic END (high coord)
+                genome_corrected_index = locus_info.gene_end - 1 - idx
+            else:
+                # On (+) strand, idx 0 is at the genomic START (low coord)
+                genome_corrected_index = locus_info.gene_start + idx
+
+            # FIX 3: Initialize 'found' inside the loop
+            found = False
 
             for exon_indices in locus_info.exon_indices:
                 if exon_indices[0] <= genome_corrected_index <= exon_indices[1]:
