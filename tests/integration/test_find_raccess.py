@@ -6,6 +6,7 @@ from pathlib import Path
 from tauso._raccess.core import find_raccess
 
 
+@pytest.mark.integration
 def test_sanity():
     exe = find_raccess()
     p = Path(exe)

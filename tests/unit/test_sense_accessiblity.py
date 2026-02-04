@@ -10,7 +10,8 @@ from tauso.populate.populate_fold import populate_sense_accessibility, SENSE_AVG
 
 from tauso.new_model.consts_dataframe import SEQUENCE
 from tauso.util import get_antisense
-from tests.unit.conftest import SHORT_GENE
+
+from tests.conftest import SHORT_GENE
 
 FLANK_SIZE = 120
 ACCESS_SIZE = 13

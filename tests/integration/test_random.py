@@ -5,6 +5,7 @@ from tauso.random_util import generate_random_dna
 from tauso.features.sequence.seq_features import get_gc_content
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize('length', [16, 17, 18, 19, 20, 21, 22])
 def test_random_dna(length):
     gc_lower = 0.5

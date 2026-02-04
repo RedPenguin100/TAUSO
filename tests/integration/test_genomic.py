@@ -13,6 +13,7 @@ from tauso.data.data import get_data_dir, load_db
 from tauso.features.codon_usage.find_cai_reference import filter_gtf_genes
 
 
+@pytest.mark.integration
 def test_pipeline_data_regression(data_regression):
         # 1. Load & Preprocess
     full_data = preprocess_aso_data(UPDATED_CSV)
@@ -46,6 +47,7 @@ def test_pipeline_data_regression(data_regression):
     data_regression.check(data_dict)
 
 
+@pytest.mark.integration
 def test_real_genome_filter():
     """
     Connects to the REAL local GRCh38 database and verifies

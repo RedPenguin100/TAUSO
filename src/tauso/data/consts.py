@@ -21,7 +21,7 @@ SENSE_TYPE = 'sense_type'
 SENSE_SEQUENCE = 'sense_sequence'
 PRE_MRNA_SEQUENCE = 'pre_mrna_sequence'
 SENSE_AVG_ACCESSIBILITY = 'sense_avg_accessibility'
-
+CELL_LINE_DEPMAP_PROXY = 'Cell_Line_Depmap_Proxy'
 CELL_LINE_DEPMAP = 'Cell_Line_Depmap'
 
 ISIS = 'ISIS'
@@ -55,6 +55,7 @@ KMS11       = 'KMS11'
 NCI_H460    = 'NCI-H460'
 SK_N_AS     = 'SK-N-AS'
 SK_N_SH     = 'SK-N-SH'
+KARPAS_229 = 'KARPAS-229'
 
 CELL_LINE_TO_DEPMAP = {
     'HepG2': 'ACH-000739',
@@ -71,6 +72,7 @@ CELL_LINE_TO_DEPMAP = {
     'NCI-H460': 'ACH-000463',
     'SK-N-AS': 'ACH-000260',
     'SK-N-SH': 'ACH-000149',
+    'KARPAS299' : 'ACH-000053'
 }
 
 CELL_LINE_MAPPING = {
@@ -90,7 +92,8 @@ CELL_LINE_MAPPING = {
     'NCI-H460':  NCI_H460,
     'SK-N-AS':   SK_N_AS,
     'SK-N-SH':   SK_N_SH,
-
+    'KARPAS-229' : "KARPAS299", # NOT A TYPO, a proxy!
+    
     # Neuronal / Experimental Contexts
     'Angptl2/Actin':        SK_N_AS,
     'SK cells asyn':        SK_N_AS,  # "SK cells" usually refers to SK-N-AS in this context
