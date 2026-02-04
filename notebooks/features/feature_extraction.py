@@ -106,7 +106,7 @@ def save_feature(df, feature_name, overwrite=False, version=None):
             return
         print(f"!!! Conflict detected for feature: {feature_name} !!!")
         print(f"Found {len(diff_rows)} differing rows. Top 10 differences:")
-        print(diff_rows[['index', col_new, col_old]].head(10))
+        print(diff_rows[[index, col_new, col_old]].head(10))
         print("-" * 30)
 
         if overwrite:
