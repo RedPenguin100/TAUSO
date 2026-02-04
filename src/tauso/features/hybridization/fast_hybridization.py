@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 import tempfile
+import uuid
 
 from enum import Enum
 from pathlib import Path
@@ -42,22 +43,23 @@ def get_risearch_path():
 def get_trigger_mfe_scores_by_risearch(trigger: str, name_to_sequence: Dict[str, str],
                                        interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
                                        minimum_score: int = 900, neighborhood: int = 0, parsing_type=None,
-                                       target_file_cache=None, transpose=False) -> str:
+                                       target_file_cache=None, transpose=False, unique_id=None) -> str:
     risearch_path = get_risearch_path()
 
     # used to dump cached files
     TMP_PATH.mkdir(exist_ok=True)
 
-    hash = random.getrandbits(64)
+    if unique_id is None:
+        unique_id = uuid.uuid4().hex
 
     if target_file_cache is None:
-        target_filename = f"target-{hash}.fa"
+        target_filename = f"target-{unique_id}.fa"
         target_path = dump_target_file(target_filename, name_to_sequence)
     else:
         target_filename = target_file_cache
         target_path = target_filename
 
-    query_filename = f"query-{hash}.fa"
+    query_filename = f"query-{unique_id}.fa"
     query_path = TMP_PATH / query_filename
 
     with open(query_path, "w+") as f:
