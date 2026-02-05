@@ -2,13 +2,22 @@ import pandas as pd
 import os
 from notebooks.consts import SAVED_FEATURES
 
+def _get_saved_features_dir(version):
+    if version is None:
+        return SAVED_FEATURES
+    elif version == 'v2':
+        return SAVED_FEATURES.with_name(f"{SAVED_FEATURES.name}_{version}")
+    else:
+        raise ValueError(f"Unknown version '{version}'")
 
-def load_all_features(filenames=None, light=True, verbose=False):
+
+
+def load_all_features(filenames=None, light=True, verbose=False, version=None):
     # this function loads all the features and the current data, merges all the features according to the index
     # and returns a merged df with all the features and the data
     # missing values would be considered as NaN!
 
-    feature_dir = SAVED_FEATURES
+    feature_dir = _get_saved_features_dir(version)
     if not filenames:
         filenames = [f for f in os.listdir(feature_dir) if f.endswith('.csv') and not f.startswith('.')]
         filenames.sort()
@@ -17,7 +26,8 @@ def load_all_features(filenames=None, light=True, verbose=False):
         raise FileNotFoundError(f"No CSV files found in {feature_dir}")
 
     if light:
-        filenames.remove('Smiles.csv')
+        if 'Smiles.csv' in filenames:
+            filenames.remove('Smiles.csv')
 
     if verbose:
         print(f"Loading features from: {filenames}")
@@ -25,8 +35,13 @@ def load_all_features(filenames=None, light=True, verbose=False):
     dfs = [pd.read_csv(os.path.join(feature_dir, f)) for f in filenames]
 
     merged_df = dfs[0]
+    if version is None:
+        index = 'index'
+    else:
+        index = 'index_' + version
+
     for df in dfs[1:]:
-        merged_df = pd.merge(merged_df, df, on='index', how='outer')
+        merged_df = pd.merge(merged_df, df, on=index, how='outer')
 
     return merged_df
 
@@ -36,14 +51,14 @@ import pandas as pd
 import numpy as np
 
 
-def _check_conflicts(new_sub_df, file_path, feature_name):
+def _check_conflicts(new_sub_df, file_path, feature_name, index):
     existing_df = pd.read_csv(file_path)
 
     # Merge on 'index' to compare aligned rows
     comparison = pd.merge(
         new_sub_df,
         existing_df,
-        on='index',
+        on=index,
         suffixes=('_new', '_existing'),
         how='inner'
     )
@@ -66,36 +81,47 @@ def _check_conflicts(new_sub_df, file_path, feature_name):
     # --- FIX END ---
 
     diff_rows = comparison[diff_mask]
-
-    if not diff_rows.empty:
-        print(f"!!! Conflict detected for feature: {feature_name} !!!")
-        print(f"Found {len(diff_rows)} differing rows. Top 10 differences:")
-        print(diff_rows[['index', col_new, col_old]].head(10))
-        print("-" * 30)
-        raise FileExistsError(
-            f"Feature '{feature_name}' exists and has conflicting values. "
-            "Pass overwrite=True to force save."
-        )
-
-    print(f"File exists for '{feature_name}' but values are identical (within tolerance). No action taken.")
+    return diff_rows, col_new, col_old
 
 
 # The main function remains the same
-def save_feature(df, feature_name, overwrite=False):
-    feature_dir = SAVED_FEATURES
+def save_feature(df, feature_name, overwrite=False, version=None):
+    feature_dir = _get_saved_features_dir(version)
+
     os.makedirs(feature_dir, exist_ok=True)
 
-    sub_df = df[['index', feature_name]].copy()
+    if version is None:
+        index = 'index'
+    else:
+        index = 'index_' + version
+    sub_df = df[[index, feature_name]].copy()
     file_path = os.path.join(feature_dir, f'{feature_name}.csv')
 
     file_exists = os.path.exists(file_path)
 
+    if file_exists:
+        diff_rows, col_new, col_old = _check_conflicts(sub_df, file_path, feature_name, index)
+        if diff_rows.empty:
+            print(f"File exists for '{feature_name}' but values are identical (within tolerance). No action taken.")
+            return
+        print(f"!!! Conflict detected for feature: {feature_name} !!!")
+        print(f"Found {len(diff_rows)} differing rows. Top 10 differences:")
+        print(diff_rows[[index, col_new, col_old]].head(10))
+        print("-" * 30)
+
+        if overwrite:
+            sub_df.to_csv(file_path, index=False)
+            action = "Overwrote" if file_exists else "Saved"
+            print(f"{action} feature: {feature_name}")
+        else:
+            raise FileExistsError(
+                f"Feature '{feature_name}' exists and has conflicting values. "
+                "Pass overwrite=True to force save."
+            )
     if not file_exists or overwrite:
         sub_df.to_csv(file_path, index=False)
         action = "Overwrote" if file_exists else "Saved"
         print(f"{action} feature: {feature_name}")
-    else:
-        _check_conflicts(sub_df, file_path, feature_name)
 
 # TODO: fix this function
 # def read_base_df():

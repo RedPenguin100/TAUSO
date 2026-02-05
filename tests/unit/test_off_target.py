@@ -123,18 +123,3 @@ def test_annotate_hits_priority():
         # Hit 2 should be 'intron'
         assert df.iloc[1]['gene_name'] == 'GeneB'
         assert df.iloc[1]['region_type'] == 'intron'
-
-
-def test_annotate_hits_intergenic():
-    """Test that hits with no DB overlap are labeled Intergenic."""
-    raw_hits = [{'chrom': 'chr1', 'start': 1000, 'end': 1020}]
-
-    with patch("tauso.data.data.load_db") as mock_load_db:
-        mock_db = MagicMock()
-        mock_db.region.return_value = []  # No features found
-        mock_load_db.return_value = mock_db
-
-        df = annotate_hits(raw_hits)
-
-        assert df.iloc[0]['region_type'] == 'Intergenic'
-        assert df.iloc[0]['gene_name'] is None

@@ -1,6 +1,6 @@
 import gffutils
 from typing import Dict, Iterable, Optional
-from tauso.util import _to_str_seq
+from ..util import _to_str_seq
 
 
 class GeneCoordinateMapper:

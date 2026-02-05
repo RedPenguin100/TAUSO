@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pyBigWig
 
-from ...new_model.consts_dataframe import CANONICAL_GENE
+from ...new_model.consts_dataframe import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 
 parent = Path(__file__).parent
 RIBOSEQ_40S_HUMAN_DATA = parent / 'human_unselected_40S.RiboProElong.bw'
@@ -23,99 +23,61 @@ def reduce_values(values, how):
         nz = values[values > 0]
         return nz.mean() if nz.size > 0 else 0.0
 
-def create_ribo_seq_features(organism, aso_df, flanks=(0,10,20,50,100,125, 150), how="mean"):
-    if organism != 'human':
-        ValueError("Unsupported organism for ribo_seq feature")
 
-    bw = pyBigWig.open(str(RIBOSEQ_40S_HUMAN_DATA))
+def calculate_ribo_seq_row(row, bw, flanks, how):
+    chrom = row["chrom"]
+    strand = row["strand"]
+    chrom_len = bw.chroms()[chrom]
 
-    if how not in {"sum", "mean", "max", "nz_mean"}:
-        raise ValueError(how)
+    ts, te = int(row["target_start"]), int(row["target_end"])
+    gs, ge = int(row["gene_start"]), int(row["gene_end"])
 
-    # 1. Ensure 'strand' is present in required columns
-    required = ["chrom", "target_start", "target_end", "gene_start", "gene_end", "index", "strand"]
-    df = aso_df.dropna(subset=required).reset_index(drop=True)
+    feat = {}
 
-    chroms  = df["chrom"].values
-    strands = df["strand"].values   # <--- New: Load Strand
-    t_start = df["target_start"].astype(int).values
-    t_end   = df["target_end"].astype(int).values
-    g_start = df["gene_start"].astype(int).values
-    g_end   = df["gene_end"].astype(int).values
-    indices = df["index"].values
+    # Global Context
+    gs = max(0, gs)
+    ge = min(ge, chrom_len)
 
-    features = {}
+    if ge > gs:
+        values = np.nan_to_num(np.array(bw.values(chrom, gs, ge), dtype=float), nan=0.0)
+        feat[f"ribo_gene_{how}"] = reduce_values(values, how)
+    else:
+        feat[f"ribo_gene_{how}"] = 0.0
 
-    for i in range(len(df)):
-        chrom = chroms[i]
-        strand = strands[i]
-        chrom_len = bw.chroms()[chrom]
+    # Local Context
+    for f in flanks:
+        s_comb = max(0, ts - f)
+        e_comb = min(te + f, chrom_len)
 
-        # Coordinates for this ASO
-        ts, te = t_start[i], t_end[i]
-
-        feat = {}
-
-        # ---------------------------------------------------------
-        # A. Whole Gene Feature (Global Context)
-        # ---------------------------------------------------------
-        gs = max(0, g_start[i])
-        ge = min(g_end[i], chrom_len)
-
-        if ge > gs:
-            values = np.nan_to_num(np.array(bw.values(chrom, gs, ge), dtype=float), nan=0.0)
-            feat[f"ribo_gene_{how}"] = reduce_values(values, how)
+        if e_comb > s_comb:
+            vals_comb = np.nan_to_num(np.array(bw.values(chrom, s_comb, e_comb), dtype=float), nan=0.0)
+            feat[f"ribo_f{f}_{how}"] = reduce_values(vals_comb, how)
         else:
-            feat[f"ribo_gene_{how}"] = 0.0
+            feat[f"ribo_f{f}_{how}"] = 0.0
 
-        # ---------------------------------------------------------
-        # B. Flank Features (Local Context)
-        # ---------------------------------------------------------
-        for f in flanks:
+        if f > 0:
+            s_left = max(0, ts - f)
+            e_left = ts
+            val_left = 0.0
+            if e_left > s_left:
+                arr = np.nan_to_num(np.array(bw.values(chrom, s_left, e_left), dtype=float), nan=0.0)
+                val_left = reduce_values(arr, how)
 
-            # --- 1. The "Old Way" (Combined: Left + Target + Right) ---
-            # This window is centered on the ASO and includes the target site itself.
-            s_comb = max(0, ts - f)
-            e_comb = min(te + f, chrom_len)
+            s_right = te
+            e_right = min(te + f, chrom_len)
+            val_right = 0.0
+            if e_right > s_right:
+                arr = np.nan_to_num(np.array(bw.values(chrom, s_right, e_right), dtype=float), nan=0.0)
+                val_right = reduce_values(arr, how)
 
-            if e_comb > s_comb:
-                vals_comb = np.nan_to_num(np.array(bw.values(chrom, s_comb, e_comb), dtype=float), nan=0.0)
-                feat[f"ribo_f{f}_{how}"] = reduce_values(vals_comb, how)
+            if strand == "+":
+                feat[f"ribo_upstream_{f}_{how}"] = val_left
+                feat[f"ribo_downstream_{f}_{how}"] = val_right
             else:
-                feat[f"ribo_f{f}_{how}"] = 0.0
+                feat[f"ribo_upstream_{f}_{how}"] = val_right
+                feat[f"ribo_downstream_{f}_{how}"] = val_left
 
-            # --- 2. The "New Way" (Split: Upstream vs Downstream) ---
-            # These exclude the target site and look strictly at the sides.
-            if f > 0:
-                # Genomic Left Region [start - f : start]
-                s_left = max(0, ts - f)
-                e_left = ts
-                val_left = 0.0
-                if e_left > s_left:
-                    arr = np.nan_to_num(np.array(bw.values(chrom, s_left, e_left), dtype=float), nan=0.0)
-                    val_left = reduce_values(arr, how)
-
-                # Genomic Right Region [end : end + f]
-                s_right = te
-                e_right = min(te + f, chrom_len)
-                val_right = 0.0
-                if e_right > s_right:
-                    arr = np.nan_to_num(np.array(bw.values(chrom, s_right, e_right), dtype=float), nan=0.0)
-                    val_right = reduce_values(arr, how)
-
-                # Assign based on Strand
-                if strand == "+":
-                    # + Strand: Left is 5' (Upstream), Right is 3' (Downstream)
-                    feat[f"ribo_upstream_{f}_{how}"]   = val_left
-                    feat[f"ribo_downstream_{f}_{how}"] = val_right
-                else:
-                    # - Strand: Right is 5' (Upstream), Left is 3' (Downstream)
-                    feat[f"ribo_upstream_{f}_{how}"]   = val_right
-                    feat[f"ribo_downstream_{f}_{how}"] = val_left
-
-        features[indices[i]] = feat
-
-    return features
+    return feat
 
 
 def add_genomic_coordinates(aso_df, mapper):
@@ -145,8 +107,8 @@ def add_genomic_coordinates(aso_df, mapper):
         strand = info["strand"]
 
         # ... The math below is unchanged ...
-        L = int(row["Location_in_sequence"])
-        k = int(row["true_length_of_seq"])
+        L = int(row[SENSE_START])
+        k = int(row[SENSE_LENGTH])
         gene_len = g_end - g_start
 
         if strand == "+":
@@ -170,43 +132,3 @@ def add_genomic_coordinates(aso_df, mapper):
     out["strand"] = strands
 
     return out
-
-def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"):
-    """
-    Wraps create_ribo_seq_features to return an enriched DataFrame and a list of new column names.
-
-    Args:
-        organism (str): Organism name (e.g., 'human').
-        aso_df (pd.DataFrame): Input dataframe containing 'index', 'chrom', 'strand', etc.
-        flanks (tuple): Flanking distances.
-        how (str): Aggregation method ('mean', 'sum', etc.).
-
-    Returns:
-        tuple: (pd.DataFrame, list)
-            1. The input aso_df with ribo-seq features added as columns.
-            2. A list of the names of the newly added features.
-    """
-    # 1. Generate the features dictionary
-    #    Structure: { index_value: {'ribo_feat_1': val, ...}, ... }
-    features_dict = create_ribo_seq_features(organism, aso_df, flanks=flanks, how=how)
-
-    # 2. Convert the dictionary to a DataFrame
-    #    orient='index' uses the dictionary keys (the ASO indices) as the DataFrame index
-    features_df = pd.DataFrame.from_dict(features_dict, orient='index')
-
-    # 3. capture the list of new column names
-    new_features_list = list(features_df.columns)
-
-    # 4. Merge back into the original dataframe
-    #    We allow for the possibility that 'index' is a column, not the dataframe index.
-    if "index" in aso_df.columns:
-        # Set the name of the features_df index to 'index' so we can merge on it
-        features_df.index.name = "index"
-
-        # Left merge ensures we keep all rows from aso_df, even if feature gen failed for some
-        result_df = aso_df.merge(features_df, on="index", how="left")
-    else:
-        # Fallback: if user provided a DF where the index is already meaningful
-        result_df = aso_df.join(features_df, how="left")
-
-    return result_df, new_features_list

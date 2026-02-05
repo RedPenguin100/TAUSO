@@ -1,8 +1,10 @@
 import pandas as pd
 from typing import Dict, Iterable
-from notebooks.consts import SEQUENCE, CANONICAL_GENE
-from tauso.genome.TranscriptMapper import GeneCoordinateMapper
-from tauso.util import _to_str_seq
+
+from ..data.consts import *
+from ..genome.TranscriptMapper import GeneCoordinateMapper
+from ..util import _to_str_seq
+
 
 def add_external_mrna_and_context_columns(
         df: pd.DataFrame,
