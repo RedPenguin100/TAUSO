@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
-from notebooks.consts import *
 from notebooks.notebook_utils import log_correction, read_cached_gene_to_data
-from tauso.new_model.utils import SMILES
+from tauso.data.consts import *
 from tauso.util import get_antisense
 
 
@@ -76,6 +75,16 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
 
     # 6. Final Cleanup
     valid_data = df[df[SENSE_START] != -1].copy()
+
+    # 7. Add standard cell line column
+    if not CELL_LINE_DEPMAP_PROXY in valid_data.columns:
+        print("Adding cell line depmap name proxy")
+        valid_data[CELL_LINE_DEPMAP_PROXY] = valid_data[CELL_LINE].map(CELL_LINE_MAPPING)
+
+    # 8. Add Depmap cell lines
+    if not CELL_LINE_DEPMAP in valid_data.columns:
+        print("Adding a depmap column")
+        valid_data[CELL_LINE_DEPMAP] = valid_data[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP)
 
     print(f"Preprocessing complete. Final valid rows: {len(valid_data)}")
     return valid_data

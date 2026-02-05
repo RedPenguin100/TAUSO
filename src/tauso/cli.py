@@ -1,3 +1,4 @@
+import hashlib
 import zipfile
 from pathlib import Path
 
@@ -26,7 +27,7 @@ from gffutils.iterators import DataIterator
 
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.data.data import get_paths, get_data_dir
-from tauso.features.cai import calc_CAI_weight
+from tauso.features.codon_usage.cai import calc_CAI_weight
 from tauso.genome.TranscriptMapper import GeneCoordinateMapper, build_gene_sequence_registry
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
@@ -222,7 +223,6 @@ def setup_depmap(force):
     click.echo("\nDepMap setup complete.")
 
 
-
 @main.command()
 @click.argument('cell_names', nargs=-1)
 @click.option('--reset', is_flag=True, help="Clear existing list before adding.")
@@ -279,6 +279,7 @@ def add_cell(cell_names, reset):
         json.dump(cohort, f, indent=4)
 
     click.echo(f"Cohort saved to {manifest_path} ({len(cohort)} cell lines).")
+
 
 @main.command()
 @click.option('--genome', default='GRCh38', help='Genome version (default: GRCh38).')
@@ -476,7 +477,6 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
         ]
         cds_list = cds_list[:top_n]
 
-
         if len(cds_list) == top_n:
             _, weights_flat = calc_CAI_weight(cds_list)
             cai_weights_map[cell_name] = weights_flat
@@ -509,39 +509,63 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
     click.echo(click.style(f"\nSUCCESS: CAI weights saved to {out_path}", fg="green"))
 
 
+def calc_file_hash(fpath):
+    sha256_hash = hashlib.sha256()
+    with open(fpath, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
+
+def should_skip_download(file_path, force, expected_hash):
+    """Checks if file exists and matches hash. Returns True if we can skip."""
+    if not os.path.exists(file_path):
+        return False
+
+    if force:
+        click.echo(click.style("Force flag detected. Redownloading...", fg="yellow"))
+        return False
+
+    click.echo("File exists. Verifying hash...")
+    try:
+        current_hash = calc_file_hash(file_path)
+        if current_hash == expected_hash:
+            click.echo(click.style(f"✓ Hash matched. Skipping download.", fg="green"))
+            return True
+        else:
+            click.echo(click.style(f"⚠ Hash mismatch on existing file. Redownload with --force", fg="red"))
+            click.echo(f"Expected: {expected_hash}")
+            click.echo(f"Got:      {current_hash}")
+            sys.exit(1)
+    except Exception as e:
+        click.echo(click.style(f"⚠ Error reading existing file ({e}). Redownload with --force", fg="red"))
+        sys.exit(1)
+
+
 @main.command()
 @click.option('--force', is_flag=True, help="Force redownload if file exists.")
 def setup_mrna_halflife(force):
     """
     Downloads the 'species_stability_no_threshold.csv.gz' dataset from the TTDB source.
-    This file contains mRNA half-life data required for the stability features.
     """
-    # The specific File ID
     FILE_ID = "1GekvDui-B2tSAQ6wgO3tIXpKd54EGRbn"
+    EXPECTED_SHA256 = "ec0c1f90eed96516de510c484a7a7dd4bbd10d253306710bb33e714f88c5c135"
 
-    # gdown works best with the 'uc' (User Content) export URL format
     url = f'https://drive.google.com/uc?id={FILE_ID}'
-
-    # Assuming get_data_dir() is defined in your utils or imported
     data_dir = get_data_dir()
-
-    # Ensure the directory exists
     os.makedirs(data_dir, exist_ok=True)
-
     destination = os.path.join(data_dir, 'mrna_half_life.csv.gz')
 
     click.echo(f"Initializing Stability Data setup...")
     click.echo(f"Target path: {destination}")
 
-    if os.path.exists(destination) and not force:
-        click.echo(click.style(f"✓ File already exists at {destination}. Use --force to overwrite.", fg="green"))
+    # 1. Check if we can skip
+    if should_skip_download(destination, force, EXPECTED_SHA256):
         return
 
+    # 2. Perform Download
     try:
         click.echo("Contacting Google Drive via gdown...")
-
-        # gdown.download automatically handles the "virus scan warning" confirmation
-        # quiet=False allows you to see the progress bar
         output = gdown.download(url, destination, quiet=False)
 
         if not output:
@@ -549,17 +573,27 @@ def setup_mrna_halflife(force):
 
         click.echo(click.style(f"✓ Download complete: {destination}", fg="green"))
 
-        # Verify it is a valid gzip (Crucial check for partial downloads)
+        # 3. Verify Gzip Integrity
         try:
             with gzip.open(destination, 'rb') as f:
                 f.read(1)
             click.echo(click.style(f"✓ Integrity check passed (valid gzip).", fg="green"))
         except Exception:
-            click.echo(
-                click.style(f"⚠ Warning: The downloaded file is not a valid gzip. It might be an HTML error page.",
-                            fg="red"))
-            click.echo(click.style(f"Try deleting {destination} and running with --force.", fg="yellow"))
+            click.echo(click.style(f"⚠ Warning: File is not a valid gzip (likely HTML error).", fg="red"))
             sys.exit(1)
+
+        # 4. Verify Hash (Post-Download)
+        click.echo("Verifying new file hash...")
+        new_hash = calc_file_hash(destination)
+
+        if new_hash != EXPECTED_SHA256:
+            click.echo(click.style(f"⚠ Hash mismatch!", fg="red"))
+            click.echo(f"Expected: {EXPECTED_SHA256}")
+            click.echo(f"Got:      {new_hash}")
+            click.echo(click.style("Please update EXPECTED_SHA256 with the 'Got' value above.", fg="yellow"))
+            sys.exit(1)
+
+        click.echo(click.style(f"✓ Hash check passed.", fg="green"))
 
     except Exception as e:
         click.echo(click.style(f"Error downloading file: {e}", fg="red"))
@@ -577,7 +611,7 @@ def get_genome_metadata(genome):
         # --- MAMMALS (GENCODE) ---
         'GRCh38': {
             'base_url': f'https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_HUMAN_RELEASE}',
-            'fasta_name' : 'GRCh38.p13.genome.fa.gz',
+            'fasta_name': 'GRCh38.p13.genome.fa.gz',
             'gtf_name': f'gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gtf.gz'
         },
         'GRCm39': {
@@ -749,6 +783,7 @@ def setup_genome(genome, force):
         if os.path.exists(sentinel_path): os.remove(sentinel_path)
         sys.exit(1)
 
+
 # --- NEW COMMAND: OFF-TARGET SEARCH ---
 @main.command()
 @click.argument('sequence')
@@ -875,7 +910,6 @@ def install_raccess(ctx, force_clone):
 
     print(f"+ {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
-
 
 
 if __name__ == '__main__':

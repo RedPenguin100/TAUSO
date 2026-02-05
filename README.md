@@ -58,13 +58,20 @@ paper.
 Our main function, the `design_asos` function. **NOTE** this function can be slow, with runtime over 30 min. Calculating
 the features is not quick in this version of the tool, stay tuned for the article.
 
-```python
+# TODO: remove old model
 
-from tauso.old_model_generation.main import design_asos
+[//]: # (```python)
 
-aso_results, off_target_analysis = design_asos(gene_name='DDX11L1', organism='human', top_k=5, run_off_target=True)
+[//]: # ()
+[//]: # (from tauso.old_model_generation.main import design_asos)
 
-```
+[//]: # ()
+[//]: # (aso_results, off_target_analysis = design_asos&#40;gene_name='DDX11L1', organism='human', top_k=5, run_off_target=True&#41;)
+
+[//]: # ()
+[//]: # (```)
+
+
 * Set the `custom_sequence` variable to run an exogenous / mutated gene analysis.
 * With `include_details=True`, additional columns will appear with more thorough breakdown. On by default.
 * While the API is not settled, many features exist under `tauso.features`, ready to be explored by the user.

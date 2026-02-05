@@ -75,7 +75,6 @@ def load_halflife_mapping():
     return mapping
 
 
-
 class HalfLifeProvider:
     def __init__(self, mapping):
         self.exact_map = mapping
@@ -135,40 +134,41 @@ class HalfLifeProvider:
         return self.global_val, "Imputed (Global GeomMean)", 0, self.global_std
 
 
-
 # We map cell lines from the data to their closest relatives in the mRNA half life database.
 
+# TODO: increase this mapping to accommodate for new cell lines
 cell_line_mapping = {
     # Direct / Strong Matches
     'HepG2': 'HepG2',
-    'HepaRG': 'HepG2',          # Liver -> Liver
-    'SNU-449': 'HepG2',         # Liver -> Liver
+    'HepaRG': 'HepG2',  # Liver -> Liver
+    'SNU-449': 'HepG2',  # Liver -> Liver
     'Hela': 'Hela',
-
+    'HeLa' : 'Hela',
     # Neuronal Mappings
-    'Human IPS': 'iPSN',        # iPSC-Neurons -> iPSN
+    'Human IPS': 'iPSN',  # iPSC-Neurons -> iPSN
     'Human Neuronal Cell': 'iPSN',
     'PAC neurons asyn': 'neuron',
-    'SH-SY5Y': 'neural precursor cells',
-    'Angptl2/Actin': 'neural precursor cells', # Assumed SK-N-AS
-    'SK cells asyn': 'neural precursor cells',
-    'U251': 'neural precursor cells', # Glioblastoma -> NPC proxy
+    'SH-SY5Y': 'neural_precursor_cells',
+    'Angptl2/Actin': 'neural_precursor_cells',  # Assumed SK-N-AS
+    'SK cells asyn': 'neural_precursor_cells',
+    'U251': 'neural_precursor_cells',  # Glioblastoma -> NPC proxy
 
     # Skin / Epithelial
-    'A431': 'N/TERT-1 keratinocytes',
-    'A-431' : 'N/TERT-1 keratinocytes', # Fix weird data quirk
-    'SK-MEL-28': 'N/TERT-1 keratinocytes',
+    'A431': 'N/TERT-1_keratinocytes',
+    'A-431': 'N/TERT-1_keratinocytes',  # Fix weird data quirk
+    'SK-MEL-28': 'N/TERT-1_keratinocytes',
 
     # Blood / Immune
-    'H929': 'K562',             # Myeloma -> Leukemia proxy
+    'H929': 'K562',  # Myeloma -> Leukemia proxy
     'KMS11': 'K562',
     'MM.1R': 'K562',
-    'KARPAS-229': 'T cells',    # Lymphoma -> T cells
+    'KARPAS-229': 'T_cells',  # Lymphoma -> T cells
 
     # Other Tissue
-    'NCI-H460': 'MRC5VA',       # Lung Cancer -> Lung Fibroblast proxy
-    'CC-2580': 'MRC5VA',        # Muscle -> Fibroblast proxy
+    'NCI-H460': 'MRC5VA',  # Lung Cancer -> Lung Fibroblast proxy
+    'CC-2580': 'MRC5VA',  # Muscle -> Fibroblast proxy
 }
+
 
 def populate_mrna_halflife_features(all_data, provider):
     """
@@ -177,12 +177,11 @@ def populate_mrna_halflife_features(all_data, provider):
 
     Args:
         all_data (pd.DataFrame): Dataframe containing CANONICAL_GENE and CELL_LINE columns.
-
-    Returns:
-        pd.DataFrame: The original dataframe with 3 new columns appended:
                       ['mRNA_HalfLife', 'HalfLife_Source', 'Mapped_Cell_Proxy']
     """
     print(f"Calculating stability features for {len(all_data)} rows...")
+
+    features = ['mRNA_HalfLife', 'HalfLife_Source', 'Mapped_Cell_Proxy']
 
     # 2. Define the logic for a single row
     def _get_halflife_features(row):
@@ -203,7 +202,7 @@ def populate_mrna_halflife_features(all_data, provider):
 
         # Return the columns to be added
         return pd.Series([hl_final, source, proxy_cell],
-                         index=['mRNA_HalfLife', 'HalfLife_Source', 'Mapped_Cell_Proxy'])
+                         index=features)
 
     # 3. Apply to Main DataFrame
     # axis=1 passes the row to the function
@@ -214,4 +213,4 @@ def populate_mrna_halflife_features(all_data, provider):
     enriched_df = pd.concat([all_data, features_df], axis=1)
 
     print("Features populated successfully.")
-    return enriched_df
+    return enriched_df, features
