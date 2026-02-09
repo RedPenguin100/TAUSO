@@ -127,35 +127,21 @@ def load_cell_line_gene_maps(cell_map, data_dir, valid_db_genes,
     return cell_line_top_genes, fallback_genes, global_fetch_set
 
 
-def load_cell_line_transcriptomes(cell_map, db, expression_dir, filter_mode='non_mt',
-                                  add_transcript=False):
-    valid_genes = filter_gtf_genes(db, filter_mode=filter_mode)
-
-    # Lazy Load: Only load the heavy sequence map if we actually need it
-    locus_map = None
-    if add_transcript:
-        locus_map = get_locus_to_data_dict(include_introns=True)
+def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
 
     transcriptomes = {}
 
-    for cell_name, ach_id in cell_map.items():
+    for ach_id in depmap_ids:
         path = os.path.join(expression_dir, f"{ach_id}_expression.csv")
         if not os.path.exists(path):
-            print(f"  -> Warning: No expression data for {cell_name}")
+            print(f"  -> Warning: No expression data for {ach_id}")
             continue
 
         # Load and Filter
         df = pd.read_csv(path)
         df = df[df['Gene'].isin(valid_genes)].copy()
 
-        # Transcript Logic (Conditional)
-        if add_transcript:
-            df["Original Transcript Sequence"] = df["Gene"].map(
-                lambda g: locus_map[g].full_mrna.replace('T', 'U') if g in locus_map else None
-            )
-            df = df.dropna(subset=["Original Transcript Sequence"])
-
         if not df.empty:
-            transcriptomes[cell_name] = df
+            transcriptomes[ach_id] = df
 
     return transcriptomes
