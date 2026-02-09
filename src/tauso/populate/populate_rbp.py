@@ -3,11 +3,13 @@ from joblib import Parallel, delayed
 from scipy.stats import entropy
 from tqdm import tqdm
 
-from tauso.data.consts import CELL_LINE_DEPMAP
+from tauso.data.consts import CELL_LINE_DEPMAP, CANONICAL_GENE
+from tauso.features.rbp.RBP_features import add_global_complexity_features, add_strict_functional_features, \
+    get_background_probs
 from tauso.features.rbp.pwm_helper import calculate_total_affinity
 
 
-def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix,
+def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix, gene_to_data,
                                       sequence_col='flank_sequence_50',
                                       n_jobs=32):
     """
@@ -25,6 +27,11 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix,
 
     sequences = df[sequence_col].fillna("").astype(str).tolist()
     cell_ids = df[CELL_LINE_DEPMAP].tolist()
+    background_probs = [
+        get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else np.array([0.25, 0.25, 0.25, 0.25])
+        for g in df[CANONICAL_GENE]
+    ]
+
     n_rows = len(sequences)
 
     # --- 3. FILTER & PREPARE RBP METADATA ---
@@ -65,7 +72,7 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix,
     # We process chunks of ROWS.
     # Inside each chunk, we calculate features for ALL RBPs.
 
-    def process_chunk(chunk_seqs, chunk_cells):
+    def process_chunk(chunk_seqs, chunk_cells, chunk_background_probs):
         # Result dict: { 'RBP_X_...': [score, score, ...] }
         chunk_results = {task['col_name']: [] for task in target_tasks}
 
@@ -76,7 +83,6 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix,
 
         # Iterate over tasks (RBPs)
         for task in target_tasks:
-            rbp_name = task['name']
             matrix = task['matrix']
             col_name = task['col_name']
 
@@ -85,13 +91,13 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix,
             expr_values = subset_expr[task['expr_gene']].fillna(0.0).values
 
             scores = []
-            for seq, expr_val in zip(chunk_seqs, expr_values):
+            for seq, expr_val, background_probs in zip(chunk_seqs, expr_values, chunk_background_probs):
                 # OPTIMIZATION: If expression is 0, interaction is 0.
                 # Skip the heavy affinity calculation.
                 if expr_val == 0:
                     scores.append(0.0)
                 else:
-                    aff = calculate_total_affinity(seq, matrix)
+                    aff = calculate_total_affinity(seq, matrix, background_probs)
                     scores.append(aff * expr_val)
 
             chunk_results[col_name] = scores
@@ -108,11 +114,12 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix,
     for i in chunk_indices:
         b_seqs = sequences[i: i + chunk_size]
         b_cells = cell_ids[i: i + chunk_size]
-        batches.append((b_seqs, b_cells))
+        b_background_probs = background_probs[i: i + chunk_size]
+        batches.append((b_seqs, b_cells, b_background_probs))
 
     # Run Parallel
     results = Parallel(n_jobs=n_jobs)(
-        delayed(process_chunk)(b_seqs, b_cells) for b_seqs, b_cells in tqdm(batches, desc="Computing Features")
+        delayed(process_chunk)(b_seqs, b_cells, b_background_probs) for b_seqs, b_cells, b_background_probs in tqdm(batches, desc="Computing Batches")
     )
 
     # --- 6. AGGREGATION & ASSIGNMENT (In-Place) ---
@@ -228,3 +235,30 @@ def populate_complexity_features(df, feature_cols, suffix):
 
     return df, [total_col, div_col]
 
+
+def populate_rbp_region(df, region_name, rbp_map, pwm_db, expr_matrix, role_map, gene_to_data, n_jobs=32):
+    """
+    1. Generates raw RBP features for a specific region (Left/Core/Right).
+    2. Calculates aggregate Complexity & Functional scores.
+    3. Drops the raw columns to return a clean DataFrame.
+    """
+    print(f"\n--- Processing Region: {region_name.upper()} ---")
+
+    # A. Run the Engine (Generate Raw Features)
+    # We assume columns like 'seq_region_left' already exist
+    df, raw_feats = populate_rbp_interaction_features(
+        df, rbp_map, pwm_db, expr_matrix, gene_to_data,
+        sequence_col=f"seq_region_{region_name}",
+        n_jobs=n_jobs
+    )
+
+    # B. Calculate Aggregates
+    df, complexity_feats = add_global_complexity_features(df, raw_feats, suffix=region_name)
+    df, functional_feats = add_strict_functional_features(df, role_map, suffix=region_name)
+
+    # C. Cleanup (Drop raw columns immediately)
+    df.drop(columns=raw_feats, inplace=True)
+    print(f"Dropped {len(raw_feats)} raw columns for {region_name}.")
+
+    # Return DF and list of new columns to save
+    return df, complexity_feats + functional_feats

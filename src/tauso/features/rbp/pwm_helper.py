@@ -1,3 +1,5 @@
+from collections import Counter
+
 import pandas as pd
 import numpy as np
 import os
@@ -6,16 +8,37 @@ from ..codon_usage.find_cai_reference import load_cell_line_gene_expression
 from ...data.data import get_data_dir
 from ...data.consts import CELL_LINE_DEPMAP
 
+import numpy as np
+import pandas as pd
 
-def calculate_total_affinity(sequence, pwm_matrix, background=0.25):
+
+def calculate_total_affinity(sequence, pwm_matrix, background_probs=None):
     """
-    Scans sequence with PWM. Returns aggregated score (Total Binding Affinity).
+    Scans sequence with PWM using a pre-calculated background model.
+
+    Args:
+        sequence (str): The window/region to scan (e.g., 50nt flank).
+        pwm_matrix (np.array): The Position Weight Matrix (L x 4).
+        background_probs (np.array): Pre-calculated [pA, pC, pG, pU].
+                                     If None, defaults to uniform 0.25.
     """
     if pd.isna(sequence) or len(sequence) == 0:
         return 0.0
 
-    # 1. Map sequence to indices (A=0, C=1, G=2, U/T=3)
+    # --- 1. Use Pre-Calculated Background ---
+    # Optimization: No string counting here. We assume the caller passed the array.
+    if background_probs is None:
+        background_probs = np.array([0.25, 0.25, 0.25, 0.25])
+
+    # --- 2. Convert PWM to Log-Odds (Once per call) ---
+    # Formula: log2( P_motif / P_background )
+    epsilon = 1e-9
+    # Optimization: vector division is fast
+    weights = np.log2((pwm_matrix + epsilon) / background_probs)
+
+    # --- 3. Map sequence to indices (A=0, C=1, G=2, U/T=3) ---
     base_map = {'A': 0, 'C': 1, 'G': 2, 'U': 3, 'T': 3}
+    # Using list comp is generally faster than loop for small strings
     seq_indices = [base_map.get(base, -1) for base in str(sequence).upper()]
 
     seq_len = len(seq_indices)
@@ -24,24 +47,22 @@ def calculate_total_affinity(sequence, pwm_matrix, background=0.25):
     if seq_len < motif_len:
         return 0.0
 
-    # 2. Convert PWM probabilities to Log-Odds Weights
-    # weight = log2(prob / background)
-    epsilon = 1e-6
-    weights = np.log2((pwm_matrix + epsilon) / background)
-
     total_score = 0.0
 
-    # 3. Sliding Window Scan
-    # We sum scores > 0 (indicating affinity higher than background)
+    # --- 4. Sliding Window Scan ---
     for i in range(seq_len - motif_len + 1):
         window = seq_indices[i: i + motif_len]
-        if -1 in window: continue  # Skip Ns
 
-        # Calculate score for this position
-        score = 0
+        # Fast skip for Ns (-1)
+        if -1 in window:
+            continue
+
+        # Sum weights: "Look up weight for base B at position P"
+        score = 0.0
         for pos, base_idx in enumerate(window):
-            score += weights[pos][base_idx]
+            score += weights[pos, base_idx]
 
+        # Only accumulate positive affinity signals
         if score > 0:
             total_score += score
 
