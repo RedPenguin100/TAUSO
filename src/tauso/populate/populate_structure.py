@@ -3,74 +3,136 @@ from ..data.consts import *
 from ..features.names import *
 from ..util import get_antisense
 
+import numpy as np
 
-def get_populated_df_with_structure_features(df, genes_u, gene_to_data):
-    df_copy = df.copy()
-    all_data_human = df_copy[df_copy[CELL_LINE_ORGANISM] == 'human']
-    all_data_human_no_nan = all_data_human.dropna(subset=[INHIBITION]).copy()
-    all_data_human_gene = all_data_human_no_nan[all_data_human_no_nan[CANONICAL_GENE].isin(genes_u)].copy()
 
-    # Initialization
-    all_data_human_gene[SENSE_START] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_START_FROM_END] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_LENGTH] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_EXON] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_INTRON] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_UTR] = np.zeros_like(all_data_human_gene[CANONICAL_GENE], dtype=int)
-    all_data_human_gene[SENSE_TYPE] = "NA"
+def build_multilength_index(text: bytes, lengths):
+    # Iterate backwards so the earliest occurrence overwrites the later ones
+    return {
+        L: {text[i:i + L]: i for i in range(len(text) - L, -1, -1)}
+        for L in set(lengths)
+    }
 
-    for index, row in all_data_human_gene.iterrows():
-        gene_name = row[CANONICAL_GENE]
+
+def find_all_indices(big_string: bytes, small_strings: list[bytes]):
+    lengths = [len(s) for s in small_strings]
+    indexes = build_multilength_index(big_string, lengths)
+    return np.array([
+        indexes[len(s)].get(s, -1) for s in small_strings
+    ], dtype=np.int32)
+
+
+COMP_U_TABLE = bytes.maketrans(b'ACGTUacgtu', b'UGCAaugcaa')
+
+
+def get_antisense_u(seq: str) -> str:
+    return seq.encode().translate(COMP_U_TABLE)[::-1].decode()
+
+
+def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask=True):
+    if use_mask:
+        mask = (df[CELL_LINE_ORGANISM] == 'human') & \
+               (df[INHIBITION].notna()) & \
+               (df[CANONICAL_GENE].isin(genes_u))
+
+        all_data = df[mask].copy()
+    else:
+        all_data = df.copy()
+
+    n_rows = len(all_data)
+
+    trans_table = str.maketrans("tT", "uU")
+
+    unique_seqs = all_data[SEQUENCE].unique()
+    sense_cache = {seq: get_antisense_u(seq) for seq in unique_seqs}
+
+    # OPTIMIZATION 2: Map to a temp column to avoid slow .loc index lookups in the loop
+    all_data['__temp_sense'] = all_data[SEQUENCE].map(sense_cache)
+    seq_lengths = all_data[SEQUENCE].str.len().values
+
+    pre_mrna_cache = {
+        g: gene_to_data[g].full_mrna.upper().translate(trans_table)
+        for g in genes_u if g in gene_to_data
+    }
+
+    out_start = np.full(n_rows, -1, dtype=np.int32)
+    out_start_end = np.zeros(n_rows, dtype=np.int32)
+    out_exon = np.zeros(n_rows, dtype=np.int8)
+    out_intron = np.zeros(n_rows, dtype=np.int8)
+    out_utr = np.zeros(n_rows, dtype=np.int8)
+    out_type = np.full(n_rows, "NA", dtype=object)
+
+    all_data['__temp_idx'] = np.arange(n_rows)
+
+    for gene_name, group in all_data.groupby(CANONICAL_GENE):
+        if gene_name not in pre_mrna_cache:
+            continue
+
         locus_info = gene_to_data[gene_name]
-        pre_mrna = locus_info.full_mrna
-        antisense = row[SEQUENCE]
-        sense = get_antisense(antisense)
+        pre_mrna_u = pre_mrna_cache[gene_name]
+        pre_mrna_len = len(pre_mrna_u)
 
-        idx = pre_mrna.upper().replace("T", "U").find(sense.upper().replace("T", "U"))
+        row_idxs = group['__temp_idx'].values
+        group_senses = group['__temp_sense'].values
+        group_senses_b = [s.encode() for s in group_senses]
 
-        all_data_human_gene.loc[index, SENSE_START] = idx
-        all_data_human_gene.loc[index, SENSE_LENGTH] = len(antisense)
+        # Build index, use it, immediately free it
+        group_lengths = set(len(s) for s in group_senses_b)
+        index = build_multilength_index(pre_mrna_u.encode(), group_lengths)
+        idxs = np.array([index[len(s)].get(s, -1) for s in group_senses_b], dtype=np.int32)
 
-        if idx != -1:
-            # FIX 1: Robust "Distance from 3' end" using transcript length
-            # (Works for both strands since pre_mrna is the transcript sequence)
-            all_data_human_gene.loc[index, SENSE_START_FROM_END] = len(pre_mrna) - idx
+        valid_mask = idxs != -1
+        if not valid_mask.any():
+            continue
 
-            # FIX 2: Calculate Genome Corrected Index based on Strand
-            if locus_info.strand == '-':
-                # On (-) strand, idx 0 is at the genomic END (high coord)
-                genome_corrected_index = locus_info.gene_end - 1 - idx
-            else:
-                # On (+) strand, idx 0 is at the genomic START (low coord)
-                genome_corrected_index = locus_info.gene_start + idx
+        v_row_idxs = row_idxs[valid_mask]
+        v_idxs = idxs[valid_mask]
 
-            # FIX 3: Initialize 'found' inside the loop
-            found = False
+        out_start[v_row_idxs] = v_idxs
+        out_start_end[v_row_idxs] = pre_mrna_len - v_idxs
 
-            for exon_indices in locus_info.exon_indices:
-                if exon_indices[0] <= genome_corrected_index <= exon_indices[1]:
-                    all_data_human_gene.loc[index, SENSE_TYPE] = 'exon'
-                    all_data_human_gene.loc[index, SENSE_EXON] = 1
-                    found = True
-                    break
+        # Original coordinate calculation
+        if locus_info.strand == '-':
+            gen_coords = locus_info.gene_end - 1 - v_idxs
+        else:
+            gen_coords = locus_info.gene_start + v_idxs
 
-            if not found:
-                for intron_indices in locus_info.intron_indices:
-                    if intron_indices[0] <= genome_corrected_index <= intron_indices[1]:
-                        all_data_human_gene.loc[index, SENSE_TYPE] = 'intron'
-                        all_data_human_gene.loc[index, SENSE_INTRON] = 1
-                        found = True
-                        break
+        coords_2d = gen_coords[:, None]
 
-            if not found:
-                for i, utr_indices in enumerate(locus_info.utr_indices):
-                    if utr_indices[0] <= genome_corrected_index <= utr_indices[1]:
-                        all_data_human_gene.loc[index, SENSE_TYPE] = 'utr'
-                        all_data_human_gene.loc[index, SENSE_UTR] = 1
-                        found = True
-                        break
+        exons = np.array(locus_info.exon_indices)
+        introns = np.array(locus_info.intron_indices)
+        utrs = np.array(locus_info.utr_indices)
 
-            if not found:
-                all_data_human_gene.loc[index, SENSE_TYPE] = 'intron'
+        # Original 2D broadcasting
+        is_exon = ((coords_2d >= exons[:, 0]) & (coords_2d <= exons[:, 1])).any(axis=1) if len(exons) > 0 else np.zeros(
+            len(gen_coords), dtype=bool)
+        is_intron = ((coords_2d >= introns[:, 0]) & (coords_2d <= introns[:, 1])).any(axis=1) if len(
+            introns) > 0 else np.zeros(len(gen_coords), dtype=bool)
+        is_utr = ((coords_2d >= utrs[:, 0]) & (coords_2d <= utrs[:, 1])).any(axis=1) if len(utrs) > 0 else np.zeros(
+            len(gen_coords), dtype=bool)
 
-    return all_data_human_gene
+        out_type[v_row_idxs] = 'intron'
+
+        utr_mask = is_utr
+        exon_mask = is_exon & ~is_utr
+        intron_mask = is_intron & ~is_exon
+
+        out_type[v_row_idxs[exon_mask]] = 'exon'
+        out_type[v_row_idxs[intron_mask]] = 'intron'
+        out_type[v_row_idxs[utr_mask]] = 'utr'
+
+        out_exon[v_row_idxs[exon_mask]] = 1
+        out_intron[v_row_idxs[intron_mask]] = 1
+        out_utr[v_row_idxs[utr_mask]] = 1
+
+    all_data[SENSE_START] = out_start
+    all_data[SENSE_START_FROM_END] = out_start_end
+    all_data[SENSE_LENGTH] = seq_lengths
+    all_data[SENSE_EXON] = out_exon
+    all_data[SENSE_INTRON] = out_intron
+    all_data[SENSE_UTR] = out_utr
+    all_data[SENSE_TYPE] = out_type
+
+    # Clean up both temp columns
+    all_data.drop(columns=['__temp_idx', '__temp_sense'], inplace=True)
+    return all_data

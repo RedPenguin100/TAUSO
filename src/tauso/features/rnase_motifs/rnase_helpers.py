@@ -1,6 +1,7 @@
 import re
 
 import pandas as pd
+from numba import njit
 
 from ...data.consts import SEQUENCE, CHEMICAL_PATTERN
 
@@ -373,25 +374,52 @@ def score_window_dinuc(subseq: str, weights_df) -> float:
     return score / len(subseq)
 
 
-def score_window_dinuc_dict(subseq: str, weights: dict) -> float:
-    """
-    Computes a dinucleotide-based score for a given subsequence using position-specific weights (Dict version).
-    """
-    if not subseq or len(subseq) < 2:
+import numpy as np
+from numba import njit
+
+CHAR_TO_INT = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+
+# Cache to store converted matrices so we don't rebuild them on every single row
+_WEIGHT_MATRIX_CACHE = {}
+
+
+def get_numba_weights_matrix(weights_dict):
+    """Converts the dictionary to a Numba-friendly NumPy matrix and caches it."""
+    # Create a hashable key from the dict to use as a cache lookup
+    cache_key = tuple(sorted((k, tuple(v)) for k, v in weights_dict.items()))
+
+    if cache_key not in _WEIGHT_MATRIX_CACHE:
+        max_w = len(next(iter(weights_dict.values()))) if weights_dict else 0
+        matrix = np.zeros((16, max_w), dtype=np.float64)
+
+        for dimer, vals in weights_dict.items():
+            if len(dimer) == 2 and dimer[0] in CHAR_TO_INT and dimer[1] in CHAR_TO_INT:
+                row_idx = (CHAR_TO_INT[dimer[0]] * 4) + CHAR_TO_INT[dimer[1]]
+                matrix[row_idx, :len(vals)] = vals
+
+        _WEIGHT_MATRIX_CACHE[cache_key] = (matrix, max_w)
+
+    return _WEIGHT_MATRIX_CACHE[cache_key]
+
+
+@njit(fastmath=True)
+def score_window_dinuc_dict(seq_ints, weights_matrix):
+    """The ultra-fast math loop, stripped of strings and dicts."""
+    L = len(seq_ints)
+    if L < 2:
         return 0.0
 
     score = 0.0
-    # Iterate through valid dinucleotide start positions (0 to L-2)
-    for i in range(len(subseq) - 1):
-        dimer = subseq[i:i + 2]
+    max_pos = weights_matrix.shape[1]
 
-        # Check if dimer exists in weights and if index i is valid for that weight list.
-        # This mirrors the 'Pos_{i+1}' lookup from the DataFrame version.
-        if dimer in weights and i < len(weights[dimer]):
-            score += weights[dimer][i]
+    for i in range(L - 1):
+        # Math-based row lookup: (first_char * 4) + second_char
+        dimer_idx = (seq_ints[i] * 4) + seq_ints[i + 1]
 
-    return score / len(subseq)
+        if i < max_pos:
+            score += weights_matrix[dimer_idx, i]
 
+    return score / L
 
 #######################################################################################################
 def check_motif_presence(aso_sequence: str, motif: str) -> float:
@@ -471,50 +499,52 @@ def compute_rnaseh1_score(aso_sequence: str, weights: dict, window_start: int = 
         return (s1 + s2) / 2
 
 
-#########################################################################################################3
 def compute_rnaseh1_dinucleotide_score(aso_sequence: str, dinuc_weights: dict, window_start: int = None) -> float:
     """
     Computes the RNase H1 cleavage score for a given ASO sequence using dinucleotide weights.
-    (Optimized Dict Version)
+    (Optimized Numba Array Version)
     """
-
-    # 1. Determine max_window (length of the weight lists)
-    if not dinuc_weights:
+    if not dinuc_weights or not aso_sequence:
         return 0.0
-    max_window = len(next(iter(dinuc_weights.values())))
 
-    # 2. Preprocess Sequence
-    seq = aso_sequence.upper().replace("U", "T")
-    L = len(seq)
+    # 1. Get cached Numba matrix and max_window (instant lookup)
+    weights_matrix, max_window = get_numba_weights_matrix(dinuc_weights)
+
+    # 2. Preprocess Sequence into Integers ONCE
+    seq_str = aso_sequence.upper().replace("U", "T")
+    L = len(seq_str)
 
     if L == 0:
         return 0.0
+
+    # Convert string to a NumPy array of ints. Unknown characters default to 0 ('A') to prevent crashing.
+    seq_ints = np.array([CHAR_TO_INT.get(c, 0) for c in seq_str], dtype=np.int8)
 
     # 3. Logic Branching
 
     # Case A: Sequence is shorter than the weight window -> Score full sequence
     if L < max_window:
-        return score_window_dinuc_dict(seq, dinuc_weights)
+        return score_window_dinuc_dict(seq_ints, weights_matrix)
 
     # Case B: Explicit window_start provided
     if window_start is not None:
         if window_start < 0 or window_start >= L:
             return 0.0
-        # Slice from start
-        subseq = seq[window_start: window_start + max_window]
-        return score_window_dinuc_dict(subseq, dinuc_weights)
+        # Slice the numpy array (much faster than string slicing)
+        subseq_ints = seq_ints[window_start: window_start + max_window]
+        return score_window_dinuc_dict(subseq_ints, weights_matrix)
 
     # Case C: Default behavior (Center-aligned)
     if L % 2 == 0:
         start = (L - max_window) // 2
-        subseq = seq[start: start + max_window]
-        return score_window_dinuc_dict(subseq, dinuc_weights)
+        subseq_ints = seq_ints[start: start + max_window]
+        return score_window_dinuc_dict(subseq_ints, weights_matrix)
     else:
         offset1 = (L - max_window) // 2
         offset2 = offset1 + 1
 
-        s1 = score_window_dinuc_dict(seq[offset1: offset1 + max_window], dinuc_weights)
-        s2 = score_window_dinuc_dict(seq[offset2: offset2 + max_window], dinuc_weights)
+        s1 = score_window_dinuc_dict(seq_ints[offset1: offset1 + max_window], weights_matrix)
+        s2 = score_window_dinuc_dict(seq_ints[offset2: offset2 + max_window], weights_matrix)
         return (s1 + s2) / 2
 
 
@@ -720,21 +750,6 @@ def add_rnaseh1_scores_best_window_nt(
         df[col_name] = df.apply(score_row, axis=1)
 
     return df, feature_cols
-
-
-def get_longest_dna_gap(chemical_pattern: str, marker: str = "d") -> tuple[int, int, int]:
-    """
-    Finds the longest consecutive stretch of DNA markers.
-    Returns (start_index, end_index, length). Returns (-1, -1, 0) if none found.
-    """
-    matches = list(re.finditer(f"{re.escape(marker)}+", chemical_pattern))
-    if not matches:
-        return -1, -1, 0
-
-    # Find the longest match
-    longest = max(matches, key=lambda m: m.end() - m.start())
-    return longest.start(), longest.end(), longest.end() - longest.start()
-
 
 def scan_constrained_window(
         target_seq: str,

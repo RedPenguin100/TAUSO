@@ -22,6 +22,9 @@ def validate_cols_in_df(df, cols):
 
 
 def populate_mfe_features(df, gene_to_data, n_jobs=1):  # 2. Add n_jobs param
+    if n_jobs > 1 or n_jobs == -1:
+        pandarallel.initialize(nb_workers=n_jobs, verbose=0)
+
     required_cols = [CANONICAL_GENE, SENSE_START, SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
@@ -68,7 +71,6 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1):  # 2. Add n_jobs param
             )
 
         if n_jobs > 1:
-            pandarallel.initialize(nb_workers=n_jobs, verbose=0)
             df[feature_name] = df.parallel_apply(_process_row, axis=1)
         else:
             df[feature_name] = df.apply(_process_row, axis=1)
@@ -115,26 +117,28 @@ def populate_sense_accessibility(aso_dataframe, gene_to_data):
         aso_dataframe.loc[idx, SENSE_AVG_ACCESSIBILITY] = avg_sense_access
 
 
-def populate_sense_accessibility_batch(aso_dataframe, gene_to_data, batch_size=1000, flank_size=FLANK_SIZE,
-                                       access_size=ACCESS_SIZE,
-                                       seed_sizes=SEED_SIZES,
-                                       access_win_size=ACCESS_WIN_SIZE,
+def populate_sense_accessibility_batch(aso_dataframe, gene_to_data, batch_size=1000,
+                                       flank_size=FLANK_SIZE, access_size=ACCESS_SIZE,
+                                       seed_sizes=SEED_SIZES, access_win_size=ACCESS_WIN_SIZE,
                                        n_jobs=1):
-    # 1. New Naming Scheme: access_120flank_13access_4-6-8seed_sizes
     seeds_list = seed_sizes if isinstance(seed_sizes, (list, tuple)) else [seed_sizes]
     seeds_str = "-".join(map(str, seeds_list))
     feature_name = f"access_{flank_size}flank_{access_size}access_{seeds_str}seed_sizes"
 
     # Setup Output
     df_out = aso_dataframe.copy()
-    df_out[feature_name] = np.nan
+
+    # Create a purely positional, hidden tracker that ignores the real index
+    df_out['_temp_id'] = range(len(df_out))
 
     valid_mask = df_out[SENSE_START] != -1
     if not valid_mask.any():
+        df_out[feature_name] = np.nan
+        df_out.drop(columns=['_temp_id'], inplace=True)
         return df_out, feature_name
 
-    # Prepare minimal data for workers (keeping index)
-    valid_df = df_out.loc[valid_mask, [SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
+    # Prepare minimal data for workers using our hidden tracker
+    valid_df = df_out.loc[valid_mask, ['_temp_id', SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
     access_cache = get_cache(seed_sizes, access_size=access_size)
 
     # 2. Worker Function
@@ -144,8 +148,9 @@ def populate_sense_accessibility_batch(aso_dataframe, gene_to_data, batch_size=1
         sense_start_map = {}
         batch_uuid = str(uuid.uuid4())
 
-        for idx, row in batch_rows.iterrows():
-            current_id = str(idx)  # Use original index as ID
+        # Track rows using the hidden positional ID
+        for _, row in batch_rows.iterrows():
+            current_id = str(row['_temp_id'])
 
             full_mrna_seq = str(gene_to_data[row[CANONICAL_GENE]].full_mrna)
             current_sense_start = row[SENSE_START]
@@ -168,7 +173,7 @@ def populate_sense_accessibility_batch(aso_dataframe, gene_to_data, batch_size=1
             sense_start_map[current_id] = relative_start
 
         if not rna_seqs:
-            return pd.Series(dtype=float, name=feature_name)
+            return pd.DataFrame(columns=['_temp_id', feature_name])
 
         df = AccessCalculator.calc_new(
             rna_seqs,
@@ -182,7 +187,7 @@ def populate_sense_accessibility_batch(aso_dataframe, gene_to_data, batch_size=1
             cache=access_cache
         )
 
-        df['pos_in_flank'] = df.groupby('rna_id').cumcount()
+        df['pos_in_flank'] = df.groupby('rna_id', as_index=False).cumcount()
         df['sense_length'] = df['rna_id'].map(sense_len_map)
         df['rel_start'] = df['rna_id'].map(sense_start_map)
 
@@ -191,14 +196,16 @@ def populate_sense_accessibility_batch(aso_dataframe, gene_to_data, batch_size=1
                 (df['pos_in_flank'] < df['rel_start'] + df['sense_length'])
         )
 
-        # Aggregate and restore index type
+        # Aggregate strictly as a DataFrame
         batch_result = (
-            df.loc[mask]
-            .groupby('rna_id')['avg_access']
+            df[mask]
+            .groupby('rna_id', as_index=False)['avg_access']
             .mean()
         )
-        batch_result.index = batch_result.index.astype(batch_rows.index.dtype)
-        batch_result.name = feature_name
+
+        # Rename tracker back and ensure it's an integer
+        batch_result.rename(columns={'rna_id': '_temp_id', 'avg_access': feature_name}, inplace=True)
+        batch_result['_temp_id'] = batch_result['_temp_id'].astype(int)
 
         return batch_result
 
@@ -208,14 +215,21 @@ def populate_sense_accessibility_batch(aso_dataframe, gene_to_data, batch_size=1
     if n_jobs > 1:
         from pandarallel import pandarallel
         pandarallel.initialize(nb_workers=n_jobs, verbose=0)
-        results_series = valid_df.groupby('batch_group').parallel_apply(_process_batch)
+        results_df = valid_df.groupby('batch_group').parallel_apply(_process_batch)
     else:
-        results_series = valid_df.groupby('batch_group').apply(_process_batch)
+        results_df = valid_df.groupby('batch_group').apply(_process_batch)
 
-    if isinstance(results_series.index, pd.MultiIndex):
-        results_series = results_series.droplevel(0)
+    # Clean up structure returned by apply
+    results_df = results_df.reset_index(drop=True)
 
-    # 4. Safe Assignment (Automatic Alignment)
-    df_out.loc[results_series.index, feature_name] = results_series
+    # 4. Safe Assignment (Dictionary Mapping)
+    # Convert results to a fast dictionary {temp_id: calculated_value}
+    result_map = dict(zip(results_df['_temp_id'], results_df[feature_name]))
+
+    # Map values directly to the output column. This 100% preserves your original index.
+    df_out[feature_name] = df_out['_temp_id'].map(result_map)
+
+    # Cleanup hidden tracker
+    df_out.drop(columns=['_temp_id'], inplace=True)
 
     return df_out, feature_name

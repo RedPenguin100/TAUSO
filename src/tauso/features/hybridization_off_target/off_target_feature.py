@@ -51,8 +51,7 @@ def populate_off_target_specific(
             for cell_line, group_df in grouped:
                 # 1. Validation: Check if we have data for this cell line
                 if cell_line not in cell_line2data:
-                    # If missing context, score is NaN (or 0 if you prefer)
-                    # Using NaN allows you to drop/impute later.
+                    # If missing context, score is NaN
                     empty_res = pd.Series([np.nan] * len(group_df), index=group_df.index)
                     calculated_scores.append(empty_res)
                     continue
@@ -99,7 +98,7 @@ def populate_off_target_specific(
                 # Map back to original dataframe indices to ensure alignment
                 ASO_df[spec_col_name] = full_series.reindex(ASO_df.index)
             else:
-                ASO_df[spec_col_name] = 0.0
+                ASO_df[spec_col_name] = np.nan
 
             feature_names.append(spec_col_name)
 
@@ -130,7 +129,7 @@ def populate_off_target_general(
     if n_cores > 1:
         from pandarallel import pandarallel
         # verbose=1 shows a progress bar, use 0 to silence
-        pandarallel.initialize(nb_workers=n_cores, verbose=1)
+        pandarallel.initialize(nb_workers=n_cores, verbose=1, progress_bar=True)
 
     for top_n in top_n_list:
         general_df = general_df_all.head(top_n)
@@ -142,12 +141,14 @@ def populate_off_target_general(
         norm_col = next((c for c in general_df.columns if 'expression_norm' in c), 'expression_norm')
         for _, row in general_df.iterrows():
             gene = row['Gene'].split()[0]
-            if gene in gene_to_data:
-                general_seq_map[gene] = gene_to_data[gene].full_mrna
-                general_exp_map[gene] = (
-                    row.get('expression_TPM', 0),
-                    row.get(norm_col, row.get('expression_norm', 0))
-                )
+            if gene not in gene_to_data:
+                raise KeyError(f"CRITICAL: Gene '{gene}' not found in gene_to_data mapping.")
+
+            general_seq_map[gene] = gene_to_data[gene].full_mrna
+            general_exp_map[gene] = (
+                row.get('expression_TPM', 0),
+                row.get(norm_col, row.get('expression_norm', 0))
+            )
 
         for cutoff in cutoff_list:
             print(f"Running config: TopN={top_n}, Cutoff={cutoff}")

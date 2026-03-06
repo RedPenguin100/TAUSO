@@ -1,3 +1,4 @@
+import math
 import re
 import time
 import numpy as np
@@ -10,10 +11,58 @@ from collections import Counter
 from primer3 import calc_hairpin
 from collections import defaultdict
 
+from ...data.consts import SEQUENCE
 from ...util import get_antisense
-from ...algorithms.suffix_array import longest_prefix
-from ...algorithms.suffix_array import build_suffix_array
 
+
+
+
+def ry_transition_fraction(seq: str) -> float:
+    """
+    Calculates the fraction of steps that alternate between Purines (R) and Pyrimidines (Y).
+    """
+    if len(seq) < 2:
+        return 0.0
+
+    seq = seq.upper()
+    purines = set('AG')
+    pyrimidines = set('CTU')
+    transitions = 0
+
+    for i in range(len(seq) - 1):
+        b1, b2 = seq[i], seq[i + 1]
+        if (b1 in purines and b2 in pyrimidines) or (b1 in pyrimidines and b2 in purines):
+            transitions += 1
+
+    return transitions / (len(seq) - 1)
+
+
+def keto_amino_skew(seq: str) -> float:
+    """
+    Calculates Keto-Amino skew: (K - M) / (K + M).
+    K (Keto) = G, T, U. M (Amino) = A, C.
+    """
+    seq = seq.upper()
+    keto_count = sum(seq.count(b) for b in 'GTU')
+    amino_count = sum(seq.count(b) for b in 'AC')
+
+    total = keto_count + amino_count
+    if total == 0:
+        return 0.0
+
+    return (keto_count - amino_count) / total
+
+
+def absolute_terminal_gc(seq: str) -> float:
+    """
+    Calculates the raw GC count of the absolute terminal ends (first 2 and last 2 bases).
+    Max score is 4.
+    """
+    if len(seq) < 4:
+        return 0.0
+
+    terminals = (seq[:2] + seq[-2:]).upper()
+    return sum(1 for b in terminals if b in 'GC')
 
 def self_energy(seq: str) -> float:
     return float(primer3.calc_homodimer(seq).dg)
@@ -21,31 +70,6 @@ def self_energy(seq: str) -> float:
 
 def internal_fold(seq: str) -> float:
     return RNA.fold(seq)[1]
-
-
-def calc_feature(
-    df: pd.DataFrame,
-    col_name: str,
-    func,
-    input_col: str = "Sequence",
-    cpus: int = 1,
-) -> None:
-    """
-    Computes a feature with timing logs. Uses parallel_apply if available.
-    """
-    print(f"► Starting {col_name}...")
-    start_time = time.time()
-
-    series = df[input_col]
-    try:
-        from pandarallel import pandarallel
-        pandarallel.initialize(progress_bar=True, verbose=0, nb_workers=cpus)
-        df[col_name] = series.parallel_apply(func)
-    except Exception:
-        df[col_name] = series.apply(func)
-
-    duration = time.time() - start_time
-    print(f"✔ Finished {col_name} | Time: {duration:.2f}s\n")
 
 
 def hairpin_dG_energy(seq: str):
@@ -64,51 +88,70 @@ def hairpin_dG_energy(seq: str):
     return hairpin.dg if len(seq) > 0 else 0
 
 
-@njit
-def _is_palindrome(seq: str) -> bool:
-    final = ''
-    test = seq[::-1]
-    for i in range(len(test)):
-        if test[i] == 'A':
-            final += 'T'
-        elif test[i] == 'C':
-            final += 'G'
-        elif test[i] == 'G':
-            final += 'C'
-        elif test[i] == 'T':
-            final += 'A'
-    return final == seq
+_complement_map = str.maketrans('ACGTUacgtu', 'TGCAAtgcaa')
 
 
-@njit
+def is_palindrome(subseq: str) -> bool:
+    return subseq.translate(_complement_map) == subseq[::-1]
+
+
 def palindromic_fraction(seq: str, l: int) -> float:
-    count = 0
-    for n in range(len(seq) - l + 1):
-        curr_seq = seq[n:n + l]
-        count += _is_palindrome(curr_seq)
-    return count / len(seq)
+    seq_len = len(seq)
+    if seq_len < l:
+        return 0.0
+
+    # A generator expression inside sum() is highly optimized in Python's C backend
+    count = sum(
+        1 for n in range(seq_len - l + 1)
+        if is_palindrome(seq[n:n + l])
+    )
+
+    return count / seq_len
 
 
-@njit
 def homooligo_count(seq: str) -> float:
-    seq += '$'
+    seq_len = len(seq)
+
+    # Matches original behavior for an empty string (returns 0.0)
+    if seq_len == 0:
+        return 0.0
+
     tot_count = 0
-    curr_seq = ''
-    n = 0
-    while n in range(len(seq) - 1):
-        while seq[n] == seq[n + 1]:
-            curr_seq += seq[n]
-            n += 1
-        if len(curr_seq) > 1:
-            tot_count += len(curr_seq) + 1
-        n += 1
-        curr_seq = ''
-    return tot_count / len(seq)
+    current_run = 1
+
+    for i in range(1, seq_len):
+        if seq[i] == seq[i - 1]:
+            current_run += 1
+        else:
+            # Your original code used 'if len(curr_seq) > 1', which meant
+            # a run had to be at least 3 characters long to be counted.
+            if current_run > 2:
+                tot_count += current_run
+            current_run = 1
+
+    # Check the final run at the end of the sequence
+    if current_run > 2:
+        tot_count += current_run
+
+    # Your original code divided by the length of (seq + '$')
+    return tot_count / (seq_len + 1)
 
 
 def seq_entropy(seq: str) -> float:
-    freqs = [seq.count(base) / len(seq) for base in "ACGT"]
-    return entropy(freqs) / 2
+    seq_len = len(seq)
+    if seq_len == 0:
+        return 0.0
+
+    ent = 0.0
+    # Native string count is fast, and we avoid creating intermediate lists
+    for base in "ACGT":
+        count = seq.count(base)
+        if count > 0:
+            p = count / seq_len
+            # Scipy's default entropy uses natural log (base e)
+            ent -= p * math.log(p)
+
+    return ent / 2.0
 
 
 def count_g_runs(seq: str, min_run_length: int = 4) -> float:
@@ -136,17 +179,30 @@ def count_g_runs(seq: str, min_run_length: int = 4) -> float:
 
 def hairpin_score(seq: str, min_overlap: int = 4) -> float:
     """
-    Estimates the potential of the sequence to form a hairpin structure
-    by checking how many small subsequences appear in its reverse complement.
+    Estimates hairpin potential in O(N) time using set lookups.
     """
+    n = len(seq)
+    if n < min_overlap:
+        return 0.0
+
     seq = seq.upper()
+
+    # 1. Fast reverse complement using the helper function
     antisense = get_antisense(seq)
-    matches = 0
-    for i in range(len(seq) - min_overlap + 1):
-        sub = seq[i:i + min_overlap]
-        if sub in antisense:
-            matches += 1
-    return matches / len(seq)
+
+    # 2. Build a set of all min_overlap-mers in the antisense for O(1) lookup
+    antisense_kmers = {
+        antisense[i: i + min_overlap]
+        for i in range(n - min_overlap + 1)
+    }
+
+    # 3. Count matches without scanning the whole string every time
+    matches = sum(
+        1 for i in range(n - min_overlap + 1)
+        if seq[i: i + min_overlap] in antisense_kmers
+    )
+
+    return matches / n
 
 
 def gc_skew(seq: str) -> float:
@@ -181,48 +237,63 @@ def gc_content_3prime_end(aso_sequence: str, window: int = 5) -> float:
     return gc_count / window
 
 
-@njit
 def gc_skew_ends(seq: str, window: int = 5) -> float:
     """
     Calculates the GC-content difference between the 5' and 3' ends of the sequence.
     Measures thermodynamic asymmetry between ends.
     """
-    seq = seq.upper()
     if len(seq) < 2 * window:
         return 0.0
+
     start = seq[:window]
     end = seq[-window:]
-    gc_5 = start.count("G") + start.count("C")
-    gc_3 = end.count("G") + end.count("C")
+
+    # Count both upper and lower case directly on the tiny slices
+    gc_5 = start.count("G") + start.count("C") + start.count("g") + start.count("c")
+    gc_3 = end.count("G") + end.count("C") + end.count("g") + end.count("c")
+
     return (gc_5 - gc_3) / window
 
 
-def dispersed_repeats_score(seq, min_unit=2, max_unit=6):
+def dispersed_repeats_score(seq: str, min_unit: int = 2, max_unit: int = 6) -> float:
     """
     Counts motifs (2–6 nt) that appear more than once, even if not consecutive.
     Helps detect internal similarity and potential self-binding regions.
     """
-    unit_counter = Counter()
-    for unit_len in range(min_unit, max_unit + 1):
-        for i in range(len(seq) - unit_len + 1):
-            unit = seq[i:i + unit_len]
-            unit_counter[unit] += 1
-    score = sum(count - 1 for count in unit_counter.values() if count > 1)
-    return score / len(seq)
+    n = len(seq)
+    if n < min_unit:
+        return 0.0
+
+    # A single generator expression creates all k-mers.
+    # We pass this directly to Counter(), which consumes it at C-speeds.
+    kmers = (
+        seq[i: i + unit_len]
+        for unit_len in range(min_unit, max_unit + 1)
+        for i in range(n - unit_len + 1)
+    )
+
+    counts = Counter(kmers)
+
+    # Calculate the score. Using a generator here avoids building an intermediate list.
+    score = sum(count - 1 for count in counts.values() if count > 1)
+
+    return score / n
 
 
-@njit
 def at_skew(seq: str) -> float:
     """
     Calculates AT skew = (A - T) / (A + T)
     A measure of asymmetry in A/T content, can affect flexibility and binding dynamics.
     """
-    seq = seq.upper()
-    A_counts = seq.count("A")
-    T_counts = seq.count("T")
-    if A_counts + T_counts == 0:
+    # Count both cases to avoid creating a new string in memory with .upper()
+    A_counts = seq.count("A") + seq.count("a")
+    T_counts = seq.count("T") + seq.count("t")
+
+    total_AT = A_counts + T_counts
+    if total_AT == 0:
         return 0.0  # avoid division by zero
-    return (A_counts - T_counts) / (A_counts + T_counts)
+
+    return (A_counts - T_counts) / total_AT
 
 
 def toxic_motif_count(aso_sequence, motifs=['UGU', 'GGTGG', 'TGGT', 'GGGU']) -> float:
@@ -322,7 +393,6 @@ def hairpin_tm(seq: str) -> float:
     return hairpin.tm
 
 
-
 def add_interaction_features(df: pd.DataFrame, feature_pairs: list[tuple[str, str]]) -> pd.DataFrame:
     """
     Given a DataFrame and a list of columns pairs (colA ,colB), create new cloumns named "colA*colB"
@@ -402,30 +472,29 @@ def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
     return stretch_count / len(seq) if len(seq) > 0 else 0.0
 
 
-############################################################################
-
 def dinucleotide_entropy(seq: str) -> float:
     """
-    Calculates normalized Shannon entropy (0–1) based on dinucleotide frequencies in the sequence.
-
-    High entropy = greater structural complexity and diversity.
-    Low entropy = repetitive or predictable dinucleotide patterns.
-
-    Args:
-        seq (str): DNA sequence
-
-    Returns:
-        float: Normalized entropy (0 to 1)
+    Calculates normalized Shannon entropy (0–1) based on dinucleotide frequencies.
+    Optimized for speed using standard library modules.
     """
     seq = seq.upper()
-    if len(seq) < 2:
-        return 0.0  # too short to form any dinucleotide
+    n = len(seq)
 
-    dinucleotides = [seq[i:i + 2] for i in range(len(seq) - 1)]
-    freq = pd.Series(dinucleotides).value_counts(normalize=True)
-    raw_entropy = entropy(freq, base=2)
+    if n < 2:
+        return 0.0
 
-    return raw_entropy / 4  # normalization to range [0, 1]
+    # Generator expression avoids building a large list in memory
+    counts = Counter(seq[i:i + 2] for i in range(n - 1))
+
+    total_dinucleotides = n - 1
+    raw_entropy = 0.0
+
+    # Calculate entropy manually to bypass SciPy overhead
+    for count in counts.values():
+        probability = count / total_dinucleotides
+        raw_entropy -= probability * math.log2(probability)
+
+    return raw_entropy / 4.0  # Normalize to [0, 1] (since max entropy for 16 states is log2(16) = 4)
 
 
 ##############################################################################

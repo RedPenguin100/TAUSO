@@ -77,48 +77,60 @@ class AccessCalculator(object):
 
         return df
 
-
     @staticmethod
-    def calc_access_energies_from_access_res( #new
+    def calc_access_energies_from_access_res(  # new
             access_res, rna_size, access_size, seed_sizes):
 
         cols_np = {s: access_res[s].to_numpy() for s in seed_sizes}
 
-        ind_info_list = []
-        for pos in range(0, rna_size - access_size + 1):
+        # 1. PRECOMPUTE INVARIANTS: Calculate weights, factors, and offsets ONCE per seed_size
+        seed_info = {}
+        for super_seed_size in seed_sizes:
+            step = super_seed_size // 2
+            rel_offsets = np.arange(0, access_size - super_seed_size, step)
+            rel_offsets = np.append(rel_offsets, access_size - super_seed_size)
+
+            n_values = math.ceil((access_size - super_seed_size) / step) + 1
+            assert len(rel_offsets) == n_values
+
+            weights = np.ones(n_values)
+            if n_values > 1:
+                weights[-1] = (rel_offsets[-1] - rel_offsets[-2]) / step
+
+            seed_info[super_seed_size] = {
+                'rel_offsets': rel_offsets,
+                'norm_factor': access_size / super_seed_size,
+                'weights': weights,
+                'weight_sum': np.sum(weights),
+                'col_len': len(cols_np[super_seed_size]),
+                'avg_id': f"{super_seed_size}_avg",
+                'min_id': f"{super_seed_size}_min"
+            }
+
+        # 2. FAST EXECUTION LOOP
+        records = []
+        indexes = range(0, rna_size - access_size + 1)
+
+        for pos in indexes:
             pos_info = {}
             for super_seed_size in seed_sizes:
-                step = super_seed_size // 2
-                # n_samples = trigger_binding_site_size / step
-                rel_offsets = np.arange(0, access_size - super_seed_size, step)
-                rel_offsets = np.append(rel_offsets, access_size - super_seed_size)
+                info = seed_info[super_seed_size]
 
-                abs_offsets = rel_offsets + pos
-                vals = cols_np[super_seed_size][len(cols_np[super_seed_size]) - 1 - abs_offsets]
-                bind_energies = pd.Series(vals, index=abs_offsets)
+                abs_offsets = info['rel_offsets'] + pos
+                vals = cols_np[super_seed_size][info['col_len'] - 1 - abs_offsets]
 
-                norm_factor = access_size / super_seed_size
-                norm_bind_energies = bind_energies * norm_factor
+                # Removed the slow pd.Series instantiation; purely NumPy now
+                norm_bind_energies = vals * info['norm_factor']
+                fixed_weight_energies = norm_bind_energies * info['weights']
 
-                # fix last weight relatively to the overlap with the one before
-                n_values = math.ceil((access_size - super_seed_size) / step) + 1
-                assert len(rel_offsets) == n_values
-                weights = [1.0] * n_values
-                if len(weights) > 1:
-                    last_weight = (rel_offsets[-1] - rel_offsets[-2]) / step
-                    weights[-1] = last_weight
-
-                fixed_weight_energies = (np.array(norm_bind_energies) * np.array(weights))
-                avg_energy = np.sum(fixed_weight_energies) / np.sum(weights)
+                avg_energy = np.sum(fixed_weight_energies) / info['weight_sum']
                 min_energy = np.min(fixed_weight_energies)
-                avg_id = f"{super_seed_size}_avg"
-                min_id = f"{super_seed_size}_min"
-                pos_info.update({avg_id: avg_energy, min_id: min_energy})
 
-            ind_info_list.append((pos, pos_info))
+                pos_info[info['avg_id']] = avg_energy
+                pos_info[info['min_id']] = min_energy
 
-        indexes = list(zip(*ind_info_list))[0]
-        records = list(zip(*ind_info_list))[1]
+            records.append(pos_info)
+
         df = pd.DataFrame(records, index=indexes)
         return df
 

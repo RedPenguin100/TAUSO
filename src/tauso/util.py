@@ -23,20 +23,6 @@ def get_purine_content(seq: str) -> float:
     return purine_count / len(seq)
 
 
-
-@njit
-def get_nucleotide_watson_crick(nucleotide: chr) -> chr:
-    if nucleotide == 'A':
-        return 'T'
-    if nucleotide == 'G':
-        return 'C'
-    if nucleotide == 'C':
-        return 'G'
-    if nucleotide == 'U' or nucleotide == 'T':
-        return 'A'
-    raise ValueError(f"Unknown codon {nucleotide}")
-
-
 def _norm_rna_to_dna(seq: str) -> str:
     """Normalize RNA to DNA alphabet (U->T), uppercase, strip whitespace."""
     return str(seq).upper().replace('U', 'T').replace(' ', '').replace('\t', '').replace('\n', '')
@@ -56,12 +42,25 @@ def _to_str_seq(x) -> str:
             s = str(x)
     return s.replace(' ', '').replace('\t', '').replace('\n', '').replace('U', 'T').upper()
 
-@njit
+# Define the dictionary globally for fast O(1) lookups
+WATSON_CRICK_MAP = {
+    'A': 'T',
+    'G': 'C',
+    'C': 'G',
+    'T': 'A',
+    'U': 'A'
+}
+
 def get_antisense(sense: str) -> str:
-    antisense = ''
-    for n in range(len(sense) - 1, -1, -1):
-        antisense += get_nucleotide_watson_crick(sense[n])
-    return antisense
+    """
+    Fast native Python reverse complement using a dictionary mapping.
+    """
+    try:
+        # List comprehension inside .join() is highly optimized in C
+        return "".join([WATSON_CRICK_MAP[n] for n in reversed(sense)])
+    except KeyError as e:
+        # e.args[0] grabs the specific character that failed the dictionary lookup
+        raise ValueError(f"Unknown nucleotide {e.args[0]}")
 
 
 @njit

@@ -1,3 +1,4 @@
+import platform
 import random
 import os
 import re
@@ -5,22 +6,19 @@ import subprocess
 import tempfile
 import uuid
 
-from enum import Enum
 from pathlib import Path
 from typing import Dict, List
 
 from Bio.Seq import Seq
 
+from .Interaction import Interaction
 from ...common.consts import OUT_FOLDER
 
-TMP_PATH = Path(tempfile.gettempdir())
+if platform.system() == "Linux" and os.path.exists("/dev/shm"):
+    TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
+else:
+    TMP_PATH = Path(tempfile.gettempdir()) / "tauso_risearch_tmp"
 
-
-class Interaction(Enum):
-    RNA_RNA = "RNA_RNA"
-    RNA_DNA_NO_WOBBLE = "RNA_DNA_NO_WOBBLE"
-    DNA_DNA = "DNA_DNA"
-    MODIFIED = "MODIFIED"
 
 
 def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
@@ -44,35 +42,44 @@ def get_trigger_mfe_scores_by_risearch(trigger: str, name_to_sequence: Dict[str,
                                        interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
                                        minimum_score: int = 900, neighborhood: int = 0, parsing_type=None,
                                        target_file_cache=None, transpose=False, unique_id=None) -> str:
-    risearch_path = get_risearch_path()
+    if not name_to_sequence:
+        raise ValueError("name_to_sequence is empty!")
+    TMP_PATH.mkdir(parents=True, exist_ok=True)
 
-    # used to dump cached files
-    TMP_PATH.mkdir(exist_ok=True)
+    risearch_path = get_risearch_path()
 
     if unique_id is None:
         unique_id = uuid.uuid4().hex
 
     if target_file_cache is None:
         target_filename = f"target-{unique_id}.fa"
-        target_path = dump_target_file(target_filename, name_to_sequence)
+        target_path = Path(dump_target_file(target_filename, name_to_sequence)).resolve()
     else:
-        target_filename = target_file_cache
-        target_path = target_filename
+        target_path = Path(target_file_cache).resolve()
 
-    query_filename = f"query-{unique_id}.fa"
-    query_path = TMP_PATH / query_filename
+    query_path = (TMP_PATH / f"query-{unique_id}.fa").resolve()
 
-    with open(query_path, "w+") as f:
+    # Use 'w' and flush to ensure data is written before subprocess starts
+    with open(query_path, "w") as f:
         f.write(f">trigger\n{Seq(trigger).reverse_complement_rna()}\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+    # --- MINIMAL ADDITION: Validation Exceptions ---
+    for p, name in [(target_path, "Target"), (query_path, "Query")]:
+        if not p.exists():
+            raise FileNotFoundError(f"{name} file was not created at {p}")
+        if p.stat().st_size == 0:
+            raise ValueError(f"{name} file is empty (0 bytes) at {p}. Disk might be full or write failed.")
 
     if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
         m = 'su95_noGU'
     elif interaction_type == Interaction.RNA_RNA:
         m = 't04'
     else:
-        raise ValueError(f"Unsupported interaction type: {interaction_type}")
+        raise ValueError(f"Unsupported interaction type: {interaction_type}={str({interaction_type})}")
 
-    args = [risearch_path, "-q", str(query_path), "-t", str(target_path), "-s", f"{minimum_score}",
+    args = [str(risearch_path), "-q", str(query_path), "-t", str(target_path), "-s", f"{minimum_score}",
             "-d", "30", "-m", m, '-n', f"{neighborhood}"]
     if transpose:
         args.append("-R")
@@ -80,14 +87,14 @@ def get_trigger_mfe_scores_by_risearch(trigger: str, name_to_sequence: Dict[str,
     try:
         if parsing_type is not None:
             args.append(f'-p{parsing_type}')
-
-        result = subprocess.check_output(args, universal_newlines=True, text=True, cwd=str(OUT_FOLDER))
+        # Capture stderr to see the actual RIsearch error if it returns 255
+        result = subprocess.check_output(args, universal_newlines=True, text=True, cwd=str(OUT_FOLDER), stderr=subprocess.STDOUT)
     finally:
-        if target_file_cache is None:
+        if target_file_cache is None and target_path.exists():
             os.remove(target_path)
-        query_path.unlink()
+        if query_path.exists():
+            query_path.unlink()
     return result
-
 
 '''
 note: I used hashing here to be able to run multiple sequences (triggers in my case) in parallel (for multiple triggers) without conflicts with the files,

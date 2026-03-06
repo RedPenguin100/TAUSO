@@ -1,0 +1,20 @@
+import pytest
+from tauso.features.context.mrna_halflife import populate_mrna_halflife_features, load_halflife_mapping, \
+    HalfLifeProvider
+
+
+@pytest.fixture
+def mini_sampled_data(request, final_data):
+    """Samples the fully processed DataFrame right before the test runs."""
+    n_samples = getattr(request, 'param', 1000)
+    actual_samples = min(n_samples, len(final_data))
+    return final_data.sample(n=actual_samples, random_state=42).copy()
+
+
+@pytest.mark.parametrize("mini_sampled_data", [10000], indirect=True)
+def test_enc_features_regression_10000(mini_sampled_data, half_life_provider, dataframe_regression):
+    data = mini_sampled_data.copy()
+
+    processed_data, feature_cols = populate_mrna_halflife_features(data, half_life_provider)
+
+    dataframe_regression.check(processed_data[feature_cols])
