@@ -1,9 +1,11 @@
 import pandas as pd
 
+from ...common.modifications import get_longest_dna_gap
 from ...data.consts import SEQUENCE, CHEMICAL_PATTERN
 from .rnase_helpers import compute_rnaseh1_dinucleotide_score, rnaseh1_dict, \
-    get_longest_dna_gap, scan_constrained_window
+    scan_constrained_window
 from ...util import get_antisense
+
 
 def add_rnaseh1_scores_dinuc(
         df: pd.DataFrame,
@@ -20,15 +22,17 @@ def add_rnaseh1_scores_dinuc(
 
     feature_cols: list[str] = []
 
+    # Extract sequences and chemical patterns once as lists for much faster iteration
+    seqs = df[SEQUENCE].tolist()
+    chems = df[CHEMICAL_PATTERN].tolist()
+
     for exp in experiments:
         weights = rnaseh1_dict(exp)
         col_name = f"{out_prefix}{exp}_dynamic"
         feature_cols.append(col_name)
 
-        def score_row(row) -> float:
-            seq = row.get(SEQUENCE)
-            chem = row.get(CHEMICAL_PATTERN)
-
+        # Adjusted to take strings directly instead of a pandas row
+        def score_row(seq, chem) -> float:
             if not isinstance(seq, str) or not isinstance(chem, str):
                 return 0.0
 
@@ -54,9 +58,11 @@ def add_rnaseh1_scores_dinuc(
                 for i in valid_starts
             )
 
-        df[col_name] = df.apply(score_row, axis=1)
+        # Replace df.apply with the much faster list comprehension
+        df[col_name] = [score_row(s, c) for s, c in zip(seqs, chems)]
 
     return df, feature_cols
+
 
 def add_rnaseh1_scores_krel_dinuc(
         df: pd.DataFrame,
@@ -71,42 +77,55 @@ def add_rnaseh1_scores_krel_dinuc(
 
     feature_cols: list[str] = []
 
+    # Extract sequences and chemical patterns once as lists for much faster iteration
+    seqs = df[SEQUENCE].tolist()
+    chems = df[CHEMICAL_PATTERN].tolist()
+
+    # --- NEW: Pre-compute the gap and target RNA once per row ---
+    precomputed_data = []
+    for seq, chem in zip(seqs, chems):
+        if not isinstance(seq, str) or not isinstance(chem, str):
+            precomputed_data.append((None, None))
+            continue
+
+        # 1. Find Longest Gap
+        start, end, length = get_longest_dna_gap(chem, marker="d")
+
+        # 2. Strict Length Cutoff (Must be >= 8)
+        if length < 8:
+            precomputed_data.append((None, None))
+            continue
+
+        # 3. Extract ASO gap and convert to Target RNA perspective
+        aso_gap = seq[start:end]
+        target_rna_mimic = get_antisense(aso_gap)
+
+        # 4. Valid starts
+        valid_starts = range(len(target_rna_mimic) - window_size + 1)
+        if not valid_starts:
+            precomputed_data.append((None, None))
+        else:
+            precomputed_data.append((target_rna_mimic, valid_starts))
+    # -------------------------------------------------------------
+
     for exp in experiments:
         weights = rnaseh1_dict(exp)
         col_name = f"{out_prefix}{exp}_dynamic"
         feature_cols.append(col_name)
 
-        def score_row(row) -> float:
-            seq = row.get(SEQUENCE)
-            chem = row.get(CHEMICAL_PATTERN)
-
-            if not isinstance(seq, str) or not isinstance(chem, str):
+        # Altered signature to accept our pre-computed values
+        def score_row(target_rna_mimic, valid_starts) -> float:
+            if target_rna_mimic is None:
                 return 0.0
 
-            # 1. Find Longest Gap
-            start, end, length = get_longest_dna_gap(chem, marker="d")
-
-            # 2. Strict Length Cutoff (Must be >= 8)
-            if length < 8:
-                return 0.0
-
-            # 3. Extract ASO gap and convert to Target RNA perspective
-            aso_gap = seq[start:end]
-            target_rna_mimic = get_antisense(aso_gap)
-
-            # 4. Scan for best score within the TARGET sequence
-            # Note: valid_starts is based on the new target_rna_mimic length (same as gap length)
-            valid_starts = range(len(target_rna_mimic) - window_size + 1)
-
-            if not valid_starts:
-                return 0.0
-
+            # 4. Scan for best score within the TARGET sequence using pre-calculated starts
             return max(
                 compute_rnaseh1_dinucleotide_score(target_rna_mimic, weights, window_start=i)
                 for i in valid_starts
             )
 
-        df[col_name] = df.apply(score_row, axis=1)
+        # Loop over our pre-computed list instead of raw sequences
+        df[col_name] = [score_row(t_rna, v_starts) for t_rna, v_starts in precomputed_data]
 
     return df, feature_cols
 
@@ -121,15 +140,17 @@ def add_rnaseh1_scores_krel_nt(
     """
     feature_cols: list[str] = []
 
+    # Extract sequences and chemical patterns once as lists for much faster iteration
+    seqs = df[SEQUENCE].tolist()
+    chems = df[CHEMICAL_PATTERN].tolist()
+
     for exp in experiments:
         weights = rnaseh1_dict(exp)
         col_name = f"{out_prefix}{exp}_dynamic"
         feature_cols.append(col_name)
 
-        def score_row(row) -> float:
-            seq = row.get(SEQUENCE)
-            chem = row.get(CHEMICAL_PATTERN)
-
+        # Adjusted to take strings directly instead of a pandas row
+        def score_row(seq, chem) -> float:
             if not isinstance(seq, str) or not isinstance(chem, str):
                 return 0.0
 
@@ -149,7 +170,8 @@ def add_rnaseh1_scores_krel_nt(
             # 3. Calculate Score using helper
             return scan_constrained_window(target_rna, weights, gap_start_rc, gap_end_rc)
 
-        df[col_name] = df.apply(score_row, axis=1)
+        # Replace df.apply with the much faster list comprehension
+        df[col_name] = [score_row(s, c) for s, c in zip(seqs, chems)]
 
     return df, feature_cols
 
@@ -165,15 +187,17 @@ def add_rnaseh1_scores_nt(
     """
     feature_cols: list[str] = []
 
+    # Extract sequences and chemical patterns once as lists for much faster iteration
+    seqs = df[SEQUENCE].tolist()
+    chems = df[CHEMICAL_PATTERN].tolist()
+
     for exp in experiments:
         weights = rnaseh1_dict(exp)
         col_name = f"{out_prefix}{exp}_dynamic"
         feature_cols.append(col_name)
 
-        def score_row(row) -> float:
-            seq = row.get(SEQUENCE)
-            chem = row.get(CHEMICAL_PATTERN)
-
+        # Adjusted to take strings directly instead of a pandas row
+        def score_row(seq, chem) -> float:
             if not isinstance(seq, str) or not isinstance(chem, str):
                 return 0.0
 
@@ -195,7 +219,8 @@ def add_rnaseh1_scores_nt(
             # logic as the krel function (best effort overlap).
             return scan_constrained_window(target_rna, weights, gap_start_rc, gap_end_rc)
 
-        df[col_name] = df.apply(score_row, axis=1)
+        # Replace df.apply with the much faster list comprehension
+        df[col_name] = [score_row(s, c) for s, c in zip(seqs, chems)]
 
     return df, feature_cols
 

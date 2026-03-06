@@ -1,8 +1,10 @@
 import os
 import shlex
 import subprocess
+import tempfile
 import uuid
 from pathlib import Path
+from Bio import SeqIO
 
 import pandas as pd
 from Bio import SeqIO
@@ -84,18 +86,12 @@ class RNAAccess(object):
         return seq_rec
 
     def calculate(self, seq_id_list):
-        if not self.uuid_str:
-            uuid_str = str(uuid.uuid4().hex)
-        else:
-            uuid_str = self.uuid_str
+        uuid_str = self.uuid_str if self.uuid_str else str(uuid.uuid4().hex)
 
-        seq_file_name = 'trig_seq.fa'
-        seq_file_name = uuid_str + '_' + seq_file_name
-        seq_path = FileUtil.get_output_path(seq_file_name)
+        ram_dir = '/dev/shm' if os.path.isdir('/dev/shm') else tempfile.gettempdir()
 
-        out_file_name = 'trig_raccess.txt'
-        out_file_name = uuid_str + '_' + out_file_name
-        out_path = FileUtil.get_output_path(out_file_name)
+        seq_path = os.path.join(ram_dir, f"{uuid_str}_trig_seq.fa")
+        out_path = os.path.join(ram_dir, f"{uuid_str}_trig_raccess.txt")
 
         try:
             seq_rec_list = map(self.to_seq_rec, seq_id_list)
@@ -106,12 +102,16 @@ class RNAAccess(object):
                    f"-access_len={segment_sizes_str} -max_span={self.max_span}")
 
             command = shlex.split(cmd)
-            p = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+            # Subprocess execution remains identical
+            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
             with open(out_path, 'r') as f:
                 data = f.read()
+
             res = parse(data, self.segment_sizes)
             return res
+
         finally:
             if os.path.exists(seq_path):
                 os.remove(seq_path)

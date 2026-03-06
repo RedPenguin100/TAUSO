@@ -10,6 +10,7 @@ from tauso.populate.populate_fold import populate_sense_accessibility, SENSE_AVG
 
 from tauso.new_model.consts_dataframe import SEQUENCE
 from tauso.util import get_antisense
+from tests.common.consts import TESTS_PATH
 
 from tests.conftest import SHORT_GENE
 
@@ -63,7 +64,9 @@ def test_regression(small_gene_to_data, path="avg_sense_access.txt", use_saved=T
 
 
 @pytest.mark.slow
-def test_regression_batch(small_gene_to_data, path="avg_sense_access.txt", use_saved=True):
+def test_regression_batch(small_gene_to_data, use_saved=True):
+    path = TESTS_PATH / 'unit' / "avg_sense_access.txt"
+
     df = get_init_df(small_gene_to_data[SHORT_GENE].full_mrna, [16])
     mrna_length = len(small_gene_to_data[SHORT_GENE].full_mrna)
     print("Length mRNA: ", mrna_length)

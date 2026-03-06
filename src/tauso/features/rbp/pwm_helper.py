@@ -12,59 +12,55 @@ import numpy as np
 import pandas as pd
 
 
-def calculate_total_affinity(sequence, pwm_matrix, background_probs=None):
-    """
-    Scans sequence with PWM using a pre-calculated background model.
+def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=False):
+    # FORCE ARRAY
+    if hasattr(pwm_matrix, 'values'):
+        pwm_matrix = pwm_matrix.values
+    else:
+        pwm_matrix = np.array(pwm_matrix)
 
-    Args:
-        sequence (str): The window/region to scan (e.g., 50nt flank).
-        pwm_matrix (np.array): The Position Weight Matrix (L x 4).
-        background_probs (np.array): Pre-calculated [pA, pC, pG, pU].
-                                     If None, defaults to uniform 0.25.
-    """
+    if debug:
+        print(f"      [AFFINITY-INTERNAL] Matrix Shape: {pwm_matrix.shape}")
+        print(f"      [AFFINITY-INTERNAL] Seq Length: {len(str(sequence))}")
+        print(f"      [AFFINITY-INTERNAL] Sequence Sample: {str(sequence)[:10]}...")
+
     if pd.isna(sequence) or len(sequence) == 0:
+        if debug: print("      [AFFINITY-INTERNAL] ❌ Empty/NaN Sequence")
         return 0.0
 
-    # --- 1. Use Pre-Calculated Background ---
-    # Optimization: No string counting here. We assume the caller passed the array.
     if background_probs is None:
         background_probs = np.array([0.25, 0.25, 0.25, 0.25])
 
-    # --- 2. Convert PWM to Log-Odds (Once per call) ---
-    # Formula: log2( P_motif / P_background )
+    # MATH
     epsilon = 1e-9
-    # Optimization: vector division is fast
     weights = np.log2((pwm_matrix + epsilon) / background_probs)
 
-    # --- 3. Map sequence to indices (A=0, C=1, G=2, U/T=3) ---
     base_map = {'A': 0, 'C': 1, 'G': 2, 'U': 3, 'T': 3}
-    # Using list comp is generally faster than loop for small strings
     seq_indices = [base_map.get(base, -1) for base in str(sequence).upper()]
 
     seq_len = len(seq_indices)
     motif_len = len(pwm_matrix)
 
     if seq_len < motif_len:
+        if debug: print(f"      [AFFINITY-INTERNAL] ❌ Seq too short ({seq_len} < {motif_len})")
         return 0.0
 
     total_score = 0.0
 
-    # --- 4. Sliding Window Scan ---
+    # SCAN
     for i in range(seq_len - motif_len + 1):
         window = seq_indices[i: i + motif_len]
+        if -1 in window: continue
 
-        # Fast skip for Ns (-1)
-        if -1 in window:
-            continue
-
-        # Sum weights: "Look up weight for base B at position P"
         score = 0.0
         for pos, base_idx in enumerate(window):
             score += weights[pos, base_idx]
 
-        # Only accumulate positive affinity signals
         if score > 0:
             total_score += score
+
+    if debug:
+        print(f"      [AFFINITY-INTERNAL] ✅ Final Score: {total_score}")
 
     return total_score
 

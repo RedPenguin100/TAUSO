@@ -75,8 +75,19 @@ done
 
 cd "src"
 
-echo "Building raccess..."
-make
+echo "Building raccess with matrix-math optimizations..."
+
+# -O3          : Maximum safe optimizations
+# -march=native: Use your CPU's specific vector instructions (AVX2/AVX-512)
+# -ffast-math  : Bypass strict IEEE-754 to speed up scoring algorithms
+# -fno-rtti    : Remove C++ runtime type overhead
+
+export CXXFLAGS="-O3 -march=native -ffast-math -fno-rtti"
+export CFLAGS="-O3 -march=native -ffast-math"
+export LDFLAGS=""
+
+make clean
+make -j$(nproc)
 
 echo
 echo "raccess built at: $TARGET_DIR/src/raccess/run_raccess"

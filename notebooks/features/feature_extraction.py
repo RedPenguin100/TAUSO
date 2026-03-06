@@ -1,22 +1,23 @@
-import pandas as pd
 import os
+import pandas as pd
+import numpy as np
+
 from notebooks.consts import SAVED_FEATURES
+from joblib import Parallel, delayed
+
+
 
 def _get_saved_features_dir(version):
     if version is None:
         return SAVED_FEATURES
-    elif version == 'v2':
+    elif version in ['v2', 'oligo']:
         return SAVED_FEATURES.with_name(f"{SAVED_FEATURES.name}_{version}")
     else:
         raise ValueError(f"Unknown version '{version}'")
 
 
 
-def load_all_features(filenames=None, light=True, verbose=False, version=None):
-    # this function loads all the features and the current data, merges all the features according to the index
-    # and returns a merged df with all the features and the data
-    # missing values would be considered as NaN!
-
+def load_all_features(filenames=None, light=True, verbose=False, version=None, n_jobs=1):
     feature_dir = _get_saved_features_dir(version)
     if not filenames:
         filenames = [f for f in os.listdir(feature_dir) if f.endswith('.csv') and not f.startswith('.')]
@@ -32,23 +33,24 @@ def load_all_features(filenames=None, light=True, verbose=False, version=None):
     if verbose:
         print(f"Loading features from: {filenames}")
 
-    dfs = [pd.read_csv(os.path.join(feature_dir, f)) for f in filenames]
-
-    merged_df = dfs[0]
     if version is None:
         index = 'index'
     else:
         index = 'index_' + version
 
-    for df in dfs[1:]:
-        merged_df = pd.merge(merged_df, df, on=index, how='outer')
+    if n_jobs == 1:
+        dfs = [pd.read_csv(os.path.join(feature_dir, f), index_col=index) for f in filenames]
+    else:
+        dfs = Parallel(n_jobs=n_jobs, backend="threading")(
+            delayed(pd.read_csv)(os.path.join(feature_dir, f), index_col=index)
+            for f in filenames
+        )
+
+    merged_df = pd.concat(dfs, axis=1, join='outer').reset_index()
 
     return merged_df
 
 
-import os
-import pandas as pd
-import numpy as np
 
 
 def _check_conflicts(new_sub_df, file_path, feature_name, index):
@@ -66,25 +68,24 @@ def _check_conflicts(new_sub_df, file_path, feature_name, index):
     col_new = f'{feature_name}_new'
     col_old = f'{feature_name}_existing'
 
-    # --- FIX START: Handle Floating Point Precision ---
+    # --- FIX START: Handle Floating Point Precision & NA Strings ---
     # Check if the column is numeric (float/int)
     if pd.api.types.is_numeric_dtype(comparison[col_new]):
-        # Option A: Round both to 6 decimals (easiest to read)
-        # Option B: Use np.isclose for math precision
-
-        # We create a mask where values are NOT close
         is_close = np.isclose(comparison[col_new], comparison[col_old], rtol=1e-05, atol=1e-08, equal_nan=True)
-        diff_mask = ~is_close  # Invert it: True where NOT close
+        diff_mask = ~is_close
     else:
-        # For strings/other types, keep strict comparison
-        diff_mask = comparison[col_new] != comparison[col_old]
+        # For strings/other types, fill actual NaNs with "NA" and ensure both are strings
+        # This prevents the string "NA" from conflicting with the float NaN
+        new_normalized = comparison[col_new].fillna("NA").astype(str)
+        old_normalized = comparison[col_old].fillna("NA").astype(str)
+
+        diff_mask = new_normalized != old_normalized
     # --- FIX END ---
 
     diff_rows = comparison[diff_mask]
     return diff_rows, col_new, col_old
 
 
-# The main function remains the same
 def save_feature(df, feature_name, overwrite=False, version=None):
     feature_dir = _get_saved_features_dir(version)
 
@@ -114,10 +115,8 @@ def save_feature(df, feature_name, overwrite=False, version=None):
             action = "Overwrote" if file_exists else "Saved"
             print(f"{action} feature: {feature_name}")
         else:
-            raise FileExistsError(
-                f"Feature '{feature_name}' exists and has conflicting values. "
-                "Pass overwrite=True to force save."
-            )
+            return diff_rows  # <--- CHANGED: Return df instead of raise
+
     if not file_exists or overwrite:
         sub_df.to_csv(file_path, index=False)
         action = "Overwrote" if file_exists else "Saved"

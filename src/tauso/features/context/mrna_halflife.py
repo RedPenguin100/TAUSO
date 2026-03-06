@@ -136,37 +136,81 @@ class HalfLifeProvider:
 
 # We map cell lines from the data to their closest relatives in the mRNA half life database.
 
-# TODO: increase this mapping to accommodate for new cell lines
 cell_line_mapping = {
-    # Direct / Strong Matches
+    # --- Direct / Strong Matches ---
     'HepG2': 'HepG2',
-    'HepaRG': 'HepG2',  # Liver -> Liver
-    'SNU-449': 'HepG2',  # Liver -> Liver
+    'HeLa': 'Hela',
     'Hela': 'Hela',
-    'HeLa' : 'Hela',
-    # Neuronal Mappings
-    'Human IPS': 'iPSN',  # iPSC-Neurons -> iPSN
-    'Human Neuronal Cell': 'iPSN',
-    'PAC neurons asyn': 'neuron',
-    'SH-SY5Y': 'neural_precursor_cells',
-    'Angptl2/Actin': 'neural_precursor_cells',  # Assumed SK-N-AS
-    'SK cells asyn': 'neural_precursor_cells',
-    'U251': 'neural_precursor_cells',  # Glioblastoma -> NPC proxy
+    'MCF7': 'MCF-7',  # Breast -> Breast
+    'K-562': 'K562',  # CML -> CML
+    'nan': 'Unknown', # Handling missing values
 
-    # Skin / Epithelial
-    'A431': 'N/TERT-1_keratinocytes',
-    'A-431': 'N/TERT-1_keratinocytes',  # Fix weird data quirk
+    # --- Liver (Hepatocellular Carcinoma) ---
+    # Target: HepG2
+    'Hep3B': 'HepG2',
+    'HepB3': 'HepG2', # Likely typo for Hep3B
+    'HepG2/Hep3B': 'HepG2',
+    'Huh7': 'HepG2',
+    'HepaRG': 'HepG2',
+    'SNU-449': 'HepG2',
+
+    # --- Prostate ---
+    # Target: C4-2 (LNCaP derivative)
+    'LNCaP': 'C4-2', # C4-2 is a subline of LNCaP
+    'VCaP': 'C4-2',  # Prostate cancer proxy
+    'PC3': 'C4-2',   # Prostate cancer proxy
+
+    # --- Kidney ---
+    # Target: HEK293
+    'HK-2': 'HEK293', # Kidney Proximal Tubule -> Embryonic Kidney
+
+    # --- Lung ---
+    # Target: MRC5VA (Lung Fibroblast)
+    # Following your precedent of mapping Lung Cancer -> Lung Fibroblast
+    'A549': 'MRC5VA',
+    'A-549': 'MRC5VA',
+    'A459': 'MRC5VA', # Likely typo for A549
+    'NCI-H460': 'MRC5VA',
+
+    # --- Skin / Melanoma ---
+    # Target: N/TERT-1_keratinocytes
     'SK-MEL-28': 'N/TERT-1_keratinocytes',
+    'G-361': 'N/TERT-1_keratinocytes',
+    'A431': 'N/TERT-1_keratinocytes',
+    'A-431': 'N/TERT-1_keratinocytes',
 
-    # Blood / Immune
-    'H929': 'K562',  # Myeloma -> Leukemia proxy
-    'KMS11': 'K562',
-    'MM.1R': 'K562',
-    'KARPAS-229': 'T_cells',  # Lymphoma -> T cells
+    # --- Blood / Immune / Leukemia ---
+    # Target: K562, U937, T_cells
+    'MM.1R': 'K562',      # Myeloma -> Leukemia proxy (per your previous logic)
+    'THP-1': 'U937',      # AML/Monocyte -> Lymphoma/Monocyte (Very similar suspension lines)
+    'Jurkat': 'T_cells',  # T-cell Leukemia -> T_cells
+    'T24': 'Hela',        # Bladder Carcinoma -> Hela (Generic Epithelial proxy due to no bladder target)
+    'T-24': 'Hela',
 
-    # Other Tissue
-    'NCI-H460': 'MRC5VA',  # Lung Cancer -> Lung Fibroblast proxy
-    'CC-2580': 'MRC5VA',  # Muscle -> Fibroblast proxy
+    # --- Brain / Neuronal ---
+    # Target: neural_precursor_cells
+    'SH-SY5Y': 'neural_precursor_cells',
+    'SH-SY-5Y': 'neural_precursor_cells',
+    'U251': 'neural_precursor_cells',
+    'A172': 'neural_precursor_cells', # Glioblastoma
+
+    # --- Mesenchymal / Stromal / Muscle / Endothelial ---
+    # Target: MRC5VA (Fibroblast as general mesenchymal proxy)
+    'hSKMc': 'MRC5VA',  # Skeletal Muscle
+    'hSKM': 'MRC5VA',
+    'HuVEC': 'MRC5VA',  # Endothelial
+    'HUVEC': 'MRC5VA',
+    'SCA2-04': 'MRC5VA', # Likely patient-derived fibroblast
+    'differentiated human adipocytes': 'MRC5VA', # Adipocytes are mesenchymal
+    'SW872': 'MRC5VA',  # Liposarcoma
+
+    # --- Ovarian ---
+    'SKOV3': 'Hela', # Ovarian Adenocarcinoma -> Hela (Generic Epithelial proxy)
+
+    # --- Other / Unmapped High Specificity ---
+    # These are highly differentiated and don't map well to cancer lines or fibroblasts.
+    'iCell cardiomyocytes2': 'Unknown',
+    'iCell cardiomyocytes (R1017)': 'Unknown',
 }
 
 

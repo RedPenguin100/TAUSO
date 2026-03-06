@@ -1,6 +1,9 @@
 import pyBigWig
 import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple
 
+from ..data.consts import CANONICAL_GENE, CELL_LINE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import RIBOSEQ_40S_HUMAN_DATA, calculate_ribo_seq_row
 
 
@@ -40,3 +43,69 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
             continue
 
     return aso_df, new_features_list
+
+def populate_mrna_expression(
+        df: pd.DataFrame,
+        expression_dict: Dict[str, pd.DataFrame]) -> Tuple[pd.DataFrame, List[str]]:
+    """
+    Enriches the main dataframe with mRNA expression data for the target gene
+    and the specific RNASEH1 gene.
+    """
+
+    # --- MINIMAL FIX 1: Warn and drop to prevent column duplication ---
+    existing_cols = [c for c in ['target_expression', 'rnase_expression'] if c in df.columns]
+    if existing_cols:
+        print(f"WARNING: Dropping existing columns to prevent alignment breaks: {existing_cols}")
+        df = df.drop(columns=existing_cols)
+    # ------------------------------------------------------------------
+
+    # 1. Flatten the dictionary into one Master DataFrame
+    # ---------------------------------------------------------
+    dfs_to_concat = []
+
+    # We iterate through the dictionary to add the cell line key as a column
+    for depmap_id, t_df in expression_dict.items():
+        # Defensive copy to avoid SettingWithCopy warnings on the source DFs
+        temp = t_df[['Gene', 'expression_norm']].copy()
+        temp[CELL_LINE_DEPMAP] = depmap_id
+        dfs_to_concat.append(temp)
+
+    expression_master = pd.concat(dfs_to_concat, ignore_index=True)
+
+    # --- MINIMAL FIX 2: Prevent row multiplication during merge ---
+    expression_master = expression_master.drop_duplicates(subset=[CELL_LINE_DEPMAP, 'Gene'])
+    # --------------------------------------------------------------
+
+    # 2. Get 'target_expression' (General Merge)
+    # ---------------------------------------------------------
+    enhanced_df = df.merge(
+        expression_master,
+        left_on=[CELL_LINE_DEPMAP, CANONICAL_GENE],
+        right_on=[CELL_LINE_DEPMAP, 'Gene'],
+        how='left'
+    )
+
+    # Rename and clean up
+    enhanced_df = enhanced_df.rename(columns={'expression_norm': 'target_expression'})
+    enhanced_df = enhanced_df.drop(columns=['Gene'])
+
+    # 3. Get 'rnase_expression' (Specific 'RNASEH1' Merge)
+    # ---------------------------------------------------------
+    # Filter master list for RNASEH1
+    rnase_vals = expression_master[expression_master['Gene'] == 'RNASEH1']
+
+    # Merge only on cell line ID
+    enhanced_df = enhanced_df.merge(
+        rnase_vals[[CELL_LINE_DEPMAP, 'expression_norm']],
+        on=CELL_LINE_DEPMAP,
+        how='left',
+        suffixes=('', '_rnase')  # Safety against collisions
+    )
+
+    # Rename
+    enhanced_df = enhanced_df.rename(columns={'expression_norm': 'rnase_expression'})
+
+    # Define the list of features added
+    new_features = ['target_expression', 'rnase_expression']
+
+    return enhanced_df, new_features
