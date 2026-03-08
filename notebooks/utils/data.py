@@ -1,10 +1,11 @@
 import pandas as pd
 
+from notebooks.consts import PROCESSED_OLIGO_CSV_GZ
+
 INDEXED_OLIGO_DATA = 'aso_inhibitions_with_canonical_gene_indexed.csv'
-OLIGO_DATA = 'aso_inhibitions_with_canonical_gene.csv.gz'
 
 def read_oligo_indexed_data():
-    data = pd.read_csv(OLIGO_DATA)
+    data = pd.read_csv(PROCESSED_OLIGO_CSV_GZ)
 
     # Check if the column exists
     if 'index_oligo' not in data.columns:

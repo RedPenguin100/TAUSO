@@ -1,12 +1,9 @@
+from notebooks.consts import ORIGINAL_OLIGO_CSV
 from tauso.off_target.search import find_all_gene_off_targets
 import pandas as pd
 import warnings
 
-# =========================
-# Config
-# =========================
 
-INPUT_CSV = "aso_inhibitions_21_08_25_incl_context_w_flank_100_df.csv.gz"
 OUTPUT_CSV = "aso_inhibitions_with_canonical_gene.csv"
 AMBIGUOUS_CSV = "ambiguous_target_gene_mappings.csv"
 
@@ -15,14 +12,14 @@ TARGET_GENE_COL = "target_gene"
 CANONICAL_COL = "Canonical Gene Name"
 
 GENOME = "GRCh38"
-MAX_MISMATCHES = 0   # for >200bp context, exact match only
+MAX_MISMATCHES = 0  # for >200bp context, exact match only
 
 
 # =========================
 # Load data
 # =========================
 
-df = pd.read_csv(INPUT_CSV)
+df = pd.read_csv(ORIGINAL_OLIGO_CSV)
 
 missing_cols = {CONTEXT_COL, TARGET_GENE_COL} - set(df.columns)
 if missing_cols:
@@ -34,8 +31,7 @@ if missing_cols:
 # =========================
 
 gene_to_context = (
-    df
-    .dropna(subset=[TARGET_GENE_COL, CONTEXT_COL])
+    df.dropna(subset=[TARGET_GENE_COL, CONTEXT_COL])
     .groupby(TARGET_GENE_COL)[CONTEXT_COL]
     .first()
 )
@@ -53,20 +49,9 @@ ambiguous_genes = {}
 for i, (target_gene, rna_seq) in enumerate(gene_to_context.items(), start=1):
     dna = rna_seq.upper().replace("U", "T")
 
-    hits = find_all_gene_off_targets(
-        dna,
-        genome=GENOME,
-        max_mismatches=MAX_MISMATCHES
-    )
+    hits = find_all_gene_off_targets(dna, genome=GENOME, max_mismatches=MAX_MISMATCHES)
 
-    genes = (
-        hits["gene_name"]
-        .dropna()
-        .unique()
-        .tolist()
-        if not hits.empty
-        else []
-    )
+    genes = hits["gene_name"].dropna().unique().tolist() if not hits.empty else []
 
     if len(genes) == 0:
         gene_to_canonical[target_gene] = pd.NA
@@ -108,10 +93,7 @@ if ambiguous_genes:
 
     amb_df = pd.DataFrame(
         [
-            {
-                TARGET_GENE_COL: tg,
-                "matched_canonical_genes": ";".join(genes)
-            }
+            {TARGET_GENE_COL: tg, "matched_canonical_genes": ";".join(genes)}
             for tg, genes in ambiguous_genes.items()
         ]
     )
