@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -62,6 +62,9 @@ jobs:
       # This will now work because we have ~30GB free space
       - name: Install genome
         run: tauso setup-genome
-
+      - name: Process Oligo Data
+        run: python notebooks/competitors/oligo_ai/find_gene_from_context.py
+      - name: Index Oligo Data
+        run: python notebooks/utils/data.py
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs
