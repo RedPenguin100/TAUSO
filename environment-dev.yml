@@ -2,6 +2,7 @@ name: tauso
 channels:
   - conda-forge
 dependencies:
+  - ruff
   - shap
   - gdown
   - jupyterlab
@@ -11,7 +12,7 @@ dependencies:
   - pip
   - pip:
     - -e .  # <--- CRITICAL: Installs your 'src' in editable mode
-
+    - ruff
   # tooling
   - pytest
   - pytest-regressions
