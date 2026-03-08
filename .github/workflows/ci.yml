@@ -76,7 +76,7 @@ jobs:
            ~/.tauso_data/GRCh38.fa.fai
            ~/.tauso_data/GRCh38.gtf
 
-          key: ${{ runner.os }}-tauso.genome-GRCh38-v1
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v2
       - name: Install genome
         run: tauso setup-genome
 #      - name: Process Oligo Data
