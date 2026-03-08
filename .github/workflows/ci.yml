@@ -77,8 +77,8 @@ jobs:
            ~/.tauso_data/GRCh38.gtf
 
           key: ${{ runner.os }}-tauso.genome-GRCh38-v1
-#      - name: Install genome
-#        run: tauso setup-genome
+      - name: Install genome
+        run: tauso setup-genome
 #      - name: Process Oligo Data
 #        run: python -m notebooks.competitors.oligo_ai.find_gene_from_context
 #      - name: Index Oligo Data
