@@ -1,26 +1,18 @@
 import pytest
-import pandas as pd
-from notebooks.utils.oligo_ai_process import process_chemistry
-from notebooks.competitors.oligo_ai.parse_chemistry import parse_sugar_string
+from notebooks.competitors.oligo_ai.parse_chemistry import (
+    populate_chemistry,
+)
 from tauso.populate.populate_rnase import populate_rnase_features
-from tauso.data.consts import CHEMICAL_PATTERN, MODIFICATION
 
 
 @pytest.fixture(scope="module")
 def chemistry_data(base_data):
-    """Applies chemistry parsing to the universal base_data."""
-    data = base_data.copy()
-    data[CHEMICAL_PATTERN] = data['sugar_mods'].apply(parse_sugar_string)
-
-    results = data['sugar_mods'].apply(process_chemistry)
-    data[[CHEMICAL_PATTERN, MODIFICATION]] = pd.DataFrame(results.tolist(), index=data.index)
-
-    return data
+    return populate_chemistry(base_data)
 
 
 @pytest.fixture
 def sampled_chem_data(request, chemistry_data):
-    n_samples = getattr(request, 'param', 1000)
+    n_samples = getattr(request, "param", 1000)
     actual_samples = min(n_samples, len(chemistry_data))
     return chemistry_data.sample(n=actual_samples, random_state=42).copy()
 
