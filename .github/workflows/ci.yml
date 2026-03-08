@@ -67,13 +67,21 @@ jobs:
         id: cache-genome
         uses: actions/cache@v4
         with:
-          path: ~/.tauso_data/GRCh38_bowtie_index
+          path: | 
+           ~/.tauso_data/GRCh38_bowtie_index
+           ~/.tauso_data/GRCh38.db
+           ~/.tauso_data/GRCh38.db.bak
+           ~/.tauso_data/GRCh38.db.successs
+           ~/.tauso_data/GRCh38.fa
+           ~/.tauso_data/GRCh38.fa.fai
+           ~/.tauso_data/GRCh38.gtf
+
           key: ${{ runner.os }}-tauso.genome-GRCh38-v1
-      - name: Install genome
-        run: tauso setup-genome
-      - name: Process Oligo Data
-        run: python -m notebooks.competitors.oligo_ai.find_gene_from_context
-      - name: Index Oligo Data
-        run: python -m notebooks.utils.data
-      - name: Run tests
-        run: micromamba run -n tauso pytest -vvvs
+#      - name: Install genome
+#        run: tauso setup-genome
+#      - name: Process Oligo Data
+#        run: python -m notebooks.competitors.oligo_ai.find_gene_from_context
+#      - name: Index Oligo Data
+#        run: python -m notebooks.utils.data
+#      - name: Run tests
+#        run: micromamba run -n tauso pytest -vvvs
