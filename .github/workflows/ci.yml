@@ -39,21 +39,29 @@ jobs:
         with:
           submodules: true
 
+      - name: Merge environment files
+        run: |
+          # Combine both files so the cached env includes everything
+          cp environment.yml combined-env.yml
+          # Append dev deps (skip the 'name:' line to avoid conflicts)
+          grep -v '^name:' environment-dev.yml >> combined-env.yml
+
       - name: Compute env hash
         id: envhash
         run: echo "hash=$(cat environment.yml environment-dev.yml | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
       - name: Create Data Directory
         run: mkdir -p ${{ env.TAUSO_DATA_DIR }}
+
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          environment-file: environment.yml
+          environment-file: combined-env.yml   # ← use merged file
           environment-name: tauso
           cache-env: true
           cache-downloads: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ steps.envhash.outputs.hash }}
-          # init-shell: bash  <-- You usually don't need this line if you use 'shell: bash -el {0}' above
+
 
       - name: Install Dev Dependencies
         run: micromamba install -n tauso -f environment-dev.yml -y
