@@ -6,7 +6,7 @@ import warnings
 # Config
 # =========================
 
-INPUT_CSV = "aso_inhibitions_21_08_25_incl_context_w_flank_100_df.csv"
+INPUT_CSV = "aso_inhibitions_21_08_25_incl_context_w_flank_100_df.csv.gz"
 OUTPUT_CSV = "aso_inhibitions_with_canonical_gene.csv"
 AMBIGUOUS_CSV = "ambiguous_target_gene_mappings.csv"
 
