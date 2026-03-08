@@ -71,7 +71,7 @@ jobs:
            ~/.tauso_data/GRCh38_bowtie_index
            ~/.tauso_data/GRCh38.db
            ~/.tauso_data/GRCh38.db.bak
-           ~/.tauso_data/GRCh38.db.successs
+           ~/.tauso_data/GRCh38.db.success
            ~/.tauso_data/GRCh38.fa
            ~/.tauso_data/GRCh38.fa.fai
            ~/.tauso_data/GRCh38.gtf
