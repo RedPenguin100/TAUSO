@@ -12,7 +12,7 @@ def mini_sampled_data(request, final_data):
 
 
 @pytest.mark.parametrize("mini_sampled_data", [10000], indirect=True)
-def test_enc_features_regression_10000(mini_sampled_data, half_life_provider, dataframe_regression):
+def test_half_life(mini_sampled_data, half_life_provider, dataframe_regression):
     data = mini_sampled_data.copy()
 
     processed_data, feature_cols = populate_mrna_halflife_features(data, half_life_provider)
