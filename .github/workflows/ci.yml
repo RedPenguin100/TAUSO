@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      TAUSO_DATA_DIR: ~/.tauso_data
+      TAUSO_DATA_DIR: /home/runner/.tauso_data
 
     defaults:
       run:

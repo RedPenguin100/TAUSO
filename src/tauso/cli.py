@@ -44,7 +44,6 @@ def main():
 
 
 def download_and_gunzip(url, dest_path):
-    dest_path = os.path.abspath(dest_path)
     if os.path.exists(dest_path):
         click.echo(f"  File already exists: {os.path.basename(dest_path)}")
         return
