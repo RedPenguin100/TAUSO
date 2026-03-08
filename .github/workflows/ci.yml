@@ -68,7 +68,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38_bowtie_index
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.db
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.bak
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.success
@@ -79,9 +78,22 @@ jobs:
 
       - name: Install genome
         run: tauso setup-genome
+
+      - name: Cache Bowtie Index
+        id: cache-bowtie
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/GRCh38_bowtie_index
+          key: ${{ runner.os }}-tauso.bowtie-GRCh38-v1
+
+      - name: Setup Bowtie
+        run: tauso setup-bowtie
+
       - name: Process Oligo Data
         run: python -m notebooks.competitors.oligo_ai.find_gene_from_context
+
       - name: Index Oligo Data
         run: python -m notebooks.utils.data
+
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs
