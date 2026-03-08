@@ -24,7 +24,6 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
-          # We don't need to mount a new volume, just delete junk
           tool-cache: false
           android: true
           dotnet: true
@@ -39,16 +38,9 @@ jobs:
         with:
           submodules: true
 
-      - name: Merge environment files
-        run: |
-          # Combine both files so the cached env includes everything
-          cp environment.yml combined-env.yml
-          # Append dev deps (skip the 'name:' line to avoid conflicts)
-          grep -v '^name:' environment-dev.yml >> combined-env.yml
-
       - name: Compute env hash
         id: envhash
-        run: echo "hash=$(cat environment.yml environment-dev.yml | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+        run: echo "hash=$(cat environment.yml | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
       - name: Create Data Directory
         run: mkdir -p ${{ env.TAUSO_DATA_DIR }}
@@ -56,16 +48,14 @@ jobs:
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          environment-file: combined-env.yml
+          environment-file: environment.yml
           environment-name: tauso
           cache-downloads: true
           cache-environment: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ steps.envhash.outputs.hash }}
 
-
       - name: Install Dev Dependencies
         run: micromamba install -n tauso -f environment-dev.yml -y
-
 
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
@@ -77,16 +67,16 @@ jobs:
         id: cache-genome
         uses: actions/cache@v4
         with:
-          path: | 
-           ~/.tauso_data/GRCh38_bowtie_index
-           ~/.tauso_data/GRCh38.db
-           ~/.tauso_data/GRCh38.db.bak
-           ~/.tauso_data/GRCh38.db.success
-           ~/.tauso_data/GRCh38.fa
-           ~/.tauso_data/GRCh38.fa.fai
-           ~/.tauso_data/GRCh38.gtf
-
+          path: |
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38_bowtie_index
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.bak
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.success
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf
           key: ${{ runner.os }}-tauso.genome-GRCh38-v2
+
       - name: Install genome
         run: tauso setup-genome
 #      - name: Process Oligo Data
