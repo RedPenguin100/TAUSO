@@ -13,6 +13,10 @@ jobs:
       matrix:
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
+
+    env:
+      TAUSO_DATA_DIR: ~/.tauso_data
+
     defaults:
       run:
         shell: bash -el {0}
@@ -28,7 +32,7 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
-      # ---------------------------------------
+      # Now we have ~30GB free space
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,7 +63,12 @@ jobs:
       - name: Install raccess
         run: tauso install-raccess
 
-      # This will now work because we have ~30GB free space
+      - name: Cache Genome Database
+        id: cache-genome
+        uses: actions/cache@v4
+        with:
+          path: ~/.tauso_data/GRCh38_bowtie_index
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v1
       - name: Install genome
         run: tauso setup-genome
       - name: Process Oligo Data
