@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 
 from notebooks.competitors.oligo_ai.parse_chemistry import populate_chemistry
-from notebooks.consts import OLIGO_CSV
 from notebooks.notebook_utils import log_correction, read_cached_gene_to_data
 from tauso.data.consts import *
 from tauso.util import get_antisense
