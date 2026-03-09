@@ -1,7 +1,9 @@
+import time
 from typing import Iterable, Optional, Tuple
 
 from Bio.SeqUtils import gc_fraction
 
+from ..data.consts import SEQUENCE
 from ..features.sequence.seq_features import *
 from ..timer import Timer
 
