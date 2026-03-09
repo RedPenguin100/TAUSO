@@ -9,6 +9,7 @@ dependencies:
   - requests
   - numpy
   - pandas
+  - pyarrow
   - scipy
   - numba
   - biopython
