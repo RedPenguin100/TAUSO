@@ -55,52 +55,68 @@ def get_initial_data(target_mrna, aso_sizes, canonical_name):
 
     for aso_size in aso_sizes:
         for i in range(0, len(target_mrna) - (aso_size - 1)):
-            target = target_mrna[i: i + aso_size]
+            target = target_mrna[i : i + aso_size]
             candidates.append(get_antisense(str(target)))
             sense_lengths.append(aso_size)
 
-    df = pd.DataFrame({SEQUENCE: candidates, SENSE_LENGTH: sense_lengths,
-                       CANONICAL_GENE: canonical_name})
+    df = pd.DataFrame(
+        {
+            SEQUENCE: candidates,
+            SENSE_LENGTH: sense_lengths,
+            CANONICAL_GENE: canonical_name,
+        }
+    )
     return df
 
 
 def get_organism_name(genome):
-    if genome == 'GRCh38':
-        return 'human'
-    elif genome == 'GRCm39':
-        return 'mouse'
+    if genome == "GRCh38":
+        return "human"
+    elif genome == "GRCm39":
+        return "mouse"
     else:
-        raise ValueError('Unknown genome type: {}'.format(genome))
+        raise ValueError(f"Unknown genome type: {genome}")
 
 
 class Transfection:
-    ELECTROPORATION = 'ELECTROPORATION'
-    LIPOFECTION = 'LIPOFECTION'
-    GYMNOSIS = 'GYMNOSIS'
-    OTHER = 'OTHER'
+    ELECTROPORATION = "ELECTROPORATION"
+    LIPOFECTION = "LIPOFECTION"
+    GYMNOSIS = "GYMNOSIS"
+    OTHER = "OTHER"
 
 
 def populate_transfection_features(data, transfection_method):
     df = data.copy()
 
     # Cast the boolean result to an int (1 or 0)
-    df['Gymnosis'] = int(transfection_method == Transfection.GYMNOSIS)
-    df['Electroporation'] = int(transfection_method == Transfection.ELECTROPORATION)
-    df['Lipofection'] = int(transfection_method == Transfection.LIPOFECTION)
-    df['Other'] = int(transfection_method == Transfection.OTHER)
+    df["Gymnosis"] = int(transfection_method == Transfection.GYMNOSIS)
+    df["Electroporation"] = int(transfection_method == Transfection.ELECTROPORATION)
+    df["Lipofection"] = int(transfection_method == Transfection.LIPOFECTION)
+    df["Other"] = int(transfection_method == Transfection.OTHER)
 
-    return df, ['Gymnosis', 'Electroporation', 'Lipofection', 'Other']
+    return df, ["Gymnosis", "Electroporation", "Lipofection", "Other"]
 
 
-def generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_life_provider, gene_to_data,
-                          genome='GRCh38', transfection=Transfection.GYMNOSIS, n_jobs=1):
-    data = get_initial_data(gene_to_data[target_gene].full_mrna, aso_sizes=[20], canonical_name=target_gene)
+def generate_aso_features(
+    target_gene,
+    ref_registry,
+    mapper,
+    attract_data,
+    half_life_provider,
+    gene_to_data,
+    genome="GRCh38",
+    transfection=Transfection.GYMNOSIS,
+    n_jobs=1,
+):
+    data = get_initial_data(
+        gene_to_data[target_gene].full_mrna, aso_sizes=[20], canonical_name=target_gene
+    )
 
     # Fast data
     data = data[300:310]
 
-    data[MODIFICATION] = 'MOE/5-methylcytosines/deoxy'
-    data[CHEMICAL_PATTERN] = 'MMMMMddddddddddMMMMM'
+    data[MODIFICATION] = "MOE/5-methylcytosines/deoxy"
+    data[CHEMICAL_PATTERN] = "MMMMMddddddddddMMMMM"
 
     organism_name = get_organism_name(genome)
     data[CELL_LINE_ORGANISM] = organism_name
@@ -108,8 +124,19 @@ def generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_
     data[CELL_LINE] = "T24"  # TODO: handle empty case
 
     features = []
-    data = get_populated_df_with_structure_features(data, [target_gene], gene_to_data, use_mask=False)
-    features.extend([SENSE_START, SENSE_LENGTH, SENSE_START_FROM_END, SENSE_EXON, SENSE_INTRON, SENSE_UTR])
+    data = get_populated_df_with_structure_features(
+        data, [target_gene], gene_to_data, use_mask=False
+    )
+    features.extend(
+        [
+            SENSE_START,
+            SENSE_LENGTH,
+            SENSE_START_FROM_END,
+            SENSE_EXON,
+            SENSE_INTRON,
+            SENSE_UTR,
+        ]
+    )
 
     data, transfection_features = populate_transfection_features(data, transfection)
     features.extend(transfection_features)
@@ -121,7 +148,9 @@ def generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_
     features.extend(modification_features)
 
     data = add_genomic_coordinates(data, mapper)
-    data, ribo_features = populate_ribo_seq(organism_name, data)  # TODO: generalize beyond human
+    data, ribo_features = populate_ribo_seq(
+        organism_name, data
+    )  # TODO: generalize beyond human
     features.extend(ribo_features)
 
     FLANK_SIZES_PREMRNA = [20, 30, 40, 50, 60, 70]
@@ -133,7 +162,7 @@ def generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_
         mapper=mapper,
         gene_registry=ref_registry,
         flank_sizes_premrna=FLANK_SIZES_PREMRNA,
-        flank_sizes_cds=CDS_WINDOWS
+        flank_sizes_cds=CDS_WINDOWS,
     )
 
     print("Genomic context added.")
@@ -159,7 +188,7 @@ def generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_
 
     db = load_db()
 
-    valid_genes = filter_gtf_genes(db, filter_mode='non_mt')
+    valid_genes = filter_gtf_genes(db, filter_mode="non_mt")
 
     # # 2. Run the Optimized Loader
     # #    This loads the DB/FASTA once, filters for valid genes, and enriches sequences.
@@ -177,49 +206,47 @@ def generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_
     expression_matrix = build_rbp_expression_matrix(df=data, pwm_db=pwm_db)
 
     for flank_size in [50]:
-        window_col = f'flank_sequence_{flank_size}'
+        window_col = f"flank_sequence_{flank_size}"
 
         data, individual_features = populate_rbp_interaction_features(
-            data, rbp_map, pwm_db, expression_matrix, gene_to_data,
-            window_col, n_jobs=n_jobs
+            data,
+            rbp_map,
+            pwm_db,
+            expression_matrix,
+            gene_to_data,
+            window_col,
+            n_jobs=n_jobs,
         )
 
         data, global_features = populate_complexity_features(
-            data,
-            individual_features,
-            suffix=str(flank_size), type='expression'
+            data, individual_features, suffix=str(flank_size), type="expression"
         )
 
     features.extend(individual_features)
     features.extend(global_features)
 
     for flank_size in [50]:
-        window_col = f'flank_sequence_{flank_size}'
+        window_col = f"flank_sequence_{flank_size}"
 
         data, individual_features = populate_rbp_affinity_features(
-            data, rbp_map, pwm_db, gene_to_data,
-            window_col, n_jobs=32
+            data, rbp_map, pwm_db, gene_to_data, window_col, n_jobs=32
         )
 
         data, global_features = populate_complexity_features(
-            data,
-            individual_features,
-            suffix=str(flank_size), type='generic'
+            data, individual_features, suffix=str(flank_size), type="generic"
         )
 
     features.extend(individual_features)
     features.extend(global_features)
 
     data, functional_features = populate_functional_features(
-        data,
-        rbp_role_map_strict,
-        flank_size=50
+        data, rbp_role_map_strict, flank_size=50
     )
 
     data = create_positional_sequence_columns(data, "flank_sequence_50", flank_size=50)
 
     # 3. LOOP REGIONS
-    for region in ['left', 'core', 'right']:
+    for region in ["left", "core", "right"]:
         # Fix Memory Fragmentation
         data = data.copy()
 
@@ -244,23 +271,30 @@ def generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_
     return data, features
 
 
-if __name__ == '__main__':
-    target_gene = 'TMSB10'
-    genome = 'GRCh38'
+if __name__ == "__main__":
+    target_gene = "TMSB10"
+    genome = "GRCh38"
     gene_to_data = get_locus_to_data_dict(gene_subset=[target_gene], genome=genome)
 
     paths = get_paths(genome)
-    mapper = GeneCoordinateMapper(paths['db'])
+    mapper = GeneCoordinateMapper(paths["db"])
 
     ref_registry = build_gene_sequence_registry(
-        genes=[target_gene],
-        gene_to_data=gene_to_data,
-        mapper=mapper
+        genes=[target_gene], gene_to_data=gene_to_data, mapper=mapper
     )
 
     attract_data = load_attract_data()
     mapping = load_halflife_mapping()
     half_life_provider = HalfLifeProvider(mapping)
 
-    print(generate_aso_features(target_gene, ref_registry, mapper, attract_data, half_life_provider, gene_to_data,
-                                genome=genome))
+    print(
+        generate_aso_features(
+            target_gene,
+            ref_registry,
+            mapper,
+            attract_data,
+            half_life_provider,
+            gene_to_data,
+            genome=genome,
+        )
+    )

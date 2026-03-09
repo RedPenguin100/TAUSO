@@ -13,7 +13,7 @@ def compute_mod_fraction(pattern):
     total = len(pattern)
     if total == 0:
         return 0.0
-    modified = sum(1 for c in pattern if c != 'd')
+    modified = sum(1 for c in pattern if c != "d")
     return modified / total
 
 
@@ -24,7 +24,7 @@ def compute_mod_type_count(pattern):
     divided by the total number of modified residues. Returns 0 if no modifications.
     """
     pattern = str(pattern)
-    mod_chars = [c for c in pattern if c != 'd']
+    mod_chars = [c for c in pattern if c != "d"]
     if not mod_chars:
         return 0.0
 
@@ -34,6 +34,7 @@ def compute_mod_type_count(pattern):
 
 ########################################################################
 
+
 def compute_mod_5prime_run(pattern):
     """
     Returns the length of the longest consecutive stretch of modified residues
@@ -42,7 +43,7 @@ def compute_mod_5prime_run(pattern):
     pattern = str(pattern)
     run = 0
     for c in pattern:
-        if c != 'd':
+        if c != "d":
             run += 1
         else:
             break
@@ -63,7 +64,7 @@ def compute_mod_3prime_run(pattern):
     pattern = str(pattern)[::-1]  # reverse pattern to simulate scanning from 3'
     run = 0
     for c in pattern:
-        if c != 'd':
+        if c != "d":
             run += 1
         else:
             break
@@ -87,7 +88,7 @@ def compute_mod_min_distance_to_5prime(pattern):
         return -1.0
 
     for i, c in enumerate(pattern):
-        if c != 'd':
+        if c != "d":
             return i / n
 
     return -1.0
@@ -105,7 +106,7 @@ def compute_mod_min_distance_to_3prime(pattern):
         return -1.0
 
     for i, c in enumerate(reversed(pattern)):
-        if c != 'd':
+        if c != "d":
             return i / n
 
     return -1.0
@@ -119,7 +120,7 @@ def compute_mod_pos_std(pattern):
     """
 
     pattern = str(pattern)
-    mod_positions = [i for i, c in enumerate(pattern) if c != 'd']
+    mod_positions = [i for i, c in enumerate(pattern) if c != "d"]
     if not mod_positions:
         return -1
 
@@ -132,13 +133,14 @@ def compute_mod_pos_std(pattern):
 
 ###########################################################################
 
+
 def compute_mod_block_count(pattern):
     """
     Returns the number of contiguous blocks of modified residues (non-'d')
     in the pattern.
     """
     pattern = str(pattern)
-    blocks = re.findall(r'[^d]+', pattern)
+    blocks = re.findall(r"[^d]+", pattern)
     length = len(pattern)
     if length == 0:
         return 0.0
@@ -148,13 +150,14 @@ def compute_mod_block_count(pattern):
 
 ############################################################################
 
+
 def compute_mod_max_block_length(pattern):
     """
     Returns the length of the longest contiguous block of modified residues (non-'d')
     in the chemical pattern.
     """
     pattern = str(pattern)
-    blocks = re.findall(r'[^d]+', pattern)
+    blocks = re.findall(r"[^d]+", pattern)
     return max((len(block) for block in blocks), default=0)
 
 
@@ -167,7 +170,7 @@ def compute_mod_char_entropy(pattern):
     Entropy is 0 if there are no modifications or if all are of the same type.
     """
     pattern = str(pattern)
-    mod_chars = [c for c in pattern if c != 'd']
+    mod_chars = [c for c in pattern if c != "d"]
     if not mod_chars:
         return 0.0
 
@@ -182,13 +185,14 @@ def compute_mod_char_entropy(pattern):
 
 ############################################################################
 
+
 def compute_dominant_mod_fraction(pattern):
     """
     Returns the relative frequency of the most common modified residue
     (non-'d') in the chemical pattern. Returns 0.0 if there are no modifications.
     """
     pattern = str(pattern)
-    mod_chars = [c for c in pattern if c != 'd']
+    mod_chars = [c for c in pattern if c != "d"]
     if not mod_chars:
         return 0.0
 
@@ -206,7 +210,7 @@ def compute_mod_evenness(pattern):
     (non-'d') as a proxy for spatial evenness. Returns 0.0 if < 2 modifications.
     """
     pattern = str(pattern)
-    positions = [i for i, c in enumerate(pattern) if c != 'd']
+    positions = [i for i, c in enumerate(pattern) if c != "d"]
 
     if len(positions) < 2:
         return 0.0  # no spacing to measure
@@ -235,8 +239,8 @@ def compute_mod_symmetry_score(pattern):
     left = pattern[:mid]
     right = pattern[-mid:]
 
-    left_count = sum(1 for c in left if c != 'd')
-    right_count = sum(1 for c in right if c != 'd')
+    left_count = sum(1 for c in left if c != "d")
+    right_count = sum(1 for c in right if c != "d")
     total = left_count + right_count
 
     if total == 0:
@@ -260,8 +264,8 @@ def compute_mod_skew_index(pattern):
     five_prime = pattern[:third]
     three_prime = pattern[-third:]
 
-    mod_5p = sum(1 for c in five_prime if c != 'd')
-    mod_3p = sum(1 for c in three_prime if c != 'd')
+    mod_5p = sum(1 for c in five_prime if c != "d")
+    mod_3p = sum(1 for c in three_prime if c != "d")
 
     total = mod_5p + mod_3p
     if total == 0:
@@ -277,7 +281,7 @@ def compute_mod_mean_gap(pattern):
     Returns -1 if fewer than 2 modifications are found.
     """
     pattern = str(pattern)
-    positions = [i for i, c in enumerate(pattern) if c != 'd']
+    positions = [i for i, c in enumerate(pattern) if c != "d"]
 
     if len(positions) < 2:
         return -1
@@ -300,12 +304,12 @@ def compute_mod_local_density_max(pattern, window=5):
     n = len(pattern)
 
     if n < window:
-        return sum(1 for c in pattern if c != 'd')  # entire pattern
+        return sum(1 for c in pattern if c != "d")  # entire pattern
 
     max_count = 0
     for i in range(n - window + 1):
-        window_seq = pattern[i:i + window]
-        count = sum(1 for c in window_seq if c != 'd')
+        window_seq = pattern[i : i + window]
+        count = sum(1 for c in window_seq if c != "d")
         if count > max_count:
             max_count = count
 
@@ -313,6 +317,7 @@ def compute_mod_local_density_max(pattern, window=5):
 
 
 ############################################################################
+
 
 def compute_mod_in_core(pattern, core_fraction=0.4):
     """
@@ -328,11 +333,11 @@ def compute_mod_in_core(pattern, core_fraction=0.4):
     core_start = int(n * (0.5 - core_fraction / 2))
     core_end = int(n * (0.5 + core_fraction / 2))
 
-    total_mods = sum(1 for c in pattern if c != 'd')
+    total_mods = sum(1 for c in pattern if c != "d")
     if total_mods == 0:
         return -1
 
-    core_mods = sum(1 for c in pattern[core_start:core_end] if c != 'd')
+    core_mods = sum(1 for c in pattern[core_start:core_end] if c != "d")
     return core_mods / total_mods
 
 
@@ -348,7 +353,7 @@ def compute_mod_longest_repeat_run(pattern):
     prev_char = None
 
     for c in pattern:
-        if c == 'd':
+        if c == "d":
             current_run = 0
             prev_char = None
             continue
@@ -378,7 +383,7 @@ def compute_mod_adjacent_pair_count(pattern):
     pattern = str(pattern)
     count = 0
     for i in range(len(pattern) - 1):
-        if pattern[i] != 'd' and pattern[i] == pattern[i + 1]:
+        if pattern[i] != "d" and pattern[i] == pattern[i + 1]:
             count += 1
 
     length = len(pattern)
@@ -399,7 +404,7 @@ def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
     n = len(pattern)
 
     while i < n - 1:
-        if pattern[i] == 'd':
+        if pattern[i] == "d":
             i += 1
             continue
 
@@ -417,4 +422,6 @@ def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
     if length == 0:
         return 0
     return count / length
+
+
 ############################################################################

@@ -9,7 +9,7 @@ def find_raccess():
     if env and os.path.isfile(env) and os.access(env, os.X_OK):
         return env
 
-    default = TAUSO_SHARE / 'raccess' / 'src' /'raccess' / RACCESS_EXE_NAME
+    default = TAUSO_SHARE / "raccess" / "src" / "raccess" / RACCESS_EXE_NAME
     if default.exists() and os.access(default, os.X_OK):
         return str(default)
 
@@ -17,4 +17,6 @@ def find_raccess():
     if which:
         return which
 
-    raise RuntimeError("raccess not found. Run `tauso-setup-raccess` or set RACCESS_EXE.")
+    raise RuntimeError(
+        "raccess not found. Run `tauso-setup-raccess` or set RACCESS_EXE."
+    )

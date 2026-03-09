@@ -8,6 +8,7 @@ from ...data.data import load_db
 
 # --- CORE FUNCTIONS ---
 
+
 def get_top_expressed_genes(file_path, n_top=300):
     """
     Reads an expression CSV, filters out mitochondrial genes,
@@ -26,17 +27,17 @@ def get_top_expressed_genes(file_path, n_top=300):
             return []
 
         # 2. Load only necessary columns
-        df = pd.read_csv(file_path, usecols=['Gene', target_col])
+        df = pd.read_csv(file_path, usecols=["Gene", target_col])
 
         # 3. Filter Nuclear (Exclude 'MT-') & Sort
         # Ensure we drop NaNs in the target column before sorting
         df = df.dropna(subset=[target_col])
-        nuclear_df = df[~df['Gene'].str.startswith('MT-')]
+        nuclear_df = df[~df["Gene"].str.startswith("MT-")]
 
         top_genes = (
             nuclear_df.sort_values(target_col, ascending=False)
-            .head(n_top)['Gene']
-            .apply(lambda x: x.split(' ')[0])  # Clean "ACTB (60)" -> "ACTB"
+            .head(n_top)["Gene"]
+            .apply(lambda x: x.split(" ")[0])  # Clean "ACTB (60)" -> "ACTB"
             .tolist()
         )
         return top_genes
@@ -46,10 +47,15 @@ def get_top_expressed_genes(file_path, n_top=300):
         return []
 
 
-def load_cell_line_gene_maps(cell_map, data_dir, valid_db_genes,
-                             n_specific=300, n_fallback_scan=500,
-                             filter_mode='protein_coding',
-                             genome_db=None):
+def load_cell_line_gene_maps(
+    cell_map,
+    data_dir,
+    valid_db_genes,
+    n_specific=300,
+    n_fallback_scan=500,
+    filter_mode="protein_coding",
+    genome_db=None,
+):
     """
     Loads expression data, filtering strictly against the GTF/GFF database annotations.
     """
@@ -66,7 +72,9 @@ def load_cell_line_gene_maps(cell_map, data_dir, valid_db_genes,
     # The gene must be biologically valid (GTF) AND technically valid (in your DB/Mapper)
     final_valid_genes = set(valid_db_genes).intersection(gtf_allowed_genes)
 
-    print(f"Filter Ready: {len(final_valid_genes)} genes passed specificiation ({filter_mode}).")
+    print(
+        f"Filter Ready: {len(final_valid_genes)} genes passed specificiation ({filter_mode})."
+    )
     print("Processing cell lines...")
 
     cell_line_top_genes = {}
@@ -83,17 +91,17 @@ def load_cell_line_gene_maps(cell_map, data_dir, valid_db_genes,
             continue
 
         # Load and sort
-        df = pd.read_csv(p).sort_values('expression_TPM', ascending=False)
+        df = pd.read_csv(p).sort_values("expression_TPM", ascending=False)
 
         # A. Clean Names
-        df['Gene'] = df['Gene'].str.replace(name_fix_regex, '', regex=True).str.strip()
+        df["Gene"] = df["Gene"].str.replace(name_fix_regex, "", regex=True).str.strip()
 
         # B. Apply The "Truth" Filter
         # This one step replaces all prefix checks, pseudogene regexes, and exclusion lists.
-        df = df[df['Gene'].isin(final_valid_genes)]
+        df = df[df["Gene"].isin(final_valid_genes)]
 
         # C. Fetch Scan Set
-        genes_scan = df.head(n_scan)['Gene'].tolist()
+        genes_scan = df.head(n_scan)["Gene"].tolist()
 
         if not genes_scan:
             print(f"  -> Warning: No valid genes found for {cell_name}")
@@ -134,7 +142,7 @@ def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
 
         # Load and Filter
         df = pd.read_csv(path)
-        df = df[df['Gene'].isin(valid_genes)].copy()
+        df = df[df["Gene"].isin(valid_genes)].copy()
 
         if not df.empty:
             transcriptomes[ach_id] = df

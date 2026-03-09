@@ -30,17 +30,16 @@ EG,0.43,18.09,54.7
 """
 
 
-
 df_po_po = pd.read_csv(
     StringIO(po_po_table),
     header=None,
-    names=['nucleotide', 'G_50', 'H', 'S'],
+    names=["nucleotide", "G_50", "H", "S"],
 )
 
-df_po_po['G_37'] = (df_po_po['H'] * 1000 - 310.15 * df_po_po['S']) / 1000
-po_po_g37_raw = df_po_po.set_index('nucleotide')['G_37']
+df_po_po["G_37"] = (df_po_po["H"] * 1000 - 310.15 * df_po_po["S"]) / 1000
+po_po_g37_raw = df_po_po.set_index("nucleotide")["G_37"]
 po_po_g37 = po_po_g37_raw.to_dict()
-po_po_g50_raw = df_po_po.set_index('nucleotide')['G_50']
+po_po_g50_raw = df_po_po.set_index("nucleotide")["G_50"]
 po_po_g50 = po_po_g50_raw.to_dict()
 
 
@@ -72,23 +71,22 @@ GE,-0.44,14.65,46.7
 """
 
 
-
 df_ps_po = pd.read_csv(
     StringIO(ps_po_table),
     header=None,
-    names=['nucleotide', 'G_50', 'H', 'S'],
+    names=["nucleotide", "G_50", "H", "S"],
 )
 
 
-df_ps_po['G_37'] = (df_ps_po['H'] * 1000 - 310.15 * df_ps_po['S']) / 1000
-ps_po_g37_raw = df_ps_po.set_index('nucleotide')['G_37']
+df_ps_po["G_37"] = (df_ps_po["H"] * 1000 - 310.15 * df_ps_po["S"]) / 1000
+ps_po_g37_raw = df_ps_po.set_index("nucleotide")["G_37"]
 ps_po_g37 = ps_po_g37_raw.to_dict()
-ps_po_g50_raw = df_ps_po.set_index('nucleotide')['G_50']
+ps_po_g50_raw = df_ps_po.set_index("nucleotide")["G_50"]
 ps_po_g50 = ps_po_g50_raw.to_dict()
 
 
 ps_diff_g37 = (ps_po_g37_raw - po_po_g37_raw).to_dict()
 ps_diff_g50 = (ps_po_g50_raw - po_po_g50_raw).to_dict()
 
-for key,value in ps_diff_g50.items():
+for key, value in ps_diff_g50.items():
     print(f"{key},   {100 * value}")

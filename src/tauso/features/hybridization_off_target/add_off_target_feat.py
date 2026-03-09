@@ -35,8 +35,8 @@ def compute_single_row(row, general_seq_map, general_exp_map, cutoff, method):
         general_seq_map,
         minimum_score=cutoff,
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-        parsing_type='2',
-        transpose=True
+        parsing_type="2",
+        transpose=True,
     )
 
     result_df = parse_risearch_output(result_dict)
@@ -47,15 +47,17 @@ def compute_single_row(row, general_seq_map, general_exp_map, cutoff, method):
 
     # 2. Exclude the intended target from the results
     # We filter out any hit where the 'target' column matches the ASO's canonical gene
-    result_df_agg = result_df_agg[result_df_agg['target'] != target_gene]
+    result_df_agg = result_df_agg[result_df_agg["target"] != target_gene]
 
     if result_df_agg.empty:
-        print(f"Warning! {target_gene} is the target gene, score is set to 0 for ASO {row[SEQUENCE]}")
+        print(
+            f"Warning! {target_gene} is the target gene, score is set to 0 for ASO {row[SEQUENCE]}"
+        )
         return 0
 
     # Extract energies and compute score
     # simple_energies: {Gene: Energy}
-    simple_energies = dict(zip(result_df_agg['target'], result_df_agg['energy']))
+    simple_energies = dict(zip(result_df_agg["target"], result_df_agg["energy"]))
 
     score = calculate_score_helper(simple_energies, general_exp_map, method)
     return score
@@ -87,7 +89,9 @@ def calculate_score_helper(energy_dict, expression_dict, method):
     if not valid_targets:
         return 0.0
 
-    if method == AggregationMethod.ARTM_log:  # Normalized Arithmetic (Direct exp, no 1e6 scaling)
+    if (
+        method == AggregationMethod.ARTM_log
+    ):  # Normalized Arithmetic (Direct exp, no 1e6 scaling)
         # Re-loop because we scaled exp above, but method 0 usually takes raw norm
         score = 0.0
         for gene, energy in energy_dict.items():
@@ -101,7 +105,7 @@ def calculate_score_helper(energy_dict, expression_dict, method):
 
     elif method == AggregationMethod.ARTM_weighted:  # Weighted Arithmetic (e^2)
         for _, energy, expr_tpm in valid_targets:
-            score += energy * (expr_tpm ** 2)
+            score += energy * (expr_tpm**2)
 
     elif method == AggregationMethod.GEO:  # Geometric
         log_sum = 0.0
@@ -115,7 +119,7 @@ def calculate_score_helper(energy_dict, expression_dict, method):
 
         for rank, (_, energy, expr_tpm) in enumerate(valid_targets, start=1):
             batch = (rank - 1) // 10
-            weight = 10 / (2 ** batch)
+            weight = 10 / (2**batch)
             score += energy * expr_tpm * weight
 
     elif method == AggregationMethod.MECH:  # Mechanical Statistics

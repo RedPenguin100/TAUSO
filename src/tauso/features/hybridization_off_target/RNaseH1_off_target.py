@@ -15,7 +15,16 @@ from ..hybridization.fast_hybridization import (
 from .off_target_functions import parse_risearch_output
 
 
-def _apply_risearch_scoring(aso_df, gene_to_data, target_genes, get_gene_fn, feature_name, cutoff, n_jobs, verbose):
+def _apply_risearch_scoring(
+    aso_df,
+    gene_to_data,
+    target_genes,
+    get_gene_fn,
+    feature_name,
+    cutoff,
+    n_jobs,
+    verbose,
+):
     """Core logic for RIsearch hybridization scoring to avoid code duplication."""
 
     # 1. Setup Parallelization
@@ -23,10 +32,14 @@ def _apply_risearch_scoring(aso_df, gene_to_data, target_genes, get_gene_fn, fea
     if use_parallel:
         try:
             from pandarallel import pandarallel
+
             verbose_score = 2 if verbose else 0
-            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=verbose_score)
+            pandarallel.initialize(
+                nb_workers=n_jobs, progress_bar=verbose, verbose=verbose_score
+            )
         except ImportError:
-            if verbose: print("Warning: 'pandarallel' not found. Falling back to single core.")
+            if verbose:
+                print("Warning: 'pandarallel' not found. Falling back to single core.")
             use_parallel = False
 
     RT = 0.616
@@ -46,11 +59,12 @@ def _apply_risearch_scoring(aso_df, gene_to_data, target_genes, get_gene_fn, fea
                 target_path = dump_target_file(target_filename, name_to_seq)
 
                 gene_to_target_info[gene] = {
-                    'name_to_seq': name_to_seq,
-                    'target_path': target_path
+                    "name_to_seq": name_to_seq,
+                    "target_path": target_path,
                 }
             else:
-                if verbose: print(f"Warning: Gene {gene} missing from gene_to_data.")
+                if verbose:
+                    print(f"Warning: Gene {gene} missing from gene_to_data.")
 
         # 3. Define the scoring function per row
         def calculate_score(row):
@@ -68,19 +82,19 @@ def _apply_risearch_scoring(aso_df, gene_to_data, target_genes, get_gene_fn, fea
 
             result_dict = get_trigger_mfe_scores_by_risearch(
                 trigger,
-                info['name_to_seq'],
+                info["name_to_seq"],
                 minimum_score=cutoff,
-                parsing_type='2',
+                parsing_type="2",
                 interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
                 transpose=True,
-                target_file_cache=info['target_path'],
-                unique_id=run_id
+                target_file_cache=info["target_path"],
+                unique_id=run_id,
             )
 
             result_df = parse_risearch_output(result_dict)
 
-            if not result_df.empty and 'energy' in result_df.columns:
-                return np.exp(-RT * result_df['energy']).sum()
+            if not result_df.empty and "energy" in result_df.columns:
+                return np.exp(-RT * result_df["energy"]).sum()
             else:
                 return 0.0
 
@@ -93,14 +107,16 @@ def _apply_risearch_scoring(aso_df, gene_to_data, target_genes, get_gene_fn, fea
     finally:
         # 5. Cleanup all cached target FASTA files securely
         for info in gene_to_target_info.values():
-            if os.path.exists(info['target_path']):
-                os.remove(info['target_path'])
+            if os.path.exists(info["target_path"]):
+                os.remove(info["target_path"])
 
     aso_df[feature_name] = scores
     return aso_df, feature_name
 
 
-def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False):
+def on_target_total_hybridization(
+    aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False
+):
     """Scores against the dynamic canonical gene found in each row."""
     unique_genes = aso_df[CANONICAL_GENE].dropna().unique()
     feature_name = f"on_target_total_hybridization_{cutoff}"
@@ -113,11 +129,13 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbos
         feature_name=feature_name,
         cutoff=cutoff,
         n_jobs=n_jobs,
-        verbose=verbose
+        verbose=verbose,
     )
 
 
-def off_target_specific_seq_pandarallel(aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False):
+def off_target_specific_seq_pandarallel(
+    aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False
+):
     """Scores against a single statically provided gene."""
     feature_name = f"off_target_single_{gene_name}_c{cutoff}"
 
@@ -129,11 +147,13 @@ def off_target_specific_seq_pandarallel(aso_df, gene_name, gene_to_data, cutoff,
         feature_name=feature_name,
         cutoff=cutoff,
         n_jobs=n_jobs,
-        verbose=verbose
+        verbose=verbose,
     )
 
 
-def calculate_selectivity_parallel(aso_df, off_target_gene_name, gene_to_data, cutoff=500, n_jobs=1, verbose=False):
+def calculate_selectivity_parallel(
+    aso_df, off_target_gene_name, gene_to_data, cutoff=500, n_jobs=1, verbose=False
+):
     """
     Calculates the Selectivity Ratio (On-Target / (On-Target + Off-Target)) in one pass.
 
@@ -151,9 +171,13 @@ def calculate_selectivity_parallel(aso_df, off_target_gene_name, gene_to_data, c
     if use_parallel:
         try:
             from pandarallel import pandarallel
-            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=1 if verbose else 0)
+
+            pandarallel.initialize(
+                nb_workers=n_jobs, progress_bar=verbose, verbose=1 if verbose else 0
+            )
         except ImportError:
-            if verbose: print("Warning: 'pandarallel' not found. Falling back to single core.")
+            if verbose:
+                print("Warning: 'pandarallel' not found. Falling back to single core.")
             use_parallel = False
 
     RT = 0.616
@@ -165,7 +189,9 @@ def calculate_selectivity_parallel(aso_df, off_target_gene_name, gene_to_data, c
     off_target_seq = gene_to_data[off_target_gene_name].full_mrna
     off_target_hash = uuid.uuid4().hex
     off_target_filename = f"target_OFF_{off_target_gene_name}-{off_target_hash}.fa"
-    off_target_path = dump_target_file(off_target_filename, {off_target_gene_name: off_target_seq})
+    off_target_path = dump_target_file(
+        off_target_filename, {off_target_gene_name: off_target_seq}
+    )
 
     # B. Prepare ON-TARGET files (Variable based on row)
     unique_on_genes = aso_df[CANONICAL_GENE].unique()
@@ -173,7 +199,9 @@ def calculate_selectivity_parallel(aso_df, off_target_gene_name, gene_to_data, c
     created_files = [off_target_path]
 
     if verbose:
-        print(f"Pre-generating target files for {len(unique_on_genes)} unique on-target genes...")
+        print(
+            f"Pre-generating target files for {len(unique_on_genes)} unique on-target genes..."
+        )
 
     for gene in unique_on_genes:
         try:
@@ -185,7 +213,10 @@ def calculate_selectivity_parallel(aso_df, off_target_gene_name, gene_to_data, c
             on_target_paths[gene] = f_path
             created_files.append(f_path)
         except KeyError:
-            if verbose: print(f"Warning: Gene {gene} not found in gene_to_data. Rows will score 0.")
+            if verbose:
+                print(
+                    f"Warning: Gene {gene} not found in gene_to_data. Rows will score 0."
+                )
             on_target_paths[gene] = None
 
     # Define the Single Feature Name
@@ -204,26 +235,32 @@ def calculate_selectivity_parallel(aso_df, off_target_gene_name, gene_to_data, c
 
         if on_path:
             res_on = get_trigger_mfe_scores_by_risearch(
-                trigger, {on_gene: "dummy"},
+                trigger,
+                {on_gene: "dummy"},
                 minimum_score=cutoff,
-                parsing_type='2', interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-                transpose=True, target_file_cache=on_path
+                parsing_type="2",
+                interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+                transpose=True,
+                target_file_cache=on_path,
             )
             df_on = parse_risearch_output(res_on)
-            if not df_on.empty and 'energy' in df_on.columns:
-                score_on = np.exp(-RT * df_on['energy']).sum()
+            if not df_on.empty and "energy" in df_on.columns:
+                score_on = np.exp(-RT * df_on["energy"]).sum()
 
         # 2. Calculate OFF-TARGET Score
         score_off = 0.0
         res_off = get_trigger_mfe_scores_by_risearch(
-            trigger, {off_target_gene_name: "dummy"},
+            trigger,
+            {off_target_gene_name: "dummy"},
             minimum_score=cutoff,
-            parsing_type='2', interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            transpose=True, target_file_cache=off_target_path
+            parsing_type="2",
+            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+            transpose=True,
+            target_file_cache=off_target_path,
         )
         df_off = parse_risearch_output(res_off)
-        if not df_off.empty and 'energy' in df_off.columns:
-            score_off = np.exp(-RT * df_off['energy']).sum()
+        if not df_off.empty and "energy" in df_off.columns:
+            score_off = np.exp(-RT * df_off["energy"]).sum()
 
         # 3. Calculate Ratio
         # On / (On + Off) -> Closer to 1.0 is better

@@ -44,9 +44,12 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
 
     return total_score
 
-def calculate_total_affinity_numba(sequence, pwm_matrix, background_probs=None, debug=False):
+
+def calculate_total_affinity_numba(
+    sequence, pwm_matrix, background_probs=None, debug=False
+):
     # 1. Type guard the matrix
-    if hasattr(pwm_matrix, 'values'):
+    if hasattr(pwm_matrix, "values"):
         pwm_matrix = pwm_matrix.values
     else:
         pwm_matrix = np.asarray(pwm_matrix)
@@ -66,21 +69,24 @@ def calculate_total_affinity_numba(sequence, pwm_matrix, background_probs=None, 
         background_probs = np.asarray(background_probs, dtype=np.float64)
 
     # 4. Map string to integers (Pure Python is fine here before handing off to Numba)
-    base_map = {'A': 0, 'C': 1, 'G': 2, 'U': 3, 'T': 3}
-    seq_indices = np.array([base_map.get(base, -1) for base in seq_str.upper()], dtype=np.int8)
+    base_map = {"A": 0, "C": 1, "G": 2, "U": 3, "T": 3}
+    seq_indices = np.array(
+        [base_map.get(base, -1) for base in seq_str.upper()], dtype=np.int8
+    )
 
     # 5. Execute the compiled loop
     # We enforce float64 to ensure math precision matches your original numpy logic perfectly
-    return _calculate_affinity_numba_core(seq_indices, pwm_matrix.astype(np.float64), background_probs)
-
+    return _calculate_affinity_numba_core(
+        seq_indices, pwm_matrix.astype(np.float64), background_probs
+    )
 
 
 def process_rbp(task, sequences, background_probs_arr):
     """
     Worker function: Processes ONE RBP for ALL sequences.
     """
-    matrix = task['matrix']
-    col_name = task['col_name']
+    matrix = task["matrix"]
+    col_name = task["col_name"]
     n_rows = len(sequences)
 
     # 1. Pre-allocate a NumPy array (way faster than list.append)
@@ -88,19 +94,23 @@ def process_rbp(task, sequences, background_probs_arr):
 
     # 2. Iterate through sequences
     for i in range(n_rows):
-        scores[i] = calculate_total_affinity_numba(sequences[i], matrix, background_probs_arr[i])
+        scores[i] = calculate_total_affinity_numba(
+            sequences[i], matrix, background_probs_arr[i]
+        )
 
     return col_name, scores
 
 
-def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data,
-                                   sequence_col='flank_sequence_50',
-                                   n_jobs=32):
+def populate_rbp_affinity_features(
+    df, rbp_map, pwm_db, gene_to_data, sequence_col="flank_sequence_50", n_jobs=32
+):
     """
     Calculates the raw Affinity for each RBP (regardless of Expression).
     """
-    flank_param = sequence_col.split('_')[-1]
-    df = df.loc[:, ~df.columns.duplicated()].copy()  # Use .copy() to avoid SettingWithCopy warnings later
+    flank_param = sequence_col.split("_")[-1]
+    df = df.loc[
+        :, ~df.columns.duplicated()
+    ].copy()  # Use .copy() to avoid SettingWithCopy warnings later
 
     # Keep sequences as a list for now, as strings don't map well in NumPy
     sequences = df[sequence_col].fillna("").astype(str).tolist()
@@ -110,7 +120,9 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data,
     # This allows Joblib to share memory across workers instead of pickling 180k tiny lists
     default_bg = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
     bg_list = [
-        get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg
+        get_background_probs(gene_to_data[g].full_mrna)
+        if g in gene_to_data
+        else default_bg
         for g in df[CANONICAL_GENE]
     ]
     background_probs_arr = np.array(bg_list, dtype=np.float32)
@@ -122,17 +134,21 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data,
         if not valid_mids:
             continue
 
-        target_tasks.append({
-            'name': rbp,
-            'matrix': pwm_db[valid_mids[0]],
-            'col_name': f"RBP_{rbp}_aff_{flank_param}"
-        })
+        target_tasks.append(
+            {
+                "name": rbp,
+                "matrix": pwm_db[valid_mids[0]],
+                "col_name": f"RBP_{rbp}_aff_{flank_param}",
+            }
+        )
 
     if not target_tasks:
         print("Warning: No valid RBP tasks found in PWM DB.")
         return df, []
 
-    print(f"Calculating affinity features for {len(target_tasks)} RBPs on {n_rows} rows...")
+    print(
+        f"Calculating affinity features for {len(target_tasks)} RBPs on {n_rows} rows..."
+    )
 
     # --- 3. EXECUTION: Parallelize over RBPs, not Rows ---
     # joblib uses 'loky' backend by default, which excels at memory mapping large arrays (background_probs_arr)
@@ -154,14 +170,20 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data,
     return df, new_col_names
 
 
-def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix, gene_to_data,
-                                      sequence_col='flank_sequence_50',
-                                      n_jobs=32):
+def populate_rbp_interaction_features(
+    df,
+    rbp_map,
+    pwm_db,
+    expression_matrix,
+    gene_to_data,
+    sequence_col="flank_sequence_50",
+    n_jobs=32,
+):
     """
     Calculates RBP interaction features (Affinity * Expression).
     Includes loud failure checks for common data mismatch issues.
     """
-    flank_param = sequence_col.split('_')[-1]
+    flank_param = sequence_col.split("_")[-1]
 
     # ==========================================
     # 1. CRITICAL DATA INTEGRITY CHECKS (LOUD FAILURES)
@@ -237,35 +259,41 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix, ge
         if not valid_mids:
             continue
 
-        target_tasks.append({
-            'name': rbp,
-            'matrix': pwm_db[valid_mids[0]],
-            'expr_gene': rbp,
-            'col_name': f"RBP_{rbp}_expr_aff_{flank_param}"
-        })
+        target_tasks.append(
+            {
+                "name": rbp,
+                "matrix": pwm_db[valid_mids[0]],
+                "expr_gene": rbp,
+                "col_name": f"RBP_{rbp}_expr_aff_{flank_param}",
+            }
+        )
 
     if not target_tasks:
         print("Warning: No valid RBP tasks remaining after filtering.")
         return df, []
 
-    print(f"Calculating interaction features for {len(target_tasks)} RBPs on {n_rows} rows...")
+    print(
+        f"Calculating interaction features for {len(target_tasks)} RBPs on {n_rows} rows..."
+    )
 
     # --- 4. PARALLEL WORKER ---
     def process_chunk(chunk_seqs, chunk_cells, chunk_background_probs):
-        chunk_results = {task['col_name']: [] for task in target_tasks}
+        chunk_results = {task["col_name"]: [] for task in target_tasks}
 
         # Optimized reindex: gets all necessary expression data for this chunk at once
         subset_expr = expression_matrix.reindex(chunk_cells, fill_value=np.nan)
 
         for task in target_tasks:
-            matrix = task['matrix']
-            col_name = task['col_name']
+            matrix = task["matrix"]
+            col_name = task["col_name"]
 
             # Extract expression column (fast numpy access)
-            expr_values = subset_expr[task['expr_gene']].values
+            expr_values = subset_expr[task["expr_gene"]].values
 
             scores = []
-            for seq, expr_val, bg_probs in zip(chunk_seqs, expr_values, chunk_background_probs):
+            for seq, expr_val, bg_probs in zip(
+                chunk_seqs, expr_values, chunk_background_probs
+            ):
                 # OPTIMIZATION: Handle missing data and true zeros
                 if pd.isna(expr_val):
                     scores.append(np.nan)
@@ -286,9 +314,9 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix, ge
 
     batches = []
     for i in chunk_indices:
-        b_seqs = sequences[i: i + chunk_size]
-        b_cells = cell_ids[i: i + chunk_size]
-        b_background_probs = background_probs[i: i + chunk_size]
+        b_seqs = sequences[i : i + chunk_size]
+        b_cells = cell_ids[i : i + chunk_size]
+        b_background_probs = background_probs[i : i + chunk_size]
         batches.append((b_seqs, b_cells, b_background_probs))
 
     results = Parallel(n_jobs=n_jobs)(
@@ -298,7 +326,7 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix, ge
 
     # --- 6. AGGREGATION ---
     print("Assigning columns...")
-    final_columns = {task['col_name']: [] for task in target_tasks}
+    final_columns = {task["col_name"]: [] for task in target_tasks}
 
     for res in results:
         for key in final_columns:
@@ -311,6 +339,7 @@ def populate_rbp_interaction_features(df, rbp_map, pwm_db, expression_matrix, ge
 
     print(f"Done. Added {len(new_col_names)} interaction features.")
     return df, new_col_names
+
 
 def populate_functional_features(df, rbp_map, flank_size=50):
     """
@@ -329,10 +358,10 @@ def populate_functional_features(df, rbp_map, flank_size=50):
     new_features = []
 
     # Store the column names for the two roles so we can contrast them later
-    role_cols = {'stabilizer': None, 'destabilizer': None}
+    role_cols = {"stabilizer": None, "destabilizer": None}
 
     # --- Step A: Calculate Aggregated Sums ---
-    for role in ['stabilizer', 'destabilizer']:
+    for role in ["stabilizer", "destabilizer"]:
         # 1. Identify which genes in the map belong to this role
         target_genes = [gene for gene, r in rbp_map.items() if r == role]
 
@@ -356,8 +385,8 @@ def populate_functional_features(df, rbp_map, flank_size=50):
         role_cols[role] = feature_name
 
     # --- Step B: Calculate Contrasts (The "Tug-of-War") ---
-    col_stab = role_cols['stabilizer']
-    col_destab = role_cols['destabilizer']
+    col_stab = role_cols["stabilizer"]
+    col_destab = role_cols["destabilizer"]
 
     if col_stab and col_destab:
         # 1. Delta: Net Stability (Positive = Stable, Negative = Unstable)
@@ -373,7 +402,8 @@ def populate_functional_features(df, rbp_map, flank_size=50):
 
     return df, new_features
 
-def populate_complexity_features(df, feature_cols, suffix, type='generic'):
+
+def populate_complexity_features(df, feature_cols, suffix, type="generic"):
     """
     Calculates role-independent global features:
     1. Total Interaction Load (Sum)
@@ -391,7 +421,7 @@ def populate_complexity_features(df, feature_cols, suffix, type='generic'):
     # 2. Global Diversity (Shannon Entropy)
     # Normalize rows to sum to 1 to treat as probabilities
     # Avoid division by zero for rows with 0 interaction
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         probs = matrix / total_scores[:, None]
         # Replace NaNs (from 0/0) with 0
         probs = np.nan_to_num(probs)
@@ -403,7 +433,9 @@ def populate_complexity_features(df, feature_cols, suffix, type='generic'):
     return df, [total_col, div_col]
 
 
-def populate_rbp_region(df, region_name, rbp_map, pwm_db, expr_matrix, role_map, gene_to_data, n_jobs=32):
+def populate_rbp_region(
+    df, region_name, rbp_map, pwm_db, expr_matrix, role_map, gene_to_data, n_jobs=32
+):
     """
     1. Generates raw RBP features for a specific region (Left/Core/Right).
     2. Calculates aggregate Complexity & Functional scores.
@@ -414,14 +446,22 @@ def populate_rbp_region(df, region_name, rbp_map, pwm_db, expr_matrix, role_map,
     # A. Run the Engine (Generate Raw Features)
     # We assume columns like 'seq_region_left' already exist
     df, raw_feats = populate_rbp_interaction_features(
-        df, rbp_map, pwm_db, expr_matrix, gene_to_data,
+        df,
+        rbp_map,
+        pwm_db,
+        expr_matrix,
+        gene_to_data,
         sequence_col=f"seq_region_{region_name}",
-        n_jobs=n_jobs
+        n_jobs=n_jobs,
     )
 
     # B. Calculate Aggregates
-    df, complexity_feats = add_global_complexity_features(df, raw_feats, suffix=region_name)
-    df, functional_feats = add_strict_functional_features(df, role_map, suffix=region_name)
+    df, complexity_feats = add_global_complexity_features(
+        df, raw_feats, suffix=region_name
+    )
+    df, functional_feats = add_strict_functional_features(
+        df, role_map, suffix=region_name
+    )
 
     # C. Cleanup (Drop raw columns immediately)
     df.drop(columns=raw_feats, inplace=True)

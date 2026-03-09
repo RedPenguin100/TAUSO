@@ -9,6 +9,7 @@ import pandas as pd
 
 STOP_CODONS = {"TAA", "TAG", "TGA"}
 
+
 def _clean_dna(seq: str) -> str:
     """
     Normalize a nucleotide sequence:
@@ -18,6 +19,7 @@ def _clean_dna(seq: str) -> str:
     """
     seq = seq.upper().replace("U", "T")
     return re.sub(r"[^ACGT]", "N", seq)
+
 
 # Keep the original family structure for backward compatibility and transparency.
 FAMILIES: List[Dict[str, int]] = [
@@ -42,6 +44,7 @@ FAMILIES: List[Dict[str, int]] = [
     {"ATG": 0},  # Met
     {"TGG": 0},  # Trp
 ]
+
 
 def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
     """
@@ -72,7 +75,7 @@ def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
     for ref in reference_seqs:
         ref = _clean_dna(ref)
         for i in range(0, len(ref) - 2, 3):
-            codon = ref[i:i+3]
+            codon = ref[i : i + 3]
             if "N" in codon or codon in STOP_CODONS:
                 continue
             for fam in families:
@@ -83,7 +86,7 @@ def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
     # Normalize each family by its maximum count
     weights_list: List[Dict[str, float]] = []
     for fam in families:
-        m = max(fam.values()) if fam     else 0
+        m = max(fam.values()) if fam else 0
         if m > 0:
             weights_list.append({k: (v / m) for k, v in fam.items()})
         else:
@@ -97,9 +100,12 @@ def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
 
     return weights_list, weights_flat
 
-def calc_CAI(seq: str,
-             weights: Union[List[Dict[str, float]], Dict[str, float]],
-             epsilon: float = 1e-8) -> float:
+
+def calc_CAI(
+    seq: str,
+    weights: Union[List[Dict[str, float]], Dict[str, float]],
+    epsilon: float = 1e-8,
+) -> float:
     """
     Compute the Codon Adaptation Index (CAI) using a log-space geometric mean.
 
@@ -119,7 +125,7 @@ def calc_CAI(seq: str,
         CAI value in [0, 1] (practically), or NaN if no valid codons remain.
     """
     clean = _clean_dna(seq)
-    codons = [clean[i:i+3] for i in range(0, len(clean) - 2, 3)]
+    codons = [clean[i : i + 3] for i in range(0, len(clean) - 2, 3)]
     # Ignore ambiguous codons and stops (same behavior as your original)
     codons = [c for c in codons if "N" not in c and c not in STOP_CODONS]
     if not codons:
@@ -127,12 +133,14 @@ def calc_CAI(seq: str,
 
     # Getter that works for either weights shape
     if isinstance(weights, list):
+
         def get_w(codon: str) -> float:
             for fam in weights:
                 if codon in fam:
                     return fam[codon]
             return None
     else:
+
         def get_w(codon: str) -> float:
             return weights.get(codon)
 
@@ -162,8 +170,6 @@ DEFAULT_TRANSCRIPTOME_FILENAMES: List[str] = [
 ]
 
 
-
-
 def build_cai_reference_weights_from_transcriptomes(
     *,
     transcriptome_dir: Optional[Path] = None,
@@ -186,14 +192,18 @@ def build_cai_reference_weights_from_transcriptomes(
     # Resolve default data path relative to this file (repo-stable)
     if transcriptome_dir is None:
         project_root = Path(__file__).resolve().parents[3]
-        transcriptome_dir = project_root / "notebooks" / "transcripts" / "cell_line_expression"
+        transcriptome_dir = (
+            project_root / "notebooks" / "transcripts" / "cell_line_expression"
+        )
 
     transcriptome_dir = Path(transcriptome_dir)
 
     files = [transcriptome_dir / fn for fn in transcriptome_filenames]
     missing = [p.name for p in files if not p.exists()]
     if missing:
-        raise FileNotFoundError(f"Missing transcriptome files in {transcriptome_dir}: {missing}")
+        raise FileNotFoundError(
+            f"Missing transcriptome files in {transcriptome_dir}: {missing}"
+        )
 
     dfs = [pd.read_csv(p) for p in files]
     transcript_df = pd.concat(dfs, ignore_index=True).drop_duplicates().copy()

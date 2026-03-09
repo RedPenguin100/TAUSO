@@ -28,3 +28,26 @@ include = ["tauso*"]
 [project.scripts]
 
 tauso = "tauso.cli:main"
+
+[tool.ruff]
+# Target the Python version you're using for TAUSO
+target-version = "py38"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F401", "I", "B", "UP"]
+fixable = ["F401", "I", "B", "UP"]
+ignore = [
+    "B905",  # Zip strict
+    "B904",  # Raise from
+    "UP015",  # Redundant 'r' in open
+    "UP045",  # Using different type of optional type
+    "UP006",  # Using different type of list type
+    "UP007",  # Using | for annotations
+
+] # Ignore zip strict, raise from
+
+[tool.ruff.lint.isort]
+# Groups your internal 'tauso' imports separately from 3rd party libs
+known-first-party = ["tauso"]
+combine-as-imports = true
