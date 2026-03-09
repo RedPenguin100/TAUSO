@@ -1,14 +1,17 @@
 import uuid
+
 import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 
-from ..features.rna_access.access_calculator import get_cache, get_sense_with_flanks
-from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
-from ..features.rna_access.access_calculator import AccessCalculator
-
 from ..data.consts import CANONICAL_GENE
 from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
+from ..features.rna_access.access_calculator import (
+    AccessCalculator,
+    get_cache,
+    get_sense_with_flanks,
+)
+from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
 
 SENSE_START = 'sense_start'
 SENSE_LENGTH = 'sense_length'

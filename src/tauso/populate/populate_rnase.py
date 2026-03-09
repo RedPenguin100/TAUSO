@@ -1,8 +1,13 @@
 import pandas as pd
 
 from ..data.consts import CHEMICAL_PATTERN
-from ..features.rnase_motifs.calculate_rnase import add_rnaseh1_scores_krel_dinuc, add_rnaseh1_scores_nt, \
-    add_rnaseh1_scores_krel_nt, add_rnaseh1_scores_dinuc, add_rnaseh1_motif_features
+from ..features.rnase_motifs.calculate_rnase import (
+    add_rnaseh1_motif_features,
+    add_rnaseh1_scores_dinuc,
+    add_rnaseh1_scores_krel_dinuc,
+    add_rnaseh1_scores_krel_nt,
+    add_rnaseh1_scores_nt,
+)
 
 
 def populate_rnase_features(df: pd.DataFrame):

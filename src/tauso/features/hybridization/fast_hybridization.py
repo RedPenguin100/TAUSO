@@ -1,18 +1,17 @@
+import os
 import platform
 import random
-import os
 import re
 import subprocess
 import tempfile
 import uuid
-
 from pathlib import Path
 from typing import Dict, List
 
 from Bio.Seq import Seq
 
-from .Interaction import Interaction
 from ...common.consts import OUT_FOLDER
+from .Interaction import Interaction
 
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")

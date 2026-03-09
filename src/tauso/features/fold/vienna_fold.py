@@ -1,7 +1,7 @@
-import ViennaRNA as RNA
+from functools import lru_cache
 
 import numpy as np
-from functools import lru_cache
+import ViennaRNA as RNA
 
 
 # --- NEW: Helper with Caching (Strategy 4) ---

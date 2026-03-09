@@ -1,10 +1,12 @@
-from ..hybridization.fast_hybridization import get_trigger_mfe_scores_by_risearch, Interaction
-from .off_target_functions import parse_risearch_output, aggregate_off_targets
-
-from ...new_model.consts_dataframe import SEQUENCE, CANONICAL_GENE
-from ...util import get_antisense
-
 import numpy as np
+
+from ...new_model.consts_dataframe import CANONICAL_GENE, SEQUENCE
+from ...util import get_antisense
+from ..hybridization.fast_hybridization import (
+    Interaction,
+    get_trigger_mfe_scores_by_risearch,
+)
+from .off_target_functions import aggregate_off_targets, parse_risearch_output
 
 
 class AggregationMethod:

@@ -1,5 +1,7 @@
-import gffutils
 from typing import Dict, Iterable, Optional
+
+import gffutils
+
 from ..util import _to_str_seq
 
 

@@ -2,11 +2,10 @@ import math
 
 import numpy as np
 import pandas as pd
-
 from Bio.SeqUtils import gc_fraction
 
-from .rna_access import RNAAccess
 from ..._raccess.core import find_raccess
+from .rna_access import RNAAccess
 
 
 def get_sense_with_flanks(pre_mrna: str, sense_start: int, sense_length: int, flank_size: int) -> str:

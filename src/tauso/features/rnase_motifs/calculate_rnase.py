@@ -1,10 +1,13 @@
 import pandas as pd
 
 from ...common.modifications import get_longest_dna_gap
-from ...data.consts import SEQUENCE, CHEMICAL_PATTERN
-from .rnase_helpers import compute_rnaseh1_dinucleotide_score, rnaseh1_dict, \
-    scan_constrained_window
+from ...data.consts import CHEMICAL_PATTERN, SEQUENCE
 from ...util import get_antisense
+from .rnase_helpers import (
+    compute_rnaseh1_dinucleotide_score,
+    rnaseh1_dict,
+    scan_constrained_window,
+)
 
 
 def add_rnaseh1_scores_dinuc(

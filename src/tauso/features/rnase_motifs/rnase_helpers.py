@@ -3,7 +3,7 @@ import re
 import pandas as pd
 from numba import njit
 
-from ...data.consts import SEQUENCE, CHEMICAL_PATTERN
+from ...data.consts import CHEMICAL_PATTERN, SEQUENCE
 
 
 def rnaseh1_dict(label):

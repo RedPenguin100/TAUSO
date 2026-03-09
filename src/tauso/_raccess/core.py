@@ -1,4 +1,5 @@
-import os, shutil
+import os
+import shutil
 
 from tauso._raccess.consts import RACCESS_EXE_ENV, RACCESS_EXE_NAME, TAUSO_SHARE
 

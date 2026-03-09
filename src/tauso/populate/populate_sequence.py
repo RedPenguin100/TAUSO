@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Iterable
+from typing import Iterable, Optional, Tuple
 
 from Bio.SeqUtils import gc_fraction
 

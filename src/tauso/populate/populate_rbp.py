@@ -1,16 +1,17 @@
+import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from numba import njit
 from scipy.stats import entropy
-
-import numpy as np
-from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from tauso.data.consts import CELL_LINE_DEPMAP, CANONICAL_GENE
-from tauso.features.rbp.RBP_features import add_global_complexity_features, add_strict_functional_features, \
-    get_background_probs
+from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from tauso.features.rbp.pwm_helper import calculate_total_affinity
-
+from tauso.features.rbp.RBP_features import (
+    add_global_complexity_features,
+    add_strict_functional_features,
+    get_background_probs,
+)
 
 
 @njit(fastmath=True)

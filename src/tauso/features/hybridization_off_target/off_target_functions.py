@@ -1,7 +1,8 @@
-from Bio import SeqIO
-import pandas as pd
-from io import StringIO
 import pickle
+from io import StringIO
+
+import pandas as pd
+from Bio import SeqIO
 
 """
 This file contains helper functions both getting the mRNA sequences and for off-target calculations

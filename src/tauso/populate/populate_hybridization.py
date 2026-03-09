@@ -1,10 +1,18 @@
-import pandas as pd
 import multiprocessing
+
+import pandas as pd
 from pandarallel import pandarallel
 
 from ..data.consts import *
-from ..features.hybridization.hybridization_features import calc_methylcytosines, calculate_lna, calculate_cet, \
-    get_exp_psrna_hybridization, get_exp_psrna_hybridization_diff, calculate_dna, get_exp_dna_rna_hybridization
+from ..features.hybridization.hybridization_features import (
+    calc_methylcytosines,
+    calculate_cet,
+    calculate_dna,
+    calculate_lna,
+    get_exp_dna_rna_hybridization,
+    get_exp_psrna_hybridization,
+    get_exp_psrna_hybridization_diff,
+)
 from ..features.hybridization.md_weights import get_2moe_md_diff, get_psdna_rna_md_total
 
 # Logic can be a lambda (row-wise) or None (for vectorized post-processing)

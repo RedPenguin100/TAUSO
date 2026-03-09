@@ -1,7 +1,5 @@
 import re
 
-
-
 SEQUENCE = 'Sequence'
 INHIBITION = 'Inhibition(%)'
 CANONICAL_GENE = 'Canonical Gene Name'

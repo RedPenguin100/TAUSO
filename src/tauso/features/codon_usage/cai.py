@@ -1,11 +1,11 @@
 from __future__ import annotations
-import re
-import math
-from typing import List, Union, Dict
-from pathlib import Path
-from typing import Iterable, List, Optional
-import pandas as pd
 
+import math
+import re
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Union
+
+import pandas as pd
 
 STOP_CODONS = {"TAA", "TAG", "TGA"}
 

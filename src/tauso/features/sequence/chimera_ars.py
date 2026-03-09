@@ -1,6 +1,6 @@
 import numpy as np
 
-from ...algorithms.suffix_array import longest_prefix, build_suffix_array
+from ...algorithms.suffix_array import build_suffix_array, longest_prefix
 
 
 def calculate_chimera_ars(suffix_array, target_sequence, step_size):

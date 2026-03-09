@@ -3,8 +3,8 @@ import bisect
 from Bio.Seq import Seq
 
 from ..data.data import load_db, load_genome
-from .LocusInfo import LocusInfo
 from ..timer import Timer
+from .LocusInfo import LocusInfo
 
 
 def cond_print(text, verbose=False):

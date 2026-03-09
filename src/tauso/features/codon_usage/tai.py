@@ -1,6 +1,8 @@
 import math
 import re
+
 import numpy as np
+
 
 def _clean_to_dna(seq: str) -> str:
     """

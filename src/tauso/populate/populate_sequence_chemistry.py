@@ -1,9 +1,9 @@
 import time
-import pandas as pd
-
 from typing import Iterable, Optional, Tuple
 
-from ..data.consts import SEQUENCE, CHEMICAL_PATTERN
+import pandas as pd
+
+from ..data.consts import CHEMICAL_PATTERN, SEQUENCE
 from ..features.sequence.seq_chemistry import gap_gc_content, wing_gap_gc_delta
 from ..timer import Timer
 

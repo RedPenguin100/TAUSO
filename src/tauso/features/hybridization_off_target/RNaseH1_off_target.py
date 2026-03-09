@@ -1,13 +1,18 @@
 import os
 import uuid
-import pandas as pd
-import numpy as np
 
-from .off_target_functions import parse_risearch_output
-from ..hybridization.fast_hybridization import get_trigger_mfe_scores_by_risearch, Interaction, dump_target_file, \
-    TMP_PATH
-from ...new_model.consts_dataframe import SEQUENCE, CANONICAL_GENE
+import numpy as np
+import pandas as pd
+
+from ...new_model.consts_dataframe import CANONICAL_GENE, SEQUENCE
 from ...util import get_antisense
+from ..hybridization.fast_hybridization import (
+    TMP_PATH,
+    Interaction,
+    dump_target_file,
+    get_trigger_mfe_scores_by_risearch,
+)
+from .off_target_functions import parse_risearch_output
 
 
 def _apply_risearch_scoring(aso_df, gene_to_data, target_genes, get_gene_fn, feature_name, cutoff, n_jobs, verbose):

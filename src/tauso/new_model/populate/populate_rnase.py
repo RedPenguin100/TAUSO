@@ -1,4 +1,4 @@
-from tauso.features.RNaseH_features import rnaseh1_dict, compute_rnaseh1_score
+from tauso.features.RNaseH_features import compute_rnaseh1_score, rnaseh1_dict
 
 
 def add_RNaseH1_Krel(df, exp='R7_krel'):

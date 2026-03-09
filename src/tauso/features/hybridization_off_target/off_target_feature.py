@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
 
-
-from .add_off_target_feat import compute_single_row
 from ...data.consts import CELL_LINE_DEPMAP
+from .add_off_target_feat import compute_single_row
 
 
 def serialize_feature_name(method, top_n, cutoff, is_specific):

@@ -1,7 +1,5 @@
 import pandas as pd
 
-import pandas as pd
-
 
 def get_general_expression_of_genes(EXP_path, valid_genes):
     """

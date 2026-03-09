@@ -1,8 +1,8 @@
 import os
 
 import gffutils
-from pyfaidx import Fasta
 from platformdirs import user_data_dir
+from pyfaidx import Fasta
 
 APP_NAME = "tauso"
 

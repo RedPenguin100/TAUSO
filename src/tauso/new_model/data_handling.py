@@ -1,19 +1,35 @@
-import primer3
 import numpy as np
-
+import primer3
 from ViennaRNA import RNA
 
+from ..features.seq_features import (
+    at_rich_region_score,
+    at_skew,
+    gc_skew,
+    get_gc_content,
+    hairpin_score,
+    homooligo_count,
+    nucleotide_diversity,
+    palindromic_fraction,
+    poly_pyrimidine_stretch,
+    seq_entropy,
+    stop_codon_count,
+)
 from ..features.vienna_fold import calculate_energies, get_weighted_energy
 from ..util import get_antisense
-from ..features.seq_features import palindromic_fraction, homooligo_count, hairpin_score, seq_entropy, \
-    gc_skew, at_skew, \
-    nucleotide_diversity, stop_codon_count, get_gc_content, at_rich_region_score, poly_pyrimidine_stretch
-from .consts_dataframe import CELL_LINE_ORGANISM, CANONICAL_GENE, SEQUENCE, SENSE_LENGTH, SENSE_START, \
-    SENSE_START_FROM_END, SENSE_EXON, SENSE_INTRON, SENSE_UTR, SENSE_TYPE
+from .consts_dataframe import (
+    CANONICAL_GENE,
+    CELL_LINE_ORGANISM,
+    SENSE_EXON,
+    SENSE_INTRON,
+    SENSE_LENGTH,
+    SENSE_START,
+    SENSE_START_FROM_END,
+    SENSE_TYPE,
+    SENSE_UTR,
+    SEQUENCE,
+)
 from .utils import INHIBITION
-
-
-
 
 
 def get_populate_fold(df, genes_u, gene_to_data, fold_variants=[(40, 15)]):

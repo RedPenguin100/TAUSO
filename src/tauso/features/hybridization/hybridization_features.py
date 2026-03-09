@@ -1,6 +1,6 @@
+from ...util import get_nucleotide_watson_crick
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
-from ...util import get_nucleotide_watson_crick
 
 # https://pmc.ncbi.nlm.nih.gov/articles/PMC9116672/#ack1
 

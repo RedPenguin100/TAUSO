@@ -1,14 +1,14 @@
-import numpy as np
-import pandas as pd
 import json
 from pathlib import Path
 
-from ..data.consts import CANONICAL_GENE, CELL_LINE
-from ..features.codon_usage.tai import calc_tAI, tai_weights
-from ..features.codon_usage.enc import compute_ENC
-from ..features.codon_usage.cai import calc_CAI
+import numpy as np
+import pandas as pd
+
+from ..data.consts import CANONICAL_GENE, CELL_LINE, standardize_cell_line_name
 from ..data.data import get_data_dir
-from ..data.consts import standardize_cell_line_name
+from ..features.codon_usage.cai import calc_CAI
+from ..features.codon_usage.enc import compute_ENC
+from ..features.codon_usage.tai import calc_tAI, tai_weights
 
 
 def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[pd.DataFrame, list[str]]:

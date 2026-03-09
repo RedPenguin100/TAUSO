@@ -1,7 +1,7 @@
 import re
-import numpy as np
-
 from collections import Counter
+
+import numpy as np
 
 
 def compute_mod_fraction(pattern):

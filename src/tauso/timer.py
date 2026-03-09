@@ -1,5 +1,6 @@
 import time
 
+
 class Timer:
     def __init__(self, name="Task"):
         """Initialize with a task name for clear console output."""

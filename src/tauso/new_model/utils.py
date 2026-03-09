@@ -1,10 +1,12 @@
 # Check the wellness of fit
-from xgboost import XGBRanker
 import pickle
-from ..util import get_antisense
-import pandas as pd
-from ..genome.read_human_genome import get_locus_to_data_dict
 from pathlib import Path
+
+import pandas as pd
+from xgboost import XGBRanker
+
+from ..genome.read_human_genome import get_locus_to_data_dict
+from ..util import get_antisense
 
 mod_type_dic = {'moe': 'MMMMMddddddddddMMMMM', 'lna': 'LLLddddddddddLLL'}
 

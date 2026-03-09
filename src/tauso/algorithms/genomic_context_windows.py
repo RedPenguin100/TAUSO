@@ -1,13 +1,10 @@
-import pandas as pd
 from typing import Dict, Iterable
+
+import pandas as pd
 
 from ..data.consts import *
-from ..genome.TranscriptMapper import GeneCoordinateMapper
 from ..data.consts import SENSE_START
-
-from typing import Dict, Iterable
-import pandas as pd
-
+from ..genome.TranscriptMapper import GeneCoordinateMapper
 
 # Assuming SENSE_START, CANONICAL_GENE, SEQUENCE, etc. are imported
 

@@ -1,20 +1,31 @@
-from ..features.sequence_modification.mod_features import (
-    compute_mod_fraction, compute_mod_type_count, compute_mod_5prime_run,
-    compute_mod_3prime_run, compute_mod_min_distance_to_5prime,
-    compute_mod_min_distance_to_3prime, compute_mod_pos_std,
-    compute_mod_block_count, compute_mod_max_block_length,
-    compute_mod_char_entropy, compute_dominant_mod_fraction,
-    compute_mod_evenness, compute_mod_symmetry_score,
-    compute_mod_skew_index, compute_mod_mean_gap,
-    compute_mod_local_density_max, compute_mod_in_core,
-    compute_mod_longest_repeat_run, compute_mod_adjacent_pair_count,
-    compute_mod_strong_repeat_group_count
-)
-from ..data.consts import CHEMICAL_PATTERN
+import multiprocessing
 
 import pandas as pd
-import multiprocessing
 from pandarallel import pandarallel
+
+from ..data.consts import CHEMICAL_PATTERN
+from ..features.sequence_modification.mod_features import (
+    compute_dominant_mod_fraction,
+    compute_mod_3prime_run,
+    compute_mod_5prime_run,
+    compute_mod_adjacent_pair_count,
+    compute_mod_block_count,
+    compute_mod_char_entropy,
+    compute_mod_evenness,
+    compute_mod_fraction,
+    compute_mod_in_core,
+    compute_mod_local_density_max,
+    compute_mod_longest_repeat_run,
+    compute_mod_max_block_length,
+    compute_mod_mean_gap,
+    compute_mod_min_distance_to_3prime,
+    compute_mod_min_distance_to_5prime,
+    compute_mod_pos_std,
+    compute_mod_skew_index,
+    compute_mod_strong_repeat_group_count,
+    compute_mod_symmetry_score,
+    compute_mod_type_count,
+)
 
 MODIFICATION_FEATURE_TO_CALCULATION = {
     'Modification_fraction': lambda row: compute_mod_fraction(row[CHEMICAL_PATTERN]),

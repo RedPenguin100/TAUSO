@@ -1,5 +1,6 @@
-import pandas as pd
 from io import StringIO
+
+import pandas as pd
 
 po_po_table = """
 AA,-0.83,-8.10,-22.5

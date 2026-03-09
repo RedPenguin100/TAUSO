@@ -6,7 +6,6 @@ from tauso.data.consts import *
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.util import get_antisense
 
-
 MOD_TYPE_DICT = {'moe': 'MMMMMddddddddddMMMMM', 'lna': 'LLLddddddddddLLL'}
 
 def get_target_sequence(

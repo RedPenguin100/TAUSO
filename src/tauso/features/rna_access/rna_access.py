@@ -4,7 +4,6 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-from Bio import SeqIO
 
 import pandas as pd
 from Bio import SeqIO

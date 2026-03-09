@@ -1,6 +1,7 @@
 # table from article: https://pubs.acs.org/doi/10.1021/acs.jpcb.4c08344
-import pandas as pd
 from io import StringIO
+
+import pandas as pd
 
 md_psrna_table = """
 UU,-12.236,-36.3,-9.177,-26.829

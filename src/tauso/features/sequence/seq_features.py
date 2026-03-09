@@ -1,20 +1,18 @@
 import math
 import re
 import time
+from collections import Counter, defaultdict
+
 import numpy as np
-import primer3
 import pandas as pd
+import primer3
 import ViennaRNA as RNA
 from numba import njit
-from scipy.stats import entropy
-from collections import Counter
 from primer3 import calc_hairpin
-from collections import defaultdict
+from scipy.stats import entropy
 
 from ...data.consts import SEQUENCE
 from ...util import get_antisense
-
-
 
 
 def ry_transition_fraction(seq: str) -> float:

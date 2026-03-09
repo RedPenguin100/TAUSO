@@ -1,7 +1,7 @@
-import warnings
 import gzip
-
+import warnings
 from pathlib import Path
+
 from Bio import SeqIO
 
 from .data.data import get_paths

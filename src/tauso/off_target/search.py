@@ -1,13 +1,15 @@
-import os
-import sys
-import shutil
-import logging
-import subprocess
-import click
 import glob
-import time
 import itertools
+import logging
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+import click
 import pandas as pd
+
 from tauso.data.data import get_paths, load_db
 
 # Setup logger

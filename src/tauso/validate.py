@@ -1,5 +1,11 @@
-from .consts import YEAST_GFF_PATH, YEAST_FASTA_PATH, YEAST_THREE_PRIME_UTR, YEAST_FIVE_PRIME_UTR, \
-    YEAST_README, YEAST_GFF_DB_PATH
+from .consts import (
+    YEAST_FASTA_PATH,
+    YEAST_FIVE_PRIME_UTR,
+    YEAST_GFF_DB_PATH,
+    YEAST_GFF_PATH,
+    YEAST_README,
+    YEAST_THREE_PRIME_UTR,
+)
 
 
 def validate_yeast_files():

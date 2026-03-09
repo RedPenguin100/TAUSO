@@ -1,15 +1,12 @@
+import os
 from collections import Counter
 
-import pandas as pd
 import numpy as np
-import os
+import pandas as pd
 
-from ..codon_usage.find_cai_reference import load_cell_line_gene_expression
-from ...data.data import get_data_dir
 from ...data.consts import CELL_LINE_DEPMAP
-
-import numpy as np
-import pandas as pd
+from ...data.data import get_data_dir
+from ..codon_usage.find_cai_reference import load_cell_line_gene_expression
 
 
 def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=False):

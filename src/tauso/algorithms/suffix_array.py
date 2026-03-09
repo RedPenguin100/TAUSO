@@ -1,9 +1,10 @@
-from typing import Iterable
+import math
 from collections import defaultdict
 from itertools import repeat
-import math
-from multiprocess.pool import Pool
+from typing import Iterable
+
 import numpy as np
+from multiprocess.pool import Pool
 
 # Constants
 pref_type = np.uint32  # sequence length of up to 4294967295
