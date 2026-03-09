@@ -44,6 +44,7 @@ ignore = [
     "UP045",  # Using different type of optional type
     "UP006",  # Using different type of list type
     "UP007",  # Using | for annotations
+    "UP022",  # capture_output instead of stdout and stderr
 
 ] # Ignore zip strict, raise from
 
