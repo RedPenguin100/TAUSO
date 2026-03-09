@@ -2,7 +2,6 @@ import numpy as np
 
 from ..data.consts import *
 from ..features.names import *
-from ..util import get_antisense
 
 
 def build_multilength_index(text: bytes, lengths):

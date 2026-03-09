@@ -6,7 +6,6 @@ from scipy.stats import entropy
 from tqdm import tqdm
 
 from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
-from tauso.features.rbp.pwm_helper import calculate_total_affinity
 from tauso.features.rbp.RBP_features import (
     add_global_complexity_features,
     add_strict_functional_features,

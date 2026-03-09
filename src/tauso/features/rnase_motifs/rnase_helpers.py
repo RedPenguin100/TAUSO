@@ -1,9 +1,8 @@
-import re
 
 import pandas as pd
 from numba import njit
 
-from ...data.consts import CHEMICAL_PATTERN, SEQUENCE
+from ...data.consts import SEQUENCE
 
 
 def rnaseh1_dict(label):

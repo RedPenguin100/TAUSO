@@ -1,8 +1,6 @@
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-import pyBigWig
 
 from ...new_model.consts_dataframe import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 

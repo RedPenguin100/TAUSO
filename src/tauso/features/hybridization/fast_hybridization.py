@@ -1,6 +1,5 @@
 import os
 import platform
-import random
 import re
 import subprocess
 import tempfile

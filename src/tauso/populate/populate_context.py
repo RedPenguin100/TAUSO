@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pyBigWig
 
-from ..data.consts import CANONICAL_GENE, CELL_LINE, CELL_LINE_DEPMAP
+from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import RIBOSEQ_40S_HUMAN_DATA, calculate_ribo_seq_row
 
 

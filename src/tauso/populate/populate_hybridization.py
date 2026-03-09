@@ -1,6 +1,5 @@
 import multiprocessing
 
-import pandas as pd
 from pandarallel import pandarallel
 
 from ..data.consts import *

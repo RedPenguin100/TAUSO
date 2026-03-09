@@ -7,7 +7,6 @@ import subprocess
 import sys
 import time
 
-import click
 import pandas as pd
 
 from tauso.data.data import get_paths, load_db

@@ -1,6 +1,5 @@
 import math
 import re
-import time
 from collections import Counter, defaultdict
 
 import numpy as np
@@ -9,9 +8,7 @@ import primer3
 import ViennaRNA as RNA
 from numba import njit
 from primer3 import calc_hairpin
-from scipy.stats import entropy
 
-from ...data.consts import SEQUENCE
 from ...util import get_antisense
 
 

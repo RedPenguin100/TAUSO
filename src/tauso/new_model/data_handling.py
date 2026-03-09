@@ -19,17 +19,10 @@ from ..features.vienna_fold import calculate_energies, get_weighted_energy
 from ..util import get_antisense
 from .consts_dataframe import (
     CANONICAL_GENE,
-    CELL_LINE_ORGANISM,
-    SENSE_EXON,
-    SENSE_INTRON,
     SENSE_LENGTH,
     SENSE_START,
-    SENSE_START_FROM_END,
-    SENSE_TYPE,
-    SENSE_UTR,
     SEQUENCE,
 )
-from .utils import INHIBITION
 
 
 def get_populate_fold(df, genes_u, gene_to_data, fold_variants=[(40, 15)]):

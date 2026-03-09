@@ -16,7 +16,6 @@ from pathlib import Path
 import click
 import gdown
 import gffutils
-import numpy as np
 import pandas as pd
 import requests
 from gffutils.iterators import DataIterator

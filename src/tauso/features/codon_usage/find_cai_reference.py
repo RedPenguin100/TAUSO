@@ -1,14 +1,10 @@
 import os
 import re
-from pathlib import Path
 
 import pandas as pd
-from pandarallel import pandarallel
 
 from ...common.gtf import filter_gtf_genes
-from ...data.data import get_paths, load_db
-from ...file_utils import get_fasta_dict_from_path
-from ...genome.read_human_genome import get_locus_to_data_dict
+from ...data.data import load_db
 
 # --- CORE FUNCTIONS ---
 
