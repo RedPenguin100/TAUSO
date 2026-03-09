@@ -80,4 +80,4 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
         print("Calculating vectorized feature: DNA_HYBR_DIFF...")
         all_data['DNA_HYBR_DIFF'] = all_data['TOTAL_DNA_HYBR'] - all_data['TOTAL_DNA_RNA_HYBR']
 
-    return all_data, HYBR_FEATURE_TO_CALCULATION
+    return all_data, features_to_run
