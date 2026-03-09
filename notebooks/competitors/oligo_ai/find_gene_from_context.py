@@ -5,6 +5,7 @@ import warnings
 
 
 OUTPUT_CSV = "aso_inhibitions_with_canonical_gene.csv"
+OUTPUT_CSV_GZ = "aso_inhibitions_with_canonical_gene.csv.gz"
 AMBIGUOUS_CSV = "ambiguous_target_gene_mappings.csv"
 
 CONTEXT_COL = "rna_context"
@@ -80,6 +81,8 @@ df[CANONICAL_COL] = df[TARGET_GENE_COL].map(gene_to_canonical)
 
 df.to_csv(OUTPUT_CSV, index=False)
 print(f"Saved annotated dataframe → {OUTPUT_CSV}")
+df.to_csv(OUTPUT_CSV_GZ, index=False)
+print(f"Saved annotated dataframe → {OUTPUT_CSV_GZ}")
 
 
 # =========================
