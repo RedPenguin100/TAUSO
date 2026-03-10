@@ -1,12 +1,14 @@
-import pytest
-import pandas as pd
 import os
 
-from tauso.data.consts import SEQUENCE
-from tauso.features.hybridization_off_target.RNaseH1_off_target import off_target_specific_seq_pandarallel
-from tests.conftest import SHORT_GENE
-
+import pandas as pd
+import pytest
 from pandarallel import pandarallel
+
+from tauso.data.consts import SEQUENCE
+from tauso.features.hybridization_off_target.RNaseH1_off_target import (
+    off_target_specific_seq_pandarallel,
+)
+from tests.conftest import SHORT_GENE
 
 # Initialize pandarallel (run this once, e.g., at the top of your notebook/script)
 # progress_bar=True is very helpful for long jobs
@@ -14,7 +16,9 @@ pandarallel.initialize(progress_bar=True, nb_workers=os.cpu_count())
 
 
 @pytest.mark.integration
-def test_off_target_regression(small_gene_to_data, dataframe_regression, data_regression):
+def test_off_target_regression(
+    small_gene_to_data, dataframe_regression, data_regression
+):
     """
     Regression test for off_target_specific_seq.
     Checks if the output DF and feature name match the stored snapshot.
@@ -25,7 +29,6 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
         "GGGGCCCCTTTTAAAAATCG",  # 2. Block pattern
         "TGCATGCATGCATGCATGCA",  # 3. Mixed content
         "AAAAAAAAAAAAAAAAAAAA",  # 4. Homopolymer (Poly-A, 20-mer)
-
         # --- Homopolymers & Simple Repeats (Edge Cases) ---
         "TTTTTTTTTTTTTTT",  # 5. Poly-T (15-mer)
         "CCCCCCCCCCCCCCCCCC",  # 6. Poly-C (18-mer)
@@ -34,7 +37,6 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
         "GCGCGCGCGCGCGCGCGC",  # 9. Dinucleotide repeat GC (18-mer)
         "CAGCAGCAGCAGCAGCAG",  # 10. Trinucleotide repeat CAG (18-mer)
         "TGTGTGTGTGTGTGTGTGTG",  # 11. TG repeat (20-mer)
-
         # --- Low GC Content (AT-Rich) ---
         "AAATTTATATTTTAA",  # 12. Low GC (15-mer)
         "TATATAAATTTTAAAT",  # 13. Low GC (16-mer)
@@ -43,7 +45,6 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
         "TTTAAATTTGGTTTAAA",  # 16. Mostly AT with sparse G (17-mer)
         "ATAATAATAATAATAATAAT",  # 17. AT only (20-mer)
         "TTAATTAATTAATTAA",  # 18. TTAA repeats (16-mer)
-
         # --- High GC Content (GC-Rich) ---
         "GGCCGGCCGGCCGG",  # 19. High GC (14-mer)
         "GCGCGGCCGGCGCGGCC",  # 20. High GC (17-mer)
@@ -52,7 +53,6 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
         "CGCGCGCGCGTGCGCGCGCG",  # 23. High GC with single T (20-mer)
         "GGCCAAAAGGCC",  # 24. High GC short (12-mer? -> adjusted to 14) -> "GGCCAAAAGGCCGG"
         "CGGCGGCCGGCGGCGGCCGGCC",  # 25. Very High GC (22-mer)
-
         # --- Varying Lengths (Random Mixed) ---
         "AGCTAGCTAGCTAG",  # 26. 14-mer
         "TCGATCGATCGATCG",  # 27. 15-mer
@@ -63,13 +63,11 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
         "GATCGATCGATCGATCGATC",  # 32. 20-mer
         "ATCGATCGATCGATCGATCGA",  # 33. 21-mer
         "TCGATCGATCGATCGATCGATC",  # 34. 22-mer
-
         # --- Structural Motifs ---
         "GAATTCGAATTCGAATTC",  # 35. EcoRI site repeats (18-mer)
         "GGATCCGGATCCGGATCC",  # 36. BamHI site repeats (18-mer)
         "TTTTTGGGGGAAAAACCCCC",  # 37. Blocks of 5 (20-mer)
         "ACGTACGTACGTAC",  # 38. Tetranucleotide repeat (14-mer)
-
         # --- Random Biological-Like Sequences ---
         "CCAAGGTTCCGGTTAA",  # 39. Mixed (16-mer)
         "AACCGGTTTTGGCCAA",  # 40. Mixed (16-mer)
@@ -91,10 +89,7 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
 
     # 2. Execution
     result_df, feat_name = off_target_specific_seq_pandarallel(
-        aso_df,
-        SHORT_GENE,
-        small_gene_to_data,
-        cutoff=800, n_jobs=1
+        aso_df, SHORT_GENE, small_gene_to_data, cutoff=800, n_jobs=1
     )
 
     # 3. Regression Checks
@@ -105,4 +100,6 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
 
     # Check the feature name (scalar string).
     # This ensures the secondary return value hasn't changed.
-    data_regression.check({"feature_name": feat_name}, basename="off_target_meta_regression")
+    data_regression.check(
+        {"feature_name": feat_name}, basename="off_target_meta_regression"
+    )

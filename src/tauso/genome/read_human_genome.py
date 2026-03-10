@@ -3,8 +3,8 @@ import bisect
 from Bio.Seq import Seq
 
 from ..data.data import load_db, load_genome
-from .LocusInfo import LocusInfo
 from ..timer import Timer
+from .LocusInfo import LocusInfo
 
 
 def cond_print(text, verbose=False):
@@ -12,7 +12,7 @@ def cond_print(text, verbose=False):
         print(text)
 
 
-def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh38'):
+def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh38"):
     with Timer() as t:
         db = load_db(genome)
     print("Elapsed DB: ", t.elapsed_time)
@@ -24,13 +24,12 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh3
     locus_to_data = dict()
     locus_to_strand = dict()
 
-    basic_features = ['exon', 'gene', 'stop_codon', 'UTR']
+    basic_features = ["exon", "gene", "stop_codon", "UTR"]
 
     feature_types = list(basic_features)
 
     if include_introns:
-        feature_types.append('intron')
-
+        feature_types.append("intron")
 
     # --- OPTIMIZATION START ---
     iterator = []
@@ -42,26 +41,28 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh3
         # 2. Iterate ONLY genes (Fast, ~60k items vs millions)
         # Note: If you have Gene IDs (ENSG...), you could do db[id] which is O(1).
         # Since you use names (KLKB1), we scan the genes.
-        for gene in db.features_of_type('gene'):
-            name_list = gene.attributes.get('gene_name', [])
+        for gene in db.features_of_type("gene"):
+            name_list = gene.attributes.get("gene_name", [])
             if name_list and name_list[0] in target_names:
                 # Add the gene itself
                 iterator.append(gene)
 
                 # Add its children (exons, introns, etc.)
                 # db.children() uses the DB index = INSTANT
-                children = db.children(gene, featuretype=feature_types, order_by='start')
+                children = db.children(
+                    gene, featuretype=feature_types, order_by="start"
+                )
                 iterator.extend(list(children))
     else:
         # Full genome scan
-        iterator = db.features_of_type(feature_types, order_by='start')
+        iterator = db.features_of_type(feature_types, order_by="start")
     # --- OPTIMIZATION END ---
 
     for feature in iterator:
         chrom = feature.seqid
-        if 'chrM' == chrom:
+        if "chrM" == chrom:
             continue
-        locus_tags = feature.attributes['gene_name']
+        locus_tags = feature.attributes["gene_name"]
         if len(locus_tags) != 1:
             raise ValueError(f"Multiple loci: {locus_tags}")
         locus_tag = locus_tags[0]
@@ -76,11 +77,11 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh3
         else:
             locus_info = locus_to_data[locus_tag]
 
-        if feature.featuretype == 'exon':
+        if feature.featuretype == "exon":
             exon = feature
             # seq = fasta_dict[chrom].seq[exon.start - 1: exon.end]
-            seq = Seq(str(fasta_dict[chrom][exon.start - 1: exon.end]))
-            if exon.strand == '-':
+            seq = Seq(str(fasta_dict[chrom][exon.start - 1 : exon.end]))
+            if exon.strand == "-":
                 seq = seq.reverse_complement()
             seq = str(seq).upper()
 
@@ -88,12 +89,12 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh3
             bisect.insort(locus_info.exon_indices, (exon.start - 1, exon.end))
             locus_to_strand[locus_tag] = exon.strand
 
-        elif feature.featuretype == 'intron' and include_introns:
+        elif feature.featuretype == "intron" and include_introns:
             intron = feature
             # seq = fasta_dict[chrom].seq[intron.start - 1: intron.end]
-            seq = Seq(str(fasta_dict[chrom][intron.start - 1: intron.end]))
+            seq = Seq(str(fasta_dict[chrom][intron.start - 1 : intron.end]))
 
-            if intron.strand == '-':
+            if intron.strand == "-":
                 seq = seq.reverse_complement()
             seq = str(seq).upper()
 
@@ -101,12 +102,12 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh3
             bisect.insort(locus_info.intron_indices, (intron.start - 1, intron.end))
             locus_to_strand[locus_tag] = intron.strand
 
-        elif feature.featuretype == 'gene':
+        elif feature.featuretype == "gene":
             gene = feature
             # seq = fasta_dict[chrom].seq[gene.start - 1: gene.end]
-            seq = Seq(str(fasta_dict[chrom][gene.start - 1: gene.end]))
+            seq = Seq(str(fasta_dict[chrom][gene.start - 1 : gene.end]))
 
-            if gene.strand == '-':
+            if gene.strand == "-":
                 seq = seq.reverse_complement()
             seq = str(seq).upper()
 
@@ -116,19 +117,17 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome='GRCh3
             locus_info.full_mrna = seq
             locus_to_strand[locus_tag] = gene.strand
 
-
-        elif 'UTR' in feature.featuretype:
+        elif "UTR" in feature.featuretype:
             utr = feature
             bisect.insort(locus_info.utr_indices, (utr.start - 1, utr.end))
-        elif feature.featuretype == 'stop_codon':
+        elif feature.featuretype == "stop_codon":
             locus_info.stop_codons.append((feature.start, feature.end))
         else:
             print("Feature type: ", feature.featuretype)
 
-
     for locus_tag in locus_to_data:
         locus_info = locus_to_data[locus_tag]
-        if locus_to_strand[locus_tag] == '-':
+        if locus_to_strand[locus_tag] == "-":
             locus_info.exons.reverse()
             if include_introns:
                 locus_info.introns.reverse()

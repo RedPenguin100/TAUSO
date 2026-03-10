@@ -2,19 +2,17 @@ import pytest
 
 # Imports from your project
 from notebooks.consts import UPDATED_CSV
-from notebooks.preprocessing import preprocess_aso_data, get_unique_genes
-from tauso.data.data import get_paths
+from notebooks.preprocessing import get_unique_genes, preprocess_aso_data
+from tauso.algorithms.genomic_context_windows import (
+    add_external_mrna_and_context_columns,
+)
+from tauso.data.data import get_paths, load_db
+from tauso.features.codon_usage.find_cai_reference import filter_gtf_genes
+from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import (
     GeneCoordinateMapper,
     build_gene_sequence_registry,
 )
-from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.algorithms.genomic_context_windows import (
-    add_external_mrna_and_context_columns,
-)
-
-from tauso.data.data import load_db
-from tauso.features.codon_usage.find_cai_reference import filter_gtf_genes
 
 
 @pytest.mark.integration
@@ -23,7 +21,7 @@ def test_pipeline_data_regression(data_regression):
     full_data = preprocess_aso_data(UPDATED_CSV)
     df_subset = full_data.copy()
 
-    # 2. PREPARATION (Outside the function)
+    # 2. PREPARATION (Ouside the function)
     # A. Get unique genes involved
     genes_subset = get_unique_genes(df_subset)
 

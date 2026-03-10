@@ -1,75 +1,75 @@
+from ...util import get_nucleotide_watson_crick
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
-from ...util import get_nucleotide_watson_crick
 
 # https://pmc.ncbi.nlm.nih.gov/articles/PMC9116672/#ack1
 
 # DNA/DNA - PSDNA/DNA at 50 degrees
 exp_ps_diff_weights_50 = {
-    'AA': -31,
-    'AU': -14,
-    'AC': -6,
-    'AG': -23,
-    'UA': -28,
-    'UU': -34,
-    'UC': -24,
-    'UG': -18,
-    'CA': -13,
-    'CU': -28,
-    'CC': -18,
-    'CG': -41,
-    'GA': -3,
-    'GU': -33,
-    'GC': -61,
-    'GG': -0,
+    "AA": -31,
+    "AU": -14,
+    "AC": -6,
+    "AG": -23,
+    "UA": -28,
+    "UU": -34,
+    "UC": -24,
+    "UG": -18,
+    "CA": -13,
+    "CU": -28,
+    "CC": -18,
+    "CG": -41,
+    "GA": -3,
+    "GU": -33,
+    "GC": -61,
+    "GG": -0,
 }
 
 # DNA/DNA - PSDNA/DNA at 37 degrees
 # calculated using (enthlapy_mean * 1000 - 310 * entropy_mean) / 1000
 
 exp_ps_diff_weights_37 = {
-    'AA': -40,
-    'AU': -14,
-    'AC': -1,
-    'AG': -30,
-    'UA': -37,
-    'UU': -34,
-    'UC': -26,
-    'UG': -17,
-    'CA': -10,
-    'CU': -34,
-    'CC': -18,
-    'CG': -48,
-    'GA': 2,
-    'GU': -39,
-    'GC': -84,
-    'GG': 8,
+    "AA": -40,
+    "AU": -14,
+    "AC": -1,
+    "AG": -30,
+    "UA": -37,
+    "UU": -34,
+    "UC": -26,
+    "UG": -17,
+    "CA": -10,
+    "CU": -34,
+    "CC": -18,
+    "CG": -48,
+    "GA": 2,
+    "GU": -39,
+    "GC": -84,
+    "GG": 8,
 }
 
 # DNA/RNA weights
 # https://pubs.acs.org/doi/10.1021/bi00035a029
 exp_rna_weights_37 = {
-    'UU': -100,
-    'GU': -210,
-    'CU': -180,
-    'AU': -90,
-    'UG': -90,
-    'GG': -210,
-    'CG': -170,
-    'AG': -90,
-    'UC': -130,
-    'GC': -270,
-    'CC': -290,
-    'AC': -110,
-    'UA': -60,
-    'GA': -150,
-    'CA': -160,
-    'AA': -20
+    "UU": -100,
+    "GU": -210,
+    "CU": -180,
+    "AU": -90,
+    "UG": -90,
+    "GG": -210,
+    "CG": -170,
+    "AG": -90,
+    "UC": -130,
+    "GC": -270,
+    "CC": -290,
+    "AC": -110,
+    "UA": -60,
+    "GA": -150,
+    "CA": -160,
+    "AA": -20,
 }
 
 
 def get_exp_dna_rna_hybridization(seq: str, temp=37) -> float:
-    seq = seq.replace('T', 'U')
+    seq = seq.replace("T", "U")
 
     total_hybridization = 0
     for i in range(len(seq) - 1):
@@ -82,7 +82,7 @@ def get_exp_dna_rna_hybridization(seq: str, temp=37) -> float:
 
 
 def get_exp_psrna_hybridization_diff(seq: str, temp=37) -> float:
-    seq = seq.replace('T', 'U')
+    seq = seq.replace("T", "U")
 
     total_hybridization = 0
     for i in range(len(seq) - 1):
@@ -95,13 +95,15 @@ def get_exp_psrna_hybridization_diff(seq: str, temp=37) -> float:
 
 
 def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
-    seq = seq.replace('T', 'U')
+    seq = seq.replace("T", "U")
 
     total_hybridization = 0
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
         if temp == 37:
-            total_hybridization += exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
+            total_hybridization += (
+                exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
+            )
         else:
             total_hybridization = 0
     return total_hybridization
@@ -111,12 +113,13 @@ def get_exp_psrna_hybridization_normalized(seq: str, temp=50) -> float:
     return get_exp_psrna_hybridization(seq, temp) / len(seq)
 
 
-def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter='L'):
+def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter="L"):
     # Reverse to 5'->3' for processing
     seq = seq_3to5.upper()[::-1]
     fmt = fmt_3to5.upper()[::-1]
 
-    if len(seq) != len(fmt): return None
+    if len(seq) != len(fmt):
+        return None
 
     temp_k = temp_c + 273.15
 
@@ -133,14 +136,14 @@ def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter='L'):
         m1, m2 = fmt[i], fmt[i + 1]
 
         # Determine Lookup Key
-        if m1 == 'd' and m2 == 'd':
+        if m1 == "d" and m2 == "d":
             continue
         else:
             if m1 == letter and m2 == letter:
                 top = f"+{b1}+{b2}"
-            elif m1 == 'd' and m2 == letter:
+            elif m1 == "d" and m2 == letter:
                 top = f"{b1}+{b2}"
-            elif m1 == letter and m2 == 'd':
+            elif m1 == letter and m2 == "d":
                 top = f"+{b1}{b2}"
             else:
                 continue
@@ -149,8 +152,8 @@ def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter='L'):
             key = f"{top}/{c1}{c2}"
 
             if key in params:
-                total_dH += params[key]['dH']
-                total_dS += params[key]['dS']
+                total_dH += params[key]["dH"]
+                total_dS += params[key]["dS"]
             else:
                 print("Whoops")
 
@@ -172,14 +175,14 @@ def calculate_cet(antisense, chemical_pattern):
         antisense,
         chemical_pattern,
         LNA_DNA_WEIGHTS,  # Your existing LNA Dict
-        letter='C'
+        letter="C",
     )
 
 
 def calculate_dna(antisense, temp_c=37.0):
     # Reverse to 5'->3' for processing
     seq = antisense.upper()[::-1]
-    seq = seq.replace('U', 'T')
+    seq = seq.replace("U", "T")
 
     temp_k = temp_c + 273.15
 
@@ -199,8 +202,8 @@ def calculate_dna(antisense, temp_c=37.0):
         key = f"{top}/{c1}{c2}"
 
         if key in DNA_DNA_WEIGHTS:
-            total_dH += DNA_DNA_WEIGHTS[key]['dH']
-            total_dS += DNA_DNA_WEIGHTS[key]['dS']
+            total_dH += DNA_DNA_WEIGHTS[key]["dH"]
+            total_dS += DNA_DNA_WEIGHTS[key]["dS"]
         else:
             print("Whoops")
 
@@ -210,10 +213,10 @@ def calculate_dna(antisense, temp_c=37.0):
 
 
 def calc_methylcytosines(sequence, modification):
-    if 'methylcytosines' not in modification:
+    if "methylcytosines" not in modification:
         return 0
     gap_count = 0
     for base in sequence:
-        if base == 'C':
+        if base == "C":
             gap_count += 1
     return gap_count

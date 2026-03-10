@@ -1,6 +1,7 @@
 # table from article: https://pubs.acs.org/doi/10.1021/acs.jpcb.4c08344
-import pandas as pd
 from io import StringIO
+
+import pandas as pd
 
 md_psrna_table = """
 UU,-12.236,-36.3,-9.177,-26.829
@@ -23,20 +24,20 @@ GG,-8.070,-19.7,-8.159,-19.940
 df = pd.read_csv(
     StringIO(md_psrna_table),
     header=None,
-    names=['nucleotide', 'H_PB', 'S_PB', 'H_GB', 'S_GB'],
+    names=["nucleotide", "H_PB", "S_PB", "H_GB", "S_GB"],
 )
 
-df['G_PB'] = (df['H_PB'] * 1000 - 310.15 * df['S_PB']) / 1000
-df['G_GB'] = (df['H_GB'] * 1000 - 310.15 * df['S_GB']) / 1000
+df["G_PB"] = (df["H_PB"] * 1000 - 310.15 * df["S_PB"]) / 1000
+df["G_GB"] = (df["H_GB"] * 1000 - 310.15 * df["S_GB"]) / 1000
 
-md_psrna_weights_pb = df.set_index('nucleotide')['G_PB'].to_dict()
-md_psrna_weights_gb = df.set_index('nucleotide')['G_GB'].to_dict()
+md_psrna_weights_pb = df.set_index("nucleotide")["G_PB"].to_dict()
+md_psrna_weights_gb = df.set_index("nucleotide")["G_GB"].to_dict()
 
 
-def get_md_psrna_hybridization(seq: str, algo='gb') -> float:
-    if algo == 'gb':
+def get_md_psrna_hybridization(seq: str, algo="gb") -> float:
+    if algo == "gb":
         weights = md_psrna_weights_gb
-    elif algo == 'pb':
+    elif algo == "pb":
         weights = md_psrna_weights_pb
     else:
         raise ValueError("Unknown algorithm")
@@ -47,7 +48,8 @@ def get_md_psrna_hybridization(seq: str, algo='gb') -> float:
         total_hybridization += weights[L + R]
     return total_hybridization
 
-def get_md_psrna_hybridization_normalized(seq: str, algo='gb') -> float:
+
+def get_md_psrna_hybridization_normalized(seq: str, algo="gb") -> float:
     return get_md_psrna_hybridization(seq, algo) / len(seq)
 
 
@@ -122,59 +124,63 @@ G*G',-13.769,-37.985,-9.114,-23.264
 df = pd.read_csv(
     StringIO(md_moe_tables),
     header=None,
-    names=['nucleotide', 'H_PB', 'S_PB', 'H_GB', 'S_GB'],
+    names=["nucleotide", "H_PB", "S_PB", "H_GB", "S_GB"],
 )
 
-df['G_PB'] = (df['H_PB'] * 1000 - 310.15 * df['S_PB']) / 1000
-df['G_GB'] = (df['H_GB'] * 1000 - 310.15 * df['S_GB']) / 1000
+df["G_PB"] = (df["H_PB"] * 1000 - 310.15 * df["S_PB"]) / 1000
+df["G_GB"] = (df["H_GB"] * 1000 - 310.15 * df["S_GB"]) / 1000
 
-md_moe_weights_pb = df.set_index('nucleotide')['G_PB'].to_dict()
-md_moe_weights_gb = df.set_index('nucleotide')['G_GB'].to_dict()
+md_moe_weights_pb = df.set_index("nucleotide")["G_PB"].to_dict()
+md_moe_weights_gb = df.set_index("nucleotide")["G_GB"].to_dict()
 
 
-def get_2moe_md_diff(seq: str, chemical_pattern, modification, simul_type='gb'):
+def get_2moe_md_diff(seq: str, chemical_pattern, modification, simul_type="gb"):
     if "MOE" not in modification:
         return 0
 
-    seq = seq.replace('T', 'U')
+    seq = seq.replace("T", "U")
 
     total_hybridization = 0
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
-        if chemical_pattern[i] == 'M':
+        if chemical_pattern[i] == "M":
             L += "*"
         else:
             L += "'"
-        if chemical_pattern[i + 1] == 'M':
-            R += '*'
+        if chemical_pattern[i + 1] == "M":
+            R += "*"
         else:
             R += "'"
         if "'" in R and "'" in L:
             continue
-        if simul_type == 'gb':
+        if simul_type == "gb":
             total_hybridization += md_moe_weights_gb[L + R]
-        if simul_type == 'pb':
+        if simul_type == "pb":
             total_hybridization += md_moe_weights_pb[L + R]
     return total_hybridization
 
-def get_psdna_rna_md_total(seq: str, modification, simul_type='gb'):
+
+def get_psdna_rna_md_total(seq: str, modification, simul_type="gb"):
     if "MOE" not in modification:
         return 0
 
-    seq = seq.replace('T', 'U')
+    seq = seq.replace("T", "U")
 
     total_hybridization = 0
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
         L += "'"
         R += "'"
-        if simul_type == 'gb':
+        if simul_type == "gb":
             total_hybridization += md_moe_weights_gb[L + R]
-        if simul_type == 'pb':
+        if simul_type == "pb":
             total_hybridization += md_moe_weights_pb[L + R]
     return total_hybridization
 
-def get_md_2_moe_hybridization(seq: str, moe=[0, 1, 2, 3, 4, 19, 18, 17, 16, 15]) -> float:
+
+def get_md_2_moe_hybridization(seq: str, moe=None) -> float:
+    if moe is None:
+        moe = [0, 1, 2, 3, 4, 15, 16, 17, 18, 19]
     total_hybridization = 0
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
@@ -192,4 +198,3 @@ def get_md_2_moe_hybridization(seq: str, moe=[0, 1, 2, 3, 4, 19, 18, 17, 16, 15]
 
 def get_md_2_moe_hybridization_norm(seq, moe):
     return get_md_2_moe_hybridization(seq, moe) / len(seq)
-

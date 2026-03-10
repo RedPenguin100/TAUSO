@@ -1,6 +1,7 @@
+import os
+
 import numpy as np
 import pandas as pd
-import os
 
 from ...data.data import get_data_dir
 
@@ -18,7 +19,9 @@ def load_attract_data():
 
     # Check if they exist before running
     if not os.path.exists(csv_path) or not os.path.exists(pwm_path):
-        raise FileNotFoundError("ATtRACT files not found. Please run 'tauso setup-attract' first.")
+        raise FileNotFoundError(
+            "ATtRACT files not found. Please run 'tauso setup-attract' first."
+        )
 
     print(f"Loading RBP metadata from {csv_path}...")
 
@@ -27,19 +30,20 @@ def load_attract_data():
 
     # Map Gene Name -> List of Matrix IDs
     # (No need to filter for Organism here, it was done in setup_attract)
-    rbp_to_matrices = df.groupby('Gene_name')['Matrix_id'].apply(list).to_dict()
+    rbp_to_matrices = df.groupby("Gene_name")["Matrix_id"].apply(list).to_dict()
 
     print(f"Loading PWM matrices from {pwm_path}...")
     pwms = {}
     current_matrix_id = None
     matrix_data = []
 
-    with open(pwm_path, 'r') as f:
+    with open(pwm_path, "r") as f:
         for line in f:
             line = line.strip()
-            if not line: continue
+            if not line:
+                continue
 
-            if line.startswith('>'):
+            if line.startswith(">"):
                 if current_matrix_id and matrix_data:
                     pwms[current_matrix_id] = np.array(matrix_data)
 

@@ -2,7 +2,7 @@ import os
 import pathlib
 
 
-class FileUtil(object):
+class FileUtil:
     root_dir = None
 
     @classmethod
@@ -20,7 +20,7 @@ class FileUtil(object):
 
     @classmethod
     def get_output_dir(cls):
-        return '/dev/shm/tauso/_raccess/output'
+        return "/dev/shm/tauso/_raccess/output"
 
     @classmethod
     def get_output_path(cls, file_name):

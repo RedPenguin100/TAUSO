@@ -1,46 +1,42 @@
-from typing import Tuple, Optional, Iterable
+import time
+from typing import Iterable, Optional, Tuple
 
 from Bio.SeqUtils import gc_fraction
 
+from ..data.consts import SEQUENCE
 from ..features.sequence.seq_features import *
 from ..timer import Timer
 
 FEATURE_SPECS: list[tuple[str, callable]] = [
     ("Sequence_self_energy", self_energy),
     ("Sequence_internal_fold", internal_fold),
-
     # Basic Composition Features
     ("Sequence_purine_content", purine_content),
     ("Sequence_gc_content", gc_fraction),
     ("Sequence_ggg_counts", count_g_runs),
-
     # --- ADDED: Terminal Clamps (Fraying protection) ---
     # Returns 1 if 5' end is G/C, else 0
-    ("Sequence_5_prime_clamp", lambda x: 1.0 if x and x[0].upper() in 'GC' else 0.0),
+    ("Sequence_5_prime_clamp", lambda x: 1.0 if x and x[0].upper() in "GC" else 0.0),
     # Returns 1 if 3' end is G/C, else 0
-    ("Sequence_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in 'GC' else 0.0),
+    ("Sequence_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in "GC" else 0.0),
     # ---------------------------------------------------
-
     # Palindromes and Entropy
     ("Sequence_4_palindromic", lambda x: palindromic_fraction(x, 4)),
     ("Sequence_6_palindromic", lambda x: palindromic_fraction(x, 6)),
     ("Sequence_entropy", seq_entropy),
     ("Sequence_dinucleotide_entropy", dinucleotide_entropy),
     ("Sequence_nucleotide_diversity", nucleotide_diversity),
-
     # Structure and Energy (Hairpins/Motifs)
     ("Sequence_hairpin_score", hairpin_score),
     ("Sequence_hairpin_dG_energy", hairpin_dG_energy),
     ("Sequence_hairpin_tm", hairpin_tm),
     ("Sequence_toxic_motif_count", toxic_motif_count),
-
     # Repeats and Skews
     ("Sequence_tandem_repeats_score", tandem_repeats_score),
     ("Sequence_dispersed_repeats_score", dispersed_repeats_score),
     ("Sequence_gc_skew", gc_skew),
     ("Sequence_gc_skew_ends", gc_skew_ends),
     ("Sequence_at_skew", at_skew),
-
     # Advanced Region Scores
     ("Sequence_flexible_dinucleotide_fraction", flexible_dinucleotide_fraction),
     ("Sequence_stop_codon_count", stop_codon_count),
@@ -57,10 +53,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 
 
 def calc_feature(
-        df: pd.DataFrame,
-        col_name: str,
-        func,
-        cpus: int = 1, verbose=False
+    df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False
 ) -> None:
     """
     Computes a feature with timing logs. Uses parallel_apply if available.
@@ -85,12 +78,14 @@ def calc_feature(
 
 
 def populate_sequence_features(
-        df,
-        features: Optional[Iterable[str]] = None,
-        cpus: int = 1,
+    df,
+    features: Optional[Iterable[str]] = None,
+    cpus: int = 1,
 ) -> Tuple:
     available = {name: fn for name, fn in FEATURE_SPECS}
-    feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
+    feature_names = (
+        list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
+    )
 
     for name in feature_names:
         # Wrap each feature calculation in the Timer context manager
@@ -100,13 +95,12 @@ def populate_sequence_features(
     return df, feature_names
 
 
-
 def populate_sequence_one_hot_encoded(
-        df: pd.DataFrame,
-        seq_col: str = SEQUENCE,
-        max_len: Optional[int] = None,
-        cpus: int = 1,
-        verbose: bool = False
+    df: pd.DataFrame,
+    seq_col: str = SEQUENCE,
+    max_len: Optional[int] = None,
+    cpus: int = 1,
+    verbose: bool = False,
 ) -> Tuple[pd.DataFrame, list[str]]:
     """
     One-hot encodes ASO sequences with zero-padding to handle varying lengths.
@@ -129,11 +123,11 @@ def populate_sequence_one_hot_encoded(
     # 2. Map nucleotides to lists (includes U for RNA compatibility)
     # Unknowns or Ns will map to [0, 0, 0, 0]
     nuc_map = {
-        'A': [1, 0, 0, 0],
-        'C': [0, 1, 0, 0],
-        'G': [0, 0, 1, 0],
-        'T': [0, 0, 0, 1],
-        'U': [0, 0, 0, 1]
+        "A": [1, 0, 0, 0],
+        "C": [0, 1, 0, 0],
+        "G": [0, 0, 1, 0],
+        "T": [0, 0, 0, 1],
+        "U": [0, 0, 0, 1],
     }
     pad_vec = [0, 0, 0, 0]
 
@@ -156,6 +150,7 @@ def populate_sequence_one_hot_encoded(
     # 3. Apply function (mirroring your pandarallel structure)
     try:
         from pandarallel import pandarallel
+
         # Only initialize if not already done, though harmless if repeated
         pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
         encoded_series = df[seq_col].parallel_apply(encode_and_pad)
@@ -165,15 +160,13 @@ def populate_sequence_one_hot_encoded(
     # 4. Generate the new feature names
     feature_names = []
     for pos in range(max_len):
-        for nuc in ['A', 'C', 'G', 'T']:
+        for nuc in ["A", "C", "G", "T"]:
             feature_names.append(f"OHE_pos{pos}_{nuc}")
 
     # 5. Expand the lists into DataFrame columns
     # (Doing this via pd.DataFrame conversion is significantly faster than looping column-wise)
     encoded_df = pd.DataFrame(
-        encoded_series.tolist(),
-        columns=feature_names,
-        index=df.index
+        encoded_series.tolist(), columns=feature_names, index=df.index
     )
 
     # 6. Safety check: Drop existing OHE columns if re-running to avoid duplication
@@ -186,6 +179,8 @@ def populate_sequence_one_hot_encoded(
 
     if verbose:
         duration = time.time() - start_time
-        print(f"✔ Finished One-Hot Encoding | Added {len(feature_names)} features | Time: {duration:.2f}s\n")
+        print(
+            f"✔ Finished One-Hot Encoding | Added {len(feature_names)} features | Time: {duration:.2f}s\n"
+        )
 
     return df, feature_names

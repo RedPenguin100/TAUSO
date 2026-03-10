@@ -1,14 +1,15 @@
 import os
 
 import gffutils
-from pyfaidx import Fasta
 from platformdirs import user_data_dir
+from pyfaidx import Fasta
 
 APP_NAME = "tauso"
 
+
 def get_data_dir():
     # 1. Check for Docker/Render Environment Variable override
-    env_path = os.environ.get('TAUSO_DATA_DIR')
+    env_path = os.environ.get("TAUSO_DATA_DIR")
 
     if env_path:
         d = env_path
@@ -20,6 +21,7 @@ def get_data_dir():
     os.makedirs(d, exist_ok=True)
     return d
 
+
 def get_paths(genome="GRCh38"):
     """
     Returns paths for a specific genome assembly.
@@ -30,19 +32,25 @@ def get_paths(genome="GRCh38"):
         "dir": d,
         "fasta": os.path.join(d, f"{genome}.fa"),
         "gtf": os.path.join(d, f"{genome}.gtf"),
-        "db": os.path.join(d, f"{genome}.db")
+        "db": os.path.join(d, f"{genome}.db"),
     }
+
 
 def load_db(genome="GRCh38"):
     """Returns the gffutils database for the specified genome."""
     paths = get_paths(genome)
-    if not os.path.exists(paths['db']):
-        raise FileNotFoundError(f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
-    return gffutils.FeatureDB(paths['db'])
+    if not os.path.exists(paths["db"]):
+        raise FileNotFoundError(
+            f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'"
+        )
+    return gffutils.FeatureDB(paths["db"])
+
 
 def load_genome(genome="GRCh38"):
     """Returns the pyfaidx Fasta object."""
     paths = get_paths(genome)
-    if not os.path.exists(paths['fasta']):
-        raise FileNotFoundError(f"FASTA for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
-    return Fasta(paths['fasta'])
+    if not os.path.exists(paths["fasta"]):
+        raise FileNotFoundError(
+            f"FASTA for {genome} not found. Run 'tauso setup-genome --genome {genome}'"
+        )
+    return Fasta(paths["fasta"])

@@ -57,6 +57,12 @@ jobs:
       - name: Install Dev Dependencies
         run: micromamba install -n tauso -f environment-dev.yml -y
 
+      - name: Run Ruff Check (Linting)
+        run: micromamba run -n tauso ruff check src/
+
+      - name: Run Ruff Format (Style)
+        run: micromamba run -n tauso ruff format --check src/
+
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
 

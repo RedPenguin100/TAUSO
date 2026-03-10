@@ -6,23 +6,22 @@ from tauso.data.consts import *
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.util import get_antisense
 
+MOD_TYPE_DICT = {"moe": "MMMMMddddddddddMMMMM", "lna": "LLLddddddddddLLL"}
 
-MOD_TYPE_DICT = {'moe': 'MMMMMddddddddddMMMMM', 'lna': 'LLLddddddddddLLL'}
 
-def get_target_sequence(
-        target_name: str,
-        custom_sequence: Optional[str] = None
-) -> str:
+def get_target_sequence(target_name: str, custom_sequence: Optional[str] = None) -> str:
     """
     Retrieves the mRNA sequence either from the custom input or
     by querying the local genome database.
     """
     if custom_sequence:
-        return custom_sequence.upper().replace('T', 'U')
+        return custom_sequence.upper().replace("T", "U")
 
     # Use the optimized subset loader from read_human_genome.py
     print(f"Fetching sequence for {target_name}...")
-    locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[target_name])
+    locus_data = get_locus_to_data_dict(
+        include_introns=False, gene_subset=[target_name]
+    )
 
     if target_name not in locus_data:
         raise ValueError(f"Gene {target_name} not found in genome database.")
@@ -34,7 +33,7 @@ def get_target_sequence(
 DEFAULT_ASO_LENGTH = 20
 
 
-def get_init_df(target_mrna: str, mod_type: str = 'moe') -> pd.DataFrame:
+def get_init_df(target_mrna: str, mod_type: str = "moe") -> pd.DataFrame:
     """
     Generates ASO candidates by tiling the mRNA.
 
@@ -60,7 +59,7 @@ def get_init_df(target_mrna: str, mod_type: str = 'moe') -> pd.DataFrame:
 
     # Tile the sequence
     for i in range(0, target_len - (s - 1)):
-        target = target_mrna[i: i + s]
+        target = target_mrna[i : i + s]
 
         # Deduplicate based on the SENSE target sequence
         if target in set_candidates:
@@ -76,11 +75,13 @@ def get_init_df(target_mrna: str, mod_type: str = 'moe') -> pd.DataFrame:
         # Note: Index 0 is 5' end. Distance from 3' end decreases as i increases.
         sense_starts_from_end.append(target_len - i)
 
-    df = pd.DataFrame({
-        SEQUENCE: candidates,
-        SENSE_START: sense_starts,
-        SENSE_LENGTH: sense_lengths,
-        "sense_start_from_end": sense_starts_from_end
-    })
+    df = pd.DataFrame(
+        {
+            SEQUENCE: candidates,
+            SENSE_START: sense_starts,
+            SENSE_LENGTH: sense_lengths,
+            "sense_start_from_end": sense_starts_from_end,
+        }
+    )
 
     return df

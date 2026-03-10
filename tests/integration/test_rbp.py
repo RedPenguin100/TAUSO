@@ -1,20 +1,9 @@
 import numpy as np
-import pandas as pd
-import pytest
-from numba import njit
 
 # Import your actual data loaders and the original function
-from tauso.features.rbp.load_rbp import load_attract_data
-from tauso.features.rbp.pwm_helper import calculate_total_affinity
-
-import numpy as np
-import pandas as pd
-import pytest
-
 # Import your actual data loaders and the affinity function
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.populate.populate_rbp import calculate_total_affinity_numba
-
 
 # Note: Import your original function FIRST to generate the baseline YAML,
 # then swap to calculate_total_affinity_numba to verify it matches.
@@ -38,25 +27,22 @@ def test_calculate_total_affinity_regression(data_regression):
         "cug_repeat": "CUGCUGCUGCUGCUGCUGCU",  # CELF/MBNL overlapping targets
         "au_rich_element": "UUAUUUAUUAUUUAUUAUUU",  # AREs (e.g., HuR/ELAVL1 binding)
         "gc_rich_hairpin": "GCGCGCGCUUUUGCGCGCGC",  # GC clamp with a U loop
-
         # Homopolymers (tests extreme affinity for specific RBPs like PolyA Binding Protein)
         "poly_A": "AAAAAAAAAAAAAAAAAAAA",
         "poly_U": "UUUUUUUUUUUUUUUUUUUU",
         "poly_C": "CCCCCCCCCCCCCCCCCCCC",
         "poly_G": "GGGGGGGGGGGGGGGGGGGG",
-
         # Complex / Mixed
         "mixed_complex_1": "AUGUCGACGUUAGCAUGCUA",
         "mixed_complex_2": "CGCGCGAUAUAUAGCGCGCG",
         "alternating_ry": "CUCUCUCUCUCUCUCUCUCU",  # Alternating Pyrimidine/Purine
-
         # Formatting / Edge Cases
         "dna_version": "TGCATGCATGCATGCATGCA",  # Ensures 'T' maps to 'U' properly
         "lowercase_seq": "ugcauguauuauggag",  # Ensures case insensitivity
         "short_seq": "AUG",  # Should trigger the 0.0 short circuit
         "empty_seq": "",  # Should trigger the 0.0 empty circuit
         "nan_seq": np.nan,  # Pandas missing data
-        "dirty_seq": "AUGNNNUGAXXXC"  # Unknown bases should be ignored/skipped
+        "dirty_seq": "AUGNNNUGAXXXC",  # Unknown bases should be ignored/skipped
     }
 
     # Custom background probs to ensure that logic path is tested (e.g., A/T rich background)
@@ -82,15 +68,11 @@ def test_calculate_total_affinity_regression(data_regression):
         for seq_name, seq_val in test_sequences.items():
             # Test with default background (None)
             score_default = calculate_total_affinity_numba(
-                sequence=seq_val,
-                pwm_matrix=real_pwm_matrix,
-                background_probs=None
+                sequence=seq_val, pwm_matrix=real_pwm_matrix, background_probs=None
             )
             # Test with custom background
             score_custom = calculate_total_affinity_numba(
-                sequence=seq_val,
-                pwm_matrix=real_pwm_matrix,
-                background_probs=custom_bg
+                sequence=seq_val, pwm_matrix=real_pwm_matrix, background_probs=custom_bg
             )
 
             # Round to 8 decimal places to avoid cross-platform floating point drift
