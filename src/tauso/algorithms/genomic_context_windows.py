@@ -1,35 +1,36 @@
-import pandas as pd
 from typing import Dict, Iterable
+
+import pandas as pd
 
 from ..data.consts import *
-from ..genome.TranscriptMapper import GeneCoordinateMapper
 from ..data.consts import SENSE_START
-
-from typing import Dict, Iterable
-import pandas as pd
-
+from ..genome.TranscriptMapper import GeneCoordinateMapper
 
 # Assuming SENSE_START, CANONICAL_GENE, SEQUENCE, etc. are imported
 
+
 def add_external_mrna_and_context_columns(
-        df: pd.DataFrame,
-        mapper: 'GeneCoordinateMapper',  # Quoted to avoid NameError if not imported here
-        gene_registry: Dict[str, Dict[str, str]],
-        *,
-        flank_sizes_premrna: Iterable[int] = (20, 30, 40, 50, 60, 70),
-        flank_sizes_cds: Iterable[int] = (20, 30, 40, 50, 60, 70),
+    df: pd.DataFrame,
+    mapper: "GeneCoordinateMapper",  # Quoted to avoid NameError if not imported here
+    gene_registry: Dict[str, Dict[str, str]],
+    *,
+    flank_sizes_premrna: Iterable[int] = (20, 30, 40, 50, 60, 70),
+    flank_sizes_cds: Iterable[int] = (20, 30, 40, 50, 60, 70),
 ) -> pd.DataFrame:
     df = df.copy()
 
     # --- LOUD FAILURE 1: Check Inputs ---
     required_cols = [SENSE_START, CANONICAL_GENE, SEQUENCE]
-    missing = [c for c in required_cols if
-               c not in df.columns and c != SEQUENCE]
+    missing = [c for c in required_cols if c not in df.columns and c != SEQUENCE]
     if missing:
-        raise ValueError(f"❌ CRITICAL ERROR: Input DataFrame is missing required columns: {missing}")
+        raise ValueError(
+            f"❌ CRITICAL ERROR: Input DataFrame is missing required columns: {missing}"
+        )
 
     if not gene_registry:
-        raise ValueError("❌ CRITICAL ERROR: 'gene_registry' is empty! Cannot lookup sequences.")
+        raise ValueError(
+            "❌ CRITICAL ERROR: 'gene_registry' is empty! Cannot lookup sequences."
+        )
 
     IN_CODING = "in_coding_region"
     flank_sizes_premrna = list(flank_sizes_premrna)
@@ -62,8 +63,8 @@ def add_external_mrna_and_context_columns(
         if not seqs:
             continue
 
-        pre_mrna = seqs.get('pre_mrna_sequence', '')
-        cds_seq = seqs.get('cds_sequence', '')
+        pre_mrna = seqs.get("pre_mrna_sequence", "")
+        cds_seq = seqs.get("cds_sequence", "")
 
         if not pre_mrna:
             continue
@@ -112,6 +113,8 @@ def add_external_mrna_and_context_columns(
 
     # 4. Final Flags
     for fs in flank_sizes_cds:
-        df[f"region_is_local_{fs}"] = (df[f"local_coding_region_around_ASO_{fs}"].str.len() > 0).astype(int)
+        df[f"region_is_local_{fs}"] = (
+            df[f"local_coding_region_around_ASO_{fs}"].str.len() > 0
+        ).astype(int)
 
     return df

@@ -2,14 +2,15 @@ import math
 
 import numpy as np
 import pandas as pd
-
 from Bio.SeqUtils import gc_fraction
 
-from .rna_access import RNAAccess
 from ..._raccess.core import find_raccess
+from .rna_access import RNAAccess
 
 
-def get_sense_with_flanks(pre_mrna: str, sense_start: int, sense_length: int, flank_size: int) -> str:
+def get_sense_with_flanks(
+    pre_mrna: str, sense_start: int, sense_length: int, flank_size: int
+) -> str:
     """
     Re  turns the sense sequence with `flank_size` nucleotides on each side (if available).
     If near the edge, it will not go out of bounds.
@@ -29,11 +30,11 @@ def get_sense_with_flanks(pre_mrna: str, sense_start: int, sense_length: int, fl
 
     return pre_mrna[start:end]
 
+
 def get_cache(seed_sizes, access_size):
 
     # Mimick original logic
     seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
-
 
     cache = {}
     for super_seed_size in seed_sizes:
@@ -49,28 +50,29 @@ def get_cache(seed_sizes, access_size):
             last_weight = (rel_offsets[-1] - rel_offsets[-2]) / step
             weights[-1] = last_weight
 
-        cache[super_seed_size] = (np.array(rel_offsets), weights, access_size / super_seed_size)
+        cache[super_seed_size] = (
+            np.array(rel_offsets),
+            weights,
+            access_size / super_seed_size,
+        )
     return cache
 
 
-
-
 # noinspection DuplicatedCode
-class AccessCalculator(object):
-
+class AccessCalculator:
     @staticmethod
     def calc_gc_info(rna_seq, segment_size):
 
         trigger_mrna_size = len(rna_seq)
 
         indexes = list(range(0, trigger_mrna_size - segment_size + 1))
-        trigger_segments = [rna_seq[i:i + segment_size] for i in indexes]
+        trigger_segments = [rna_seq[i : i + segment_size] for i in indexes]
 
         gc_segments = list(map(gc_fraction, trigger_segments))
 
         d = {
-            'trigger_seq': trigger_segments,
-            'gc': gc_segments,
+            "trigger_seq": trigger_segments,
+            "gc": gc_segments,
         }
 
         df = pd.DataFrame(d, index=indexes)
@@ -79,7 +81,8 @@ class AccessCalculator(object):
 
     @staticmethod
     def calc_access_energies_from_access_res(  # new
-            access_res, rna_size, access_size, seed_sizes):
+        access_res, rna_size, access_size, seed_sizes
+    ):
 
         cols_np = {s: access_res[s].to_numpy() for s in seed_sizes}
 
@@ -98,13 +101,13 @@ class AccessCalculator(object):
                 weights[-1] = (rel_offsets[-1] - rel_offsets[-2]) / step
 
             seed_info[super_seed_size] = {
-                'rel_offsets': rel_offsets,
-                'norm_factor': access_size / super_seed_size,
-                'weights': weights,
-                'weight_sum': np.sum(weights),
-                'col_len': len(cols_np[super_seed_size]),
-                'avg_id': f"{super_seed_size}_avg",
-                'min_id': f"{super_seed_size}_min"
+                "rel_offsets": rel_offsets,
+                "norm_factor": access_size / super_seed_size,
+                "weights": weights,
+                "weight_sum": np.sum(weights),
+                "col_len": len(cols_np[super_seed_size]),
+                "avg_id": f"{super_seed_size}_avg",
+                "min_id": f"{super_seed_size}_min",
             }
 
         # 2. FAST EXECUTION LOOP
@@ -116,18 +119,18 @@ class AccessCalculator(object):
             for super_seed_size in seed_sizes:
                 info = seed_info[super_seed_size]
 
-                abs_offsets = info['rel_offsets'] + pos
-                vals = cols_np[super_seed_size][info['col_len'] - 1 - abs_offsets]
+                abs_offsets = info["rel_offsets"] + pos
+                vals = cols_np[super_seed_size][info["col_len"] - 1 - abs_offsets]
 
                 # Removed the slow pd.Series instantiation; purely NumPy now
-                norm_bind_energies = vals * info['norm_factor']
-                fixed_weight_energies = norm_bind_energies * info['weights']
+                norm_bind_energies = vals * info["norm_factor"]
+                fixed_weight_energies = norm_bind_energies * info["weights"]
 
-                avg_energy = np.sum(fixed_weight_energies) / info['weight_sum']
+                avg_energy = np.sum(fixed_weight_energies) / info["weight_sum"]
                 min_energy = np.min(fixed_weight_energies)
 
-                pos_info[info['avg_id']] = avg_energy
-                pos_info[info['min_id']] = min_energy
+                pos_info[info["avg_id"]] = avg_energy
+                pos_info[info["min_id"]] = min_energy
 
             records.append(pos_info)
 
@@ -135,8 +138,9 @@ class AccessCalculator(object):
         return df
 
     @staticmethod
-    def calc_access_energies( #new
-            rna_seq, access_size, seed_sizes, max_span, uuid_str, cache=None):
+    def calc_access_energies(  # new
+        rna_seq, access_size, seed_sizes, max_span, uuid_str, cache=None
+    ):
 
         rna_size = len(rna_seq)
 
@@ -144,18 +148,18 @@ class AccessCalculator(object):
         assert seed_sizes
         ra = RNAAccess(seed_sizes, max_span, find_raccess())
         ra.set_uuid_for_web(uuid_str)
-        access_query = [('rna', rna_seq)]
+        access_query = [("rna", rna_seq)]
         res = ra.calculate(access_query)
 
-        access_res = res['rna']
+        access_res = res["rna"]
         df = AccessCalculator.calc_access_energies_from_access_res(
             access_res, rna_size, access_size, seed_sizes
         )
         return df
 
     @staticmethod
-    def calc_access_energies_batch( #new
-            rna_seqs, access_size, seed_sizes, max_span, uuid_str=None, cache=None
+    def calc_access_energies_batch(  # new
+        rna_seqs, access_size, seed_sizes, max_span, uuid_str=None, cache=None
     ):
         """
         :param rna_seqs: list of (rna_id, rna_seq) tuples
@@ -165,7 +169,7 @@ class AccessCalculator(object):
         seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
         assert seed_sizes
 
-        ra  = RNAAccess(seed_sizes, max_span, find_raccess())
+        ra = RNAAccess(seed_sizes, max_span, find_raccess())
         ra.set_uuid_for_web(uuid_str)
         res = ra.calculate(rna_seqs)
 
@@ -174,19 +178,25 @@ class AccessCalculator(object):
             access_res = res[rna_id]
             rna_size = len(rna_seq)
             df = AccessCalculator.calc_access_energies_from_access_res(
-            access_res, rna_size, access_size, seed_sizes
+                access_res, rna_size, access_size, seed_sizes
             )
             out[rna_id] = df
 
         return out
 
-
     @staticmethod
     def calc(
-            rna_seq, access_size,
-            min_gc, max_gc, gc_ranges,
-            access_win_size, access_seed_sizes,
-            uuid_str=None, temperature=None, cache=None):
+        rna_seq,
+        access_size,
+        min_gc,
+        max_gc,
+        gc_ranges,
+        access_win_size,
+        access_seed_sizes,
+        uuid_str=None,
+        temperature=None,
+        cache=None,
+    ):
         """
         :param rna_seq: target mrna sequence
         :param access_size: target  access size
@@ -201,20 +211,30 @@ class AccessCalculator(object):
         assert len(rna_seq) > 1
         assert len(rna_seq) >= access_size
 
-        rna_seq = rna_seq.upper().replace('T', 'U')
+        rna_seq = rna_seq.upper().replace("T", "U")
 
         # gc filter
         gc_info = AccessCalculator.calc_gc_info(rna_seq, access_size)
 
         access_energies = AccessCalculator.calc_access_energies(
-            rna_seq, access_size, access_seed_sizes, access_win_size, uuid_str, cache=cache)
+            rna_seq,
+            access_size,
+            access_seed_sizes,
+            access_win_size,
+            uuid_str,
+            cache=cache,
+        )
 
         # ae_col1 = f"{access_seed_size}_avg"
         # ae_col2 = f"{access_seed_size * 2}_avg"
-        selected_cols = [f"{access_seed_size}_avg" for access_seed_size in access_seed_sizes]
-        filtered_access_energies = access_energies.loc[:, access_energies.columns.isin(selected_cols)]
+        selected_cols = [
+            f"{access_seed_size}_avg" for access_seed_size in access_seed_sizes
+        ]
+        filtered_access_energies = access_energies.loc[
+            :, access_energies.columns.isin(selected_cols)
+        ]
 
-        access_energies['avg_access'] = filtered_access_energies.mean(axis=1)
+        access_energies["avg_access"] = filtered_access_energies.mean(axis=1)
 
         assert gc_ranges >= 1
         gc_values = np.linspace(min_gc, max_gc, num=gc_ranges + 1)
@@ -222,34 +242,36 @@ class AccessCalculator(object):
 
         df_list = []
         for i in range(gc_ranges):
-            inc = 'left' if (i + 1 < gc_ranges) else 'both'
+            inc = "left" if (i + 1 < gc_ranges) else "both"
 
             min_range_gc = gc_values[i]
             max_range_gc = gc_values[i + 1]
-            gc_indexes = gc_info[gc_info['gc'].between(min_range_gc, max_range_gc, inclusive=inc)].index
+            gc_indexes = gc_info[
+                gc_info["gc"].between(min_range_gc, max_range_gc, inclusive=inc)
+            ].index
 
             gc_access_energies = access_energies.loc[gc_indexes]
 
             gc_range = f"gc_range_{min_range_gc}_{max_range_gc}"
 
-            gc_access_energies['gc_range'] = gc_range
+            gc_access_energies["gc_range"] = gc_range
 
             df_list.append(gc_access_energies)
 
-        df = pd.concat(df_list, join='outer', axis=0).fillna(float('nan'))
+        df = pd.concat(df_list, join="outer", axis=0).fillna(float("nan"))
 
         return df
 
     @staticmethod
     def calc_new(
-            rna_seqs,
-            access_size,
-            access_win_size,
-            access_seed_sizes,
-            uuid_str=None,
-            temperature=None,
-            cache=None,
-            **kwargs
+        rna_seqs,
+        access_size,
+        access_win_size,
+        access_seed_sizes,
+        uuid_str=None,
+        temperature=None,
+        cache=None,
+        **kwargs,
     ):
         """
         rna_seqs: list of (rna_id, rna_seq) tuples
@@ -280,18 +302,15 @@ class AccessCalculator(object):
             available_cols = [c for c in target_cols if c in access_energies.columns]
 
             if available_cols:
-                access_energies["avg_access"] = access_energies[available_cols].mean(axis=1)
+                access_energies["avg_access"] = access_energies[available_cols].mean(
+                    axis=1
+                )
             else:
                 access_energies["avg_access"] = 0.0
 
             # tag RNA
             access_energies["rna_id"] = rna_id
 
-            df_list.append(
-                access_energies[["rna_id", "avg_access"]])
+            df_list.append(access_energies[["rna_id", "avg_access"]])
 
         return pd.concat(df_list, ignore_index=True)
-
-
-
-

@@ -1,5 +1,7 @@
-import gffutils
 from typing import Dict, Iterable, Optional
+
+import gffutils
+
 from ..util import _to_str_seq
 
 
@@ -9,9 +11,9 @@ class GeneCoordinateMapper:
         self.gene_name_map = {}
         self._cache = {}
 
-        for gene in self.db.features_of_type('gene'):
+        for gene in self.db.features_of_type("gene"):
             try:
-                self.gene_name_map[gene['gene_name'][0]] = gene.id
+                self.gene_name_map[gene["gene_name"][0]] = gene.id
             except KeyError:
                 pass
 
@@ -20,13 +22,15 @@ class GeneCoordinateMapper:
         Retrieves the gene and the CDS features (not generic exons)
         of the longest protein-coding transcript.
         """
-        if gene_name in self._cache: return self._cache[gene_name]
+        if gene_name in self._cache:
+            return self._cache[gene_name]
 
         gene_id = self.gene_name_map.get(gene_name)
-        if not gene_id: return None, None
+        if not gene_id:
+            return None, None
 
         gene = self.db[gene_id]
-        transcripts = list(self.db.children(gene, featuretype='transcript'))
+        transcripts = list(self.db.children(gene, featuretype="transcript"))
         if not transcripts:
             self._cache[gene_name] = (gene, [])
             return gene, []
@@ -34,7 +38,7 @@ class GeneCoordinateMapper:
         # FIX 1: Select Canonical Transcript based on CDS length (Protein Coding potential)
         # We explicitly filter for 'CDS' features to ignore UTR lengths
         def get_cds_len(t):
-            return sum(len(c) for c in self.db.children(t, featuretype='CDS'))
+            return sum(len(c) for c in self.db.children(t, featuretype="CDS"))
 
         # Filter for transcripts that actually have a CDS
         coding_transcripts = [t for t in transcripts if get_cds_len(t) > 0]
@@ -47,7 +51,7 @@ class GeneCoordinateMapper:
         best_t = max(coding_transcripts, key=get_cds_len)
 
         # FIX 2: Fetch 'CDS' features, not 'exon'. This excludes UTRs.
-        cds_parts = list(self.db.children(best_t, featuretype='CDS', order_by='start'))
+        cds_parts = list(self.db.children(best_t, featuretype="CDS", order_by="start"))
 
         self._cache[gene_name] = (gene, cds_parts)
         return gene, cds_parts
@@ -58,10 +62,11 @@ class GeneCoordinateMapper:
         Returns None if the ASO is in a UTR or Intron.
         """
         gene, cds_parts = self._get_gene_and_cds(gene_name)
-        if not cds_parts: return None
+        if not cds_parts:
+            return None
 
         # Determine genomic position of the ASO
-        if gene.strand == '+':
+        if gene.strand == "+":
             genomic_pos = gene.start + premrna_idx
         else:
             genomic_pos = gene.end - premrna_idx
@@ -71,7 +76,7 @@ class GeneCoordinateMapper:
             # Check if position falls within this CDS block
             if part.start <= genomic_pos <= part.end:
                 # Calculate offset inside this block
-                if gene.strand == '+':
+                if gene.strand == "+":
                     offset = genomic_pos - part.start
                 else:
                     offset = part.end - genomic_pos
@@ -88,7 +93,8 @@ class GeneCoordinateMapper:
         Returns the pure Coding Sequence (ATG -> Stop).
         """
         gene, cds_parts = self._get_gene_and_cds(gene_name)
-        if not cds_parts: return ""
+        if not cds_parts:
+            return ""
 
         parts = []
         gene_start = gene.start
@@ -100,7 +106,9 @@ class GeneCoordinateMapper:
 
             # Slice safely from the pre-mRNA sequence string
             if start < len(pre_mrna_seq):
-                segment = pre_mrna_seq[max(0, start): min(len(pre_mrna_seq), start + length)]
+                segment = pre_mrna_seq[
+                    max(0, start) : min(len(pre_mrna_seq), start + length)
+                ]
                 parts.append(segment)
 
         return "".join(parts)
@@ -121,18 +129,17 @@ class GeneCoordinateMapper:
             "chrom": gene.chrom,
             "gene_start": gene.start - 1,
             "gene_end": gene.end,
-            "strand": gene.strand
+            "strand": gene.strand,
         }
 
         return coords
+
 
 # =============================================================================
 # REGISTRY BUILDER (Helper)
 # =============================================================================
 def build_gene_sequence_registry(
-        genes: Iterable[str],
-        gene_to_data: Dict,
-        mapper: GeneCoordinateMapper
+    genes: Iterable[str], gene_to_data: Dict, mapper: GeneCoordinateMapper
 ) -> Dict[str, Dict[str, str]]:
     """
     Creates a dictionary of {gene_name: {'pre_mrna': ..., 'cds': ...}}
@@ -141,13 +148,11 @@ def build_gene_sequence_registry(
     registry = {}
     for gene in genes:
         locus = gene_to_data.get(gene)
-        if not locus: continue
+        if not locus:
+            continue
 
         pre_mrna = _to_str_seq(locus.full_mrna)
         cds = mapper.get_spliced_sequence(gene, pre_mrna)
 
-        registry[gene] = {
-            'pre_mrna_sequence': pre_mrna,
-            'cds_sequence': cds
-        }
+        registry[gene] = {"pre_mrna_sequence": pre_mrna, "cds_sequence": cds}
     return registry

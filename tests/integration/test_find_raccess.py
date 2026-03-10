@@ -1,7 +1,7 @@
-import pytest
-
 import subprocess
 from pathlib import Path
+
+import pytest
 
 from tauso._raccess.core import find_raccess
 
