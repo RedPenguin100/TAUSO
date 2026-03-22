@@ -32,7 +32,7 @@ tauso = "tauso.cli:main"
 [tool.ruff]
 # Target the Python version you're using for TAUSO
 target-version = "py38"
-line-length = 88
+line-length = 120
 
 [tool.ruff.lint]
 select = ["F401", "I", "B", "UP"]

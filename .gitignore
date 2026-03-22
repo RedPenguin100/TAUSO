@@ -1,4 +1,5 @@
 .idea/
+.vscode/
 /src/tauso.egg-info/
 ./data/
 ./src/data/
@@ -12,3 +13,9 @@ __pycache__/
 notebooks/external
 /src/tauso/out/
 /build/
+
+*aso_inhibitions_with_canonical_gene.csv
+*aso_inhibitions_with_canonical_gene.csv.gz
+*aso_inhibitions_with_canonical_gene_indexed.csv
+*aso_inhibitions_with_canonical_gene_indexed.csv.gz
+

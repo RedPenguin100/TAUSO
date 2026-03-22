@@ -154,6 +154,7 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
         "-a",  # Report all valid alignments
         "-S",
         "--sam-nohead",
+        "-x",  # <--- ADD THIS LINE
         index_base,
         "-c",
         sequence,

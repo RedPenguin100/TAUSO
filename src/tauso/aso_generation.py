@@ -172,13 +172,13 @@ def generate_aso_features(
     data, tai_features = populate_tai(data, CDS_WINDOWS, ref_registry)
     features.extend(tai_features)
 
-    data, cai_features = populate_cai(data, CDS_WINDOWS, ref_registry)
+    data, cai_features = populate_cai(data, CDS_WINDOWS, ref_registry, n_jobs=n_jobs)
     features.extend(cai_features)
 
-    data, enc_features = populate_enc(data, CDS_WINDOWS, ref_registry)
+    data, enc_features = populate_enc(data, CDS_WINDOWS, ref_registry, n_jobs=n_jobs)
     features.extend(enc_features)
 
-    data, sequence_features = populate_sequence_features(data, cpus=32)
+    data, sequence_features = populate_sequence_features(data, cpus=n_jobs)
     features.extend(sequence_features)
 
     # Off-target
@@ -242,6 +242,7 @@ def generate_aso_features(
     data, functional_features = populate_functional_features(
         data, rbp_role_map_strict, flank_size=50
     )
+    features.extend(functional_features)
 
     data = create_positional_sequence_columns(data, "flank_sequence_50", flank_size=50)
 
@@ -250,7 +251,7 @@ def generate_aso_features(
         # Fix Memory Fragmentation
         data = data.copy()
 
-        # --- CALL THE FUNCTION ---
+        # --- CALL THE FUNCTION ---w
         data, new_features = populate_rbp_region(
             df=data,
             region_name=region,
@@ -261,12 +262,13 @@ def generate_aso_features(
             gene_to_data=gene_to_data,
         )
 
-    features.extend(new_features)
+        features.extend(new_features)
 
     data, half_life_features = populate_mrna_halflife_features(data, half_life_provider)
     features.extend(half_life_features)
 
     data, mfe_features = populate_mfe_features(data, gene_to_data, n_jobs=n_jobs)
+    features.extend(mfe_features)
 
     return data, features
 

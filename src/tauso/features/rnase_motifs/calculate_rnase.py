@@ -117,7 +117,7 @@ def _apply_rnaseh1_scoring(
             return 0.0
 
         start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
-        if gap_len < 2:
+        if gap_len < 8:
             return 0.0
 
         target_rna = get_antisense(seq)
