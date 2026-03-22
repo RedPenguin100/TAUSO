@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from notebooks.competitors.oligo_ai.parse_chemistry import populate_chemistry
+from notebooks.data.OligoAI.parse_chemistry import populate_chemistry
 from notebooks.notebook_utils import log_correction, read_cached_gene_to_data
 from tauso.data.consts import *
 from tauso.util import get_antisense
@@ -95,10 +95,10 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
     return valid_data
 
 
-def process_oligo_data(data, min_cohort_size=50, min_cell_line_asos=1000, verbose=True):
+def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=True):
     """
     Takes a raw ASO dataframe, standardizes formats, and sequentially filters out:
-    0. Base exclusions (unsupported chemistry, steric blocking, ambiguous genes, missing inhibition)
+    0. Base exclusions (unsupported chemistry, steric blocking, ambiguous genes, missing inhibition, missing cell line)
     1. Unmapped sequences
     2. Sparse cohorts
     3. Sparse cell lines
@@ -166,6 +166,11 @@ def process_oligo_data(data, min_cohort_size=50, min_cell_line_asos=1000, verbos
     data = data[data[INHIBITION].notna()].copy()
     elim_missing_inhib = rows_before - len(data)
 
+    # NEW: Explicitly drop and track missing cell lines
+    rows_before = len(data)
+    data = data[data[CELL_LINE].notna()].copy()
+    elim_missing_cell_line = rows_before - len(data)
+
     # ---------------------------------------------------------
     # FILTER 1: Unmapped Sequences (SENSE_START == -1)
     # ---------------------------------------------------------
@@ -224,6 +229,7 @@ def process_oligo_data(data, min_cohort_size=50, min_cell_line_asos=1000, verbos
         print(f"Steric blocking (True) eliminated: {elim_steric:,}")
         print(f"Multiple genes (';' present) eliminated: {elim_multigene:,}")
         print(f"Missing inhibition (NaN) eliminated: {elim_missing_inhib:,}")
+        print(f"Missing cell line (NaN) eliminated: {elim_missing_cell_line:,}")
 
         if SENSE_START in data.columns:
             print(f"\n[1. UNMAPPED SEQUENCES ({SENSE_START} == -1)]")
