@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import pytest
 
-from notebooks.consts import NOTEBOOK_PATH
+from notebooks.consts import NOTEBOOK_PATH, OLIGO_CSV_INDEXED
 from tauso.algorithms.genomic_context_windows import (
     add_external_mrna_and_context_columns,
 )
@@ -58,13 +58,8 @@ CDS_WINDOWS = [20, 30, 40, 50, 60, 70]
 
 @pytest.fixture(scope="session")
 def raw_oligo_data():
-    with Timer("File Path Setup"):
-        INDEXED_OLIGO_DATA = "aso_inhibitions_with_canonical_gene_indexed.csv"
-        data_folder = NOTEBOOK_PATH / "competitors" / "oligo_ai"
-        indexed_oligo_data_path = data_folder / INDEXED_OLIGO_DATA
-
     with Timer("Load CSV Data"):
-        data = pd.read_csv(indexed_oligo_data_path, engine="pyarrow")
+        data = pd.read_csv(OLIGO_CSV_INDEXED, engine="pyarrow")
 
     if "index_oligo" not in data.columns:
         raise ValueError("index_oligo column not found")

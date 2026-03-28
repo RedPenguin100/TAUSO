@@ -4,7 +4,6 @@ channels:
 dependencies:
   - ruff
   - shap
-  - gdown
   - jupyterlab
   - matplotlib
   - seaborn

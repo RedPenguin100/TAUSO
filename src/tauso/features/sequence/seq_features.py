@@ -26,9 +26,7 @@ def ry_transition_fraction(seq: str) -> float:
 
     for i in range(len(seq) - 1):
         b1, b2 = seq[i], seq[i + 1]
-        if (b1 in purines and b2 in pyrimidines) or (
-            b1 in pyrimidines and b2 in purines
-        ):
+        if (b1 in purines and b2 in pyrimidines) or (b1 in pyrimidines and b2 in purines):
             transitions += 1
 
     return transitions / (len(seq) - 1)
@@ -186,16 +184,10 @@ def hairpin_score(seq: str, min_overlap: int = 4) -> float:
     antisense = get_antisense(seq)
 
     # 2. Build a set of all min_overlap-mers in the antisense for O(1) lookup
-    antisense_kmers = {
-        antisense[i : i + min_overlap] for i in range(n - min_overlap + 1)
-    }
+    antisense_kmers = {antisense[i : i + min_overlap] for i in range(n - min_overlap + 1)}
 
     # 3. Count matches without scanning the whole string every time
-    matches = sum(
-        1
-        for i in range(n - min_overlap + 1)
-        if seq[i : i + min_overlap] in antisense_kmers
-    )
+    matches = sum(1 for i in range(n - min_overlap + 1) if seq[i : i + min_overlap] in antisense_kmers)
 
     return matches / n
 
@@ -261,11 +253,7 @@ def dispersed_repeats_score(seq: str, min_unit: int = 2, max_unit: int = 6) -> f
 
     # A single generator expression creates all k-mers.
     # We pass this directly to Counter(), which consumes it at C-speeds.
-    kmers = (
-        seq[i : i + unit_len]
-        for unit_len in range(min_unit, max_unit + 1)
-        for i in range(n - unit_len + 1)
-    )
+    kmers = (seq[i : i + unit_len] for unit_len in range(min_unit, max_unit + 1) for i in range(n - unit_len + 1))
 
     counts = Counter(kmers)
 
@@ -390,9 +378,7 @@ def hairpin_tm(seq: str) -> float:
     return hairpin.tm
 
 
-def add_interaction_features(
-    df: pd.DataFrame, feature_pairs: list[tuple[str, str]]
-) -> pd.DataFrame:
+def add_interaction_features(df: pd.DataFrame, feature_pairs: list[tuple[str, str]]) -> pd.DataFrame:
     """
     Given a DataFrame and a list of columns pairs (colA ,colB), create new cloumns named "colA*colB"
     containing element-wise product.
@@ -495,15 +481,13 @@ def dinucleotide_entropy(seq: str) -> float:
         probability = count / total_dinucleotides
         raw_entropy -= probability * math.log2(probability)
 
-    return (
-        raw_entropy / 4.0
-    )  # Normalize to [0, 1] (since max entropy for 16 states is log2(16) = 4)
+    return raw_entropy / 4.0  # Normalize to [0, 1] (since max entropy for 16 states is log2(16) = 4)
 
 
 ##############################################################################
 def gc_block_length(seq):
     """
-    find the length of the longest cosecutive G/C block in the sequence
+    find the length of the longest consecutive G/C block in the sequence
     """
     seq = seq.upper()
     max_len = 0
@@ -601,13 +585,7 @@ def Niv_ENC(seq: str, strict: bool = False) -> float:
             # Require all four F-values to compute full ENC
             if not all(k in F_values for k in [2, 3, 4, 6]):
                 return 0.0  # Not enough info to compute strict ENC
-            ENC = (
-                2
-                + 9 / F_values[2]
-                + 1 / F_values[3]
-                + 5 / F_values[4]
-                + 3 / F_values[6]
-            )
+            ENC = 2 + 9 / F_values[2] + 1 / F_values[3] + 5 / F_values[4] + 3 / F_values[6]
         else:
             # Use only available F-values (partial ENC)
             ENC = 2 + sum(weights[k] / F_values[k] for k in F_values)

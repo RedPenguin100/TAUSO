@@ -1,0 +1,34 @@
+# .github/actions/setup-bowtie-cached/action.yml
+name: 'Setup and Cache Bowtie'
+description: 'Restores cache, installs Bowtie if missing, and saves cache immediately.'
+
+inputs:
+  os:
+    description: 'The operating system (used for the cache key)'
+    required: true
+  data_dir:
+    description: 'The path to the tauso data directory'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore Bowtie Index Cache
+      id: cache-bowtie-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ inputs.data_dir }}/GRCh38_bowtie_index
+        key: ${{ inputs.os }}-tauso.bowtie-GRCh38-v1
+
+    - name: Setup Bowtie
+      if: steps.cache-bowtie-restore.outputs.cache-hit != 'true'
+      # In composite actions, you MUST specify the shell for run commands
+      shell: bash -el {0}
+      run: tauso setup-bowtie
+
+    - name: Save Bowtie Index Cache
+      if: steps.cache-bowtie-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ inputs.data_dir }}/GRCh38_bowtie_index
+        key: ${{ inputs.os }}-tauso.bowtie-GRCh38-v1

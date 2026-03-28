@@ -19,9 +19,7 @@ def load_attract_data():
 
     # Check if they exist before running
     if not os.path.exists(csv_path) or not os.path.exists(pwm_path):
-        raise FileNotFoundError(
-            "ATtRACT files not found. Please run 'tauso setup-attract' first."
-        )
+        raise FileNotFoundError("ATtRACT files not found. Please run 'tauso setup-attract' first.")
 
     print(f"Loading RBP metadata from {csv_path}...")
 

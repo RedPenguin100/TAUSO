@@ -46,6 +46,7 @@ def _apply_rnaseh1_dinuc_scoring(
             precomputed_data.append((None, None))
         else:
             precomputed_data.append((target_rna_mimic, valid_starts))
+
     # -------------------------------------------------------------
 
     # Define the row scorer here. Safely takes 'weights' as an argument.
@@ -53,12 +54,7 @@ def _apply_rnaseh1_dinuc_scoring(
         if target_rna_mimic is None:
             return 0.0
 
-        return max(
-            compute_rnaseh1_dinucleotide_score(
-                target_rna_mimic, weights, window_start=i
-            )
-            for i in valid_starts
-        )
+        return max(compute_rnaseh1_dinucleotide_score(target_rna_mimic, weights, window_start=i) for i in valid_starts)
 
     for exp in experiments:
         weights = rnaseh1_dict(exp)
@@ -66,9 +62,7 @@ def _apply_rnaseh1_dinuc_scoring(
         feature_cols.append(col_name)
 
         # Loop over our pre-computed list, passing weights directly
-        df[col_name] = [
-            score_row(t_rna, v_starts, weights) for t_rna, v_starts in precomputed_data
-        ]
+        df[col_name] = [score_row(t_rna, v_starts, weights) for t_rna, v_starts in precomputed_data]
 
     return df, feature_cols
 
@@ -117,7 +111,7 @@ def _apply_rnaseh1_scoring(
             return 0.0
 
         start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
-        if gap_len < 2:
+        if gap_len < 8:
             return 0.0
 
         target_rna = get_antisense(seq)
@@ -162,9 +156,7 @@ def check_motif_presence(aso_sequence: str, motif: str) -> float:
     return 1.0 if motif.upper() in aso_sequence.upper() else 0.0
 
 
-def add_rnaseh1_motif_features(
-    df: pd.DataFrame, out_prefix: str = "RNaseH1_"
-) -> tuple[pd.DataFrame, list[str]]:
+def add_rnaseh1_motif_features(df: pd.DataFrame, out_prefix: str = "RNaseH1_") -> tuple[pd.DataFrame, list[str]]:
     """
     Extracts the longest DNA gap and checks for specific motifs known to
     enhance (Py-rich) or block (G-quadruplex) RNase H1 efficiency.
@@ -209,8 +201,6 @@ def add_rnaseh1_motif_features(
         feature_cols.append(col_name)
 
         # Apply motif check to the gap sequence series
-        df[col_name] = gap_sequences.apply(
-            lambda x, m=motif_seq: check_motif_presence(x, m)
-        )
+        df[col_name] = gap_sequences.apply(lambda x, m=motif_seq: check_motif_presence(x, m))
 
     return df, feature_cols

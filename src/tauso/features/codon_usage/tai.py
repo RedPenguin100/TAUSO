@@ -187,9 +187,7 @@ def tai_weights(category: str) -> dict:
     raise ValueError("category must be 'sc' or 'hm'")
 
 
-def calc_tAI(
-    seq: str, weight_dictionary: dict, *, allow_stop_as_zero: bool = False
-) -> float:
+def calc_tAI(seq: str, weight_dictionary: dict, *, allow_stop_as_zero: bool = False) -> float:
     """
     Robust tAI:
     - cleans sequence to DNA (U->T),

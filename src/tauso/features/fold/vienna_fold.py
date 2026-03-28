@@ -12,9 +12,7 @@ def get_cached_mfe(seq):
     return RNA.fold(seq)[1]
 
 
-def calculate_avg_mfe_over_sense_region(
-    sequence, sense_start_in_flank, sense_length, window_size=120, step=1
-):
+def calculate_avg_mfe_over_sense_region(sequence, sense_start_in_flank, sense_length, window_size=120, step=1):
     sequence = str(sequence).upper().replace("T", "U")
     sequence_length = len(sequence)
     energy_values = np.zeros(sequence_length)
@@ -42,10 +40,7 @@ def calculate_avg_mfe_over_sense_region(
     )
 
     sense_end_in_flank = sense_start_in_flank + sense_length
-    if (
-        0 <= sense_start_in_flank < sequence_length
-        and sense_end_in_flank <= sequence_length
-    ):
+    if 0 <= sense_start_in_flank < sequence_length and sense_end_in_flank <= sequence_length:
         return np.nanmean(avg_energies[sense_start_in_flank:sense_end_in_flank])
     else:
         return np.nan

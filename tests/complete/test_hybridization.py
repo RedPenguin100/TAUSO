@@ -1,6 +1,6 @@
 import pytest
 
-from notebooks.competitors.oligo_ai.parse_chemistry import populate_chemistry
+from notebooks.data.OligoAI.parse_chemistry import populate_chemistry
 from tauso.populate.populate_hybridization import populate_hybridization
 
 

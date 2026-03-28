@@ -19,9 +19,7 @@ def get_target_sequence(target_name: str, custom_sequence: Optional[str] = None)
 
     # Use the optimized subset loader from read_human_genome.py
     print(f"Fetching sequence for {target_name}...")
-    locus_data = get_locus_to_data_dict(
-        include_introns=False, gene_subset=[target_name]
-    )
+    locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[target_name])
 
     if target_name not in locus_data:
         raise ValueError(f"Gene {target_name} not found in genome database.")

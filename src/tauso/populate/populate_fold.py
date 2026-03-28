@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 
-from ..data.consts import CANONICAL_GENE
+from ..data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
 from ..features.rna_access.access_calculator import (
     AccessCalculator,
@@ -13,8 +13,6 @@ from ..features.rna_access.access_calculator import (
 )
 from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
 
-SENSE_START = "sense_start"
-SENSE_LENGTH = "sense_length"
 PRE_MRNA_SEQUENCE = "pre_mrna_sequence"
 
 
@@ -52,17 +50,13 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1):  # 2. Add n_jobs param
     feature_names = []
     for setting in settings:
         flank_size, window_size, step = setting
-        print(
-            f"Starting MFE population with Flank={flank_size}, Window={window_size}, Step={step}"
-        )
+        print(f"Starting MFE population with Flank={flank_size}, Window={window_size}, Step={step}")
 
         feature_name = f"mfe_win{window_size}_flank{flank_size}_step{step}"
         feature_names.append(feature_name)
 
         # TODO: extract outside
-        def _process_row(
-            row, flank_size=flank_size, window_size=window_size, step=step
-        ):
+        def _process_row(row, flank_size=flank_size, window_size=window_size, step=step):
             gene_name = row[CANONICAL_GENE]
             global_start = row[SENSE_START]
             sense_len = row[SENSE_LENGTH]
@@ -110,18 +104,14 @@ ACCESS_WIN_SIZE = 80
 def populate_sense_accessibility(aso_dataframe, gene_to_data):
     access_cache = get_cache(SEED_SIZES, access_size=ACCESS_SIZE)
 
-    valid_rows = [
-        (idx, row) for idx, row in aso_dataframe.iterrows() if row[SENSE_START] != -1
-    ]
+    valid_rows = [(idx, row) for idx, row in aso_dataframe.iterrows() if row[SENSE_START] != -1]
 
     for idx, row in valid_rows:
         sense_start = row[SENSE_START]
         sense_length = row[SENSE_LENGTH]
         full_mrna_seq = gene_to_data[row[CANONICAL_GENE]].full_mrna
 
-        flanked_sense = get_sense_with_flanks(
-            full_mrna_seq, sense_start, sense_length, flank_size=FLANK_SIZE
-        )
+        flanked_sense = get_sense_with_flanks(full_mrna_seq, sense_start, sense_length, flank_size=FLANK_SIZE)
 
         if not flanked_sense or len(flanked_sense) < ACCESS_SIZE:
             aso_dataframe.loc[idx, SENSE_AVG_ACCESSIBILITY] = 0
@@ -167,9 +157,7 @@ def populate_sense_accessibility_batch(
         return df_out, feature_name
 
     # Prepare minimal data for workers using our hidden tracker
-    valid_df = df_out.loc[
-        valid_mask, ["_temp_id", SENSE_START, SENSE_LENGTH, CANONICAL_GENE]
-    ].copy()
+    valid_df = df_out.loc[valid_mask, ["_temp_id", SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
     access_cache = get_cache(seed_sizes, access_size=access_size)
 
     # 2. Worker Function
@@ -222,17 +210,13 @@ def populate_sense_accessibility_batch(
         df["sense_length"] = df["rna_id"].map(sense_len_map)
         df["rel_start"] = df["rna_id"].map(sense_start_map)
 
-        mask = (df["pos_in_flank"] >= df["rel_start"]) & (
-            df["pos_in_flank"] < df["rel_start"] + df["sense_length"]
-        )
+        mask = (df["pos_in_flank"] >= df["rel_start"]) & (df["pos_in_flank"] < df["rel_start"] + df["sense_length"])
 
         # Aggregate strictly as a DataFrame
         batch_result = df[mask].groupby("rna_id", as_index=False)["avg_access"].mean()
 
         # Rename tracker back and ensure it's an integer
-        batch_result.rename(
-            columns={"rna_id": "_temp_id", "avg_access": feature_name}, inplace=True
-        )
+        batch_result.rename(columns={"rna_id": "_temp_id", "avg_access": feature_name}, inplace=True)
         batch_result["_temp_id"] = batch_result["_temp_id"].astype(int)
 
         return batch_result

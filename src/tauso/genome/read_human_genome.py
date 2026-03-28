@@ -49,9 +49,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
                 # Add its children (exons, introns, etc.)
                 # db.children() uses the DB index = INSTANT
-                children = db.children(
-                    gene, featuretype=feature_types, order_by="start"
-                )
+                children = db.children(gene, featuretype=feature_types, order_by="start")
                 iterator.extend(list(children))
     else:
         # Full genome scan

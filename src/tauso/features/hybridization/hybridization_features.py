@@ -25,7 +25,7 @@ exp_ps_diff_weights_50 = {
 }
 
 # DNA/DNA - PSDNA/DNA at 37 degrees
-# calculated using (enthlapy_mean * 1000 - 310 * entropy_mean) / 1000
+# calculated using (enthalpy_mean * 1000 - 310 * entropy_mean) / 1000
 
 exp_ps_diff_weights_37 = {
     "AA": -40,
@@ -101,9 +101,7 @@ def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
         if temp == 37:
-            total_hybridization += (
-                exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
-            )
+            total_hybridization += exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
         else:
             total_hybridization = 0
     return total_hybridization

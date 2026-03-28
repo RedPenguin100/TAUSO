@@ -5,7 +5,7 @@ import pytest
 from pandarallel import pandarallel
 
 from tauso.data.consts import SEQUENCE
-from tauso.features.hybridization_off_target.RNaseH1_off_target import (
+from tauso.features.hybridization_off_target.off_target_specific_gene import (
     off_target_specific_seq_pandarallel,
 )
 from tests.conftest import SHORT_GENE

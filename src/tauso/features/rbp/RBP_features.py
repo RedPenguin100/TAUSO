@@ -4,9 +4,7 @@ import numpy as np
 from scipy.stats import entropy
 
 
-def create_positional_sequence_columns(
-    df, source_col="flank_sequence_50", flank_size=50
-):
+def create_positional_sequence_columns(df, source_col="flank_sequence_50", flank_size=50):
     """
     Dynamically slices the sequence into Left, Core, and Right based on flank size.
     Left  = First [flank_size] nucleotides
@@ -51,11 +49,7 @@ def add_strict_functional_features(df, rbp_map, suffix):
     for role in ["stabilizer", "destabilizer"]:
         genes = [g for g, r in rbp_map.items() if r == role]
         # Reconstruct column names
-        cols = [
-            f"RBP_{g}_expr_aff_{suffix}"
-            for g in genes
-            if f"RBP_{g}_expr_aff_{suffix}" in df.columns
-        ]
+        cols = [f"RBP_{g}_expr_aff_{suffix}" for g in genes if f"RBP_{g}_expr_aff_{suffix}" in df.columns]
 
         if not cols:
             continue

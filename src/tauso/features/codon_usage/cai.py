@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 import re
 from pathlib import Path
@@ -192,18 +190,14 @@ def build_cai_reference_weights_from_transcriptomes(
     # Resolve default data path relative to this file (repo-stable)
     if transcriptome_dir is None:
         project_root = Path(__file__).resolve().parents[3]
-        transcriptome_dir = (
-            project_root / "notebooks" / "transcripts" / "cell_line_expression"
-        )
+        transcriptome_dir = project_root / "notebooks" / "transcripts" / "cell_line_expression"
 
     transcriptome_dir = Path(transcriptome_dir)
 
     files = [transcriptome_dir / fn for fn in transcriptome_filenames]
     missing = [p.name for p in files if not p.exists()]
     if missing:
-        raise FileNotFoundError(
-            f"Missing transcriptome files in {transcriptome_dir}: {missing}"
-        )
+        raise FileNotFoundError(f"Missing transcriptome files in {transcriptome_dir}: {missing}")
 
     dfs = [pd.read_csv(p) for p in files]
     transcript_df = pd.concat(dfs, ignore_index=True).drop_duplicates().copy()
@@ -214,9 +208,7 @@ def build_cai_reference_weights_from_transcriptomes(
             raise KeyError(f"Missing required column '{col}' in transcriptome data.")
 
     # Prefer mutated, fallback to original
-    transcript_df["ref_sequence"] = transcript_df[mutated_seq_col].fillna(
-        transcript_df[original_seq_col]
-    )
+    transcript_df["ref_sequence"] = transcript_df[mutated_seq_col].fillna(transcript_df[original_seq_col])
 
     # Top-N by expression
     ref_df = transcript_df.sort_values(expr_col, ascending=False).head(top_n)
