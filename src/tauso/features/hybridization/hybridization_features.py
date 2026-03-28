@@ -101,9 +101,7 @@ def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
         if temp == 37:
-            total_hybridization += (
-                    exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
-            )
+            total_hybridization += exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
         else:
             total_hybridization = 0
     return total_hybridization

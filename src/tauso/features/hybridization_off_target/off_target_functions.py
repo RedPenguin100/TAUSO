@@ -8,6 +8,7 @@ from Bio import SeqIO
 This file contains helper functions both getting the mRNA sequences and for off-target calculations
 """
 
+
 def parse_risearch_output(output_str: str) -> pd.DataFrame:
     columns = [
         "trigger",
@@ -39,19 +40,13 @@ def parse_gtf(gtf_path, cache_path=None):
             if len(fields) != 9:
                 continue
 
-            chrom, source, feature, start, end, score, strand, frame, attributes = (
-                fields
-            )
+            chrom, source, feature, start, end, score, strand, frame, attributes = fields
             if feature not in ["exon", "CDS", "UTR"]:
                 continue
 
             attr_dict = {
                 key: val.strip('"')
-                for key, val in [
-                    attr.strip().split(" ")
-                    for attr in attributes.split(";")
-                    if attr.strip()
-                ]
+                for key, val in [attr.strip().split(" ") for attr in attributes.split(";") if attr.strip()]
             }
             transcript_id = attr_dict.get("transcript_id")
             gene_name = attr_dict.get("gene_name")

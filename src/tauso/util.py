@@ -8,14 +8,7 @@ def get_longer_string(s1: str, s2: str) -> str:
 
 def _norm_rna_to_dna(seq: str) -> str:
     """Normalize RNA to DNA alphabet (U->T), uppercase, strip whitespace."""
-    return (
-        str(seq)
-        .upper()
-        .replace("U", "T")
-        .replace(" ", "")
-        .replace("\t", "")
-        .replace("\n", "")
-    )
+    return str(seq).upper().replace("U", "T").replace(" ", "").replace("\t", "").replace("\n", "")
 
 
 def _to_str_seq(x) -> str:
@@ -30,9 +23,7 @@ def _to_str_seq(x) -> str:
             s = "".join(list(x))
         except Exception:
             s = str(x)
-    return (
-        s.replace(" ", "").replace("\t", "").replace("\n", "").replace("U", "T").upper()
-    )
+    return s.replace(" ", "").replace("\t", "").replace("\n", "").replace("U", "T").upper()
 
 
 # Define the dictionary globally for fast O(1) lookups

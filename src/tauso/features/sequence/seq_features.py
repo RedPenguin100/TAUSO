@@ -97,7 +97,7 @@ def palindromic_fraction(seq: str, l: int) -> float:
         return 0.0
 
     # A generator expression inside sum() is highly optimized in Python's C backend
-    count = sum(1 for n in range(seq_len - l + 1) if is_palindrome(seq[n: n + l]))
+    count = sum(1 for n in range(seq_len - l + 1) if is_palindrome(seq[n : n + l]))
 
     return count / seq_len
 
@@ -184,16 +184,10 @@ def hairpin_score(seq: str, min_overlap: int = 4) -> float:
     antisense = get_antisense(seq)
 
     # 2. Build a set of all min_overlap-mers in the antisense for O(1) lookup
-    antisense_kmers = {
-        antisense[i: i + min_overlap] for i in range(n - min_overlap + 1)
-    }
+    antisense_kmers = {antisense[i : i + min_overlap] for i in range(n - min_overlap + 1)}
 
     # 3. Count matches without scanning the whole string every time
-    matches = sum(
-        1
-        for i in range(n - min_overlap + 1)
-        if seq[i: i + min_overlap] in antisense_kmers
-    )
+    matches = sum(1 for i in range(n - min_overlap + 1) if seq[i : i + min_overlap] in antisense_kmers)
 
     return matches / n
 
@@ -259,11 +253,7 @@ def dispersed_repeats_score(seq: str, min_unit: int = 2, max_unit: int = 6) -> f
 
     # A single generator expression creates all k-mers.
     # We pass this directly to Counter(), which consumes it at C-speeds.
-    kmers = (
-        seq[i: i + unit_len]
-        for unit_len in range(min_unit, max_unit + 1)
-        for i in range(n - unit_len + 1)
-    )
+    kmers = (seq[i : i + unit_len] for unit_len in range(min_unit, max_unit + 1) for i in range(n - unit_len + 1))
 
     counts = Counter(kmers)
 
@@ -315,7 +305,7 @@ def toxic_motif_count(aso_sequence, motifs=None) -> float:
 def nucleotide_diversity(seq: str) -> float:
     # checking the nucleotide diversity of the ASO sequence and normalize it by the
     # max value 16
-    nucs = [seq[i: i + 2] for i in range(len(seq) - 1)]
+    nucs = [seq[i : i + 2] for i in range(len(seq) - 1)]
     unique = set(nucs)
     return len(unique) / 16
 
@@ -340,10 +330,10 @@ def tandem_repeats_score(seq: str, min_unit=2, max_unit=6) -> float:
     score = 0
     for unit_len in range(min_unit, max_unit + 1):
         for i in range(len(seq) - unit_len * 2 + 1):
-            unit = seq[i: i + unit_len]
+            unit = seq[i : i + unit_len]
             repeat_count = 1
             j = i + unit_len
-            while j + unit_len <= len(seq) and seq[j: j + unit_len] == unit:
+            while j + unit_len <= len(seq) and seq[j : j + unit_len] == unit:
                 repeat_count += 1
                 j += unit_len
             if repeat_count >= 2:
@@ -365,7 +355,7 @@ def flexible_dinucleotide_fraction(seq: str) -> float:
     seq = seq.upper()
     count = 0
     for i in range(len(seq) - 1):
-        pair = seq[i: i + 2]
+        pair = seq[i : i + 2]
         if pair in ["AT", "TA"]:
             count += 1
     return count / (len(seq) - 1)
@@ -388,9 +378,7 @@ def hairpin_tm(seq: str) -> float:
     return hairpin.tm
 
 
-def add_interaction_features(
-        df: pd.DataFrame, feature_pairs: list[tuple[str, str]]
-) -> pd.DataFrame:
+def add_interaction_features(df: pd.DataFrame, feature_pairs: list[tuple[str, str]]) -> pd.DataFrame:
     """
     Given a DataFrame and a list of columns pairs (colA ,colB), create new cloumns named "colA*colB"
     containing element-wise product.
@@ -424,7 +412,7 @@ def cg_dinucleotide_fraction(seq: str) -> float:
     seq = seq.upper()
     cg_count = 0
     for i in range(len(seq) - 1):
-        dinucleotide = seq[i: i + 2]
+        dinucleotide = seq[i : i + 2]
         if dinucleotide == "CG":
             cg_count += 1
     total_possible_pairs = len(seq) - 1
@@ -483,7 +471,7 @@ def dinucleotide_entropy(seq: str) -> float:
         return 0.0
 
     # Generator expression avoids building a large list in memory
-    counts = Counter(seq[i: i + 2] for i in range(n - 1))
+    counts = Counter(seq[i : i + 2] for i in range(n - 1))
 
     total_dinucleotides = n - 1
     raw_entropy = 0.0
@@ -493,9 +481,7 @@ def dinucleotide_entropy(seq: str) -> float:
         probability = count / total_dinucleotides
         raw_entropy -= probability * math.log2(probability)
 
-    return (
-            raw_entropy / 4.0
-    )  # Normalize to [0, 1] (since max entropy for 16 states is log2(16) = 4)
+    return raw_entropy / 4.0  # Normalize to [0, 1] (since max entropy for 16 states is log2(16) = 4)
 
 
 ##############################################################################
@@ -546,7 +532,7 @@ def Niv_ENC(seq: str, strict: bool = False) -> float:
     """
     seq = seq.upper()
     seq = seq[: len(seq) - (len(seq) % 3)]  # Trim to full codons
-    codons = [seq[i: i + 3] for i in range(0, len(seq), 3)]
+    codons = [seq[i : i + 3] for i in range(0, len(seq), 3)]
     codon_counts = defaultdict(int)
     for codon in codons:
         codon_counts[codon] += 1
@@ -587,7 +573,7 @@ def Niv_ENC(seq: str, strict: bool = False) -> float:
             if total == 0:
                 continue
             freqs = [count / total for count in counts]
-            F_aa = sum(f ** 2 for f in freqs)
+            F_aa = sum(f**2 for f in freqs)
             F_list.append(F_aa)
         if F_list:
             F_values[k] = np.mean(F_list)
@@ -599,13 +585,7 @@ def Niv_ENC(seq: str, strict: bool = False) -> float:
             # Require all four F-values to compute full ENC
             if not all(k in F_values for k in [2, 3, 4, 6]):
                 return 0.0  # Not enough info to compute strict ENC
-            ENC = (
-                    2
-                    + 9 / F_values[2]
-                    + 1 / F_values[3]
-                    + 5 / F_values[4]
-                    + 3 / F_values[6]
-            )
+            ENC = 2 + 9 / F_values[2] + 1 / F_values[3] + 5 / F_values[4] + 3 / F_values[6]
         else:
             # Use only available F-values (partial ENC)
             ENC = 2 + sum(weights[k] / F_values[k] for k in F_values)

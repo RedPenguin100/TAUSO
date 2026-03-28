@@ -47,7 +47,7 @@ def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=
 
     # SCAN
     for i in range(seq_len - motif_len + 1):
-        window = seq_indices[i: i + motif_len]
+        window = seq_indices[i : i + motif_len]
         if -1 in window:
             continue
 
@@ -65,10 +65,10 @@ def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=
 
 
 def build_rbp_expression_matrix(
-        df: pd.DataFrame,
-        pwm_db: dict,
-        cell_line_col: str = CELL_LINE_DEPMAP,
-        data_dir: str = None,
+    df: pd.DataFrame,
+    pwm_db: dict,
+    cell_line_col: str = CELL_LINE_DEPMAP,
+    data_dir: str = None,
 ) -> pd.DataFrame:
     """
     Builds a matrix of RNA expression (TPM) for the RBPs present in the pwm_db
@@ -91,14 +91,10 @@ def build_rbp_expression_matrix(
     expression_dir = os.path.join(data_dir, "processed_expression")
 
     if not os.path.exists(attract_csv_path):
-        raise FileNotFoundError(
-            f"CRITICAL: ATtRACT metadata not found at {attract_csv_path}"
-        )
+        raise FileNotFoundError(f"CRITICAL: ATtRACT metadata not found at {attract_csv_path}")
 
     if not os.path.exists(expression_dir):
-        raise FileNotFoundError(
-            f"CRITICAL: Expression directory not found at {expression_dir}"
-        )
+        raise FileNotFoundError(f"CRITICAL: Expression directory not found at {expression_dir}")
 
     # --- 2. MAP MATRIX ID -> GENE NAME ---
     print(f"Loading metadata from {attract_csv_path} to map Matrix IDs to Gene Names...")
@@ -152,17 +148,13 @@ def build_rbp_expression_matrix(
         expr_list.append(temp_df)
 
     if not expr_list:
-        raise ValueError(
-            "CRITICAL: Expression data was loaded but became empty during processing."
-        )
+        raise ValueError("CRITICAL: Expression data was loaded but became empty during processing.")
 
     # Concatenate and Pivot
     full_expr_df = pd.concat(expr_list)
 
     # Pivot: Index=CellLine, Cols=GeneName, Values=TPM
-    expression_matrix = full_expr_df.pivot(
-        index=cell_line_col, columns="Gene", values="expression_TPM"
-    )
+    expression_matrix = full_expr_df.pivot(index=cell_line_col, columns="Gene", values="expression_TPM")
 
     if expression_matrix.empty:
         raise ValueError("CRITICAL: Final expression matrix is empty!")

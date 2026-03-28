@@ -73,7 +73,7 @@ def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
     for ref in reference_seqs:
         ref = _clean_dna(ref)
         for i in range(0, len(ref) - 2, 3):
-            codon = ref[i: i + 3]
+            codon = ref[i : i + 3]
             if "N" in codon or codon in STOP_CODONS:
                 continue
             for fam in families:
@@ -100,9 +100,9 @@ def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
 
 
 def calc_CAI(
-        seq: str,
-        weights: Union[List[Dict[str, float]], Dict[str, float]],
-        epsilon: float = 1e-8,
+    seq: str,
+    weights: Union[List[Dict[str, float]], Dict[str, float]],
+    epsilon: float = 1e-8,
 ) -> float:
     """
     Compute the Codon Adaptation Index (CAI) using a log-space geometric mean.
@@ -123,7 +123,7 @@ def calc_CAI(
         CAI value in [0, 1] (practically), or NaN if no valid codons remain.
     """
     clean = _clean_dna(seq)
-    codons = [clean[i: i + 3] for i in range(0, len(clean) - 2, 3)]
+    codons = [clean[i : i + 3] for i in range(0, len(clean) - 2, 3)]
     # Ignore ambiguous codons and stops (same behavior as your original)
     codons = [c for c in codons if "N" not in c and c not in STOP_CODONS]
     if not codons:
@@ -169,13 +169,13 @@ DEFAULT_TRANSCRIPTOME_FILENAMES: List[str] = [
 
 
 def build_cai_reference_weights_from_transcriptomes(
-        *,
-        transcriptome_dir: Optional[Path] = None,
-        transcriptome_filenames: Iterable[str] = DEFAULT_TRANSCRIPTOME_FILENAMES,
-        top_n: int = 300,
-        expr_col: str = "expression_norm",
-        mutated_seq_col: str = "Mutated Transcript sequence",
-        original_seq_col: str = "Original Transcript sequence",
+    *,
+    transcriptome_dir: Optional[Path] = None,
+    transcriptome_filenames: Iterable[str] = DEFAULT_TRANSCRIPTOME_FILENAMES,
+    top_n: int = 300,
+    expr_col: str = "expression_norm",
+    mutated_seq_col: str = "Mutated Transcript sequence",
+    original_seq_col: str = "Original Transcript sequence",
 ) -> dict:
     """
     Build CAI reference weights from top-N transcript sequences by expression.
@@ -190,18 +190,14 @@ def build_cai_reference_weights_from_transcriptomes(
     # Resolve default data path relative to this file (repo-stable)
     if transcriptome_dir is None:
         project_root = Path(__file__).resolve().parents[3]
-        transcriptome_dir = (
-                project_root / "notebooks" / "transcripts" / "cell_line_expression"
-        )
+        transcriptome_dir = project_root / "notebooks" / "transcripts" / "cell_line_expression"
 
     transcriptome_dir = Path(transcriptome_dir)
 
     files = [transcriptome_dir / fn for fn in transcriptome_filenames]
     missing = [p.name for p in files if not p.exists()]
     if missing:
-        raise FileNotFoundError(
-            f"Missing transcriptome files in {transcriptome_dir}: {missing}"
-        )
+        raise FileNotFoundError(f"Missing transcriptome files in {transcriptome_dir}: {missing}")
 
     dfs = [pd.read_csv(p) for p in files]
     transcript_df = pd.concat(dfs, ignore_index=True).drop_duplicates().copy()
@@ -212,9 +208,7 @@ def build_cai_reference_weights_from_transcriptomes(
             raise KeyError(f"Missing required column '{col}' in transcriptome data.")
 
     # Prefer mutated, fallback to original
-    transcript_df["ref_sequence"] = transcript_df[mutated_seq_col].fillna(
-        transcript_df[original_seq_col]
-    )
+    transcript_df["ref_sequence"] = transcript_df[mutated_seq_col].fillna(transcript_df[original_seq_col])
 
     # Top-N by expression
     ref_df = transcript_df.sort_values(expr_col, ascending=False).head(top_n)

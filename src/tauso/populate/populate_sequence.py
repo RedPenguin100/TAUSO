@@ -52,9 +52,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 ]
 
 
-def calc_feature(
-        df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False
-) -> None:
+def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False) -> None:
     """
     Computes a feature with timing logs. Uses parallel_apply if available.
     """
@@ -78,14 +76,12 @@ def calc_feature(
 
 
 def populate_sequence_features(
-        df,
-        features: Optional[Iterable[str]] = None,
-        cpus: int = 1,
+    df,
+    features: Optional[Iterable[str]] = None,
+    cpus: int = 1,
 ) -> Tuple:
     available = {name: fn for name, fn in FEATURE_SPECS}
-    feature_names = (
-        list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
-    )
+    feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
 
     for name in feature_names:
         # Wrap each feature calculation in the Timer context manager
@@ -96,10 +92,10 @@ def populate_sequence_features(
 
 
 def populate_sequence_one_hot_encoded(
-        df: pd.DataFrame,
-        max_len: Optional[int] = None,
-        cpus: int = 1,
-        verbose: bool = False,
+    df: pd.DataFrame,
+    max_len: Optional[int] = None,
+    cpus: int = 1,
+    verbose: bool = False,
 ) -> Tuple[pd.DataFrame, list[str]]:
     """
     One-hot encodes ASO sequences with zero-padding to handle varying lengths.
@@ -164,9 +160,7 @@ def populate_sequence_one_hot_encoded(
 
     # 5. Expand the lists into DataFrame columns
     # (Doing this via pd.DataFrame conversion is significantly faster than looping column-wise)
-    encoded_df = pd.DataFrame(
-        encoded_series.tolist(), columns=feature_names, index=df.index
-    )
+    encoded_df = pd.DataFrame(encoded_series.tolist(), columns=feature_names, index=df.index)
 
     # 6. Safety check: Drop existing OHE columns if re-running to avoid duplication
     existing_cols = [c for c in feature_names if c in df.columns]

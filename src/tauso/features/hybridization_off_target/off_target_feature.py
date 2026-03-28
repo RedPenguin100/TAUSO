@@ -11,9 +11,7 @@ def serialize_feature_name(method, top_n, cutoff, is_specific):
     return f"off_target_score_general_{method}_n{top_n}_c{cutoff}"
 
 
-def populate_off_target_specific(
-        ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_cores=1
-):
+def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_cores=1):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
     Uses CELL_LINE_DEPMAP column to map rows to cell_line2data keys.
@@ -33,9 +31,7 @@ def populate_off_target_specific(
     for top_n in top_n_list:
         for cutoff in cutoff_list:
             print(f"Running Specific Config: TopN={top_n}, Cutoff={cutoff}")
-            spec_col_name = serialize_feature_name(
-                method, top_n, cutoff, is_specific=True
-            )
+            spec_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=True)
 
             # Container for the results
             # We will compute chunks and concat them back together
@@ -48,9 +44,7 @@ def populate_off_target_specific(
                 # 1. Validation: Check if we have data for this cell line
                 if cell_line not in cell_line2data:
                     # If missing context, score is NaN
-                    empty_res = pd.Series(
-                        [np.nan] * len(group_df), index=group_df.index
-                    )
+                    empty_res = pd.Series([np.nan] * len(group_df), index=group_df.index)
                     calculated_scores.append(empty_res)
                     continue
 
@@ -107,13 +101,13 @@ def populate_off_target_specific(
 
 
 def populate_off_target_general(
-        ASO_df,
-        gene_to_data,
-        cell_line2data,
-        top_n_list,
-        cutoff_list,
-        method,
-        n_cores=1,  # Added parameter
+    ASO_df,
+    gene_to_data,
+    cell_line2data,
+    top_n_list,
+    cutoff_list,
+    method,
+    n_cores=1,  # Added parameter
 ):
     """
     Enriches ASO_df with off-target scores.
@@ -140,15 +134,11 @@ def populate_off_target_general(
         general_seq_map = {}
         general_exp_map = {}
 
-        norm_col = next(
-            (c for c in general_df.columns if "expression_norm" in c), "expression_norm"
-        )
+        norm_col = next((c for c in general_df.columns if "expression_norm" in c), "expression_norm")
         for _, row in general_df.iterrows():
             gene = row["Gene"].split()[0]
             if gene not in gene_to_data:
-                raise KeyError(
-                    f"CRITICAL: Gene '{gene}' not found in gene_to_data mapping."
-                )
+                raise KeyError(f"CRITICAL: Gene '{gene}' not found in gene_to_data mapping.")
 
             general_seq_map[gene] = gene_to_data[gene].full_mrna
             general_exp_map[gene] = (
@@ -158,9 +148,7 @@ def populate_off_target_general(
 
         for cutoff in cutoff_list:
             print(f"Running config: TopN={top_n}, Cutoff={cutoff}")
-            gen_col_name = serialize_feature_name(
-                method, top_n, cutoff, is_specific=False
-            )
+            gen_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=False)
 
             # 2. Parallel vs Single-Core Execution
             if n_cores > 1:
@@ -184,14 +172,14 @@ def populate_off_target_general(
 
 
 def populate_off_target_specific_per_rank(
-        ASO_df,
-        gene_to_data,
-        cell_line2data,
-        max_rank,
-        cutoff_list,
-        method,
-        n_cores=1,
-        verbose=False,
+    ASO_df,
+    gene_to_data,
+    cell_line2data,
+    max_rank,
+    cutoff_list,
+    method,
+    n_cores=1,
+    verbose=False,
 ):
     """
     Enriches ASO_df with rank-specific off-target details relative to the specific cell line.
@@ -309,12 +297,8 @@ def populate_off_target_specific_per_rank(
 
                 # Create Series for Metadata (Gene Name and Expression)
                 # These are constant for the whole group, but must align with index
-                gene_series = pd.Series(
-                    [gene_name] * len(group_df), index=group_df.index
-                )
-                exp_series = pd.Series(
-                    [exp_val_scalar] * len(group_df), index=group_df.index
-                )
+                gene_series = pd.Series([gene_name] * len(group_df), index=group_df.index)
+                exp_series = pd.Series([exp_val_scalar] * len(group_df), index=group_df.index)
 
                 accumulator[col_gene].append(gene_series)
                 accumulator[col_exp].append(exp_series)

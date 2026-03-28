@@ -37,9 +37,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     # 2. Global tAI Scores (Registry Lookup)
     print(f"Pre-calculating Global tAI for {len(registry)} unique genes...")
     gene_tai_lookup = {
-        gene: calc_tAI(data.get("cds_sequence"), weights)
-        if data.get("cds_sequence")
-        else np.nan
+        gene: calc_tAI(data.get("cds_sequence"), weights) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
@@ -51,11 +49,11 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
 
 
 def populate_enc(
-        df: pd.DataFrame,
-        cds_windows: list,
-        registry: dict,
-        n_jobs: int = 1,
-        verbose: bool = False,
+    df: pd.DataFrame,
+    cds_windows: list,
+    registry: dict,
+    n_jobs: int = 1,
+    verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates local and global ENC (Effective Number of Codons) scores.
@@ -110,9 +108,7 @@ def populate_enc(
         print(f"Pre-calculating Global ENC for {len(registry)} unique genes...")
 
     gene_enc_lookup = {
-        gene: compute_ENC(data.get("cds_sequence"))
-        if data.get("cds_sequence")
-        else np.nan
+        gene: compute_ENC(data.get("cds_sequence")) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
@@ -129,11 +125,11 @@ def populate_enc(
 
 
 def populate_cai(
-        df: pd.DataFrame,
-        cds_windows: list,
-        registry: dict,
-        n_jobs: int = 1,
-        verbose: bool = False,
+    df: pd.DataFrame,
+    cds_windows: list,
+    registry: dict,
+    n_jobs: int = 1,
+    verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates context-specific CAI scores based on cell line weights.
@@ -191,9 +187,7 @@ def populate_cai(
             weights = weight_map[cell_line_name]
         else:
             if verbose and cell_line_name not in reported_fallbacks:
-                print(
-                    f"⚠️  Cell line '{cell_line_name}' not found in weights. Using 'Generic' profile."
-                )
+                print(f"⚠️  Cell line '{cell_line_name}' not found in weights. Using 'Generic' profile.")
                 reported_fallbacks.add(cell_line_name)
             weights = weight_map.get("Generic")
 

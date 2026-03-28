@@ -17,9 +17,7 @@ from ..data.data import get_paths, load_db
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     handler = logging.StreamHandler(sys.stderr)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
@@ -30,18 +28,14 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
     Returns the base path for the Bowtie index of the specific genome.
     """
     if not shutil.which("bowtie"):
-        raise RuntimeError(
-            "Bowtie binary not found. Please install: 'micromamba install -c bioconda bowtie'"
-        )
+        raise RuntimeError("Bowtie binary not found. Please install: 'micromamba install -c bioconda bowtie'")
 
     paths = get_paths(genome)
     fasta_path = paths["fasta"]
 
     # Check if FASTA exists first
     if not os.path.exists(fasta_path):
-        raise FileNotFoundError(
-            f"Genome FASTA not found: {fasta_path}. Please run setup-genome."
-        )
+        raise FileNotFoundError(f"Genome FASTA not found: {fasta_path}. Please run setup-genome.")
 
     # Unique index folder per genome
     index_dir = os.path.join(os.path.dirname(fasta_path), f"{genome}_bowtie_index")
@@ -109,9 +103,7 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
     try:
         cmd = ["bowtie-build", fasta_path, index_base]
 
-        with subprocess.Popen(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True
-        ) as proc:
+        with subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True) as proc:
             spinner = itertools.cycle(["-", "/", "|", "\\"])
             while proc.poll() is None:
                 sys.stdout.write(f"\r  Compiling {genome} Index... {next(spinner)}")
@@ -278,9 +270,7 @@ def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
     Main entry point for CLI.
     """
     # Unpack the tuple (hits, counts)
-    hits_list, counts_dict = run_bowtie_search(
-        sequence, genome=genome, max_mismatches=max_mismatches
-    )
+    hits_list, counts_dict = run_bowtie_search(sequence, genome=genome, max_mismatches=max_mismatches)
 
     # Use the hits list for annotation as before
     df = annotate_hits(hits_list, genome=genome)

@@ -16,14 +16,14 @@ from .off_target_functions import parse_risearch_output
 
 
 def _apply_risearch_scoring(
-        aso_df,
-        gene_to_data,
-        target_genes,
-        get_gene_fn,
-        feature_name,
-        cutoff,
-        n_jobs,
-        verbose,
+    aso_df,
+    gene_to_data,
+    target_genes,
+    get_gene_fn,
+    feature_name,
+    cutoff,
+    n_jobs,
+    verbose,
 ):
     """Core logic for RIsearch hybridization scoring to avoid code duplication."""
 
@@ -34,9 +34,7 @@ def _apply_risearch_scoring(
             from pandarallel import pandarallel
 
             verbose_score = 2 if verbose else 0
-            pandarallel.initialize(
-                nb_workers=n_jobs, progress_bar=verbose, verbose=verbose_score
-            )
+            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=verbose_score)
         except ImportError:
             if verbose:
                 print("Warning: 'pandarallel' not found. Falling back to single core.")
@@ -114,9 +112,7 @@ def _apply_risearch_scoring(
     return aso_df, feature_name
 
 
-def on_target_total_hybridization(
-        aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False
-):
+def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False):
     """Scores against the dynamic canonical gene found in each row."""
     unique_genes = aso_df[CANONICAL_GENE].dropna().unique()
     feature_name = f"on_target_total_hybridization_{cutoff}"
@@ -133,9 +129,7 @@ def on_target_total_hybridization(
     )
 
 
-def off_target_specific_seq_pandarallel(
-        aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False
-):
+def off_target_specific_seq_pandarallel(aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False):
     """Scores against a single statically provided gene."""
     feature_name = f"off_target_single_{gene_name}_c{cutoff}"
 

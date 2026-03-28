@@ -1,6 +1,8 @@
 def calc_tm_14nt(bases_counter):
-    return 64.9 + 41.0 * ((bases_counter["G"] + bases_counter["C"] - 16.4) / (
-            bases_counter["G"] + bases_counter["C"] + bases_counter["A"] + bases_counter["T"]))
+    return 64.9 + 41.0 * (
+        (bases_counter["G"] + bases_counter["C"] - 16.4)
+        / (bases_counter["G"] + bases_counter["C"] + bases_counter["A"] + bases_counter["T"])
+    )
 
 
 def calc_tm_13nt(bases_counter):

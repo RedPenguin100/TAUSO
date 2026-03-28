@@ -6,10 +6,7 @@ from ..features.names import *
 
 def _build_multilength_index(text: bytes, lengths):
     # Iterate backwards so the earliest occurrence overwrites the later ones
-    return {
-        L: {text[i: i + L]: i for i in range(len(text) - L, -1, -1)}
-        for L in set(lengths)
-    }
+    return {L: {text[i : i + L]: i for i in range(len(text) - L, -1, -1)} for L in set(lengths)}
 
 
 def _find_all_indices(big_string: bytes, small_strings: list[bytes]):
@@ -27,11 +24,7 @@ def get_antisense_u(seq: str) -> str:
 
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask=True):
     if use_mask:
-        mask = (
-                (df[CELL_LINE_ORGANISM] == "human")
-                & (df[INHIBITION].notna())
-                & (df[CANONICAL_GENE].isin(genes_u))
-        )
+        mask = (df[CELL_LINE_ORGANISM] == "human") & (df[INHIBITION].notna()) & (df[CANONICAL_GENE].isin(genes_u))
 
         all_data = df[mask].copy()
     else:
@@ -48,11 +41,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data["__temp_sense"] = all_data[SEQUENCE].map(sense_cache)
     seq_lengths = all_data[SEQUENCE].str.len().values
 
-    pre_mrna_cache = {
-        g: gene_to_data[g].full_mrna.upper().translate(trans_table)
-        for g in genes_u
-        if g in gene_to_data
-    }
+    pre_mrna_cache = {g: gene_to_data[g].full_mrna.upper().translate(trans_table) for g in genes_u if g in gene_to_data}
 
     out_start = np.full(n_rows, -1, dtype=np.int32)
     out_start_end = np.zeros(n_rows, dtype=np.int32)
@@ -78,9 +67,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         # Build index, use it, immediately free it
         group_lengths = set(len(s) for s in group_senses_b)
         index = _build_multilength_index(pre_mrna_u.encode(), group_lengths)
-        idxs = np.array(
-            [index[len(s)].get(s, -1) for s in group_senses_b], dtype=np.int32
-        )
+        idxs = np.array([index[len(s)].get(s, -1) for s in group_senses_b], dtype=np.int32)
 
         valid_mask = idxs != -1
         if not valid_mask.any():
