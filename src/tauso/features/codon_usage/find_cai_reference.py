@@ -6,7 +6,6 @@ import pandas as pd
 from ...common.gtf import filter_gtf_genes
 from ...data.data import load_db
 
-
 # --- CORE FUNCTIONS ---
 
 

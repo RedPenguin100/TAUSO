@@ -1,7 +1,6 @@
 import numpy as np
 from numba import njit
 
-
 # NOTE: This code matches exactly the codonbias implementation, but is much quicker asof 0.3.5 version
 
 

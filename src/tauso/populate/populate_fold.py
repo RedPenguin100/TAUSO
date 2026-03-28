@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 
-from ..data.consts import CANONICAL_GENE, SENSE_START, SENSE_LENGTH
+from ..data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
 from ..features.rna_access.access_calculator import (
     AccessCalculator,

@@ -11,7 +11,6 @@ import pandas as pd
 
 from ..data.data import get_paths, load_db
 
-
 # TODO: standardize logger in the entire package
 # Setup logger
 logger = logging.getLogger(__name__)

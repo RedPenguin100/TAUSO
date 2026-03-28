@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import gmean
 
+from ...data.consts import CANONICAL_GENE, CELL_LINE
 from ...data.data import get_data_dir
-from ...data.consts import CELL_LINE, CANONICAL_GENE
 
 
 def load_halflife_mapping():

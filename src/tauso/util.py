@@ -1,5 +1,4 @@
 from numba import njit
-from numba.typed import Dict
 
 
 def get_longer_string(s1: str, s2: str) -> str:
