@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ...new_model.consts_dataframe import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
+from ...data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 
 parent = Path(__file__).parent
 RIBOSEQ_40S_HUMAN_DATA = parent / "human_unselected_40S.RiboProElong.bw"
@@ -21,6 +21,7 @@ def reduce_values(values, how):
     elif how == "nz_mean":
         nz = values[values > 0]
         return nz.mean() if nz.size > 0 else 0.0
+    raise ValueError(f"No reducing logic for value: {how}")
 
 
 def calculate_ribo_seq_row(row, bw, flanks, how):

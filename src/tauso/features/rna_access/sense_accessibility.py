@@ -2,17 +2,17 @@ from .access_calculator import AccessCalculator
 
 
 def compute_sense_accessibility_value(
-    sense_start,
-    sense_length,
-    flank,
-    flank_size,
-    access_win_size,
-    seed_sizes,
-    access_size,
-    min_gc=0,
-    max_gc=100,
-    gc_ranges=1,
-    cache=None,
+        sense_start,
+        sense_length,
+        flank,
+        flank_size,
+        access_win_size,
+        seed_sizes,
+        access_size,
+        min_gc=0,
+        max_gc=100,
+        gc_ranges=1,
+        cache=None,
 ):
     try:
         # Skip invalid rows
@@ -37,7 +37,7 @@ def compute_sense_accessibility_value(
         sense_end_in_flank = sense_start_in_flank + sense_length
 
         if 0 <= sense_start_in_flank < len(df_access) and sense_end_in_flank <= len(
-            df_access
+                df_access
         ):
             values = (
                 df_access["avg_access"]

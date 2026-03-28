@@ -6,6 +6,7 @@ import pandas as pd
 from ...common.gtf import filter_gtf_genes
 from ...data.data import load_db
 
+
 # --- CORE FUNCTIONS ---
 
 
@@ -48,13 +49,13 @@ def get_top_expressed_genes(file_path, n_top=300):
 
 
 def load_cell_line_gene_maps(
-    cell_map,
-    data_dir,
-    valid_db_genes,
-    n_specific=300,
-    n_fallback_scan=500,
-    filter_mode="protein_coding",
-    genome_db=None,
+        cell_map,
+        data_dir,
+        valid_db_genes,
+        n_specific=300,
+        n_fallback_scan=500,
+        filter_mode="protein_coding",
+        genome_db=None,
 ):
     """
     Loads expression data, filtering strictly against the GTF/GFF database annotations.
@@ -131,7 +132,6 @@ def load_cell_line_gene_maps(
 
 
 def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
-
     transcriptomes = {}
 
     for ach_id in depmap_ids:

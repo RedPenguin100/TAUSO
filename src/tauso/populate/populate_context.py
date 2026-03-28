@@ -8,9 +8,7 @@ from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import RIBOSEQ_40S_HUMAN_DATA, calculate_ribo_seq_row
 
 
-def populate_ribo_seq(
-    organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"
-):
+def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"):
     if organism != "human":
         raise ValueError("Unsupported organism for ribo_seq feature")
 
@@ -49,7 +47,7 @@ def populate_ribo_seq(
 
 
 def populate_mrna_expression(
-    df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
+        df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
     """
     Enriches the main dataframe with mRNA expression data for the target gene

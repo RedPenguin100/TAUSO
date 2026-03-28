@@ -12,17 +12,13 @@ def filter_gtf_genes(db, filter_mode):
     for feature in db.features_of_type("gene"):
         # 1. Get Attributes safely (handles Gencode vs Ensembl naming)
         # 'gene_name' is standard, fallback to 'name'
-        gene_name = feature.attributes.get(
-            "gene_name", feature.attributes.get("name", [None])
-        )[0]
+        gene_name = feature.attributes.get("gene_name", feature.attributes.get("name", [None]))[0]
 
         if not gene_name:
             continue
 
         # 'gene_type' (Gencode) or 'gene_biotype' (Ensembl)
-        biotype = feature.attributes.get(
-            "gene_type", feature.attributes.get("gene_biotype", [None])
-        )[0]
+        biotype = feature.attributes.get("gene_type", feature.attributes.get("gene_biotype", [None]))[0]
 
         # 2. Check Mitochondrial Status
         # Standardize chrom names: 'chrM', 'MT', 'M'

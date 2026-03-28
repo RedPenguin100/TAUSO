@@ -80,7 +80,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         if feature.featuretype == "exon":
             exon = feature
             # seq = fasta_dict[chrom].seq[exon.start - 1: exon.end]
-            seq = Seq(str(fasta_dict[chrom][exon.start - 1 : exon.end]))
+            seq = Seq(str(fasta_dict[chrom][exon.start - 1: exon.end]))
             if exon.strand == "-":
                 seq = seq.reverse_complement()
             seq = str(seq).upper()
@@ -92,7 +92,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         elif feature.featuretype == "intron" and include_introns:
             intron = feature
             # seq = fasta_dict[chrom].seq[intron.start - 1: intron.end]
-            seq = Seq(str(fasta_dict[chrom][intron.start - 1 : intron.end]))
+            seq = Seq(str(fasta_dict[chrom][intron.start - 1: intron.end]))
 
             if intron.strand == "-":
                 seq = seq.reverse_complement()
@@ -105,7 +105,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         elif feature.featuretype == "gene":
             gene = feature
             # seq = fasta_dict[chrom].seq[gene.start - 1: gene.end]
-            seq = Seq(str(fasta_dict[chrom][gene.start - 1 : gene.end]))
+            seq = Seq(str(fasta_dict[chrom][gene.start - 1: gene.end]))
 
             if gene.strand == "-":
                 seq = seq.reverse_complement()

@@ -12,6 +12,7 @@ from Bio.Seq import Seq
 from ...common.consts import OUT_FOLDER
 from .Interaction import Interaction
 
+# /dev/shm is a temporary folder on the RAM, which will speed up the calculation considerably.
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
 else:

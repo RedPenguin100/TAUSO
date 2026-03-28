@@ -1970,7 +1970,7 @@ def score_window_dinuc(subseq: str, weights_df) -> float:
 
     score = 0.0
     for i in range(len(subseq) - 1):
-        dimer = subseq[i : i + 2]
+        dimer = subseq[i: i + 2]
         col = f"Pos_{i + 1}"
         if dimer in weights_df.index and col in weights_df.columns:
             score += weights_df.loc[dimer, col]
@@ -2054,7 +2054,7 @@ def check_motif_presence(aso_sequence: str, motif: str) -> float:
 
 
 def compute_rnaseh1_score(
-    aso_sequence: str, weights: dict, window_start: int = None
+        aso_sequence: str, weights: dict, window_start: int = None
 ) -> float:
     """
     Computes the RNase H1 cleavage score for a given ASO sequence using single-nucleotide weights.
@@ -2087,27 +2087,27 @@ def compute_rnaseh1_score(
         if window_start < 0 or window_start >= L:
             return 0.0
         # Slice from start. Python handles slicing past end automatically.
-        subseq = seq[window_start : window_start + max_window]
+        subseq = seq[window_start: window_start + max_window]
         return score_window_dict(subseq, weights)
 
     # Case C: Default behavior (Center-aligned)
     if L % 2 == 0:
         # Even length: One central window
         start = (L - max_window) // 2
-        subseq = seq[start : start + max_window]
+        subseq = seq[start: start + max_window]
         return score_window_dict(subseq, weights)
     else:
         # Odd length: Average of two central windows
         offset1 = (L - max_window) // 2
         offset2 = offset1 + 1
 
-        s1 = score_window_dict(seq[offset1 : offset1 + max_window], weights)
-        s2 = score_window_dict(seq[offset2 : offset2 + max_window], weights)
+        s1 = score_window_dict(seq[offset1: offset1 + max_window], weights)
+        s2 = score_window_dict(seq[offset2: offset2 + max_window], weights)
         return (s1 + s2) / 2
 
 
 def compute_rnaseh1_dinucleotide_score(
-    aso_sequence: str, dinuc_weights: dict, window_start: int = None
+        aso_sequence: str, dinuc_weights: dict, window_start: int = None
 ) -> float:
     """
     Computes the RNase H1 cleavage score for a given ASO sequence using dinucleotide weights.
@@ -2140,23 +2140,23 @@ def compute_rnaseh1_dinucleotide_score(
         if window_start < 0 or window_start >= L:
             return 0.0
         # Slice the numpy array (much faster than string slicing)
-        subseq_ints = seq_ints[window_start : window_start + max_window]
+        subseq_ints = seq_ints[window_start: window_start + max_window]
         return score_window_dinuc_dict(subseq_ints, weights_matrix)
 
     # Case C: Default behavior (Center-aligned)
     if L % 2 == 0:
         start = (L - max_window) // 2
-        subseq_ints = seq_ints[start : start + max_window]
+        subseq_ints = seq_ints[start: start + max_window]
         return score_window_dinuc_dict(subseq_ints, weights_matrix)
     else:
         offset1 = (L - max_window) // 2
         offset2 = offset1 + 1
 
         s1 = score_window_dinuc_dict(
-            seq_ints[offset1 : offset1 + max_window], weights_matrix
+            seq_ints[offset1: offset1 + max_window], weights_matrix
         )
         s2 = score_window_dinuc_dict(
-            seq_ints[offset2 : offset2 + max_window], weights_matrix
+            seq_ints[offset2: offset2 + max_window], weights_matrix
         )
         return (s1 + s2) / 2
 
@@ -2370,7 +2370,7 @@ BEST_WIN_KREL_DINUC = {
 
 
 def scan_constrained_window(
-    target_seq: str, weights: dict, gap_start: int, gap_end: int
+        target_seq: str, weights: dict, gap_start: int, gap_end: int
 ) -> float:
     """
     Scans the target sequence with a sliding window defined by the weights.

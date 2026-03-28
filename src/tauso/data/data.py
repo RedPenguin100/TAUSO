@@ -40,9 +40,7 @@ def load_db(genome="GRCh38"):
     """Returns the gffutils database for the specified genome."""
     paths = get_paths(genome)
     if not os.path.exists(paths["db"]):
-        raise FileNotFoundError(
-            f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'"
-        )
+        raise FileNotFoundError(f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
     return gffutils.FeatureDB(paths["db"])
 
 
@@ -50,7 +48,5 @@ def load_genome(genome="GRCh38"):
     """Returns the pyfaidx Fasta object."""
     paths = get_paths(genome)
     if not os.path.exists(paths["fasta"]):
-        raise FileNotFoundError(
-            f"FASTA for {genome} not found. Run 'tauso setup-genome --genome {genome}'"
-        )
+        raise FileNotFoundError(f"FASTA for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
     return Fasta(paths["fasta"])

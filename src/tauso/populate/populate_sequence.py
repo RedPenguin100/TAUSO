@@ -53,7 +53,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 
 
 def calc_feature(
-    df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False
+        df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False
 ) -> None:
     """
     Computes a feature with timing logs. Uses parallel_apply if available.
@@ -78,9 +78,9 @@ def calc_feature(
 
 
 def populate_sequence_features(
-    df,
-    features: Optional[Iterable[str]] = None,
-    cpus: int = 1,
+        df,
+        features: Optional[Iterable[str]] = None,
+        cpus: int = 1,
 ) -> Tuple:
     available = {name: fn for name, fn in FEATURE_SPECS}
     feature_names = (
@@ -96,11 +96,10 @@ def populate_sequence_features(
 
 
 def populate_sequence_one_hot_encoded(
-    df: pd.DataFrame,
-    seq_col: str = SEQUENCE,
-    max_len: Optional[int] = None,
-    cpus: int = 1,
-    verbose: bool = False,
+        df: pd.DataFrame,
+        max_len: Optional[int] = None,
+        cpus: int = 1,
+        verbose: bool = False,
 ) -> Tuple[pd.DataFrame, list[str]]:
     """
     One-hot encodes ASO sequences with zero-padding to handle varying lengths.
@@ -116,7 +115,7 @@ def populate_sequence_one_hot_encoded(
 
     # 1. Determine max length for padding (if not manually provided)
     if max_len is None:
-        max_len = int(df[seq_col].str.len().max())
+        max_len = int(df[SEQUENCE].str.len().max())
         if verbose:
             print(f"  ↳ Determined max_len automatically: {max_len}")
 
@@ -153,9 +152,9 @@ def populate_sequence_one_hot_encoded(
 
         # Only initialize if not already done, though harmless if repeated
         pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
-        encoded_series = df[seq_col].parallel_apply(encode_and_pad)
+        encoded_series = df[SEQUENCE].parallel_apply(encode_and_pad)
     except Exception:
-        encoded_series = df[seq_col].apply(encode_and_pad)
+        encoded_series = df[SEQUENCE].apply(encode_and_pad)
 
     # 4. Generate the new feature names
     feature_names = []
@@ -179,8 +178,6 @@ def populate_sequence_one_hot_encoded(
 
     if verbose:
         duration = time.time() - start_time
-        print(
-            f"✔ Finished One-Hot Encoding | Added {len(feature_names)} features | Time: {duration:.2f}s\n"
-        )
+        print(f"✔ Finished One-Hot Encoding | Added {len(feature_names)} features | Time: {duration:.2f}s\n")
 
     return df, feature_names

@@ -14,7 +14,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 
 
 def calc_feature(
-    df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False
+        df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False
 ) -> None:
     """
     Computes a feature using both sequence and chemical pattern.
@@ -46,9 +46,9 @@ def calc_feature(
 
 
 def populate_sequence_chemistry_features(
-    df,
-    features: Optional[Iterable[str]] = None,
-    cpus: int = 1,
+        df,
+        features: Optional[Iterable[str]] = None,
+        cpus: int = 1,
 ) -> Tuple:
     available = {name: fn for name, fn in FEATURE_SPECS}
     feature_names = (

@@ -8,14 +8,6 @@ from Bio import SeqIO
 This file contains helper functions both getting the mRNA sequences and for off-target calculations
 """
 
-
-def dna_to_rna_reverse_complement(seq: str) -> str:
-    seq = seq.upper()
-    translation_table = str.maketrans("ATGC", "UACG")
-    # Translate and reverse
-    return seq.translate(translation_table)[::-1]
-
-
 def parse_risearch_output(output_str: str) -> pd.DataFrame:
     columns = [
         "trigger",

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 
-from ..data.consts import CANONICAL_GENE
+from ..data.consts import CANONICAL_GENE, SENSE_START, SENSE_LENGTH
 from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
 from ..features.rna_access.access_calculator import (
     AccessCalculator,
@@ -13,8 +13,6 @@ from ..features.rna_access.access_calculator import (
 )
 from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
 
-SENSE_START = "sense_start"
-SENSE_LENGTH = "sense_length"
 PRE_MRNA_SEQUENCE = "pre_mrna_sequence"
 
 
@@ -61,7 +59,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1):  # 2. Add n_jobs param
 
         # TODO: extract outside
         def _process_row(
-            row, flank_size=flank_size, window_size=window_size, step=step
+                row, flank_size=flank_size, window_size=window_size, step=step
         ):
             gene_name = row[CANONICAL_GENE]
             global_start = row[SENSE_START]
@@ -141,14 +139,14 @@ def populate_sense_accessibility(aso_dataframe, gene_to_data):
 
 
 def populate_sense_accessibility_batch(
-    aso_dataframe,
-    gene_to_data,
-    batch_size=1000,
-    flank_size=FLANK_SIZE,
-    access_size=ACCESS_SIZE,
-    seed_sizes=SEED_SIZES,
-    access_win_size=ACCESS_WIN_SIZE,
-    n_jobs=1,
+        aso_dataframe,
+        gene_to_data,
+        batch_size=1000,
+        flank_size=FLANK_SIZE,
+        access_size=ACCESS_SIZE,
+        seed_sizes=SEED_SIZES,
+        access_win_size=ACCESS_WIN_SIZE,
+        n_jobs=1,
 ):
     seeds_list = seed_sizes if isinstance(seed_sizes, (list, tuple)) else [seed_sizes]
     seeds_str = "-".join(map(str, seeds_list))
@@ -223,7 +221,7 @@ def populate_sense_accessibility_batch(
         df["rel_start"] = df["rna_id"].map(sense_start_map)
 
         mask = (df["pos_in_flank"] >= df["rel_start"]) & (
-            df["pos_in_flank"] < df["rel_start"] + df["sense_length"]
+                df["pos_in_flank"] < df["rel_start"] + df["sense_length"]
         )
 
         # Aggregate strictly as a DataFrame

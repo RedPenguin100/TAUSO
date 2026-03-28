@@ -5,6 +5,7 @@
 ./src/data/
 *.Identifier
 /notebooks/competitors/pfred_temp_io/
+out/*
 
 __pycache__/
 *.pyc

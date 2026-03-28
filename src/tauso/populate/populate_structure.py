@@ -4,17 +4,17 @@ from ..data.consts import *
 from ..features.names import *
 
 
-def build_multilength_index(text: bytes, lengths):
+def _build_multilength_index(text: bytes, lengths):
     # Iterate backwards so the earliest occurrence overwrites the later ones
     return {
-        L: {text[i : i + L]: i for i in range(len(text) - L, -1, -1)}
+        L: {text[i: i + L]: i for i in range(len(text) - L, -1, -1)}
         for L in set(lengths)
     }
 
 
-def find_all_indices(big_string: bytes, small_strings: list[bytes]):
+def _find_all_indices(big_string: bytes, small_strings: list[bytes]):
     lengths = [len(s) for s in small_strings]
-    indexes = build_multilength_index(big_string, lengths)
+    indexes = _build_multilength_index(big_string, lengths)
     return np.array([indexes[len(s)].get(s, -1) for s in small_strings], dtype=np.int32)
 
 
@@ -28,9 +28,9 @@ def get_antisense_u(seq: str) -> str:
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask=True):
     if use_mask:
         mask = (
-            (df[CELL_LINE_ORGANISM] == "human")
-            & (df[INHIBITION].notna())
-            & (df[CANONICAL_GENE].isin(genes_u))
+                (df[CELL_LINE_ORGANISM] == "human")
+                & (df[INHIBITION].notna())
+                & (df[CANONICAL_GENE].isin(genes_u))
         )
 
         all_data = df[mask].copy()
@@ -77,7 +77,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
 
         # Build index, use it, immediately free it
         group_lengths = set(len(s) for s in group_senses_b)
-        index = build_multilength_index(pre_mrna_u.encode(), group_lengths)
+        index = _build_multilength_index(pre_mrna_u.encode(), group_lengths)
         idxs = np.array(
             [index[len(s)].get(s, -1) for s in group_senses_b], dtype=np.int32
         )

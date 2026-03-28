@@ -54,9 +54,7 @@ def download_and_gunzip(url, dest_path):
             total_size = int(r.headers.get("content-length", 0))
 
             with open(temp_gz, "wb") as f:
-                with click.progressbar(
-                    length=total_size, label="    Downloading"
-                ) as bar:
+                with click.progressbar(length=total_size, label="    Downloading") as bar:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
                         bar.update(len(chunk))
@@ -117,9 +115,7 @@ def setup_attract(force):
         with zipfile.ZipFile(io.BytesIO(r.content)) as z:
             # 1. Find and Extract pwm.txt
             try:
-                pwm_filename = next(
-                    name for name in z.namelist() if name.endswith("pwm.txt")
-                )
+                pwm_filename = next(name for name in z.namelist() if name.endswith("pwm.txt"))
                 click.echo(f"  Extracting {pwm_filename}...")
                 with z.open(pwm_filename) as source, open(pwm_output, "wb") as target:
                     target.write(source.read())
@@ -128,9 +124,7 @@ def setup_attract(force):
 
             # 2. Find and Process ATtRACT_db.txt
             try:
-                db_filename = next(
-                    name for name in z.namelist() if name.endswith("ATtRACT_db.txt")
-                )
+                db_filename = next(name for name in z.namelist() if name.endswith("ATtRACT_db.txt"))
             except StopIteration:
                 raise FileNotFoundError("ATtRACT_db.txt not found in the archive.")
 
@@ -225,9 +219,7 @@ def setup_depmap(force):
         click.echo(f"Downloading {local_name}...")
         try:
             # Using wget with -O to save to destination
-            subprocess.run(
-                ["wget", "-q", "--show-progress", "-O", dest, download_url], check=True
-            )
+            subprocess.run(["wget", "-q", "--show-progress", "-O", dest, download_url], check=True)
             click.echo(click.style(f"✓ Downloaded {local_name}", fg="green"))
         except subprocess.CalledProcessError:
             click.echo(click.style(f"❌ Failed to download {local_name}", fg="red"))
@@ -271,11 +263,7 @@ def add_cell(cell_names, reset):
         usecols=["ModelID", "StrippedCellLineName", "IsDefaultEntryForModel"],
     )
     # Normalize for fuzzy search
-    df["clean"] = (
-        df["StrippedCellLineName"]
-        .str.replace(r"[^a-zA-Z0-9]", "", regex=True)
-        .str.upper()
-    )
+    df["clean"] = df["StrippedCellLineName"].str.replace(r"[^a-zA-Z0-9]", "", regex=True).str.upper()
 
     # 3. Search
     for query in cell_names:
@@ -297,9 +285,7 @@ def add_cell(cell_names, reset):
             ach_id = best.iloc[0]["ModelID"]
 
             cohort[found_name] = ach_id
-            click.echo(
-                click.style(f"✓ Found: {query} -> {found_name} ({ach_id})", fg="green")
-            )
+            click.echo(click.style(f"✓ Found: {query} -> {found_name} ({ach_id})", fg="green"))
         else:
             click.echo(click.style(f"⚠ Not Found: {query}", fg="yellow"))
 
@@ -328,14 +314,10 @@ def build_omics(genome):
 
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
-    exp_path = os.path.join(
-        data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
-    )
+    exp_path = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv")
 
     if not os.path.exists(manifest_path):
-        click.echo(
-            click.style("❌ No cohort found. Use 'tauso add-cell' first.", fg="red")
-        )
+        click.echo(click.style("❌ No cohort found. Use 'tauso add-cell' first.", fg="red"))
         return
 
     if not os.path.exists(exp_path):
@@ -445,18 +427,14 @@ def build_omics(genome):
 
 
 @main.command()
-@click.option(
-    "--top-n", default=300, help="Genes for specific cell lines (Default: 300)."
-)
+@click.option("--top-n", default=300, help="Genes for specific cell lines (Default: 300).")
 @click.option(
     "--top-n-generic",
     default=500,
     help="Genes per cell for Generic pool (Default: 500).",
 )
 @click.option("--genome", default="GRCh38", help="Genome version.")
-@click.option(
-    "--force", is_flag=True, help="Overwrite existing cai_weights.json if it exists."
-)
+@click.option("--force", is_flag=True, help="Overwrite existing cai_weights.json if it exists.")
 def build_cai_weights(top_n, top_n_generic, genome, force):
     """
     Generates CAI weight profiles for the cohort and a Generic fallback.
@@ -505,14 +483,10 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
     all_target_genes = set().union(*cell_line_top_genes.values(), global_fetch_set)
     click.echo(f"Fetching sequences for {len(all_target_genes)} valid genes...")
 
-    gene_to_data = get_locus_to_data_dict(
-        include_introns=False, gene_subset=list(all_target_genes)
-    )
+    gene_to_data = get_locus_to_data_dict(include_introns=False, gene_subset=list(all_target_genes))
 
     # Reuse the mapper we created above to save memory/time
-    ref_registry = build_gene_sequence_registry(
-        genes=list(all_target_genes), gene_to_data=gene_to_data, mapper=mapper
-    )
+    ref_registry = build_gene_sequence_registry(genes=list(all_target_genes), gene_to_data=gene_to_data, mapper=mapper)
 
     # --- PHASE 3: Calculate Weights ---
     cai_weights_map = {}
@@ -521,9 +495,7 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
     click.echo("\nCalculating cell-specific weights (Top 300)...")
     for cell_name, genes in cell_line_top_genes.items():
         cds_list = [
-            ref_registry[g]["cds_sequence"]
-            for g in genes
-            if g in ref_registry and ref_registry[g].get("cds_sequence")
+            ref_registry[g]["cds_sequence"] for g in genes if g in ref_registry and ref_registry[g].get("cds_sequence")
         ]
         cds_list = cds_list[:top_n]
 
@@ -535,9 +507,7 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
             click.echo(f"  ⚠ {cell_name} has insufficient sequences.")
 
     # B. Generic Weights (Consensus Intersection)
-    click.echo(
-        f"\nCalculating Generic Weights (Intersection of Top {top_n_generic})..."
-    )
+    click.echo(f"\nCalculating Generic Weights (Intersection of Top {top_n_generic})...")
 
     # Extract sequences for the consensus genes
     fallback_cds_list = [
@@ -640,9 +610,7 @@ def setup_mrna_halflife(force):
         try:
             with gzip.open(destination, "rb") as f:
                 f.read(1)
-            click.echo(
-                click.style(f"✓ Integrity check passed (valid gzip).", fg="green")
-            )
+            click.echo(click.style(f"✓ Integrity check passed (valid gzip).", fg="green"))
         except Exception:
             click.echo(
                 click.style(
@@ -761,9 +729,7 @@ def setup_genome(genome, force):
                 download_and_gunzip(fasta_url, fasta_path)
 
             if not os.path.exists(gtf_path):
-                click.echo(
-                    f"Downloading {genome} GTF (Basic Annotation) from GENCODE..."
-                )
+                click.echo(f"Downloading {genome} GTF (Basic Annotation) from GENCODE...")
                 download_and_gunzip(gtf_url, gtf_path)
         else:
             # Fallback for unsupported genomes
@@ -775,9 +741,7 @@ def setup_genome(genome, force):
                     )
                 )
                 click.echo(f"Supported genomes: GRCh38, GRCm39")
-                click.echo(
-                    f"For others, place {genome}.fa and {genome}.gtf manually in {get_data_dir()}"
-                )
+                click.echo(f"For others, place {genome}.fa and {genome}.gtf manually in {get_data_dir()}")
                 sys.exit(1)
 
         if not os.path.exists(fasta_path + ".fai"):
@@ -796,11 +760,7 @@ def setup_genome(genome, force):
             click.echo(f"✓ Database already exists at {db_path}")
             return
         else:
-            click.echo(
-                click.style(
-                    f"⚠ Found incomplete/corrupt database. Rebuilding...", fg="yellow"
-                )
-            )
+            click.echo(click.style(f"⚠ Found incomplete/corrupt database. Rebuilding...", fg="yellow"))
             if os.path.exists(db_path):
                 os.remove(db_path)
 
@@ -852,9 +812,7 @@ def setup_genome(genome, force):
         del db
         db = gffutils.FeatureDB(db_path)
         # Set PRAGMA opts...
-        with click.progressbar(
-            length=len(unique_introns), label="    Importing"
-        ) as bar:
+        with click.progressbar(length=len(unique_introns), label="    Importing") as bar:
 
             def monitor_gen():
                 for x in unique_introns:
@@ -900,17 +858,9 @@ def run_off_target(sequence, genome, mismatches, output):
         sentinel_path = os.path.join(fasta_dir, f"{genome}_bowtie_index", "SUCCESS")
 
         if not os.path.exists(sentinel_path):
-            click.echo(
-                click.style(
-                    f"❌ Error: Bowtie index for '{genome}' is missing.", fg="red"
-                )
-            )
-            click.echo(
-                "The search cannot run because the genome index has not been built."
-            )
-            click.echo(
-                f"\nPlease run this command first:\n  tauso setup-bowtie --genome {genome}"
-            )
+            click.echo(click.style(f"❌ Error: Bowtie index for '{genome}' is missing.", fg="red"))
+            click.echo("The search cannot run because the genome index has not been built.")
+            click.echo(f"\nPlease run this command first:\n  tauso setup-bowtie --genome {genome}")
             sys.exit(1)
 
     except Exception as e:
@@ -924,15 +874,11 @@ def run_off_target(sequence, genome, mismatches, output):
     if original_seq != sequence:
         click.echo(f"Normalized input sequence: {original_seq} -> {sequence}")
 
-    click.echo(
-        f"Searching off-targets for {sequence} in {genome} (Max MM: {mismatches})..."
-    )
+    click.echo(f"Searching off-targets for {sequence} in {genome} (Max MM: {mismatches})...")
 
     start_time = time.time()
     try:
-        hits_df = find_all_gene_off_targets(
-            sequence, genome=genome, max_mismatches=mismatches
-        )
+        hits_df = find_all_gene_off_targets(sequence, genome=genome, max_mismatches=mismatches)
     except Exception as e:
         click.echo(click.style(f"Search failed: {e}", fg="red"))
         sys.exit(1)
@@ -949,9 +895,7 @@ def run_off_target(sequence, genome, mismatches, output):
 
     # Display Top 20
     click.echo("\nTop Hits:")
-    click.echo(
-        f"{'Chrom':<10} | {'Start':<12} | {'Str':<3} | {'MM':<2} | {'Gene':<15} | {'Region'}"
-    )
+    click.echo(f"{'Chrom':<10} | {'Start':<12} | {'Str':<3} | {'MM':<2} | {'Gene':<15} | {'Region'}")
     click.echo("-" * 70)
 
     count = 0

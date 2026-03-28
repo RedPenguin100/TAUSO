@@ -9,8 +9,10 @@ import time
 
 import pandas as pd
 
-from tauso.data.data import get_paths, load_db
+from ..data.data import get_paths, load_db
 
+
+# TODO: standardize logger in the entire package
 # Setup logger
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -108,7 +110,7 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
         cmd = ["bowtie-build", fasta_path, index_base]
 
         with subprocess.Popen(
-            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True
+                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True
         ) as proc:
             spinner = itertools.cycle(["-", "/", "|", "\\"])
             while proc.poll() is None:

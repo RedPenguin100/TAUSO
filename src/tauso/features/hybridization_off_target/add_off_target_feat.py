@@ -1,6 +1,6 @@
 import numpy as np
 
-from ...new_model.consts_dataframe import CANONICAL_GENE, SEQUENCE
+from ...data.consts import CANONICAL_GENE, SEQUENCE
 from ...util import get_antisense
 from ..hybridization.fast_hybridization import (
     Interaction,
@@ -90,7 +90,7 @@ def calculate_score_helper(energy_dict, expression_dict, method):
         return 0.0
 
     if (
-        method == AggregationMethod.ARTM_log
+            method == AggregationMethod.ARTM_log
     ):  # Normalized Arithmetic (Direct exp, no 1e6 scaling)
         # Re-loop because we scaled exp above, but method 0 usually takes raw norm
         score = 0.0
@@ -105,7 +105,7 @@ def calculate_score_helper(energy_dict, expression_dict, method):
 
     elif method == AggregationMethod.ARTM_weighted:  # Weighted Arithmetic (e^2)
         for _, energy, expr_tpm in valid_targets:
-            score += energy * (expr_tpm**2)
+            score += energy * (expr_tpm ** 2)
 
     elif method == AggregationMethod.GEO:  # Geometric
         log_sum = 0.0
@@ -119,7 +119,7 @@ def calculate_score_helper(energy_dict, expression_dict, method):
 
         for rank, (_, energy, expr_tpm) in enumerate(valid_targets, start=1):
             batch = (rank - 1) // 10
-            weight = 10 / (2**batch)
+            weight = 10 / (2 ** batch)
             score += energy * expr_tpm * weight
 
     elif method == AggregationMethod.MECH:  # Mechanical Statistics

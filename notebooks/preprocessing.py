@@ -12,7 +12,7 @@ def get_unique_genes(df):
     Extracts unique genes from a dataframe, excluding blacklist items.
     """
     genes = df[CANONICAL_GENE].unique()
-    genes_to_remove = {'HBV', 'negative_control', np.nan}
+    genes_to_remove = {"HBV", "negative_control", np.nan}
 
     # Filter using list comprehension
     genes_clean = [g for g in genes if g not in genes_to_remove]
@@ -25,7 +25,7 @@ def get_filtered_human_data(df):
     Returns a copy to avoid SettingWithCopy warnings.
     """
     # Filter: Organism is Human AND Inhibition is not NaN
-    condition = (df[CELL_LINE_ORGANISM] == 'human') & (df[INHIBITION].notna())
+    condition = (df[CELL_LINE_ORGANISM] == "human") & (df[INHIBITION].notna())
     return df[condition].copy()
 
 
@@ -57,8 +57,8 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
     df = get_filtered_human_data(all_data)
     log_correction(df)
 
-    df = df[df[CHEMICAL_PATTERN] != '(S)-cEt/5-methylcytosines/deoxy'].copy()
-    df = df[df[CHEMICAL_PATTERN] != 'LNA/deoxy'].copy()
+    df = df[df[CHEMICAL_PATTERN] != "(S)-cEt/5-methylcytosines/deoxy"].copy()
+    df = df[df[CHEMICAL_PATTERN] != "LNA/deoxy"].copy()
 
     # 3. Filter Specific Genes (using the clean DF)
     genes_clean = get_unique_genes(df)
@@ -95,13 +95,14 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
     return valid_data
 
 
-def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=True):
+def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gapmer_patterns=False, verbose=True):
     """
     Takes a raw ASO dataframe, standardizes formats, and sequentially filters out:
     0. Base exclusions (unsupported chemistry, steric blocking, ambiguous genes, missing inhibition, missing cell line)
-    1. Unmapped sequences
-    2. Sparse cohorts
-    3. Sparse cell lines
+'m     1. Unmapped sequences
+    2. Optional: Non-standard gapmer patterns (filters strictly for 5-10-5 MOE and 3-10-3 cEt)
+    3. Sparse cohorts
+    4. Sparse cell lines
     """
     if not SENSE_START in data.columns:
         raise ValueError(f"Need {SENSE_START} in data to filter properly! Add the features")
@@ -118,36 +119,33 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=Tr
     # FILTER: Chemistry (Whitelist MOE and cEt)
     # ---------------------------------------------------------
     rows_before_chem = len(data)
-    valid_chemistries = [
-        "MOE/5-methylcytosines/deoxy",
-        "cEt/5-methylcytosines/deoxy"
-    ]
+    valid_chemistries = ["MOE/5-methylcytosines/deoxy", "cEt/5-methylcytosines/deoxy"]
     # Assuming MODIFICATION is imported from your consts
     data = data[data[MODIFICATION].isin(valid_chemistries)].copy()
     elim_chemistry = rows_before_chem - len(data)
 
     # 1. Rename columns to standard consts
     rename_scheme = {
-        'aso_sequence_5_to_3': SEQUENCE,
-        'Canonical Gene Name': CANONICAL_GENE,
-        'cell_line': CELL_LINE,
-        'cell_line_species': CELL_LINE_ORGANISM,
-        'inhibition_percent': INHIBITION,
-        'dosage': VOLUME
+        "aso_sequence_5_to_3": SEQUENCE,
+        "Canonical Gene Name": CANONICAL_GENE,
+        "cell_line": CELL_LINE,
+        "cell_line_species": CELL_LINE_ORGANISM,
+        "inhibition_percent": INHIBITION,
+        "dosage": VOLUME,
     }
     data = data.rename(columns=rename_scheme)
 
     # 2. Standardize Cell Line Naming
     cell_line_fixes = {
-        'A-431': 'A431',
-        'A-549': 'A549',
-        'A459': 'A549',  # Typo
-        'HepB3': 'Hep3B',  # Typo
-        'T-24': 'T24',
-        'SH-SY-5Y': 'SH-SY5Y',
-        'HuVEC': 'HUVEC',  # Capitalization standard
-        'hSKM': 'hSKMc',  # Consolidate skeletal muscle variants
-        'iCell cardiomyocytes (R1017)': 'iCell cardiomyocytes2'
+        "A-431": "A431",
+        "A-549": "A549",
+        "A459": "A549",  # Typo
+        "HepB3": "Hep3B",  # Typo
+        "T-24": "T24",
+        "SH-SY-5Y": "SH-SY5Y",
+        "HuVEC": "HUVEC",  # Capitalization standard
+        "hSKM": "hSKMc",  # Consolidate skeletal muscle variants
+        "iCell cardiomyocytes (R1017)": "iCell cardiomyocytes2",
     }
     data[CELL_LINE] = data[CELL_LINE].replace(cell_line_fixes)
 
@@ -155,18 +153,18 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=Tr
     # FILTER 0: Base Filtering
     # ---------------------------------------------------------
     rows_before = len(data)
-    data = data[data['steric_blocking'] == False].copy()
+    data = data[data["steric_blocking"] == False].copy()
     elim_steric = rows_before - len(data)
 
     rows_before = len(data)
-    data = data[~data[CANONICAL_GENE].str.contains(';', na=False)].copy()
+    data = data[~data[CANONICAL_GENE].str.contains(";", na=False)].copy()
     elim_multigene = rows_before - len(data)
 
     rows_before = len(data)
     data = data[data[INHIBITION].notna()].copy()
     elim_missing_inhib = rows_before - len(data)
 
-    # NEW: Explicitly drop and track missing cell lines
+    # Explicitly drop and track missing cell lines
     rows_before = len(data)
     data = data[data[CELL_LINE].notna()].copy()
     elim_missing_cell_line = rows_before - len(data)
@@ -180,10 +178,24 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=Tr
     elim_unmapped_rows = initial_rows_unmapped - len(data)
 
     # ---------------------------------------------------------
-    # FILTER 2: Sparse Cohorts (< min_cohort_size)
+    # FILTER 2: Strict Gapmer Patterns (OPTIONAL)
     # ---------------------------------------------------------
-    data['cohort_id'] = data[CANONICAL_GENE].astype(str).str.strip() + "_" + data[CELL_LINE].astype(str).str.strip()
-    cohort_counts = data['cohort_id'].value_counts()
+    elim_patterns = 0
+    if strict_gapmer_patterns:
+        rows_before_patterns = len(data)
+
+        # 5-10-5 MOE are 20-mers | 3-10-3 cEt are 16-mers
+        is_5105_moe = data[CHEMICAL_PATTERN] == "MMMMMddddddddddMMMMM"
+        is_3103_cet = data[CHEMICAL_PATTERN] == "CCCddddddddddCCC"
+
+        data = data[is_5105_moe | is_3103_cet].copy()
+        elim_patterns = rows_before_patterns - len(data)
+
+    # ---------------------------------------------------------
+    # FILTER 3: Sparse Cohorts (< min_cohort_size)
+    # ---------------------------------------------------------
+    data["cohort_id"] = data[CANONICAL_GENE].astype(str).str.strip() + "_" + data[CELL_LINE].astype(str).str.strip()
+    cohort_counts = data["cohort_id"].value_counts()
 
     valid_cohorts = cohort_counts[cohort_counts >= min_cohort_size].index
     dropped_cohort_series = cohort_counts[cohort_counts < min_cohort_size]
@@ -191,13 +203,13 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=Tr
     initial_rows_cohort = len(data)
     initial_cohorts = len(cohort_counts)
 
-    data = data[data['cohort_id'].isin(valid_cohorts)].copy()
+    data = data[data["cohort_id"].isin(valid_cohorts)].copy()
 
     elim_cohort_rows = initial_rows_cohort - len(data)
-    final_cohorts = data['cohort_id'].nunique()
+    final_cohorts = data["cohort_id"].nunique()
 
     # ---------------------------------------------------------
-    # FILTER 3: Sparse Cell Lines (< min_cell_line_asos)
+    # FILTER 4: Sparse Cell Lines (< min_cell_line_asos)
     # ---------------------------------------------------------
     cell_counts = data[CELL_LINE].value_counts()
     valid_cell_lines = cell_counts[cell_counts >= min_cell_line_asos].index
@@ -210,13 +222,13 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=Tr
     elim_cell_rows = initial_rows_cell_line - len(data)
 
     # ---------------------------------------------------------
-    # 4. Map Cell Lines to DepMap Contexts
+    # 5. Map Cell Lines to DepMap Contexts
     # ---------------------------------------------------------
     data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(CELL_LINE_TO_DEPMAP_PROXY_DICT)
     data[CELL_LINE_DEPMAP] = data[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP)
 
     # ---------------------------------------------------------
-    # 5. Print Summary Report
+    # 6. Print Summary Report
     # ---------------------------------------------------------
     if verbose:
         print("-" * 60)
@@ -235,14 +247,20 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=Tr
             print(f"\n[1. UNMAPPED SEQUENCES ({SENSE_START} == -1)]")
             print(f"Samples eliminated: {elim_unmapped_rows:,}")
 
-        print(f"\n[2. COHORT FILTERING (>= {min_cohort_size} samples)]")
+        if strict_gapmer_patterns:
+            print(f"\n[2. STRICT GAPMER PATTERNS (5-10-5 MOE / 3-10-3 cEt)]")
+            print(f"Non standard sequences eliminated: {elim_patterns:,}")
+
+        print(f"\n[3. COHORT FILTERING (>= {min_cohort_size} samples)]")
         print(f"Cohorts: {initial_cohorts:,} -> {final_cohorts:,} ({len(dropped_cohort_series):,} eliminated)")
         print(
-            f"Samples: {initial_rows_cohort:,} -> {initial_rows_cohort - elim_cohort_rows:,} ({elim_cohort_rows:,} eliminated)")
+            f"Samples: {initial_rows_cohort:,} -> {initial_rows_cohort - elim_cohort_rows:,} ({elim_cohort_rows:,} eliminated)"
+        )
 
-        print(f"\n[3. SPARSE CELL LINE FILTERING (>= {min_cell_line_asos} samples)]")
+        print(f"\n[4. SPARSE CELL LINE FILTERING (>= {min_cell_line_asos} samples)]")
         print(
-            f"Cell Lines: {len(cell_counts):,} -> {len(valid_cell_lines):,} ({len(dropped_cell_series):,} eliminated)")
+            f"Cell Lines: {len(cell_counts):,} -> {len(valid_cell_lines):,} ({len(dropped_cell_series):,} eliminated)"
+        )
         print(f"Samples: {initial_rows_cell_line:,} -> {len(data):,} ({elim_cell_rows:,} eliminated)")
 
         print(f"\nFINAL DATASET: {len(data):,} ASOs")
@@ -253,7 +271,8 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, verbose=Tr
 
         if SENSE_START in data.columns:
             print(
-                f"\n[ELIMINATED UNMAPPED SAMPLES] - {elim_unmapped_rows:,} samples across {len(unmapped_series)} genes:")
+                f"\n[ELIMINATED UNMAPPED SAMPLES] - {elim_unmapped_rows:,} samples across {len(unmapped_series)} genes:"
+            )
             if not unmapped_series.empty:
                 for gene, size in unmapped_series.items():
                     print(f"  • {gene}: {size} samples")

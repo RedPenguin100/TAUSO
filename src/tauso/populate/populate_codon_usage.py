@@ -11,9 +11,7 @@ from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import calc_tAI, tai_weights
 
 
-def populate_tai(
-    df: pd.DataFrame, cds_windows: list, registry: dict
-) -> tuple[pd.DataFrame, list[str]]:
+def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates local and global tAI scores.
     Raises KeyError if required local context columns are missing.
@@ -53,11 +51,11 @@ def populate_tai(
 
 
 def populate_enc(
-    df: pd.DataFrame,
-    cds_windows: list,
-    registry: dict,
-    n_jobs: int = 1,
-    verbose: bool = False,
+        df: pd.DataFrame,
+        cds_windows: list,
+        registry: dict,
+        n_jobs: int = 1,
+        verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates local and global ENC (Effective Number of Codons) scores.
@@ -131,11 +129,11 @@ def populate_enc(
 
 
 def populate_cai(
-    df: pd.DataFrame,
-    cds_windows: list,
-    registry: dict,
-    n_jobs: int = 1,
-    verbose: bool = False,
+        df: pd.DataFrame,
+        cds_windows: list,
+        registry: dict,
+        n_jobs: int = 1,
+        verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates context-specific CAI scores based on cell line weights.

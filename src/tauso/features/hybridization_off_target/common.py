@@ -1,6 +1,8 @@
 import pandas as pd
 
 
+# TODO: move this function to a folder / file about expression
+
 def get_general_expression_of_genes(EXP_path, valid_genes):
     """
     Loads expression data, filters for valid genes based on GTF (e.g., protein_coding),

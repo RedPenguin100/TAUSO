@@ -107,7 +107,7 @@ class GeneCoordinateMapper:
             # Slice safely from the pre-mRNA sequence string
             if start < len(pre_mrna_seq):
                 segment = pre_mrna_seq[
-                    max(0, start) : min(len(pre_mrna_seq), start + length)
+                    max(0, start): min(len(pre_mrna_seq), start + length)
                 ]
                 parts.append(segment)
 
@@ -139,7 +139,7 @@ class GeneCoordinateMapper:
 # REGISTRY BUILDER (Helper)
 # =============================================================================
 def build_gene_sequence_registry(
-    genes: Iterable[str], gene_to_data: Dict, mapper: GeneCoordinateMapper
+        genes: Iterable[str], gene_to_data: Dict, mapper: GeneCoordinateMapper
 ) -> Dict[str, Dict[str, str]]:
     """
     Creates a dictionary of {gene_name: {'pre_mrna': ..., 'cds': ...}}

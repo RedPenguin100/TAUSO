@@ -5,8 +5,7 @@ import pandas as pd
 from scipy.stats import gmean
 
 from ...data.data import get_data_dir
-from ...new_model.consts_dataframe import CANONICAL_GENE
-from ...new_model.utils import CELL_LINE
+from ...data.consts import CELL_LINE, CANONICAL_GENE
 
 
 def load_halflife_mapping():
@@ -20,9 +19,7 @@ def load_halflife_mapping():
     print(f"Loading half-life data from {path}...")
 
     if not os.path.exists(path):
-        raise FileNotFoundError(
-            f"Data file not found at {path}. Run 'tauso setup-mrna-halflife' first."
-        )
+        raise FileNotFoundError(f"Data file not found at {path}. Run 'tauso setup-mrna-halflife' first.")
 
     # 1. Load necessary columns
     # We use 'gene_name_y' (standardized) and 'condition' (for filtering)

@@ -12,9 +12,7 @@ def get_cached_mfe(seq):
     return RNA.fold(seq)[1]
 
 
-def calculate_avg_mfe_over_sense_region(
-    sequence, sense_start_in_flank, sense_length, window_size=120, step=1
-):
+def calculate_avg_mfe_over_sense_region(sequence, sense_start_in_flank, sense_length, window_size=120, step=1):
     sequence = str(sequence).upper().replace("T", "U")
     sequence_length = len(sequence)
     energy_values = np.zeros(sequence_length)
@@ -23,15 +21,15 @@ def calculate_avg_mfe_over_sense_region(
     # --- CHANGED: Standard Loop using Cache ---
     # We reverted to the loop (to fix the crash) but use the cached helper.
     for i in range(0, sequence_length - window_size + 1, step):
-        subseq = sequence[i : i + window_size]
+        subseq = sequence[i: i + window_size]
 
         # This call is now cached and overhead-free
         mfe = get_cached_mfe(subseq)
 
         # You were ALREADY doing Strategy 3 (Vectorized Slicing) here. Good job!
         mfe_per_nt = mfe / window_size
-        energy_values[i : i + window_size] += mfe_per_nt
-        counts[i : i + window_size] += 1
+        energy_values[i: i + window_size] += mfe_per_nt
+        counts[i: i + window_size] += 1
     # ------------------------------------------
 
     avg_energies = np.divide(
@@ -43,8 +41,8 @@ def calculate_avg_mfe_over_sense_region(
 
     sense_end_in_flank = sense_start_in_flank + sense_length
     if (
-        0 <= sense_start_in_flank < sequence_length
-        and sense_end_in_flank <= sequence_length
+            0 <= sense_start_in_flank < sequence_length
+            and sense_end_in_flank <= sequence_length
     ):
         return np.nanmean(avg_energies[sense_start_in_flank:sense_end_in_flank])
     else:

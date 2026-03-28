@@ -12,7 +12,7 @@ def serialize_feature_name(method, top_n, cutoff, is_specific):
 
 
 def populate_off_target_specific(
-    ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_cores=1
+        ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_cores=1
 ):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
@@ -107,13 +107,13 @@ def populate_off_target_specific(
 
 
 def populate_off_target_general(
-    ASO_df,
-    gene_to_data,
-    cell_line2data,
-    top_n_list,
-    cutoff_list,
-    method,
-    n_cores=1,  # Added parameter
+        ASO_df,
+        gene_to_data,
+        cell_line2data,
+        top_n_list,
+        cutoff_list,
+        method,
+        n_cores=1,  # Added parameter
 ):
     """
     Enriches ASO_df with off-target scores.
@@ -184,14 +184,14 @@ def populate_off_target_general(
 
 
 def populate_off_target_specific_per_rank(
-    ASO_df,
-    gene_to_data,
-    cell_line2data,
-    max_rank,
-    cutoff_list,
-    method,
-    n_cores=1,
-    verbose=False,
+        ASO_df,
+        gene_to_data,
+        cell_line2data,
+        max_rank,
+        cutoff_list,
+        method,
+        n_cores=1,
+        verbose=False,
 ):
     """
     Enriches ASO_df with rank-specific off-target details relative to the specific cell line.

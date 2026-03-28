@@ -1,6 +1,7 @@
 import numpy as np
 from numba import njit
 
+
 # NOTE: This code matches exactly the codonbias implementation, but is much quicker asof 0.3.5 version
 
 
@@ -203,8 +204,9 @@ def _compute_enc_core(seq_bytes) -> float:
     return 61.0 if ENC > 61.0 else ENC
 
 
-# TODO: merge this logic to codo-bias and then return to the simple function call
-
+# TODO: merge this logic to codon-bias and then return to the simple function call
+# UPDATE: a faster version was merged to codon-bias, yet it is still slower than this.
+# Pending more testing and refactoring.
 
 def compute_ENC(seq: str) -> float:
     if not isinstance(seq, str) or not seq.strip():

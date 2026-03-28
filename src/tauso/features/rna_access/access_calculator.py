@@ -8,9 +8,7 @@ from ..._raccess.core import find_raccess
 from .rna_access import RNAAccess
 
 
-def get_sense_with_flanks(
-    pre_mrna: str, sense_start: int, sense_length: int, flank_size: int
-) -> str:
+def get_sense_with_flanks(pre_mrna: str, sense_start: int, sense_length: int, flank_size: int) -> str:
     """
     Re  turns the sense sequence with `flank_size` nucleotides on each side (if available).
     If near the edge, it will not go out of bounds.
@@ -32,7 +30,6 @@ def get_sense_with_flanks(
 
 
 def get_cache(seed_sizes, access_size):
-
     # Mimick original logic
     seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
 
@@ -66,7 +63,7 @@ class AccessCalculator:
         trigger_mrna_size = len(rna_seq)
 
         indexes = list(range(0, trigger_mrna_size - segment_size + 1))
-        trigger_segments = [rna_seq[i : i + segment_size] for i in indexes]
+        trigger_segments = [rna_seq[i: i + segment_size] for i in indexes]
 
         gc_segments = list(map(gc_fraction, trigger_segments))
 
@@ -81,7 +78,7 @@ class AccessCalculator:
 
     @staticmethod
     def calc_access_energies_from_access_res(  # new
-        access_res, rna_size, access_size, seed_sizes
+            access_res, rna_size, access_size, seed_sizes
     ):
 
         cols_np = {s: access_res[s].to_numpy() for s in seed_sizes}
@@ -139,7 +136,7 @@ class AccessCalculator:
 
     @staticmethod
     def calc_access_energies(  # new
-        rna_seq, access_size, seed_sizes, max_span, uuid_str, cache=None
+            rna_seq, access_size, seed_sizes, max_span, uuid_str, cache=None
     ):
 
         rna_size = len(rna_seq)
@@ -159,7 +156,7 @@ class AccessCalculator:
 
     @staticmethod
     def calc_access_energies_batch(  # new
-        rna_seqs, access_size, seed_sizes, max_span, uuid_str=None, cache=None
+            rna_seqs, access_size, seed_sizes, max_span, uuid_str=None, cache=None
     ):
         """
         :param rna_seqs: list of (rna_id, rna_seq) tuples
@@ -186,16 +183,16 @@ class AccessCalculator:
 
     @staticmethod
     def calc(
-        rna_seq,
-        access_size,
-        min_gc,
-        max_gc,
-        gc_ranges,
-        access_win_size,
-        access_seed_sizes,
-        uuid_str=None,
-        temperature=None,
-        cache=None,
+            rna_seq,
+            access_size,
+            min_gc,
+            max_gc,
+            gc_ranges,
+            access_win_size,
+            access_seed_sizes,
+            uuid_str=None,
+            temperature=None,
+            cache=None,
     ):
         """
         :param rna_seq: target mrna sequence
@@ -264,14 +261,14 @@ class AccessCalculator:
 
     @staticmethod
     def calc_new(
-        rna_seqs,
-        access_size,
-        access_win_size,
-        access_seed_sizes,
-        uuid_str=None,
-        temperature=None,
-        cache=None,
-        **kwargs,
+            rna_seqs,
+            access_size,
+            access_win_size,
+            access_seed_sizes,
+            uuid_str=None,
+            temperature=None,
+            cache=None,
+            **kwargs,
     ):
         """
         rna_seqs: list of (rna_id, rna_seq) tuples

@@ -188,7 +188,7 @@ def tai_weights(category: str) -> dict:
 
 
 def calc_tAI(
-    seq: str, weight_dictionary: dict, *, allow_stop_as_zero: bool = False
+        seq: str, weight_dictionary: dict, *, allow_stop_as_zero: bool = False
 ) -> float:
     """
     Robust tAI:
@@ -209,7 +209,7 @@ def calc_tAI(
     counted = 0
 
     for i in range(0, len(s), 3):
-        codon = s[i : i + 3]
+        codon = s[i: i + 3]
         if len(codon) != 3:
             continue
         w = weight_dictionary.get(codon, np.nan)
