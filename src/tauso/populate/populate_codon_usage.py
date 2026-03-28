@@ -11,9 +11,7 @@ from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import calc_tAI, tai_weights
 
 
-def populate_tai(
-    df: pd.DataFrame, cds_windows: list, registry: dict
-) -> tuple[pd.DataFrame, list[str]]:
+def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates local and global tAI scores.
     Raises KeyError if required local context columns are missing.
@@ -39,9 +37,7 @@ def populate_tai(
     # 2. Global tAI Scores (Registry Lookup)
     print(f"Pre-calculating Global tAI for {len(registry)} unique genes...")
     gene_tai_lookup = {
-        gene: calc_tAI(data.get("cds_sequence"), weights)
-        if data.get("cds_sequence")
-        else np.nan
+        gene: calc_tAI(data.get("cds_sequence"), weights) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
@@ -112,9 +108,7 @@ def populate_enc(
         print(f"Pre-calculating Global ENC for {len(registry)} unique genes...")
 
     gene_enc_lookup = {
-        gene: compute_ENC(data.get("cds_sequence"))
-        if data.get("cds_sequence")
-        else np.nan
+        gene: compute_ENC(data.get("cds_sequence")) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
@@ -193,9 +187,7 @@ def populate_cai(
             weights = weight_map[cell_line_name]
         else:
             if verbose and cell_line_name not in reported_fallbacks:
-                print(
-                    f"⚠️  Cell line '{cell_line_name}' not found in weights. Using 'Generic' profile."
-                )
+                print(f"⚠️  Cell line '{cell_line_name}' not found in weights. Using 'Generic' profile.")
                 reported_fallbacks.add(cell_line_name)
             weights = weight_map.get("Generic")
 

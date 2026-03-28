@@ -35,9 +35,7 @@ def parse_single(data, segment_sizes):
 
     id_str = lines[0].rstrip()
 
-    ind_rec_list = list(
-        map(lambda line: parse_line(line, d_empty), filter(len, lines[1:]))
-    )
+    ind_rec_list = list(map(lambda line: parse_line(line, d_empty), filter(len, lines[1:])))
 
     # df = pd.DataFrame(info_list, index=, columns=segment_sizes)
     indexes = list(zip(*ind_rec_list))[0]

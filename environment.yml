@@ -25,6 +25,7 @@ dependencies:
   - pympler
   - multiprocess
   - click
+  - gdown
   - mysql-connector-python
   - platformdirs
 

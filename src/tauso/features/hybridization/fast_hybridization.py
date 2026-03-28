@@ -12,6 +12,7 @@ from Bio.Seq import Seq
 from ...common.consts import OUT_FOLDER
 from .Interaction import Interaction
 
+# /dev/shm is a temporary folder on the RAM, which will speed up the calculation considerably.
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
 else:
@@ -57,9 +58,7 @@ def get_trigger_mfe_scores_by_risearch(
 
     if target_file_cache is None:
         target_filename = f"target-{unique_id}.fa"
-        target_path = Path(
-            dump_target_file(target_filename, name_to_sequence)
-        ).resolve()
+        target_path = Path(dump_target_file(target_filename, name_to_sequence)).resolve()
     else:
         target_path = Path(target_file_cache).resolve()
 
@@ -76,18 +75,14 @@ def get_trigger_mfe_scores_by_risearch(
         if not p.exists():
             raise FileNotFoundError(f"{name} file was not created at {p}")
         if p.stat().st_size == 0:
-            raise ValueError(
-                f"{name} file is empty (0 bytes) at {p}. Disk might be full or write failed."
-            )
+            raise ValueError(f"{name} file is empty (0 bytes) at {p}. Disk might be full or write failed.")
 
     if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
         m = "su95_noGU"
     elif interaction_type == Interaction.RNA_RNA:
         m = "t04"
     else:
-        raise ValueError(
-            f"Unsupported interaction type: {interaction_type}={str({interaction_type})}"
-        )
+        raise ValueError(f"Unsupported interaction type: {interaction_type}={str({interaction_type})}")
 
     args = [
         str(risearch_path),
@@ -163,14 +158,9 @@ def get_mfe_scores(result: str, parsing_type=None) -> List[List[float]]:
     if parsing_type is None:
         for gene_result in result.split("\n\nquery trigger")[1:]:
             stripped_result = gene_result.strip()
-            regex_results = re.findall(
-                "Free energy \[kcal/mol\]: [0-9-.]+ ", stripped_result
-            )
+            regex_results = re.findall("Free energy \[kcal/mol\]: [0-9-.]+ ", stripped_result)
             mfe_results.append(
-                [
-                    float(regex_result.replace("Free energy [kcal/mol]: ", "").strip())
-                    for regex_result in regex_results
-                ]
+                [float(regex_result.replace("Free energy [kcal/mol]: ", "").strip()) for regex_result in regex_results]
             )
     elif parsing_type == "2":
         return _parse_mfe_scores_2(result)

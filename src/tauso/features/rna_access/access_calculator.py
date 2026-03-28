@@ -8,9 +8,7 @@ from ..._raccess.core import find_raccess
 from .rna_access import RNAAccess
 
 
-def get_sense_with_flanks(
-    pre_mrna: str, sense_start: int, sense_length: int, flank_size: int
-) -> str:
+def get_sense_with_flanks(pre_mrna: str, sense_start: int, sense_length: int, flank_size: int) -> str:
     """
     Re  turns the sense sequence with `flank_size` nucleotides on each side (if available).
     If near the edge, it will not go out of bounds.
@@ -32,7 +30,6 @@ def get_sense_with_flanks(
 
 
 def get_cache(seed_sizes, access_size):
-
     # Mimick original logic
     seed_sizes = list(filter(lambda x: x <= access_size, seed_sizes))
 
@@ -152,9 +149,7 @@ class AccessCalculator:
         res = ra.calculate(access_query)
 
         access_res = res["rna"]
-        df = AccessCalculator.calc_access_energies_from_access_res(
-            access_res, rna_size, access_size, seed_sizes
-        )
+        df = AccessCalculator.calc_access_energies_from_access_res(access_res, rna_size, access_size, seed_sizes)
         return df
 
     @staticmethod
@@ -177,9 +172,7 @@ class AccessCalculator:
         for rna_id, rna_seq in rna_seqs:
             access_res = res[rna_id]
             rna_size = len(rna_seq)
-            df = AccessCalculator.calc_access_energies_from_access_res(
-                access_res, rna_size, access_size, seed_sizes
-            )
+            df = AccessCalculator.calc_access_energies_from_access_res(access_res, rna_size, access_size, seed_sizes)
             out[rna_id] = df
 
         return out
@@ -227,12 +220,8 @@ class AccessCalculator:
 
         # ae_col1 = f"{access_seed_size}_avg"
         # ae_col2 = f"{access_seed_size * 2}_avg"
-        selected_cols = [
-            f"{access_seed_size}_avg" for access_seed_size in access_seed_sizes
-        ]
-        filtered_access_energies = access_energies.loc[
-            :, access_energies.columns.isin(selected_cols)
-        ]
+        selected_cols = [f"{access_seed_size}_avg" for access_seed_size in access_seed_sizes]
+        filtered_access_energies = access_energies.loc[:, access_energies.columns.isin(selected_cols)]
 
         access_energies["avg_access"] = filtered_access_energies.mean(axis=1)
 
@@ -246,9 +235,7 @@ class AccessCalculator:
 
             min_range_gc = gc_values[i]
             max_range_gc = gc_values[i + 1]
-            gc_indexes = gc_info[
-                gc_info["gc"].between(min_range_gc, max_range_gc, inclusive=inc)
-            ].index
+            gc_indexes = gc_info[gc_info["gc"].between(min_range_gc, max_range_gc, inclusive=inc)].index
 
             gc_access_energies = access_energies.loc[gc_indexes]
 
@@ -302,9 +289,7 @@ class AccessCalculator:
             available_cols = [c for c in target_cols if c in access_energies.columns]
 
             if available_cols:
-                access_energies["avg_access"] = access_energies[available_cols].mean(
-                    axis=1
-                )
+                access_energies["avg_access"] = access_energies[available_cols].mean(axis=1)
             else:
                 access_energies["avg_access"] = 0.0
 

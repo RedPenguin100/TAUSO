@@ -40,9 +40,7 @@ def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=
 
     if seq_len < motif_len:
         if debug:
-            print(
-                f"      [AFFINITY-INTERNAL] ❌ Seq too short ({seq_len} < {motif_len})"
-            )
+            print(f"      [AFFINITY-INTERNAL] ❌ Seq too short ({seq_len} < {motif_len})")
         return 0.0
 
     total_score = 0.0
@@ -93,19 +91,13 @@ def build_rbp_expression_matrix(
     expression_dir = os.path.join(data_dir, "processed_expression")
 
     if not os.path.exists(attract_csv_path):
-        raise FileNotFoundError(
-            f"CRITICAL: ATtRACT metadata not found at {attract_csv_path}"
-        )
+        raise FileNotFoundError(f"CRITICAL: ATtRACT metadata not found at {attract_csv_path}")
 
     if not os.path.exists(expression_dir):
-        raise FileNotFoundError(
-            f"CRITICAL: Expression directory not found at {expression_dir}"
-        )
+        raise FileNotFoundError(f"CRITICAL: Expression directory not found at {expression_dir}")
 
     # --- 2. MAP MATRIX ID -> GENE NAME ---
-    print(
-        f"Loading metadata from {attract_csv_path} to map Matrix IDs to Gene Names..."
-    )
+    print(f"Loading metadata from {attract_csv_path} to map Matrix IDs to Gene Names...")
     meta_df = pd.read_csv(attract_csv_path)
 
     # Filter metadata to only include the matrices currently in your pwm_db
@@ -113,15 +105,11 @@ def build_rbp_expression_matrix(
     filtered_meta = meta_df[meta_df["Matrix_id"].isin(valid_matrix_ids)]
 
     if filtered_meta.empty:
-        raise ValueError(
-            "CRITICAL: No matching matrices found in ATtRACT CSV for the provided pwm_db keys."
-        )
+        raise ValueError("CRITICAL: No matching matrices found in ATtRACT CSV for the provided pwm_db keys.")
 
     # Get the unique list of REAL Gene names
     target_gene_names = filtered_meta["Gene_name"].unique().tolist()
-    print(
-        f"Mapped {len(valid_matrix_ids)} matrices to {len(target_gene_names)} unique gene names."
-    )
+    print(f"Mapped {len(valid_matrix_ids)} matrices to {len(target_gene_names)} unique gene names.")
 
     # --- 3. LOAD EXPRESSION DATA ---
     unique_cell_ids = df[cell_line_col].unique().tolist()
@@ -160,17 +148,13 @@ def build_rbp_expression_matrix(
         expr_list.append(temp_df)
 
     if not expr_list:
-        raise ValueError(
-            "CRITICAL: Expression data was loaded but became empty during processing."
-        )
+        raise ValueError("CRITICAL: Expression data was loaded but became empty during processing.")
 
     # Concatenate and Pivot
     full_expr_df = pd.concat(expr_list)
 
     # Pivot: Index=CellLine, Cols=GeneName, Values=TPM
-    expression_matrix = full_expr_df.pivot(
-        index=cell_line_col, columns="Gene", values="expression_TPM"
-    )
+    expression_matrix = full_expr_df.pivot(index=cell_line_col, columns="Gene", values="expression_TPM")
 
     if expression_matrix.empty:
         raise ValueError("CRITICAL: Final expression matrix is empty!")

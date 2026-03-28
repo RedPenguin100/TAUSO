@@ -1,6 +1,6 @@
 import numpy as np
 
-from ...new_model.consts_dataframe import CANONICAL_GENE, SEQUENCE
+from ...data.consts import CANONICAL_GENE, SEQUENCE
 from ...util import get_antisense
 from ..hybridization.fast_hybridization import (
     Interaction,
@@ -50,9 +50,7 @@ def compute_single_row(row, general_seq_map, general_exp_map, cutoff, method):
     result_df_agg = result_df_agg[result_df_agg["target"] != target_gene]
 
     if result_df_agg.empty:
-        print(
-            f"Warning! {target_gene} is the target gene, score is set to 0 for ASO {row[SEQUENCE]}"
-        )
+        print(f"Warning! {target_gene} is the target gene, score is set to 0 for ASO {row[SEQUENCE]}")
         return 0
 
     # Extract energies and compute score
@@ -89,9 +87,7 @@ def calculate_score_helper(energy_dict, expression_dict, method):
     if not valid_targets:
         return 0.0
 
-    if (
-        method == AggregationMethod.ARTM_log
-    ):  # Normalized Arithmetic (Direct exp, no 1e6 scaling)
+    if method == AggregationMethod.ARTM_log:  # Normalized Arithmetic (Direct exp, no 1e6 scaling)
         # Re-loop because we scaled exp above, but method 0 usually takes raw norm
         score = 0.0
         for gene, energy in energy_dict.items():

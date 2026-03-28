@@ -8,9 +8,7 @@ from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import RIBOSEQ_40S_HUMAN_DATA, calculate_ribo_seq_row
 
 
-def populate_ribo_seq(
-    organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"
-):
+def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"):
     if organism != "human":
         raise ValueError("Unsupported organism for ribo_seq feature")
 
@@ -57,13 +55,9 @@ def populate_mrna_expression(
     """
 
     # --- MINIMAL FIX 1: Warn and drop to prevent column duplication ---
-    existing_cols = [
-        c for c in ["target_expression", "rnase_expression"] if c in df.columns
-    ]
+    existing_cols = [c for c in ["target_expression", "rnase_expression"] if c in df.columns]
     if existing_cols:
-        print(
-            f"WARNING: Dropping existing columns to prevent alignment breaks: {existing_cols}"
-        )
+        print(f"WARNING: Dropping existing columns to prevent alignment breaks: {existing_cols}")
         df = df.drop(columns=existing_cols)
     # ------------------------------------------------------------------
 
@@ -81,9 +75,7 @@ def populate_mrna_expression(
     expression_master = pd.concat(dfs_to_concat, ignore_index=True)
 
     # --- MINIMAL FIX 2: Prevent row multiplication during merge ---
-    expression_master = expression_master.drop_duplicates(
-        subset=[CELL_LINE_DEPMAP, "Gene"]
-    )
+    expression_master = expression_master.drop_duplicates(subset=[CELL_LINE_DEPMAP, "Gene"])
     # --------------------------------------------------------------
 
     # 2. Get 'target_expression' (General Merge)

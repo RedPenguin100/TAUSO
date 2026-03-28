@@ -36,14 +36,8 @@ def compute_sense_accessibility_value(
         sense_start_in_flank = sense_start - flank_start
         sense_end_in_flank = sense_start_in_flank + sense_length
 
-        if 0 <= sense_start_in_flank < len(df_access) and sense_end_in_flank <= len(
-            df_access
-        ):
-            values = (
-                df_access["avg_access"]
-                .iloc[sense_start_in_flank:sense_end_in_flank]
-                .dropna()
-            )
+        if 0 <= sense_start_in_flank < len(df_access) and sense_end_in_flank <= len(df_access):
+            values = df_access["avg_access"].iloc[sense_start_in_flank:sense_end_in_flank].dropna()
             return values.mean() if not values.empty else None
         else:
             # print(f"sense_start_in_flank: {sense_start_in_flank}")

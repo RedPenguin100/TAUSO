@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 3 * * *' # 3:00 AM UTC -> 6:00 AM Israel Daylight Time
 
 jobs:
   build:
@@ -85,18 +87,14 @@ jobs:
       - name: Install genome
         run: tauso setup-genome
 
-      - name: Cache Bowtie Index
-        id: cache-bowtie
-        uses: actions/cache@v4
+      - name: Cache and Setup Bowtie
+        uses: ./.github/actions/setup-bowtie-cached
         with:
-          path: ${{ env.TAUSO_DATA_DIR }}/GRCh38_bowtie_index
-          key: ${{ runner.os }}-tauso.bowtie-GRCh38-v1
-
-      - name: Setup Bowtie
-        run: tauso setup-bowtie
+          os: ${{ runner.os }}
+          data_dir: ${{ env.TAUSO_DATA_DIR }}
 
       - name: Process Oligo Data
-        run: python -m notebooks.competitors.oligo_ai.find_gene_from_context
+        run: python -m notebooks.data.OligoAI.assign_canonical_gene
 
       - name: Index Oligo Data
         run: python -m notebooks.utils.data

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ...new_model.consts_dataframe import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
+from ...data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 
 parent = Path(__file__).parent
 RIBOSEQ_40S_HUMAN_DATA = parent / "human_unselected_40S.RiboProElong.bw"
@@ -21,6 +21,7 @@ def reduce_values(values, how):
     elif how == "nz_mean":
         nz = values[values > 0]
         return nz.mean() if nz.size > 0 else 0.0
+    raise ValueError(f"No reducing logic for value: {how}")
 
 
 def calculate_ribo_seq_row(row, bw, flanks, how):
@@ -49,9 +50,7 @@ def calculate_ribo_seq_row(row, bw, flanks, how):
         e_comb = min(te + f, chrom_len)
 
         if e_comb > s_comb:
-            vals_comb = np.nan_to_num(
-                np.array(bw.values(chrom, s_comb, e_comb), dtype=float), nan=0.0
-            )
+            vals_comb = np.nan_to_num(np.array(bw.values(chrom, s_comb, e_comb), dtype=float), nan=0.0)
             feat[f"ribo_f{f}_{how}"] = reduce_values(vals_comb, how)
         else:
             feat[f"ribo_f{f}_{how}"] = 0.0
@@ -61,18 +60,14 @@ def calculate_ribo_seq_row(row, bw, flanks, how):
             e_left = ts
             val_left = 0.0
             if e_left > s_left:
-                arr = np.nan_to_num(
-                    np.array(bw.values(chrom, s_left, e_left), dtype=float), nan=0.0
-                )
+                arr = np.nan_to_num(np.array(bw.values(chrom, s_left, e_left), dtype=float), nan=0.0)
                 val_left = reduce_values(arr, how)
 
             s_right = te
             e_right = min(te + f, chrom_len)
             val_right = 0.0
             if e_right > s_right:
-                arr = np.nan_to_num(
-                    np.array(bw.values(chrom, s_right, e_right), dtype=float), nan=0.0
-                )
+                arr = np.nan_to_num(np.array(bw.values(chrom, s_right, e_right), dtype=float), nan=0.0)
                 val_right = reduce_values(arr, how)
 
             if strand == "+":

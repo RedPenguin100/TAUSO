@@ -28,15 +28,11 @@ HYBR_FEATURE_TO_CALCULATION = {
     "PSDNA_RNA_MD_37_PB_TOTAL_HYBR": lambda row: get_psdna_rna_md_total(
         row[SEQUENCE], row[MODIFICATION], simul_type="pb"
     ),
-    "METHYL_CYTOSINES": lambda row: calc_methylcytosines(
-        row[SEQUENCE], row[CHEMICAL_PATTERN]
-    ),
+    "METHYL_CYTOSINES": lambda row: calc_methylcytosines(row[SEQUENCE], row[CHEMICAL_PATTERN]),
     "LNA_DIFF_37_HYBR": lambda row: calculate_lna(row[SEQUENCE], row[CHEMICAL_PATTERN]),
     "CET_DIFF_37_HYBR": lambda row: calculate_cet(row[SEQUENCE], row[CHEMICAL_PATTERN]),
     "TOTAL_PSDNA_HYBR": lambda row: get_exp_psrna_hybridization(row[SEQUENCE]) / 1000,
-    "PSDNA_DIFF_37_HYBR": lambda row: (
-        get_exp_psrna_hybridization_diff(row[SEQUENCE]) / 1000
-    ),
+    "PSDNA_DIFF_37_HYBR": lambda row: get_exp_psrna_hybridization_diff(row[SEQUENCE]) / 1000,
     "TOTAL_DNA_HYBR": lambda row: calculate_dna(row[SEQUENCE]),
     "TOTAL_DNA_RNA_HYBR": lambda row: get_exp_dna_rna_hybridization(row[SEQUENCE]),
     # Derived features (Calculated via vectorization later)
@@ -75,8 +71,6 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
     # This avoids redundant function calls for simple arithmetic
     if "DNA_HYBR_DIFF" in features_to_run:
         print("Calculating vectorized feature: DNA_HYBR_DIFF...")
-        all_data["DNA_HYBR_DIFF"] = (
-            all_data["TOTAL_DNA_HYBR"] - all_data["TOTAL_DNA_RNA_HYBR"]
-        )
+        all_data["DNA_HYBR_DIFF"] = all_data["TOTAL_DNA_HYBR"] - all_data["TOTAL_DNA_RNA_HYBR"]
 
     return all_data, features_to_run

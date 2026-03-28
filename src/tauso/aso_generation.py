@@ -21,6 +21,9 @@ from tauso.features.context.mrna_halflife import (
     load_halflife_mapping,
     populate_mrna_halflife_features,
 )
+
+# from tauso.features.hybridization_off_target.add_off_target_feat import AggregationMethod
+# from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_general
 from tauso.features.context.ribo_seq import add_genomic_coordinates
 from tauso.features.names import *
 from tauso.features.rbp.load_rbp import load_attract_data
@@ -44,7 +47,7 @@ from tauso.populate.populate_rbp import (
     populate_rbp_interaction_features,
     populate_rbp_region,
 )
-from tauso.populate.populate_sequence import populate_sequence_features
+from tauso.populate.populate_sequence import populate_sequence_features, populate_sequence_one_hot_encoded
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.util import get_antisense
 
@@ -108,9 +111,7 @@ def generate_aso_features(
     transfection=Transfection.GYMNOSIS,
     n_jobs=1,
 ):
-    data = get_initial_data(
-        gene_to_data[target_gene].full_mrna, aso_sizes=[20], canonical_name=target_gene
-    )
+    data = get_initial_data(gene_to_data[target_gene].full_mrna, aso_sizes=[20], canonical_name=target_gene)
 
     # Fast data
     data = data[300:310]
@@ -124,9 +125,7 @@ def generate_aso_features(
     data[CELL_LINE] = "T24"  # TODO: handle empty case
 
     features = []
-    data = get_populated_df_with_structure_features(
-        data, [target_gene], gene_to_data, use_mask=False
-    )
+    data = get_populated_df_with_structure_features(data, [target_gene], gene_to_data, use_mask=False)
     features.extend(
         [
             SENSE_START,
@@ -148,9 +147,7 @@ def generate_aso_features(
     features.extend(modification_features)
 
     data = add_genomic_coordinates(data, mapper)
-    data, ribo_features = populate_ribo_seq(
-        organism_name, data
-    )  # TODO: generalize beyond human
+    data, ribo_features = populate_ribo_seq(organism_name, data)  # TODO: generalize beyond human
     features.extend(ribo_features)
 
     FLANK_SIZES_PREMRNA = [20, 30, 40, 50, 60, 70]
@@ -172,14 +169,16 @@ def generate_aso_features(
     data, tai_features = populate_tai(data, CDS_WINDOWS, ref_registry)
     features.extend(tai_features)
 
-    data, cai_features = populate_cai(data, CDS_WINDOWS, ref_registry)
+    data, cai_features = populate_cai(data, CDS_WINDOWS, ref_registry, n_jobs=n_jobs)
     features.extend(cai_features)
 
-    data, enc_features = populate_enc(data, CDS_WINDOWS, ref_registry)
+    data, enc_features = populate_enc(data, CDS_WINDOWS, ref_registry, n_jobs=n_jobs)
     features.extend(enc_features)
 
-    data, sequence_features = populate_sequence_features(data, cpus=32)
+    data, sequence_features = populate_sequence_features(data, cpus=n_jobs)
     features.extend(sequence_features)
+
+    data, sequence_one_hot_encoded_features = populate_sequence_one_hot_encoded(data, cpus=n_jobs)
 
     # Off-target
     data_dir = get_data_dir()
@@ -201,7 +200,25 @@ def generate_aso_features(
     # mean_exp_data = get_general_expression_of_genes(
     #     Path(get_data_dir()) / 'OmicsExpressionTPMLogp1HumanAllGenesStranded.csv', valid_genes)
     # transcriptomes['general'] = mean_exp_data
+    #
+    # top_n_list = [50, 100, 200]
+    # cutoff_list = [800, 1000, 1200]
+    #
+    # for n in top_n_list:
+    #     for cutoff in cutoff_list:
+    #         data, off_target_general_features = populate_off_target_general(
+    #             ASO_df=data,
+    #             gene_to_data=gene_to_data,
+    #             cell_line2data=transcriptomes,
+    #             top_n_list=[n],
+    #             cutoff_list=[cutoff],
+    #             method=AggregationMethod.ARTM,
+    #             n_cores=32,
+    #         )
+    #         for feature in off_target_general_features:
+    #             save_feature(data, feature, version="oligo", overwrite=True)
 
+    # RBP features
     rbp_map, pwm_db = attract_data
     expression_matrix = build_rbp_expression_matrix(df=data, pwm_db=pwm_db)
 
@@ -239,9 +256,8 @@ def generate_aso_features(
     features.extend(individual_features)
     features.extend(global_features)
 
-    data, functional_features = populate_functional_features(
-        data, rbp_role_map_strict, flank_size=50
-    )
+    data, functional_features = populate_functional_features(data, rbp_role_map_strict, flank_size=50)
+    features.extend(functional_features)
 
     data = create_positional_sequence_columns(data, "flank_sequence_50", flank_size=50)
 
@@ -250,7 +266,7 @@ def generate_aso_features(
         # Fix Memory Fragmentation
         data = data.copy()
 
-        # --- CALL THE FUNCTION ---
+        # --- CALL THE FUNCTION ---w
         data, new_features = populate_rbp_region(
             df=data,
             region_name=region,
@@ -261,12 +277,13 @@ def generate_aso_features(
             gene_to_data=gene_to_data,
         )
 
-    features.extend(new_features)
+        features.extend(new_features)
 
     data, half_life_features = populate_mrna_halflife_features(data, half_life_provider)
     features.extend(half_life_features)
 
     data, mfe_features = populate_mfe_features(data, gene_to_data, n_jobs=n_jobs)
+    features.extend(mfe_features)
 
     return data, features
 
@@ -279,9 +296,7 @@ if __name__ == "__main__":
     paths = get_paths(genome)
     mapper = GeneCoordinateMapper(paths["db"])
 
-    ref_registry = build_gene_sequence_registry(
-        genes=[target_gene], gene_to_data=gene_to_data, mapper=mapper
-    )
+    ref_registry = build_gene_sequence_registry(genes=[target_gene], gene_to_data=gene_to_data, mapper=mapper)
 
     attract_data = load_attract_data()
     mapping = load_halflife_mapping()

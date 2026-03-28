@@ -88,9 +88,7 @@ CODON_TO_AA = np.array(
     dtype=np.int32,
 )
 
-AA_DEG = np.array(
-    [4, 2, 2, 2, 2, 4, 2, 3, 2, 6, 1, 2, 4, 2, 6, 6, 4, 4, 1, 2], dtype=np.int32
-)
+AA_DEG = np.array([4, 2, 2, 2, 2, 4, 2, 3, 2, 6, 1, 2, 4, 2, 6, 6, 4, 4, 1, 2], dtype=np.int32)
 DEG_VALUES = np.array([1, 2, 3, 4, 6], dtype=np.int32)
 DEG_COUNTS = np.array([2, 9, 1, 5, 3], dtype=np.float64)
 
@@ -171,17 +169,7 @@ def _compute_enc_core(seq_bytes) -> float:
 
     for a in range(20):
         deg = AA_DEG[a]
-        deg_idx = (
-            0
-            if deg == 1
-            else 1
-            if deg == 2
-            else 2
-            if deg == 3
-            else 3
-            if deg == 4
-            else 4
-        )
+        deg_idx = 0 if deg == 1 else 1 if deg == 2 else 2 if deg == 3 else 3 if deg == 4 else 4
         F_deg_sum[deg_idx] += F_aa[a] * N_aa[a]
         N_deg_sum[deg_idx] += N_aa[a]
 
@@ -203,7 +191,9 @@ def _compute_enc_core(seq_bytes) -> float:
     return 61.0 if ENC > 61.0 else ENC
 
 
-# TODO: merge this logic to codo-bias and then return to the simple function call
+# TODO: merge this logic to codon-bias and then return to the simple function call
+# UPDATE: a faster version was merged to codon-bias, yet it is still slower than this.
+# Pending more testing and refactoring.
 
 
 def compute_ENC(seq: str) -> float:

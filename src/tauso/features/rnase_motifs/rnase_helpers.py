@@ -2053,9 +2053,7 @@ def check_motif_presence(aso_sequence: str, motif: str) -> float:
     return 1.0 if motif in seq else 0.0
 
 
-def compute_rnaseh1_score(
-    aso_sequence: str, weights: dict, window_start: int = None
-) -> float:
+def compute_rnaseh1_score(aso_sequence: str, weights: dict, window_start: int = None) -> float:
     """
     Computes the RNase H1 cleavage score for a given ASO sequence using single-nucleotide weights.
     Refactored to use raw dictionary lookups for high performance.
@@ -2106,9 +2104,7 @@ def compute_rnaseh1_score(
         return (s1 + s2) / 2
 
 
-def compute_rnaseh1_dinucleotide_score(
-    aso_sequence: str, dinuc_weights: dict, window_start: int = None
-) -> float:
+def compute_rnaseh1_dinucleotide_score(aso_sequence: str, dinuc_weights: dict, window_start: int = None) -> float:
     """
     Computes the RNase H1 cleavage score for a given ASO sequence using dinucleotide weights.
     (Optimized Numba Array Version)
@@ -2152,12 +2148,8 @@ def compute_rnaseh1_dinucleotide_score(
         offset1 = (L - max_window) // 2
         offset2 = offset1 + 1
 
-        s1 = score_window_dinuc_dict(
-            seq_ints[offset1 : offset1 + max_window], weights_matrix
-        )
-        s2 = score_window_dinuc_dict(
-            seq_ints[offset2 : offset2 + max_window], weights_matrix
-        )
+        s1 = score_window_dinuc_dict(seq_ints[offset1 : offset1 + max_window], weights_matrix)
+        s2 = score_window_dinuc_dict(seq_ints[offset2 : offset2 + max_window], weights_matrix)
         return (s1 + s2) / 2
 
 
@@ -2369,9 +2361,7 @@ BEST_WIN_KREL_DINUC = {
 }
 
 
-def scan_constrained_window(
-    target_seq: str, weights: dict, gap_start: int, gap_end: int
-) -> float:
+def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_end: int) -> float:
     """
     Scans the target sequence with a sliding window defined by the weights.
     Enforces 'Best Effort' overlap constraints regarding the DNA gap.

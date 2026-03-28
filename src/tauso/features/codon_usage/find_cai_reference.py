@@ -72,9 +72,7 @@ def load_cell_line_gene_maps(
     # The gene must be biologically valid (GTF) AND technically valid (in your DB/Mapper)
     final_valid_genes = set(valid_db_genes).intersection(gtf_allowed_genes)
 
-    print(
-        f"Filter Ready: {len(final_valid_genes)} genes passed specificiation ({filter_mode})."
-    )
+    print(f"Filter Ready: {len(final_valid_genes)} genes passed specificiation ({filter_mode}).")
     print("Processing cell lines...")
 
     cell_line_top_genes = {}
@@ -131,7 +129,6 @@ def load_cell_line_gene_maps(
 
 
 def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
-
     transcriptomes = {}
 
     for ach_id in depmap_ids:

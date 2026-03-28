@@ -24,12 +24,14 @@ def get_fasta_dict_from_path(fasta_path: Path):
     return fasta_dict
 
 
-def read_human_genome_fasta_dict():
-    paths = get_paths(genome="GRCh38")
-    human_genome_fasta = Path(paths["fasta"])
-    if human_genome_fasta.is_file():
-        return get_fasta_dict_from_path(human_genome_fasta)
+def read_genome_fasta_dict(genome: str):
+    paths = get_paths(genome)
+    genome_fasta = Path(paths["fasta"])
+    if genome_fasta.is_file():
+        return get_fasta_dict_from_path(genome_fasta)
 
-    raise FileNotFoundError(
-        f"Did not find {human_genome_fasta}, please consider the README.md"
-    )
+    raise FileNotFoundError(f"Did not find {genome_fasta}, please consider the README.md")
+
+
+def read_human_genome_fasta_dict():
+    return read_genome_fasta_dict(genome="GRCh38")

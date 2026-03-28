@@ -106,9 +106,7 @@ class GeneCoordinateMapper:
 
             # Slice safely from the pre-mRNA sequence string
             if start < len(pre_mrna_seq):
-                segment = pre_mrna_seq[
-                    max(0, start) : min(len(pre_mrna_seq), start + length)
-                ]
+                segment = pre_mrna_seq[max(0, start) : min(len(pre_mrna_seq), start + length)]
                 parts.append(segment)
 
         return "".join(parts)

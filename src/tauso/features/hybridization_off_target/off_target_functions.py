@@ -9,13 +9,6 @@ This file contains helper functions both getting the mRNA sequences and for off-
 """
 
 
-def dna_to_rna_reverse_complement(seq: str) -> str:
-    seq = seq.upper()
-    translation_table = str.maketrans("ATGC", "UACG")
-    # Translate and reverse
-    return seq.translate(translation_table)[::-1]
-
-
 def parse_risearch_output(output_str: str) -> pd.DataFrame:
     columns = [
         "trigger",
@@ -47,19 +40,13 @@ def parse_gtf(gtf_path, cache_path=None):
             if len(fields) != 9:
                 continue
 
-            chrom, source, feature, start, end, score, strand, frame, attributes = (
-                fields
-            )
+            chrom, source, feature, start, end, score, strand, frame, attributes = fields
             if feature not in ["exon", "CDS", "UTR"]:
                 continue
 
             attr_dict = {
                 key: val.strip('"')
-                for key, val in [
-                    attr.strip().split(" ")
-                    for attr in attributes.split(";")
-                    if attr.strip()
-                ]
+                for key, val in [attr.strip().split(" ") for attr in attributes.split(";") if attr.strip()]
             }
             transcript_id = attr_dict.get("transcript_id")
             gene_name = attr_dict.get("gene_name")
