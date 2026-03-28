@@ -11,7 +11,7 @@ from .rnase_helpers import (
 
 
 def _apply_rnaseh1_dinuc_scoring(
-        df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str
+    df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str
 ) -> tuple[pd.DataFrame, list[str]]:
     """Core logic for applying RNase H1 dinucleotide scoring with pre-computation."""
     window_size = 9
@@ -54,12 +54,7 @@ def _apply_rnaseh1_dinuc_scoring(
         if target_rna_mimic is None:
             return 0.0
 
-        return max(
-            compute_rnaseh1_dinucleotide_score(
-                target_rna_mimic, weights, window_start=i
-            )
-            for i in valid_starts
-        )
+        return max(compute_rnaseh1_dinucleotide_score(target_rna_mimic, weights, window_start=i) for i in valid_starts)
 
     for exp in experiments:
         weights = rnaseh1_dict(exp)
@@ -67,17 +62,15 @@ def _apply_rnaseh1_dinuc_scoring(
         feature_cols.append(col_name)
 
         # Loop over our pre-computed list, passing weights directly
-        df[col_name] = [
-            score_row(t_rna, v_starts, weights) for t_rna, v_starts in precomputed_data
-        ]
+        df[col_name] = [score_row(t_rna, v_starts, weights) for t_rna, v_starts in precomputed_data]
 
     return df, feature_cols
 
 
 def add_rnaseh1_scores_dinuc(
-        df: pd.DataFrame,
-        experiments: tuple[str, ...] = ("R4a_dinuc", "R4b_dinuc", "R7_dinuc"),
-        out_prefix: str = "RNaseH1_score_dinucleotide_",
+    df: pd.DataFrame,
+    experiments: tuple[str, ...] = ("R4a_dinuc", "R4b_dinuc", "R7_dinuc"),
+    out_prefix: str = "RNaseH1_score_dinucleotide_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates the best RNase H1 DINUCLEOTIDE score strictly within the longest DNA gap.
@@ -88,13 +81,13 @@ def add_rnaseh1_scores_dinuc(
 
 
 def add_rnaseh1_scores_krel_dinuc(
-        df: pd.DataFrame,
-        experiments: tuple[str, ...] = (
-                "R4a_krel_dinuc",
-                "R4b_krel_dinuc",
-                "R7_krel_dinuc",
-        ),
-        out_prefix: str = "RNaseH1_Krel_dinucleotide_score_",
+    df: pd.DataFrame,
+    experiments: tuple[str, ...] = (
+        "R4a_krel_dinuc",
+        "R4b_krel_dinuc",
+        "R7_krel_dinuc",
+    ),
+    out_prefix: str = "RNaseH1_Krel_dinucleotide_score_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates the best RNase H1 score strictly within the longest DNA gap.
@@ -104,7 +97,7 @@ def add_rnaseh1_scores_krel_dinuc(
 
 
 def _apply_rnaseh1_scoring(
-        df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str
+    df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str
 ) -> tuple[pd.DataFrame, list[str]]:
     """Core logic for applying RNase H1 scoring across a set of experiments."""
     feature_cols = []
@@ -141,18 +134,18 @@ def _apply_rnaseh1_scoring(
 
 
 def add_rnaseh1_scores_krel_nt(
-        df: pd.DataFrame,
-        experiments: tuple[str, ...] = ("R4a_krel", "R4b_krel", "R7_krel"),
-        out_prefix: str = "RNaseH1_Krel_score_",
+    df: pd.DataFrame,
+    experiments: tuple[str, ...] = ("R4a_krel", "R4b_krel", "R7_krel"),
+    out_prefix: str = "RNaseH1_Krel_score_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """Calculates RNase H1 SINGLE-NUCLEOTIDE score (LogFC) using best-effort overlap logic."""
     return _apply_rnaseh1_scoring(df, experiments, out_prefix)
 
 
 def add_rnaseh1_scores_nt(
-        df: pd.DataFrame,
-        experiments: tuple[str, ...] = ("R4a", "R4b", "R7"),
-        out_prefix: str = "RNaseH1_score_",
+    df: pd.DataFrame,
+    experiments: tuple[str, ...] = ("R4a", "R4b", "R7"),
+    out_prefix: str = "RNaseH1_score_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """Calculates RNase H1 SINGLE-NUCLEOTIDE score (LogFC) using best-effort overlap logic."""
     return _apply_rnaseh1_scoring(df, experiments, out_prefix)
@@ -163,9 +156,7 @@ def check_motif_presence(aso_sequence: str, motif: str) -> float:
     return 1.0 if motif.upper() in aso_sequence.upper() else 0.0
 
 
-def add_rnaseh1_motif_features(
-        df: pd.DataFrame, out_prefix: str = "RNaseH1_"
-) -> tuple[pd.DataFrame, list[str]]:
+def add_rnaseh1_motif_features(df: pd.DataFrame, out_prefix: str = "RNaseH1_") -> tuple[pd.DataFrame, list[str]]:
     """
     Extracts the longest DNA gap and checks for specific motifs known to
     enhance (Py-rich) or block (G-quadruplex) RNase H1 efficiency.
@@ -210,8 +201,6 @@ def add_rnaseh1_motif_features(
         feature_cols.append(col_name)
 
         # Apply motif check to the gap sequence series
-        df[col_name] = gap_sequences.apply(
-            lambda x, m=motif_seq: check_motif_presence(x, m)
-        )
+        df[col_name] = gap_sequences.apply(lambda x, m=motif_seq: check_motif_presence(x, m))
 
     return df, feature_cols

@@ -49,13 +49,13 @@ def get_top_expressed_genes(file_path, n_top=300):
 
 
 def load_cell_line_gene_maps(
-        cell_map,
-        data_dir,
-        valid_db_genes,
-        n_specific=300,
-        n_fallback_scan=500,
-        filter_mode="protein_coding",
-        genome_db=None,
+    cell_map,
+    data_dir,
+    valid_db_genes,
+    n_specific=300,
+    n_fallback_scan=500,
+    filter_mode="protein_coding",
+    genome_db=None,
 ):
     """
     Loads expression data, filtering strictly against the GTF/GFF database annotations.
@@ -73,9 +73,7 @@ def load_cell_line_gene_maps(
     # The gene must be biologically valid (GTF) AND technically valid (in your DB/Mapper)
     final_valid_genes = set(valid_db_genes).intersection(gtf_allowed_genes)
 
-    print(
-        f"Filter Ready: {len(final_valid_genes)} genes passed specificiation ({filter_mode})."
-    )
+    print(f"Filter Ready: {len(final_valid_genes)} genes passed specificiation ({filter_mode}).")
     print("Processing cell lines...")
 
     cell_line_top_genes = {}

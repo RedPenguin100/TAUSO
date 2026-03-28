@@ -68,9 +68,7 @@ def load_halflife_mapping():
     # 9. Convert to Dictionary
     mapping = df_clean.to_dict()
 
-    print(
-        f"Successfully loaded {len(mapping)} specific (Gene+Cell) stability profiles."
-    )
+    print(f"Successfully loaded {len(mapping)} specific (Gene+Cell) stability profiles.")
     return mapping
 
 
@@ -80,18 +78,14 @@ class HalfLifeProvider:
 
         # Convert mapping (dict) back to DataFrame for easier tier-level aggregation
         # Mapping structure: {(Gene, Cell): Half_Life}
-        df_map = pd.DataFrame(
-            [{"gene": k[0], "cell": k[1], "hl": v} for k, v in mapping.items()]
-        )
+        df_map = pd.DataFrame([{"gene": k[0], "cell": k[1], "hl": v} for k, v in mapping.items()])
 
         # --- Tier 2 (Gene Stats) ---
         # Paper: "Geometric mean of that clipped gene’s half-life across all available cell-lines"
 
         # We group by gene and aggregate using gmean (and std/count for metadata)
         # Note: We use ddof=1 for std dev to estimate sample standard deviation
-        gene_stats_df = df_map.groupby("gene")["hl"].agg(
-            geom_mean=gmean, count="count", std="std"
-        )
+        gene_stats_df = df_map.groupby("gene")["hl"].agg(geom_mean=gmean, count="count", std="std")
         # Convert to dict for O(1) lookup: gene -> {stats}
         self.gene_stats = gene_stats_df.to_dict(orient="index")
 
@@ -108,9 +102,7 @@ class HalfLifeProvider:
 
         self.global_count = len(all_values)
 
-        print(
-            f"Provider ready. Global Geometric Mean: {self.global_val:.2f}h (N={self.global_count})"
-        )
+        print(f"Provider ready. Global Geometric Mean: {self.global_val:.2f}h (N={self.global_count})")
 
     def get_halflife(self, gene, cell_line):
         """

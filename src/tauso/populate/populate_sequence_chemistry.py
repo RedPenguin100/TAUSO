@@ -13,9 +13,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 ]
 
 
-def calc_feature(
-        df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False
-) -> None:
+def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False) -> None:
     """
     Computes a feature using both sequence and chemical pattern.
     Uses parallel_apply if available.
@@ -31,14 +29,10 @@ def calc_feature(
         pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
 
         # Apply across rows (axis=1) to pass both columns to the function
-        df[col_name] = df.parallel_apply(
-            lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1
-        )
+        df[col_name] = df.parallel_apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
     except Exception:
         # Fallback to standard pandas apply
-        df[col_name] = df.apply(
-            lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1
-        )
+        df[col_name] = df.apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
 
     if verbose:
         duration = time.time() - start_time
@@ -46,14 +40,12 @@ def calc_feature(
 
 
 def populate_sequence_chemistry_features(
-        df,
-        features: Optional[Iterable[str]] = None,
-        cpus: int = 1,
+    df,
+    features: Optional[Iterable[str]] = None,
+    cpus: int = 1,
 ) -> Tuple:
     available = {name: fn for name, fn in FEATURE_SPECS}
-    feature_names = (
-        list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
-    )
+    feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
 
     for name in feature_names:
         # Wrap each feature calculation in the Timer context manager
