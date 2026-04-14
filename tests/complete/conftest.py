@@ -154,3 +154,11 @@ def final_data(structure_data, mapper, ref_registry):
             flank_sizes_premrna=FLANK_SIZES_PREMRNA,
             flank_sizes_cds=CDS_WINDOWS,
         )
+
+
+@pytest.fixture
+def mini_sampled_data(request, final_data):
+    """Samples the fully processed DataFrame right before the test runs."""
+    n_samples = getattr(request, "param", 1000)
+    actual_samples = min(n_samples, len(final_data))
+    return final_data.sample(n=actual_samples, random_state=42).copy()

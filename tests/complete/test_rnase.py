@@ -1,14 +1,14 @@
 import pytest
 
 from notebooks.data.OligoAI.parse_chemistry import (
-    populate_chemistry,
+    assign_chemistry,
 )
 from tauso.populate.populate_rnase import populate_rnase_features
 
 
 @pytest.fixture(scope="module")
 def chemistry_data(base_data):
-    return populate_chemistry(base_data)
+    return assign_chemistry(base_data)
 
 
 @pytest.fixture

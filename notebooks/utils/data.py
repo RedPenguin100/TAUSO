@@ -1,10 +1,10 @@
 import pandas as pd
 
-from notebooks.consts import PROCESSED_OLIGO_CSV_GZ, OLIGO_CSV_INDEXED
+from notebooks.consts import ORIGINAL_OLIGO_CSV_WITH_CANONICAL, OLIGO_CSV_INDEXED
 
 
 def read_oligo_indexed_data():
-    data = pd.read_csv(PROCESSED_OLIGO_CSV_GZ)
+    data = pd.read_csv(ORIGINAL_OLIGO_CSV_WITH_CANONICAL)
 
     # Check if the column exists
     if "index_oligo" not in data.columns:
