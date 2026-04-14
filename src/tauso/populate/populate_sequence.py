@@ -8,18 +8,22 @@ from ..features.sequence.seq_features import *
 from ..timer import Timer
 
 FEATURE_SPECS: list[tuple[str, callable]] = [
+    # Terminal Clamps
+    # Returns 1 if 5' end is G/C, else 0
+    ("Sequence_5_prime_clamp", lambda x: 1.0 if x and x[0].upper() in "GC" else 0.0),
+    # Returns 1 if 3' end is G/C, else 0
+    ("Sequence_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in "GC" else 0.0),
+    # ASO sequence energy
     ("Sequence_self_energy", self_energy),
     ("Sequence_internal_fold", internal_fold),
     # Basic Composition Features
     ("Sequence_purine_content", purine_content),
     ("Sequence_gc_content", gc_fraction),
     ("Sequence_ggg_counts", count_g_runs),
-    # --- ADDED: Terminal Clamps (Fraying protection) ---
-    # Returns 1 if 5' end is G/C, else 0
-    ("Sequence_5_prime_clamp", lambda x: 1.0 if x and x[0].upper() in "GC" else 0.0),
-    # Returns 1 if 3' end is G/C, else 0
-    ("Sequence_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in "GC" else 0.0),
-    # ---------------------------------------------------
+    ("Sequence_a_count", lambda x: x.count("A")),
+    ("Sequence_c_count", lambda x: x.count("C")),
+    ("Sequence_g_count", lambda x: x.count("G")),
+    ("Sequence_t_count", lambda x: x.count("T") + x.count("U")),  # In case the sequence is with U for some reason.
     # Palindromes and Entropy
     ("Sequence_4_palindromic", lambda x: palindromic_fraction(x, 4)),
     ("Sequence_6_palindromic", lambda x: palindromic_fraction(x, 6)),
@@ -41,6 +45,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("Sequence_flexible_dinucleotide_fraction", flexible_dinucleotide_fraction),
     ("Sequence_stop_codon_count", stop_codon_count),
     ("Sequence_cg_dinucleotide_fraction", cg_dinucleotide_fraction),
+    ("Sequence_ta_dinucleotide_fraction", ta_dinucleotide_fraction),
     ("Sequence_poly_pyrimidine_stretch", poly_pyrimidine_stretch),
     ("Sequence_gc_block_length", gc_block_length),
     ("Sequence_at_rich_region_score", at_rich_region_score),

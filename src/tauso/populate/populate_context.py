@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pyBigWig
 
+
+
 from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import RIBOSEQ_40S_HUMAN_DATA, calculate_ribo_seq_row
 
@@ -111,3 +113,23 @@ def populate_mrna_expression(
     new_features = ["target_expression", "rnase_expression"]
 
     return enhanced_df, new_features
+
+
+def populate_transfection(data):
+    """
+    One-hot encodes the specified column into 0s and 1s, ensures all expected
+    features exist (even if absent from the data), and merges them.
+    """
+    # The master list of expected categories
+    features = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
+
+    # 1. Create binary columns as 0/1 for whatever actually exists in the data
+    binary_features = pd.get_dummies(data["transfection_method"], dtype=int)
+
+    # 2. Force the dataframe to have exactly our expected columns, filling missing ones with 0
+    binary_features = binary_features.reindex(columns=features, fill_value=0)
+
+    # 3. Join them back to your original dataframe
+    data = pd.concat([data, binary_features], axis=1)
+
+    return data, features

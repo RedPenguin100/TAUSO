@@ -50,7 +50,7 @@ MODIFICATION_FEATURE_TO_CALCULATION = {
 }
 
 
-def populate_modifications(df, n_cores=None):
+def populate_modifications(df, n_cores=None, features_to_run=None):  # Added features_to_run
     """
     Populates modification-based features for ASO chemical patterns.
 
@@ -73,8 +73,11 @@ def populate_modifications(df, n_cores=None):
     else:
         apply_func = all_data.apply
 
+    if features_to_run is None:
+        features_to_run = list(MODIFICATION_FEATURE_TO_CALCULATION.keys())
+
     # 3. Execution Loop
-    for feature in MODIFICATION_FEATURE_TO_CALCULATION.keys():
+    for feature in features_to_run:
         logic = MODIFICATION_FEATURE_TO_CALCULATION.get(feature)
 
         if callable(logic):
@@ -84,4 +87,4 @@ def populate_modifications(df, n_cores=None):
         else:
             print(f"Warning: {feature} logic not found or not callable. Skipping.")
 
-    return all_data, MODIFICATION_FEATURE_TO_CALCULATION
+    return all_data, features_to_run

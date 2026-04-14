@@ -65,19 +65,18 @@ def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=
 
 
 def build_rbp_expression_matrix(
-    df: pd.DataFrame,
+    cell_lines: list,
     pwm_db: dict,
-    cell_line_col: str = CELL_LINE_DEPMAP,
     data_dir: str = None,
 ) -> pd.DataFrame:
     """
     Builds a matrix of RNA expression (TPM) for the RBPs present in the pwm_db
-    across the cell lines present in the provided dataframe.
+    across the provided list of cell lines.
 
     Args:
-        df: DataFrame containing a column specifying cell lines (e.g., 'Cell_Line_Depmap').
+        cell_lines: List of cell line IDs (e.g., DepMap IDs).
         pwm_db: Dictionary of PWMs where keys are ATtRACT Matrix IDs.
-        cell_line_col: Name of the column in df containing cell line IDs.
+        cell_line_col: Name to use for the cell line index in the output matrix.
         data_dir: Path to data directory. If None, uses tauso.data.data.get_data_dir().
 
     Returns:
@@ -112,7 +111,7 @@ def build_rbp_expression_matrix(
     print(f"Mapped {len(valid_matrix_ids)} matrices to {len(target_gene_names)} unique gene names.")
 
     # --- 3. LOAD EXPRESSION DATA ---
-    unique_cell_ids = df[cell_line_col].unique().tolist()
+    unique_cell_ids = list(set(cell_lines))
     print(f"Loading expression for {len(unique_cell_ids)} cell lines...")
 
     # Use existing function to load raw data
@@ -144,7 +143,7 @@ def build_rbp_expression_matrix(
         if not temp_df.empty and str(temp_df["Gene"].iloc[0]).endswith(")"):
             temp_df["Gene"] = temp_df["Gene"].astype(str).str.split(" ").str[0]
 
-        temp_df[cell_line_col] = ach_id
+        temp_df[CELL_LINE_DEPMAP] = ach_id
         expr_list.append(temp_df)
 
     if not expr_list:
@@ -154,7 +153,7 @@ def build_rbp_expression_matrix(
     full_expr_df = pd.concat(expr_list)
 
     # Pivot: Index=CellLine, Cols=GeneName, Values=TPM
-    expression_matrix = full_expr_df.pivot(index=cell_line_col, columns="Gene", values="expression_TPM")
+    expression_matrix = full_expr_df.pivot(index=CELL_LINE_DEPMAP, columns="Gene", values="expression_TPM")
 
     if expression_matrix.empty:
         raise ValueError("CRITICAL: Final expression matrix is empty!")

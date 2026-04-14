@@ -24,7 +24,7 @@ def get_antisense_u(seq: str) -> str:
 
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask=True):
     if use_mask:
-        mask = (df[CELL_LINE_ORGANISM] == "human") & (df[INHIBITION].notna()) & (df[CANONICAL_GENE].isin(genes_u))
+        mask = (df[CELL_LINE_ORGANISM] == "human") & (df[CANONICAL_GENE].isin(genes_u))
 
         all_data = df[mask].copy()
     else:

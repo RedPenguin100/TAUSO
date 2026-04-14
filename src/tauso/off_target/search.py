@@ -274,7 +274,8 @@ def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
     # Use the hits list for annotation as before
     df = annotate_hits(hits_list, genome=genome)
 
-    # Optional: You could print the counts_dict here if debugging
     # print(f"Counts: {counts_dict}")
+    # print(f"hits_list: {hits_list}")
+
 
     return df

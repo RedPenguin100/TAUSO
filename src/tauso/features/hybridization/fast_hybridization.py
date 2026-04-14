@@ -64,11 +64,8 @@ def get_trigger_mfe_scores_by_risearch(
 
     query_path = (TMP_PATH / f"query-{unique_id}.fa").resolve()
 
-    # Use 'w' and flush to ensure data is written before subprocess starts
     with open(query_path, "w") as f:
         f.write(f">trigger\n{Seq(trigger).reverse_complement_rna()}\n")
-        f.flush()
-        os.fsync(f.fileno())
 
     # --- MINIMAL ADDITION: Validation Exceptions ---
     for p, name in [(target_path, "Target"), (query_path, "Query")]:
@@ -112,6 +109,7 @@ def get_trigger_mfe_scores_by_risearch(
             text=True,
             cwd=str(OUT_FOLDER),
             stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
         )
     finally:
         if target_file_cache is None and target_path.exists():

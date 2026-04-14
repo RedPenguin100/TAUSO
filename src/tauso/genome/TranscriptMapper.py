@@ -133,9 +133,6 @@ class GeneCoordinateMapper:
         return coords
 
 
-# =============================================================================
-# REGISTRY BUILDER (Helper)
-# =============================================================================
 def build_gene_sequence_registry(
     genes: Iterable[str], gene_to_data: Dict, mapper: GeneCoordinateMapper
 ) -> Dict[str, Dict[str, str]]:

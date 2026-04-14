@@ -421,8 +421,30 @@ def cg_dinucleotide_fraction(seq: str) -> float:
     cg_fraction = cg_count / total_possible_pairs
     return cg_fraction
 
+def ta_dinucleotide_fraction(seq: str) -> float:
+    """
+    Calculate the fraction of 'UA' or 'TA' dinucleotides within a sequence.
 
-########################################################################
+    These dinucleotides are often highly susceptible to cleavage by endonucleases,
+    affecting the stability and half-life of the sequence.
+
+    Args:
+        seq (str): Nucleic acid sequence (handles both T and U)
+
+    Returns:
+        float: UA/TA dinucleotide fraction (normalized between 0 and 1)
+    """
+    seq = seq.upper()
+    total_possible_pairs = len(seq) - 1
+
+    if total_possible_pairs <= 0:
+        return 0.0
+
+    # Count both to safely handle either DNA or RNA inputs
+    target_count = seq.count("TA") + seq.count("UA")
+
+    return target_count / total_possible_pairs
+
 
 
 def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
