@@ -1,3 +1,6 @@
 [submodule "external/risearch"]
 	path = external/risearch
 	url = git@github.com:RedPenguin100/risearch.git
+[submodule "notebooks/competitors/OligoAI/OligoAI"]
+	path = notebooks/competitors/OligoAI/OligoAI
+	url = https://github.com/RedPenguin100/OligoAI
