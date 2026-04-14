@@ -15,6 +15,15 @@ from ..hybridization.fast_hybridization import (
 from .off_target_functions import parse_risearch_output
 
 
+def _validate_genes_found(target_genes, gene_to_data):
+    not_found_genes = []
+    for gene in target_genes:
+        if gene not in gene_to_data:
+            not_found_genes.append(gene)
+    if not_found_genes:
+        raise ValueError(f"The following genes are not found in gene_to_data: {not_found_genes}")
+
+
 def _apply_risearch_scoring(
     aso_df,
     gene_to_data,
@@ -26,6 +35,7 @@ def _apply_risearch_scoring(
     verbose,
 ):
     """Core logic for RIsearch hybridization scoring to avoid code duplication."""
+    _validate_genes_found(target_genes, gene_to_data)
 
     # 1. Setup Parallelization
     use_parallel = n_jobs != 1
@@ -48,21 +58,17 @@ def _apply_risearch_scoring(
 
     try:
         for gene in target_genes:
-            if gene in gene_to_data:
-                sequence = gene_to_data[gene].full_mrna
-                name_to_seq = {gene: sequence}
+            sequence = gene_to_data[gene].full_mrna
+            name_to_seq = {gene: sequence}
 
-                target_hash = uuid.uuid4().hex
-                target_filename = f"target-{gene}-{target_hash}.fa"
-                target_path = dump_target_file(target_filename, name_to_seq)
+            target_hash = uuid.uuid4().hex
+            target_filename = f"target-{gene}-{target_hash}.fa"
+            target_path = dump_target_file(target_filename, name_to_seq)
 
-                gene_to_target_info[gene] = {
-                    "name_to_seq": name_to_seq,
-                    "target_path": target_path,
-                }
-            else:
-                if verbose:
-                    print(f"Warning: Gene {gene} missing from gene_to_data.")
+            gene_to_target_info[gene] = {
+                "name_to_seq": name_to_seq,
+                "target_path": target_path,
+            }
 
         # 3. Define the scoring function per row
         def calculate_score(row):

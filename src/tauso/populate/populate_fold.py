@@ -22,31 +22,50 @@ def validate_cols_in_df(df, cols):
         raise ValueError(f"Missing columns in DataFrame: {missing_cols}")
 
 
-def populate_mfe_features(df, gene_to_data, n_jobs=1):  # 2. Add n_jobs param
+DEFAULT_SETTINGS = [
+    (120, 45, 7),
+    (120, 45, 15),
+    (120, 45, 10),
+    (120, 45, 4),
+    (120, 35, 15),
+    (120, 35, 10),
+    (120, 35, 7),
+    (120, 35, 4),
+    (120, 55, 15),
+    (120, 55, 10),
+    (120, 55, 7),
+    (120, 55, 4),
+    (120, 65, 15),
+    (120, 65, 10),
+    (120, 65, 7),
+    (120, 65, 4),
+]
+
+
+def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):  # 2. Add n_jobs param
+    if settings is None:
+        settings = DEFAULT_SETTINGS
+
     if n_jobs > 1 or n_jobs == -1:
-        pandarallel.initialize(nb_workers=n_jobs, verbose=0)
+        if verbose:
+            progress_bar = True
+            verbose = 2
+        else:
+            progress_bar = False
+            verbose = 0
+        pandarallel.initialize(nb_workers=n_jobs, progress_bar=progress_bar, verbose=verbose)
 
     required_cols = [CANONICAL_GENE, SENSE_START, SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
-    settings = [
-        (120, 45, 7),
-        (120, 45, 15),
-        (120, 45, 10),
-        (120, 45, 4),
-        (120, 35, 15),
-        (120, 35, 10),
-        (120, 35, 7),
-        (120, 35, 4),
-        (120, 55, 15),
-        (120, 55, 10),
-        (120, 55, 7),
-        (120, 55, 4),
-        (120, 65, 15),
-        (120, 65, 10),
-        (120, 65, 7),
-        (120, 65, 4),
-    ]
+    # NOTE: This is important, otherwise can be very slow for big gene_to_data
+    unique_genes = df[CANONICAL_GENE].dropna().unique()
+    lightweight_gene_to_data = {
+        gene: str(gene_to_data[gene].full_mrna)
+        for gene in unique_genes if gene in gene_to_data
+    }
+    # ----------------------------------------------------------------
+
     feature_names = []
     for setting in settings:
         flank_size, window_size, step = setting
@@ -61,11 +80,13 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1):  # 2. Add n_jobs param
             global_start = row[SENSE_START]
             sense_len = row[SENSE_LENGTH]
 
-            if gene_name not in gene_to_data or global_start == -1:
+            # --- MINIMAL CHANGE 2: Check against seq_dict ---
+            if gene_name not in lightweight_gene_to_data or global_start == -1:
                 return np.nan
 
-            locus_info = gene_to_data[gene_name]
-            full_mrna = str(locus_info.full_mrna)
+            # --- MINIMAL CHANGE 3: Pull directly from seq_dict ---
+            full_mrna = lightweight_gene_to_data[gene_name]
+            # -----------------------------------------------------
 
             cut_start = max(0, global_start - flank_size)
             cut_end = min(len(full_mrna), global_start + sense_len + flank_size)
@@ -129,6 +150,13 @@ def populate_sense_accessibility(aso_dataframe, gene_to_data):
         )
         aso_dataframe.loc[idx, SENSE_AVG_ACCESSIBILITY] = avg_sense_access
 
+DEFAULT_SENSE_CONFIGURATION = [
+    {"flank": 120, "access": 20, "seeds": [13]},
+    {"flank": 120, "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 120, "access": 20, "seeds": [4, 6, 8]},
+    {"flank": 120, "access": 13, "seeds": [13, 26, 39]}
+]
+
 
 def populate_sense_accessibility_batch(
     aso_dataframe,
@@ -136,10 +164,13 @@ def populate_sense_accessibility_batch(
     batch_size=1000,
     flank_size=FLANK_SIZE,
     access_size=ACCESS_SIZE,
-    seed_sizes=SEED_SIZES,
+    seed_sizes=None,
     access_win_size=ACCESS_WIN_SIZE,
     n_jobs=1,
 ):
+    if seed_sizes is None:
+        seed_sizes = SEED_SIZES
+
     seeds_list = seed_sizes if isinstance(seed_sizes, (list, tuple)) else [seed_sizes]
     seeds_str = "-".join(map(str, seeds_list))
     feature_name = f"access_{flank_size}flank_{access_size}access_{seeds_str}seed_sizes"
@@ -160,6 +191,13 @@ def populate_sense_accessibility_batch(
     valid_df = df_out.loc[valid_mask, ["_temp_id", SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
     access_cache = get_cache(seed_sizes, access_size=access_size)
 
+    # NOTE: This is important, without this change big gene_to_data will hamper performance
+    unique_genes = valid_df[CANONICAL_GENE].unique()
+    lightweight_gene_to_data = {
+        gene: str(gene_to_data[gene].full_mrna)
+        for gene in unique_genes if gene in gene_to_data
+    }
+
     # 2. Worker Function
     def _process_batch(batch_rows):
         rna_seqs = []
@@ -170,8 +208,14 @@ def populate_sense_accessibility_batch(
         # Track rows using the hidden positional ID
         for _, row in batch_rows.iterrows():
             current_id = str(row["_temp_id"])
+            gene_name = row[CANONICAL_GENE]
 
-            full_mrna_seq = str(gene_to_data[row[CANONICAL_GENE]].full_mrna)
+            # --- MINIMAL CHANGE 2: Pull directly from seq_dict ---
+            if gene_name not in lightweight_gene_to_data:
+                continue
+            full_mrna_seq = lightweight_gene_to_data[gene_name]
+            # -----------------------------------------------------
+
             current_sense_start = row[SENSE_START]
             flank_start = max(0, current_sense_start - flank_size)
             relative_start = current_sense_start - flank_start
