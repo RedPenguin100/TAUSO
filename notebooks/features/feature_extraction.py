@@ -17,7 +17,7 @@ def _get_saved_features_dir(version):
 
 
 
-def load_all_features(filenames=None, light=True, verbose=False, version=None, n_jobs=1):
+def load_all_features(filenames=None, light=True, verbose=False, version=None, n_jobs=1, load_competition=False):
     feature_dir = _get_saved_features_dir(version)
     if not filenames:
         filenames = [f for f in os.listdir(feature_dir) if f.endswith('.csv') and not f.startswith('.')]
@@ -29,6 +29,21 @@ def load_all_features(filenames=None, light=True, verbose=False, version=None, n
     if light:
         if 'Smiles.csv' in filenames:
             filenames.remove('Smiles.csv')
+
+    if not load_competition:
+        competition = [
+            "PFRED_PLS",
+            "PFRED_SVM",
+            "OW_Overall",
+            "OW_Tm",
+            "OW_Intra_Oligo",
+            "OW_Duplex",
+            "sfold_accessibility",
+            "miranda_score",
+            "miranda_energy",
+        ]
+
+        filenames = [f for f in filenames if f.removesuffix(".csv") not in competition]
 
     if verbose:
         print(f"Loading features from: {filenames}")
@@ -52,7 +67,6 @@ def load_all_features(filenames=None, light=True, verbose=False, version=None, n
 
 
 
-
 def _check_conflicts(new_sub_df, file_path, feature_name, index):
     existing_df = pd.read_csv(file_path)
 
@@ -68,7 +82,6 @@ def _check_conflicts(new_sub_df, file_path, feature_name, index):
     col_new = f'{feature_name}_new'
     col_old = f'{feature_name}_existing'
 
-    # --- FIX START: Handle Floating Point Precision & NA Strings ---
     # Check if the column is numeric (float/int)
     if pd.api.types.is_numeric_dtype(comparison[col_new]):
         is_close = np.isclose(comparison[col_new], comparison[col_old], rtol=1e-05, atol=1e-08, equal_nan=True)
@@ -80,31 +93,43 @@ def _check_conflicts(new_sub_df, file_path, feature_name, index):
         old_normalized = comparison[col_old].fillna("NA").astype(str)
 
         diff_mask = new_normalized != old_normalized
-    # --- FIX END ---
 
     diff_rows = comparison[diff_mask]
     return diff_rows, col_new, col_old
 
 
 def save_feature(df, feature_name, overwrite=False, version=None):
+    if version is None:
+        return
+
     feature_dir = _get_saved_features_dir(version)
 
     os.makedirs(feature_dir, exist_ok=True)
 
     if version is None:
-        index = 'index'
+        index = "index"
     else:
-        index = 'index_' + version
+        index = "index_" + version
     sub_df = df[[index, feature_name]].copy()
-    file_path = os.path.join(feature_dir, f'{feature_name}.csv')
+    file_path = os.path.join(feature_dir, f"{feature_name}.csv")
 
     file_exists = os.path.exists(file_path)
 
     if file_exists:
         diff_rows, col_new, col_old = _check_conflicts(sub_df, file_path, feature_name, index)
+
         if diff_rows.empty:
-            print(f"File exists for '{feature_name}' but values are identical (within tolerance). No action taken.")
+            # 1. Check for new indexes and append them efficiently
+            existing_idx = pd.read_csv(file_path, usecols=[index])[index]
+            new_rows = sub_df[~sub_df[index].isin(existing_idx)]
+
+            if not new_rows.empty:
+                new_rows.to_csv(file_path, mode="a", header=False, index=False)
+                print(f"File exists for '{feature_name}'. Appended {len(new_rows)} new rows.")
+            else:
+                print(f"File exists for '{feature_name}' but values are identical (within tolerance). No action taken.")
             return
+
         print(f"!!! Conflict detected for feature: {feature_name} !!!")
         print(f"Found {len(diff_rows)} differing rows. Top 10 differences:")
         print(diff_rows[[index, col_new, col_old]].head(10))
@@ -112,15 +137,16 @@ def save_feature(df, feature_name, overwrite=False, version=None):
 
         if overwrite:
             sub_df.to_csv(file_path, index=False)
-            action = "Overwrote" if file_exists else "Saved"
-            print(f"{action} feature: {feature_name}")
+            print(f"Overwrote feature: {feature_name}")
+            return  # Prevent fall-through to the non-existent file block below
         else:
-            return diff_rows  # <--- CHANGED: Return df instead of raise
+            # 2. Abort on collision
+            raise ValueError(f"Collision detected for feature '{feature_name}'. Aborting.")
 
-    if not file_exists or overwrite:
-        sub_df.to_csv(file_path, index=False)
-        action = "Overwrote" if file_exists else "Saved"
-        print(f"{action} feature: {feature_name}")
+    # 3. Only reached if the file does not exist initially
+    sub_df.to_csv(file_path, index=False)
+    print(f"Saved feature: {feature_name}")
+
 
 # TODO: fix this function
 # def read_base_df():

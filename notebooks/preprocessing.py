@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from notebooks.data.OligoAI.parse_chemistry import populate_chemistry
-from notebooks.notebook_utils import log_correction, read_cached_gene_to_data
+from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
+from notebooks.notebook_utils import log_correction
 from tauso.data.consts import *
+from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.util import get_antisense
 
 
@@ -62,7 +63,7 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
 
     # 3. Filter Specific Genes (using the clean DF)
     genes_clean = get_unique_genes(df)
-    gene_to_data = read_cached_gene_to_data(genes_clean)
+    gene_to_data = get_locus_to_data_dict(gene_subset=genes_clean)
     df = df[df[CANONICAL_GENE].isin(genes_clean)].copy()
 
     # 4. Optional: Drop SMILES
@@ -95,11 +96,22 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
     return valid_data
 
 
+def process_oligo_data_rename(data):
+    rename_scheme = {
+        "aso_sequence_5_to_3": SEQUENCE,
+        "cell_line": CELL_LINE,
+        "cell_line_species": CELL_LINE_ORGANISM,
+        "inhibition_percent": INHIBITION,
+        "dosage": VOLUME,
+    }
+    data = data.rename(columns=rename_scheme)
+    return data
+
 def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gapmer_patterns=False, verbose=True):
     """
     Takes a raw ASO dataframe, standardizes formats, and sequentially filters out:
     0. Base exclusions (unsupported chemistry, steric blocking, ambiguous genes, missing inhibition, missing cell line)
-'m     1. Unmapped sequences
+    1. Unmapped sequences
     2. Optional: Non-standard gapmer patterns (filters strictly for 5-10-5 MOE and 3-10-3 cEt)
     3. Sparse cohorts
     4. Sparse cell lines
@@ -111,7 +123,7 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     data = data.copy()
 
     # Apply chemistry parsing
-    data = populate_chemistry(data)
+    data = assign_chemistry(data)
 
     initial_total_rows = len(data)
 
@@ -125,15 +137,7 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     elim_chemistry = rows_before_chem - len(data)
 
     # 1. Rename columns to standard consts
-    rename_scheme = {
-        "aso_sequence_5_to_3": SEQUENCE,
-        "Canonical Gene Name": CANONICAL_GENE,
-        "cell_line": CELL_LINE,
-        "cell_line_species": CELL_LINE_ORGANISM,
-        "inhibition_percent": INHIBITION,
-        "dosage": VOLUME,
-    }
-    data = data.rename(columns=rename_scheme)
+    data = process_oligo_data_rename(data)
 
     # 2. Standardize Cell Line Naming
     cell_line_fixes = {
