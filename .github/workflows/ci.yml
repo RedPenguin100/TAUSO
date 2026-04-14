@@ -123,4 +123,4 @@ jobs:
         run: tauso build-cai-weights
 
       - name: Run tests
-        run: micromamba run -n tauso pytest -vvvs -n auto
+        run: micromamba run -n tauso pytest -vvvs -n auto --durations=0

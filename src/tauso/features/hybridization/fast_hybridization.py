@@ -4,6 +4,7 @@ import re
 import subprocess
 import tempfile
 import uuid
+from importlib.resources import files
 from pathlib import Path
 from typing import Dict, List
 
@@ -28,12 +29,12 @@ def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
     return tmp_path
 
 
-def get_risearch_path():
-    binary_path = str(OUT_FOLDER / "risearch_executable")
+def get_risearch_path() -> str:
+    binary_path = files("tauso") / "out" / "risearch_executable"
 
-    if not os.path.exists(binary_path):
+    if not binary_path.is_file():
         raise FileNotFoundError(f"Binary missing at {binary_path}")
-    return binary_path
+    return str(binary_path)
 
 
 def get_trigger_mfe_scores_by_risearch(
@@ -82,7 +83,7 @@ def get_trigger_mfe_scores_by_risearch(
         raise ValueError(f"Unsupported interaction type: {interaction_type}={str({interaction_type})}")
 
     args = [
-        str(risearch_path),
+        risearch_path,
         "-q",
         str(query_path),
         "-t",
