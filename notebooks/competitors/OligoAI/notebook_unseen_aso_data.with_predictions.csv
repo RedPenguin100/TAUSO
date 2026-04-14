@@ -1,0 +1,3 @@
+aso_sequence_5_to_3,rna_context,sugar_mods,backbone_mods,dosage,transfection_method,custom_id,inhibition_percent,split,predicted_inhibition_percent,prediction_error,prediction_squared_error
+GATTACA,UUGAAUGAAUCGUAAUGA,"['MOE', 'DNA', 'DNA', 'DNA', 'DNA', 'DNA', 'MOE']","['PS', 'PS', 'PO', 'PO', 'PS', 'PS', 'PS']",10.0,Lipofection,unseen_1,0.0,test,46.530552,46.53055191040039,2165.0922610864654
+TTAGCAT,AAUGCUAAUGCUAAUG,"['cET', 'DNA', 'DNA', 'DNA', 'DNA', 'DNA', 'cET']","['PS', 'PS', 'PS', 'PS', 'PS', 'PS', 'PS']",50.0,Gymnosis,unseen_2,0.0,test,41.6881,41.6880989074707,1737.89759051906
