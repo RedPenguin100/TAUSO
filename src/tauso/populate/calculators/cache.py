@@ -82,7 +82,7 @@ class AssetCache:
         """Lazy loader for the mRNA Half-Life Provider."""
         if self._halflife_provider is None:
             print("Loading mRNA Half-Life Oracle into memory (happens once)...")
-            from tauso.features.context.mrna_halflife import load_halflife_mapping, HalfLifeProvider
+            from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
 
             mapping = load_halflife_mapping()
             self._halflife_provider = HalfLifeProvider(mapping)
@@ -95,8 +95,9 @@ class AssetCache:
             print("Loading FULL transcriptomes into memory (happens once)...")
             import os
             from pathlib import Path
-            from tauso.data.data import load_db, get_data_dir
+
             from tauso.common.gtf import filter_gtf_genes
+            from tauso.data.data import get_data_dir, load_db
             from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
             from tauso.features.hybridization_off_target.common import get_general_expression_of_genes
 
