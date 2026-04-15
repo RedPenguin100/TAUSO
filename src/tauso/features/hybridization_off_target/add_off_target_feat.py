@@ -36,7 +36,7 @@ def compute_single_row(row, general_seq_map, general_exp_map, cutoff, method):
         minimum_score=cutoff,
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         parsing_type="2",
-        transpose=True
+        transpose=True,
     )
 
     result_df = parse_risearch_output(result_dict)

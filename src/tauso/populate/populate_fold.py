@@ -61,8 +61,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     # NOTE: This is important, otherwise can be very slow for big gene_to_data
     unique_genes = df[CANONICAL_GENE].dropna().unique()
     lightweight_gene_to_data = {
-        gene: str(gene_to_data[gene].full_mrna)
-        for gene in unique_genes if gene in gene_to_data
+        gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data
     }
     # ----------------------------------------------------------------
 
@@ -150,11 +149,12 @@ def populate_sense_accessibility(aso_dataframe, gene_to_data):
         )
         aso_dataframe.loc[idx, SENSE_AVG_ACCESSIBILITY] = avg_sense_access
 
+
 DEFAULT_SENSE_CONFIGURATION = [
     {"flank": 120, "access": 20, "seeds": [13]},
     {"flank": 120, "access": 13, "seeds": [4, 6, 8]},
     {"flank": 120, "access": 20, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 13, "seeds": [13, 26, 39]}
+    {"flank": 120, "access": 13, "seeds": [13, 26, 39]},
 ]
 
 
@@ -194,8 +194,7 @@ def populate_sense_accessibility_batch(
     # NOTE: This is important, without this change big gene_to_data will hamper performance
     unique_genes = valid_df[CANONICAL_GENE].unique()
     lightweight_gene_to_data = {
-        gene: str(gene_to_data[gene].full_mrna)
-        for gene in unique_genes if gene in gene_to_data
+        gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data
     }
 
     # 2. Worker Function

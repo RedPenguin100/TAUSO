@@ -421,6 +421,7 @@ def cg_dinucleotide_fraction(seq: str) -> float:
     cg_fraction = cg_count / total_possible_pairs
     return cg_fraction
 
+
 def ta_dinucleotide_fraction(seq: str) -> float:
     """
     Calculate the fraction of 'UA' or 'TA' dinucleotides within a sequence.
@@ -444,7 +445,6 @@ def ta_dinucleotide_fraction(seq: str) -> float:
     target_count = seq.count("TA") + seq.count("UA")
 
     return target_count / total_possible_pairs
-
 
 
 def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
