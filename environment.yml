@@ -15,6 +15,7 @@ dependencies:
   - biopython
   - bcbio-gff
   - gffutils
+  - pyranges
   - fuzzysearch
   - primer3-py
   - tqdm
