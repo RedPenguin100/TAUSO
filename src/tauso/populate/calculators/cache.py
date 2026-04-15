@@ -7,7 +7,7 @@ class AssetCache:
         self.genome = genome
 
         self._gene_to_data_full = None
-        self.custom_gene = None #  not None if user decides to pass a FASTA file
+        self.custom_gene = None  #  not None if user decides to pass a FASTA file
 
         # RBP
         self._rbp_map = None
@@ -31,12 +31,10 @@ class AssetCache:
 
         self.get_rbp_assets()
 
-
         self.get_gene_mapper()
 
         # Omitting gene_to_data_lean, get_rbp_expression_matrix
         #          get_transcriptomes, get_gene_registry because they require more context
-
 
     def get_genome(self):
         return self._genome
@@ -166,9 +164,7 @@ class AssetCache:
         gene_to_data = self.get_lean_gene(genes_u)
         mapper = self.get_gene_mapper()
 
-        self._gene_registry = build_gene_sequence_registry(
-            genes=genes_u, gene_to_data=gene_to_data, mapper=mapper
-        )
+        self._gene_registry = build_gene_sequence_registry(genes=genes_u, gene_to_data=gene_to_data, mapper=mapper)
         return self._gene_registry
 
     def set_custom_gene(self, name, sequence):

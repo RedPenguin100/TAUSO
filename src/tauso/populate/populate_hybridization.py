@@ -52,6 +52,7 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
     nb_workers = n_cores if n_cores is not None else multiprocessing.cpu_count()
     if nb_workers > 1:
         from pandarallel import pandarallel
+
         pandarallel.initialize(nb_workers=nb_workers, progress_bar=False)
         apply_func = all_data.parallel_apply
     else:

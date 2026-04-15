@@ -23,8 +23,8 @@ CELL_LINE_DEPMAP_PROXY = "Cell_Line_Depmap_Proxy"
 CELL_LINE_DEPMAP = "Cell_Line_Depmap"
 
 # OligoAI syntax
-SUGAR_MODS = 'sugar_mods'
-BACKBONE_MODS = 'backbone_mods'
+SUGAR_MODS = "sugar_mods"
+BACKBONE_MODS = "backbone_mods"
 
 ISIS = "ISIS"
 LINKAGE = "Linkage"
@@ -78,7 +78,7 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "Hep3B": "Hep 3B2.1-7",
     "HepB3": "Hep 3B2.1-7",  # Typo Fixed
     "HepG2": "Hep G2",
-    'HepG2/Hep3B': 'Hep G2',                # Split: Mapping to dominant line
+    "HepG2/Hep3B": "Hep G2",  # Split: Mapping to dominant line
     "Huh7": "HuH-7",
     "HK-2": "HK-2",
     "Jurkat": "JURKAT",
@@ -110,13 +110,12 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "SK cells asyn": "SK-N-AS",
     "PAC neurons asyn": "SH-SY5Y",
     "Human Neuronal Cell": "SH-SY5Y",
-    "iCell GABANeurons": "SH-SY5Y",           # Neuronal proxy
-    "ReproNeuro": "SH-SY5Y",                 # Neuronal proxy
+    "iCell GABANeurons": "SH-SY5Y",  # Neuronal proxy
+    "ReproNeuro": "SH-SY5Y",  # Neuronal proxy
     "ReproNeuro Neurons": "SH-SY5Y",
     "ReproNeuro neurons (ReproCELL)": "SH-SY5Y",
-    "ReproNeuro Neurons (ReproCELL)" : "SH-SY5Y",
-    "54-2": None,                            # Keep as None unless you confirm lineage
-
+    "ReproNeuro Neurons (ReproCELL)": "SH-SY5Y",
+    "54-2": None,  # Keep as None unless you confirm lineage
     # --- No Valid Proxy (Primary Cells / Distinct Lineages) ---
     "HepaRG": None,
     "HuVEC": None,

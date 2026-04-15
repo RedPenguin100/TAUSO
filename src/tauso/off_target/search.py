@@ -277,5 +277,4 @@ def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
     # print(f"Counts: {counts_dict}")
     # print(f"hits_list: {hits_list}")
 
-
     return df
