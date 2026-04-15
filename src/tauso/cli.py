@@ -171,12 +171,16 @@ def setup_depmap(force):
     click.echo(f"Initializing DepMap setup for: {RELEASE}")
     click.echo("Fetching fresh download URLs from DepMap API...")
 
+    # ---> CHANGE 1: Added headers dict <---
+    headers = {"User-Agent": "Mozilla/5.0"}
+
     # 2. Fetch the Master Index CSV
     # This endpoint returns a CSV with columns: release, filename, url, etc.
     index_url = "https://depmap.org/portal/api/download/files"
 
     try:
-        r = requests.get(index_url)
+        # ---> CHANGE 2: Added headers=headers to requests.get <---
+        r = requests.get(index_url, headers=headers)
         r.raise_for_status()
         # Parse directly into Pandas
         df = pd.read_csv(io.StringIO(r.text))
@@ -218,8 +222,8 @@ def setup_depmap(force):
 
         click.echo(f"Downloading {local_name}...")
         try:
-            # Using wget with -O to save to destination
-            subprocess.run(["wget", "-q", "--show-progress", "-O", dest, download_url], check=True)
+            # ---> CHANGE 3: Added "-U", "Mozilla/5.0" to the wget list <---
+            subprocess.run(["wget", "-q", "--show-progress", "-U", "Mozilla/5.0", "-O", dest, download_url], check=True)
             click.echo(click.style(f"✓ Downloaded {local_name}", fg="green"))
         except subprocess.CalledProcessError:
             click.echo(click.style(f"❌ Failed to download {local_name}", fg="red"))

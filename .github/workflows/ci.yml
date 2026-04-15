@@ -105,6 +105,15 @@ jobs:
       - name: Setup Attract DB
         run: tauso setup-attract
 
+      - name: Cache DepMap Data
+        id: cache-depmap
+        uses: actions/cache@v4
+        with:
+          # Replace this with the actual path returned by tauso.data.data.get_data_dir()
+          # usually something like ~/.tauso/data or a specific repo directory
+          path: ${{ env.TAUSO_DATA_DIR }}
+          key: depmap-25Q3-v1
+
       - name: Setup DepMap
         run: tauso setup-depmap
 
