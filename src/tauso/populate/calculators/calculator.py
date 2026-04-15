@@ -1,12 +1,13 @@
 import os
+
 import pandas as pd
 
 from notebooks.competitors.oligowalk_utils import populate_oligowalk
-from notebooks.features.feature_extraction import save_feature, _get_saved_features_dir
+from notebooks.features.feature_extraction import _get_saved_features_dir, save_feature
 from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from tauso.populate.calculators.cache import AssetCache
 from tauso.populate.populate_context import populate_transfection
-from tauso.populate.populate_sequence import populate_sequence_features, FEATURE_SPECS
+from tauso.populate.populate_sequence import FEATURE_SPECS, populate_sequence_features
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
 
@@ -104,7 +105,7 @@ class Calculator:
             print(f"Computing {len(missing_basic)} basic features...")
 
             # Check dependencies BEFORE attempting to compute
-            from tauso.data.consts import CELL_LINE_DEPMAP_PROXY, MODIFICATION, HEPA_PROXIES
+            from tauso.data.consts import CELL_LINE_DEPMAP_PROXY, HEPA_PROXIES, MODIFICATION
 
             self._check_dependencies([CELL_LINE_DEPMAP_PROXY, MODIFICATION])
 
@@ -297,14 +298,14 @@ class Calculator:
     def calculate_mfe(self):
         """Calculates Minimum Free Energy (MFE) fold features."""
         # Lazy import to keep initialization fast
-        from tauso.populate.populate_fold import populate_mfe_features, DEFAULT_SETTINGS
+        from tauso.populate.populate_fold import DEFAULT_SETTINGS, populate_mfe_features
 
         # Dynamically generate the expected feature names from the settings tuples (flank, window, step)
         expected_features = [f"mfe_win{w}_flank{f}_step{s}" for f, w, s in DEFAULT_SETTINGS]
 
         missing = self._get_missing_features(expected_features)
 
-        from tauso.data.consts import SENSE_START, SENSE_LENGTH
+        from tauso.data.consts import SENSE_LENGTH, SENSE_START
 
         if missing:
             print(f"Computing {len(missing)} MFE features...")
@@ -333,7 +334,7 @@ class Calculator:
 
     def calculate_sense_accessibility(self):
         """Calculates sense accessibility features."""
-        from tauso.populate.populate_fold import populate_sense_accessibility_batch, DEFAULT_SENSE_CONFIGURATION
+        from tauso.populate.populate_fold import DEFAULT_SENSE_CONFIGURATION, populate_sense_accessibility_batch
 
         # Dynamically generate expected feature names based on the configs
         expected_features = []
@@ -481,6 +482,7 @@ class Calculator:
         if missing:
             print(f"Computing {len(missing)} backbone features...")
             import re
+
             from tauso.data.consts import PS_PATTERN
 
             # Ensure assign_chemistry/assign_backbone has populated PS_PATTERN
@@ -774,14 +776,14 @@ class Calculator:
         expression_matrix = self.cache.get_rbp_expression_matrix(unique_cell_lines)
         gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
+        from tauso.features.rbp.rbp_annotations import rbp_role_map_strict
         from tauso.populate.populate_rbp import (
-            populate_rbp_interaction_features,
-            populate_rbp_affinity_features,
             populate_complexity_features,
             populate_functional_features,
+            populate_rbp_affinity_features,
+            populate_rbp_interaction_features,
             populate_rbp_region,
         )
-        from tauso.features.rbp.rbp_annotations import rbp_role_map_strict
 
         # ==========================================
         # BLOCK A: Interaction Features
@@ -827,10 +829,12 @@ class Calculator:
         # ==========================================
         if missing_reg:
             print("\n--- Processing Regional Features ---")
-            from tauso.features.rbp.RBP_features import create_positional_sequence_columns
             import warnings
+
             import pandas as pd
             from pandas.errors import PerformanceWarning
+
+            from tauso.features.rbp.RBP_features import create_positional_sequence_columns
 
             warnings.simplefilter(action="ignore", category=PerformanceWarning)
             warnings.simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)

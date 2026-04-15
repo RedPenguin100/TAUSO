@@ -1,7 +1,5 @@
 import multiprocessing
 
-from pandarallel import pandarallel
-
 from ..data.consts import *
 from ..features.hybridization.hybridization_features import (
     calc_methylcytosines,
