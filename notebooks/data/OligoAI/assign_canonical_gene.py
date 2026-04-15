@@ -1,38 +1,18 @@
-import pandas as pd
+import logging
+import os
+import subprocess
+import time
+import uuid
 import warnings
+from collections import Counter
+
+import pandas as pd
+import pyranges as pr
 
 from notebooks.consts import ORIGINAL_OLIGO_CSV, ORIGINAL_OLIGO_CSV_WITH_CANONICAL
-from tauso.data.data import load_db, get_paths
-from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 from tauso.data.consts import CANONICAL_GENE
-
-import pandas as pd
-import warnings
-
-
-import pandas as pd
-import warnings
-from collections import Counter
-import concurrent.futures
-from tqdm import tqdm  # Highly recommended for tracking parallel progress
-
-
-
-import pandas as pd
-import warnings
-import uuid
-import os
-from collections import Counter
-
-import subprocess
-import pandas as pd
-from collections import defaultdict
-
-import subprocess
-import os
-import pandas as pd
-from collections import defaultdict
-import logging
+from tauso.data.data import get_paths
+from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +87,6 @@ def run_bowtie_search_bulk(fasta_path, genome="GRCh38", max_mismatches=0, thread
     return hits
 
 
-import pyranges as pr
-import pandas as pd
-import time
-
 def load_pyranges_db(gtf_path):
     print("Loading GTF into RAM... (This takes ~45s but only happens once)")
     gr = pr.read_gtf(gtf_path)
@@ -123,9 +99,6 @@ def load_pyranges_db(gtf_path):
 
     return gr
 
-import pyranges as pr
-import pandas as pd
-import time
 
 def annotate_hits_bulk(hits_list, genome):
     """
@@ -137,7 +110,7 @@ def annotate_hits_bulk(hits_list, genome):
         return {}
 
     # Assumes get_paths is defined globally in your script
-    gr_genome = load_pyranges_db(get_paths(genome)['gtf'])
+    gr_genome = load_pyranges_db(get_paths(genome)["gtf"])
 
     start_time = time.time()
 
@@ -184,82 +157,6 @@ def annotate_hits_bulk(hits_list, genome):
     print(f"Annotation complete in {elapsed:.2f} seconds!")
 
     return seq_to_genes
-#
-# def annotate_hits_bulk(hits_list, genome="GRCh38"):
-#     """
-#     Annotates hits with a high-speed cache and returns the dictionary mapping needed.
-#     """
-#     if not hits_list:
-#         return {}
-#
-#     db = load_db(genome=genome)
-#     seq_to_genes = defaultdict(set)
-#
-#     # CACHE: Drastically reduces SQLite db.region() overhead
-#     region_cache = {}
-#
-#     print(f"Annotating {len(hits_list)} total genome hits...")
-#
-#     # Wrap the iteration in tqdm for a progress bar
-#     for hit in tqdm(hits_list, desc="Annotating hits"):
-#         seq = hit["sequence"]
-#         chrom = hit["chrom"]
-#         start = hit["start"]
-#         end = hit["end"]
-#
-#         region_key = (chrom, start, end)
-#
-#         # If we've already looked up this exact coordinate, use the cache
-#         if region_key in region_cache:
-#             gene_name = region_cache[region_key]
-#         else:
-#             try:
-#                 features = list(db.region(region=(chrom, start, end)))
-#             except Exception:
-#                 features = []
-#
-#             gene_name = None
-#             current_priority = 0
-#
-#             # Priority logic
-#             for feat in features:
-#                 f_type = feat.featuretype
-#
-#                 if f_type == "exon":
-#                     priority = 4
-#                 elif f_type == "CDS":
-#                     priority = 4
-#                 elif f_type == "intron":
-#                     priority = 2
-#                 elif f_type == "gene":
-#                     priority = 1
-#                 else:
-#                     priority = 0
-#
-#                 if priority > current_priority:
-#                     current_priority = priority
-#                     gene_name = feat.attributes.get(
-#                         "gene_name",
-#                         feat.attributes.get("Name", feat.attributes.get("gene_id", [None])),
-#                     )[0]
-#
-#             # Save to cache for the next time this coordinate appears
-#             region_cache[region_key] = gene_name
-#
-#         # Map the found gene to the ASO sequence
-#         if gene_name:
-#             seq_to_genes[seq].add(gene_name)
-#
-#     # Convert the sets to lists before returning to match the main script's expectations
-#     return {seq: list(genes) for seq, genes in seq_to_genes.items()}
-
-
-import pandas as pd
-import warnings
-import uuid
-import os
-from collections import Counter
-
 
 def process_and_assign_genes_bulk(
     input_csv=ORIGINAL_OLIGO_CSV,
@@ -344,6 +241,7 @@ def process_and_assign_genes_bulk(
 
     return df, ambiguous_genes, df_stats
 
+
 # 1. Worker function MUST be at the top level (global scope) for multiprocessing
 def _process_gene_group(args):
     target_gene, seqs, genome = args
@@ -372,7 +270,7 @@ def process_and_assign_genes(
     input_csv=ORIGINAL_OLIGO_CSV,
     output_csv=ORIGINAL_OLIGO_CSV_WITH_CANONICAL,
     genome="GRCh38",
-    sequence_col="rna_sequence" # <-- ADDED: specify your ASO column name here
+    sequence_col="rna_sequence",  # <-- ADDED: specify your ASO column name here
 ):
     df = pd.read_csv(input_csv)
 
