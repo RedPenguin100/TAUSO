@@ -270,52 +270,84 @@ def process_and_assign_genes(
     input_csv=ORIGINAL_OLIGO_CSV,
     output_csv=ORIGINAL_OLIGO_CSV_WITH_CANONICAL,
     genome="GRCh38",
-    sequence_col="rna_sequence",  # <-- ADDED: specify your ASO column name here
+    sequence_col="rna_sequence",
 ):
     df = pd.read_csv(input_csv)
 
-    # Changed 'rna_context' to your sequence column
     missing_cols = {sequence_col, "target_gene"} - set(df.columns)
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
-    # Group by target_gene and grab the first ASO sequence instead
-    gene_to_seq = df.dropna(subset=["target_gene", sequence_col]).groupby("target_gene")[sequence_col].first()
+    # Group by target_gene and get ALL unique sequences per gene
+    gene_to_seqs = df.dropna(subset=["target_gene", sequence_col]).groupby("target_gene")[sequence_col].unique()
 
-    print(f"Resolving {len(gene_to_seq)} unique target genes")
+    print(f"Resolving {len(gene_to_seqs)} unique target genes using all associated sequences")
 
     gene_to_canonical = {}
     ambiguous_genes = {}
+    gene_stats = {}
 
-    for i, (target_gene, aso_seq) in enumerate(gene_to_seq.items(), start=1):
-        # aso_seq might already be DNA, but replacing U->T is a safe fallback
-        dna = aso_seq.upper().replace("U", "T")
-        hits = find_all_gene_off_targets(dna, genome=genome, max_mismatches=0)
-        genes = hits["gene_name"].dropna().unique().tolist() if not hits.empty else []
+    for i, (target_gene, seqs) in enumerate(gene_to_seqs.items(), start=1):
+        all_found_genes = set()
+        hit_counts = Counter()
+        total_seqs_for_gene = len(seqs)
 
-        if len(genes) == 0:
+        for aso_seq in seqs:
+            dna = aso_seq.upper().replace("U", "T")
+            # find_all_gene_off_targets returns a DataFrame of hits
+            hits = find_all_gene_off_targets(dna, genome=genome, max_mismatches=0)
+
+            if not hits.empty:
+                genes = hits["gene_name"].dropna().unique().tolist()
+                all_found_genes.update(genes)
+                for g in genes:
+                    hit_counts[g] += 1
+
+        # --- Resolve Canonical Identity based on majority/presence ---
+        if not hit_counts:
+            most_common_gene = pd.NA
+            most_common_count = 0
             gene_to_canonical[target_gene] = pd.NA
-        elif len(genes) == 1:
-            gene_to_canonical[target_gene] = genes[0]
         else:
-            gene_to_canonical[target_gene] = ";".join(genes)
-            ambiguous_genes[target_gene] = genes
+            # Logic: Identify the most frequent gene hit across this group of ASOs
+            most_common_gene = max(hit_counts, key=hit_counts.get)
+            most_common_count = hit_counts[most_common_gene]
 
-        if i % 50 == 0 or i == len(gene_to_seq):
-            print(f"[{i}/{len(gene_to_seq)}] genes processed")
+            # Map for the main dataframe
+            if len(all_found_genes) == 1:
+                gene_to_canonical[target_gene] = list(all_found_genes)[0]
+            else:
+                gene_to_canonical[target_gene] = ";".join(sorted(list(all_found_genes)))
+                ambiguous_genes[target_gene] = list(all_found_genes)
 
+        # --- Populate Statistics ---
+        gene_stats[target_gene] = {
+            "total_asos_tested": total_seqs_for_gene,
+            "most_popular_canonical": most_common_gene,
+            "popular_hit_count": most_common_count,
+            "match_rate": f"{most_common_count}/{total_seqs_for_gene}",
+            "all_hit_frequencies": dict(hit_counts),
+        }
+
+        if i % 10 == 0 or i == len(gene_to_seqs):
+            print(f"[{i}/{len(gene_to_seqs)}] genes processed")
+
+    # Finalize files
     df[CANONICAL_GENE] = df["target_gene"].map(gene_to_canonical)
     df.to_csv(output_csv, index=False)
+
+    df_stats = pd.DataFrame.from_dict(gene_stats, orient="index").reset_index()
+    df_stats = df_stats.rename(columns={"index": "original_target_gene"})
+
+    stats_csv = str(output_csv).replace(".csv", "_STATS.csv")
+    df_stats.to_csv(stats_csv, index=False)
+
     print(f"Saved annotated dataframe → {output_csv}")
+    print(f"Saved detailed stats dataframe → {stats_csv}")
 
-    if ambiguous_genes:
-        warnings.warn(f"{len(ambiguous_genes)} target genes mapped to multiple canonical genes")
-    else:
-        print("No ambiguous gene mappings found 🎉")
-
-    return df, ambiguous_genes
+    return df, ambiguous_genes, df_stats
 
 
 if __name__ == "__main__":
     # This block executes only when run from the command line (e.g., in CI)
-    process_and_assign_genes()
+    process_and_assign_genes_bulk()
