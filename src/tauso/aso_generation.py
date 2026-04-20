@@ -15,7 +15,6 @@ from tauso.data.consts import (
     VOLUME,
 )
 from tauso.data.data import get_paths
-
 from tauso.features.names import *
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import (
