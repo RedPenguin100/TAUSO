@@ -8,7 +8,7 @@ dependencies:
  # core python deps (no build pins)
   - requests
   - numpy==2.3.4
-  - pandas
+  - pandas<3
   - pyarrow
   - scipy
   - numba
