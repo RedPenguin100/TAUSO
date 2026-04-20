@@ -7,7 +7,7 @@ dependencies:
   - python==3.11
  # core python deps (no build pins)
   - requests
-  - numpy
+  - numpy==2.3.4
   - pandas
   - pyarrow
   - scipy
