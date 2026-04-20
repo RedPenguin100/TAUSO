@@ -24,7 +24,7 @@ def pfred_container():
         )
 
 
-@pytest.skip  # TODO: NICE_TO_HAVE - make this work in the CI
+@pytest.mark.skip(reason="TODO: fix this in the CI, currently too much setup with the docker probably")
 @pytest.mark.parametrize("mini_sampled_data", [10000], indirect=True)
 def test_pfred_features_regression(mini_sampled_data, pfred_container, dataframe_regression, tmp_path):
     """
