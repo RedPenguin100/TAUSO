@@ -79,7 +79,7 @@ def generate_stub_data(
     gene_sequence: str,
     first_n: int = None,
     transfection=Transfection.GYMNOSIS,
-    genome: str = "GRCh38"
+    genome: str = "GRCh38",
 ):
     data = get_initial_data(gene_sequence, aso_sizes=[20], canonical_name=target_gene)
 
