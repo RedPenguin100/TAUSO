@@ -688,12 +688,12 @@ def get_genome_metadata(genome):
 
     url_dict = dict()
 
-    if 'fasta_name' in meta:
-        url_dict['fasta'] = f"{base}/{meta['fasta_name']}"
-    if 'gtf_name' in meta:
-        url_dict['gtf'] = f"{base}/{meta['gtf_name']}"
-    if 'gff_name' in meta:
-        url_dict['gff'] = f"{base}/{meta['gff_name']}"
+    if "fasta_name" in meta:
+        url_dict["fasta"] = f"{base}/{meta['fasta_name']}"
+    if "gtf_name" in meta:
+        url_dict["gtf"] = f"{base}/{meta['gtf_name']}"
+    if "gff_name" in meta:
+        url_dict["gff"] = f"{base}/{meta['gff_name']}"
 
     return url_dict
 
@@ -730,7 +730,7 @@ def setup_genome(genome, force, remove_gz):
 
         if url_dict:
             for file_type, download_url in url_dict.items():
-                if file_type == 'gff' and genome != 'GRCh38': # TODO: support GFF for all
+                if file_type == "gff" and genome != "GRCh38":  # TODO: support GFF for all
                     continue
                 if not os.path.exists(paths[file_type]):
                     click.echo(f"Downloading {file_type} from GENCODE...")
