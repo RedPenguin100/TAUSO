@@ -1,86 +1,79 @@
 import os
-import pandas as pd
-import numpy as np
 
-from notebooks.consts import SAVED_FEATURES
+import numpy as np
+import pandas as pd
 from joblib import Parallel, delayed
 
+from notebooks.consts import SAVED_FEATURES
 
 
 def _get_saved_features_dir(version):
     if version is None:
         return SAVED_FEATURES
-    elif version in ['v2', 'oligo']:
+    elif version in ["v2", "oligo"]:
         return SAVED_FEATURES.with_name(f"{SAVED_FEATURES.name}_{version}")
     else:
         raise ValueError(f"Unknown version '{version}'")
 
 
+COMPETITION = [
+    "PFRED_PLS",
+    "PFRED_SVM",
+    "OW_Overall",
+    "OW_Tm",
+    "OW_Intra_Oligo",
+    "OW_Duplex",
+    "sfold_accessibility",
+    "miranda_score",
+    "miranda_energy",
+    "oligo_ai_score",
+]
+
 
 def load_all_features(filenames=None, light=True, verbose=False, version=None, n_jobs=1, load_competition=False):
     feature_dir = _get_saved_features_dir(version)
     if not filenames:
-        filenames = [f for f in os.listdir(feature_dir) if f.endswith('.csv') and not f.startswith('.')]
+        filenames = [f for f in os.listdir(feature_dir) if f.endswith(".csv") and not f.startswith(".")]
         filenames.sort()
 
     if not filenames:
         raise FileNotFoundError(f"No CSV files found in {feature_dir}")
 
     if light:
-        if 'Smiles.csv' in filenames:
-            filenames.remove('Smiles.csv')
+        if "Smiles.csv" in filenames:
+            filenames.remove("Smiles.csv")
 
     if not load_competition:
-        competition = [
-            "PFRED_PLS",
-            "PFRED_SVM",
-            "OW_Overall",
-            "OW_Tm",
-            "OW_Intra_Oligo",
-            "OW_Duplex",
-            "sfold_accessibility",
-            "miranda_score",
-            "miranda_energy",
-        ]
-
-        filenames = [f for f in filenames if f.removesuffix(".csv") not in competition]
+        filenames = [f for f in filenames if f.removesuffix(".csv") not in COMPETITION]
 
     if verbose:
         print(f"Loading features from: {filenames}")
 
     if version is None:
-        index = 'index'
+        index = "index"
     else:
-        index = 'index_' + version
+        index = "index_" + version
 
     if n_jobs == 1:
         dfs = [pd.read_csv(os.path.join(feature_dir, f), index_col=index) for f in filenames]
     else:
         dfs = Parallel(n_jobs=n_jobs, backend="threading")(
-            delayed(pd.read_csv)(os.path.join(feature_dir, f), index_col=index)
-            for f in filenames
+            delayed(pd.read_csv)(os.path.join(feature_dir, f), index_col=index) for f in filenames
         )
 
-    merged_df = pd.concat(dfs, axis=1, join='outer').reset_index()
+    merged_df = pd.concat(dfs, axis=1, join="outer").reset_index()
 
     return merged_df
-
 
 
 def _check_conflicts(new_sub_df, file_path, feature_name, index):
     existing_df = pd.read_csv(file_path)
 
     # Merge on 'index' to compare aligned rows
-    comparison = pd.merge(
-        new_sub_df,
-        existing_df,
-        on=index,
-        suffixes=('_new', '_existing'),
-        how='inner'
-    )
+    comparison = pd.merge(new_sub_df, existing_df, on=index, suffixes=("_new", "_existing"), how="inner")
 
-    col_new = f'{feature_name}_new'
-    col_old = f'{feature_name}_existing'
+    col_new = f"{feature_name}_new"
+    col_old = f"{feature_name}_existing"
 
     # Check if the column is numeric (float/int)
     if pd.api.types.is_numeric_dtype(comparison[col_new]):
