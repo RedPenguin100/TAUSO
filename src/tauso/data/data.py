@@ -35,6 +35,7 @@ def get_paths(genome="GRCh38"):
         "dir": d,
         "fasta": os.path.join(d, f"{genome}.fa"),
         "gtf": os.path.join(d, f"{genome}.gtf"),
+        "gff": os.path.join(d, f"{genome}.gff3"),
         "db": os.path.join(d, f"{genome}.db"),
     }
 
@@ -55,6 +56,7 @@ def load_gff_pyranges(genome="GRCh38"):
 
 
 def load_pyranges_gtf(gtf_path):
+    # TODO: think about making this faster
     with Timer("Loading GTF into RAM"):
         gr = pr.read_gtf(gtf_path)
 
