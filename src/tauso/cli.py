@@ -934,10 +934,7 @@ def setup_bowtie(genome, force, threads, mem_per_thread):
 
     try:
         index_path = get_bowtie_index_base(
-            genome=genome,
-            force_rebuild=force,
-            threads=threads,
-            mem_per_thread_mb=mem_per_thread
+            genome=genome, force_rebuild=force, threads=threads, mem_per_thread_mb=mem_per_thread
         )
 
         click.echo(click.style(f"✓ Bowtie index ready at: {index_path}", fg="green"))
