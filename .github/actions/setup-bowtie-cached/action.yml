@@ -24,7 +24,7 @@ runs:
       if: steps.cache-bowtie-restore.outputs.cache-hit != 'true'
       # In composite actions, you MUST specify the shell for run commands
       shell: bash -el {0}
-      run: tauso setup-bowtie
+      run: tauso setup-bowtie -t 4 --mem-per-thread 2048
 
     - name: Save Bowtie Index Cache
       if: steps.cache-bowtie-restore.outputs.cache-hit != 'true'
