@@ -1,8 +1,11 @@
 import os
 
 import gffutils
+import pyranges as pr
 from platformdirs import user_data_dir
 from pyfaidx import Fasta
+
+from tauso.timer import Timer
 
 APP_NAME = "tauso"
 
@@ -42,6 +45,25 @@ def load_db(genome="GRCh38"):
     if not os.path.exists(paths["db"]):
         raise FileNotFoundError(f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
     return gffutils.FeatureDB(paths["db"])
+
+
+def load_gff_pyranges(genome="GRCh38"):
+    paths = get_paths(genome)
+    if not os.path.exists(paths["gtf"]):
+        raise FileNotFoundError(f"GTF for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
+    return pr.read_gff3(paths["gtf"])
+
+
+def load_pyranges_gtf(gtf_path):
+    with Timer("Loading GTF into RAM"):
+        gr = pr.read_gtf(gtf_path)
+
+    print(f"Done loading GTF, {len(gr)} rows in gr")
+
+    gr = gr[gr.Feature == "gene"]
+    print(f"Filtered gene only regions, left with {len(gr)} rows in gr")
+
+    return gr
 
 
 def load_genome(genome="GRCh38"):
