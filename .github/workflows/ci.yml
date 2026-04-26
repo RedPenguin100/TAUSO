@@ -77,12 +77,14 @@ jobs:
         with:
           path: |
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.db
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.bak
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.success
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf
-          key: ${{ runner.os }}-tauso.genome-GRCh38-v2
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.gz
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3.gz
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v3
 
       - name: Install genome
         run: tauso setup-genome

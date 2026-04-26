@@ -13,7 +13,7 @@ def read_oligo_indexed_data():
 
         # Save the file
         data.to_csv(OLIGO_CSV_INDEXED, index=False)
-        print("Added 'index_oligo' and saved file.")
+        print(f"Indexed oligo data and saved to {OLIGO_CSV_INDEXED}.")
     else:
         print("'index_oligo' already exists. No changes made.")
 

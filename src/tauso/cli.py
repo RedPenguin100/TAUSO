@@ -38,7 +38,7 @@ def main():
     pass
 
 
-def download_and_gunzip(url, dest_path):
+def download_and_gunzip(url, dest_path, remove_gz=False):
     if os.path.exists(dest_path):
         click.echo(f"  File already exists: {os.path.basename(dest_path)}")
         return
@@ -61,8 +61,8 @@ def download_and_gunzip(url, dest_path):
         with gzip.open(temp_gz, "rb") as f_in:
             with open(dest_path, "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
-
-        os.remove(temp_gz)
+        if remove_gz:
+            os.remove(temp_gz)
     except Exception as e:
         if os.path.exists(dest_path):
             os.remove(dest_path)
@@ -658,8 +658,7 @@ def get_genome_metadata(genome):
             "base_url": f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_HUMAN_RELEASE}",
             "fasta_name": "GRCh38.p13.genome.fa.gz",
             "gtf_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gtf.gz",
-            # TODO: make the code work with the gff version
-            # "gff_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gff3.gz",
+            "gff_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gff3.gz",
         },
         "GRCm39": {
             "base_url": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M33",
@@ -687,20 +686,23 @@ def get_genome_metadata(genome):
     meta = CONFIG[genome]
     base = meta["base_url"]
 
-    # Logic to handle different URL structures between GENCODE and Ensembl
-    # Ensembl URLs in config include the full relative path, GENCODE were simple appends
-    # We can standardize by just joining base + name
-    fasta_url = f"{base}/{meta['fasta_name']}"
-    gtf_url = f"{base}/{meta['gtf_name']}"
-    # gff_url = f"{base}/{meta['gff_name']}"
+    url_dict = dict()
 
-    return fasta_url, gtf_url
+    if 'fasta_name' in meta:
+        url_dict['fasta'] = f"{base}/{meta['fasta_name']}"
+    if 'gtf_name' in meta:
+        url_dict['gtf'] = f"{base}/{meta['gtf_name']}"
+    if 'gff_name' in meta:
+        url_dict['gff'] = f"{base}/{meta['gff_name']}"
+
+    return url_dict
 
 
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome name (GRCh38 or GRCm39).")
 @click.option("--force", is_flag=True, help="Force re-download and rebuild.")
-def setup_genome(genome, force):
+@click.option("--remove-gz", is_flag=False, help="Remove the zipped files after download.")
+def setup_genome(genome, force, remove_gz):
     """
     Sets up the genome environment (Download -> Index -> Database).
     Supports GRCh38 (Human) and GRCm39 (Mouse).
@@ -711,31 +713,28 @@ def setup_genome(genome, force):
     paths = get_paths(genome)
     fasta_path = paths["fasta"]
     gtf_path = paths["gtf"]
+    gff_path = paths["gff"]
     db_path = paths["db"]
     sentinel_path = db_path + ".success"
 
     if force:
         click.echo("Force flag detected. Cleaning up old files...")
-        for f in [fasta_path, gtf_path, db_path, fasta_path + ".fai", sentinel_path]:
+        for f in [fasta_path, gtf_path, gff_path, db_path, fasta_path + ".fai", sentinel_path]:
             if os.path.exists(f):
                 os.remove(f)
 
     # --- PHASE 1: Download & Index ---
     try:
         # Check if we have automatic download support for this genome
-        urls = get_genome_metadata(genome)
+        url_dict = get_genome_metadata(genome)
 
-        if urls:
-            fasta_url, gtf_url = urls
-
-            # Only download if missing
-            if not os.path.exists(fasta_path):
-                click.echo(f"Downloading {genome} FASTA from GENCODE...")
-                download_and_gunzip(fasta_url, fasta_path)
-
-            if not os.path.exists(gtf_path):
-                click.echo(f"Downloading {genome} GTF (Basic Annotation) from GENCODE...")
-                download_and_gunzip(gtf_url, gtf_path)
+        if url_dict:
+            for file_type, download_url in url_dict.items():
+                if file_type == 'gff' and genome != 'GRCh38': # TODO: support GFF for all
+                    continue
+                if not os.path.exists(paths[file_type]):
+                    click.echo(f"Downloading {file_type} from GENCODE...")
+                    download_and_gunzip(download_url, paths[file_type], remove_gz=remove_gz)
         else:
             # Fallback for unsupported genomes
             if not os.path.exists(fasta_path) or not os.path.exists(gtf_path):
