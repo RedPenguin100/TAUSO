@@ -2,7 +2,7 @@ import os
 import pytest
 import pandas as pd
 
-from notebooks.data.OligoAI.assign_canonical_gene import process_and_assign_genes
+from notebooks.data.OligoAI.assign_canonical_gene import process_and_assign_genes_bulk
 
 def generate_200_test_sequences():
     # Real transcript segments for high-confidence mapping
@@ -58,7 +58,7 @@ def test_process_and_assign_genes_bulk_real_genome(tmp_path):
 
     # 3. Execute the actual function
     # Note: Ensure genome="GRCh38" is installed in your env before running
-    df_out, ambiguous_genes, df_stats = process_and_assign_genes(
+    df_out, ambiguous_genes, df_stats = process_and_assign_genes_bulk(
         input_csv=str(input_csv),
         output_csv=str(output_csv),
         genome="GRCh38",
