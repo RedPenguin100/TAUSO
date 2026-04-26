@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import pytest
 
-from notebooks.consts import NOTEBOOK_PATH, OLIGO_CSV_INDEXED
+from notebooks.consts import OLIGO_CSV_INDEXED
 from tauso.algorithms.genomic_context_windows import (
     add_external_mrna_and_context_columns,
 )
