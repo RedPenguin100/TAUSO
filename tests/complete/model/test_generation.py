@@ -10,7 +10,6 @@ import pytest
 
 from notebooks.consts import NOTEBOOK_PATH
 from tauso.aso_generation import generate_aso_features, generate_stub_data, Transfection
-from tauso.genome.LocusInfo import LocusInfo
 from tauso.populate.calculators.cache import AssetCache
 
 

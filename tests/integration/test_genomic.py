@@ -15,7 +15,7 @@ from tauso.genome.TranscriptMapper import (
 )
 
 
-@pytest.mark.integration
+# @pytest.mark.integration
 def test_pipeline_data_regression(data_regression):
     # 1. Load & Preprocess
     full_data = preprocess_aso_data(UPDATED_CSV)
@@ -27,6 +27,8 @@ def test_pipeline_data_regression(data_regression):
 
     # B. Initialize Mapper (DB connection)
     mapper = GeneCoordinateMapper(get_paths()["db"])
+
+    print(mapper._get_gene_and_cds('MYO6'))
 
     # C. Load raw genomic data
     gene_to_data = get_locus_to_data_dict(

@@ -5,8 +5,8 @@ from tauso.populate.populate_hybridization import populate_hybridization
 
 
 @pytest.fixture(scope="module")
-def chemistry_data(final_data):
-    return assign_chemistry(final_data)
+def chemistry_data(structure_data):
+    return assign_chemistry(structure_data)
 
 
 @pytest.fixture
