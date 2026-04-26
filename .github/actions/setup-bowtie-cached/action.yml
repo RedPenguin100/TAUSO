@@ -18,7 +18,7 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: ${{ inputs.data_dir }}/GRCh38_bowtie_index
-        key: ${{ inputs.os }}-tauso.bowtie-GRCh38-v1
+        key: ${{ inputs.os }}-tauso.bowtie-GRCh38-v2
 
     - name: Setup Bowtie
       if: steps.cache-bowtie-restore.outputs.cache-hit != 'true'
@@ -31,4 +31,4 @@ runs:
       uses: actions/cache/save@v4
       with:
         path: ${{ inputs.data_dir }}/GRCh38_bowtie_index
-        key: ${{ inputs.os }}-tauso.bowtie-GRCh38-v1
+        key: ${{ inputs.os }}-tauso.bowtie-GRCh38-v2

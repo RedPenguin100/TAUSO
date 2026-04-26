@@ -31,8 +31,6 @@ from tauso.genome.TranscriptMapper import (
 )
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
-# --- MAIN COMMAND ---
-
 
 @click.group()
 def main():
@@ -660,6 +658,8 @@ def get_genome_metadata(genome):
             "base_url": f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_HUMAN_RELEASE}",
             "fasta_name": "GRCh38.p13.genome.fa.gz",
             "gtf_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gtf.gz",
+            # TODO: make the code work with the gff version
+            # "gff_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gff3.gz",
         },
         "GRCm39": {
             "base_url": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M33",
@@ -692,6 +692,7 @@ def get_genome_metadata(genome):
     # We can standardize by just joining base + name
     fasta_url = f"{base}/{meta['fasta_name']}"
     gtf_url = f"{base}/{meta['gtf_name']}"
+    # gff_url = f"{base}/{meta['gff_name']}"
 
     return fasta_url, gtf_url
 
@@ -922,19 +923,22 @@ def run_off_target(sequence, genome, mismatches, output):
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome name (default: GRCh38).")
 @click.option("--force", is_flag=True, help="Force rebuild of the index.")
-def setup_bowtie(genome, force):
+@click.option("--threads", "-t", default=1, help="Number of CPU threads to use (default: 1).")
+@click.option("--mem-per-thread", default=800, help="Max memory limit per thread in MB (default: 800).")
+def setup_bowtie(genome, force, threads, mem_per_thread):
     """
     Generates (or validates) the Bowtie index for the specified genome.
     Requires 'setup-genome' to be run first to ensure the FASTA file exists.
     """
-    click.echo(f"Initializing Bowtie setup for {genome}...")
+    click.echo(f"Initializing Bowtie setup for {genome} (Threads: {threads}, Max Mem/Thread: {mem_per_thread}MB)...")
 
     try:
-        # We assume the FASTA exists. If not, get_bowtie_index_base throws FileNotFoundError
-        # This function handles the logic:
-        # 1. Check if index exists -> return if so.
-        # 2. If --force or missing -> run bowtie-build.
-        index_path = get_bowtie_index_base(genome=genome, force_rebuild=force)
+        index_path = get_bowtie_index_base(
+            genome=genome,
+            force_rebuild=force,
+            threads=threads,
+            mem_per_thread_mb=mem_per_thread
+        )
 
         click.echo(click.style(f"✓ Bowtie index ready at: {index_path}", fg="green"))
 

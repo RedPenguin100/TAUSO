@@ -22,7 +22,7 @@ if not logger.handlers:
     logger.setLevel(logging.INFO)
 
 
-def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
+def get_bowtie_index_base(genome="GRCh38", force_rebuild=False, threads=1, mem_per_thread_mb=800):
     """
     Returns the base path for the Bowtie index of the specific genome.
     """
@@ -99,30 +99,59 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False):
         clean_index(index_base)
 
     logger.info(f"Building Bowtie index for {genome}...")
-    try:
-        cmd = ["bowtie-build", fasta_path, index_base]
+    log_file_path = os.path.join(index_dir, "bowtie_build.log")
+    logger.info(f"Detailed build logs will be saved to: {log_file_path}")
 
-        with subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True) as proc:
-            spinner = itertools.cycle(["-", "/", "|", "\\"])
-            while proc.poll() is None:
-                sys.stdout.write(f"\r  Compiling {genome} Index... {next(spinner)}")
-                sys.stdout.flush()
-                time.sleep(0.5)
+    try:
+        # 1 MB = 1,048,576 bytes.
+        # In Bowtie's BWT construction, 1 suffix pointer requires ~4 bytes of RAM.
+        max_bytes = mem_per_thread_mb * 1024 * 1024
+        bmax_suffixes = int(max_bytes / 4)
+
+        cmd = [
+            "bowtie-build",
+            "--threads",
+            str(threads),
+            "--packed",
+            "--bmax",
+            str(bmax_suffixes),
+            "--dcv",
+            "2048",
+            "--offrate",
+            "6",
+            fasta_path,
+            index_base,
+        ]
+
+        # Route both stdout and stderr to the log file instead of DEVNULL
+        with open(log_file_path, "w") as log_file:
+            with subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True) as proc:
+                spinner = itertools.cycle(["-", "/", "|", "\\"])
+                while proc.poll() is None:
+                    sys.stdout.write(f"\r  Compiling {genome} Index... {next(spinner)}")
+                    sys.stdout.flush()
+                    time.sleep(0.5)
 
             sys.stdout.write(f"\r  Compiling {genome} Index... Done!      \n")
 
             if proc.returncode != 0:
-                stderr_output = proc.stderr.read()
-                raise subprocess.CalledProcessError(proc.returncode, cmd, stderr_output)
+                # Grab the last 15 lines of the log to see the actual error
+                with open(log_file_path, "r") as f:
+                    log_lines = f.readlines()
+                    error_tail = "".join(log_lines[-15:]) if log_lines else "Log empty. Process killed by OS?"
+
+                raise subprocess.CalledProcessError(proc.returncode, cmd, error_tail)
 
         with open(sentinel_file, "w") as f:
             f.write("Index build successful.")
         logger.info(f"Index built: {index_base}")
 
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to build index: {e.stderr}")
+        logger.error(
+            f"Failed to build index. Exit Code: {e.returncode}\n--- Last Log Output ---\n{e.stderr}\n-----------------------"
+        )
         clean_index(index_base)
-        raise RuntimeError("Bowtie indexing failed.")
+        raise RuntimeError(f"Bowtie indexing failed. See {log_file_path} for details.")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         clean_index(index_base)
