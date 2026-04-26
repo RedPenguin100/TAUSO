@@ -3,7 +3,6 @@ import os
 import subprocess
 import time
 import uuid
-import warnings
 from collections import Counter
 
 import pandas as pd
@@ -13,6 +12,7 @@ from notebooks.consts import ORIGINAL_OLIGO_CSV, ORIGINAL_OLIGO_CSV_WITH_CANONIC
 from tauso.data.consts import CANONICAL_GENE
 from tauso.data.data import get_paths
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
+from tauso.timer import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ def find_all_gene_off_targets_BULK(fasta_path, genome="GRCh38", threads=16, max_
     """
     Main bulk entry point. Replaces your old find_all_gene_off_targets.
     """
-    # 1. Run the bulk Bowtie search
-    hits_list = run_bowtie_search_bulk(fasta_path, genome=genome, max_mismatches=max_mismatches, threads=threads)
+    with Timer("Running bowtie"):
+        hits_list = run_bowtie_search_bulk(fasta_path, genome=genome, max_mismatches=max_mismatches, threads=threads)
 
     # 2. Annotate the hits in bulk and get the mapping dictionary
     seq_to_genes = annotate_hits_bulk(hits_list, genome=genome)
@@ -88,14 +88,13 @@ def run_bowtie_search_bulk(fasta_path, genome="GRCh38", max_mismatches=0, thread
 
 
 def load_pyranges_db(gtf_path):
-    print("Loading GTF into RAM... (This takes ~45s but only happens once)")
-    gr = pr.read_gtf(gtf_path)
+    with Timer("Loading GTF into RAM"):
+        gr = pr.read_gtf(gtf_path)
 
-    # Tell pyranges to mathematically infer introns from the exons
-    if "intron" not in gr.Feature.unique():
-        print("Inferring missing introns from transcript coordinates...")
-        gr_introns = gr.features.introns()
-        gr = pr.concat([gr, gr_introns])
+    print(f"Done loading GTF, {len(gr)} rows in gr")
+
+    gr = gr[gr.Feature == "gene"]
+    print(f"Filtered gene only regions, left with {len(gr)} rows in gr")
 
     return gr
 
@@ -120,15 +119,43 @@ def annotate_hits_bulk(hits_list, genome):
     # Pyranges explicitly requires these exact column names (capitalized)
     df_hits = df_hits.rename(columns={"chrom": "Chromosome", "start": "Start", "end": "End"})
 
+    # Shrink memory footprint drastically
+    df_hits["Chromosome"] = df_hits["Chromosome"].astype("category")
+    df_hits["sequence"] = df_hits["sequence"].astype("category")  # If sequence strings are repetitive
+    df_hits["Start"] = pd.to_numeric(df_hits["Start"], downcast="integer")
+    df_hits["End"] = pd.to_numeric(df_hits["End"], downcast="integer")
+
     # Convert to a PyRanges object
-    gr_hits = pr.PyRanges(df_hits)
+    # gr_hits = pr.PyRanges(df_hits)
 
-    print(f"Intersecting {len(df_hits)} hits against the genome...")
+    print(f"Intersecting {len(df_hits)} hits against the genome in chunks...")
 
-    # 2. THE C++ INTERSECTION (Takes ~2 seconds)
-    # Added apply_strand_suffix=False to silence the strand warning
-    intersected = gr_hits.join(gr_genome, apply_strand_suffix=False)
-    df_res = intersected.df
+    chunk_size = 500000  # Process half a million at a time
+    df_res_list = []
+
+    for i in range(0, len(df_hits), chunk_size):
+        print(f"  Processing chunk {i} to {i + chunk_size}...")
+
+        # 1. Slice the dataframe
+        df_chunk = df_hits.iloc[i : i + chunk_size]
+
+        # 2. Convert chunk to PyRanges
+        gr_chunk = pr.PyRanges(df_chunk)
+
+        # 3. Intersect just this chunk
+        intersected_chunk = gr_chunk.join(gr_genome, apply_strand_suffix=False)
+
+        # 4. Save the resulting dataframe and free memory
+        if not intersected_chunk.df.empty:
+            df_res_list.append(intersected_chunk.df)
+
+    if not df_res_list:
+        return {}
+
+    # Combine all the chunked results back into one dataframe
+    df_res = pd.concat(df_res_list, ignore_index=True)
+
+    # df_res = intersected.df
 
     if df_res.empty:
         return {}
@@ -144,12 +171,11 @@ def annotate_hits_bulk(hits_list, genome):
         df_res["resolved_gene_name"] = None
 
     # Drop anything that didn't map to a name
-    df_res = df_res.dropna(subset=["resolved_gene_name"])
+    df_res.dropna(subset=["resolved_gene_name"], inplace=True)
 
     # 4. AGGREGATE BACK TO DICTIONARY (No sorting or dropping duplicates needed)
     # Group by the ASO sequence and collect all unique gene names it hit
     seq_to_genes_series = df_res.groupby("sequence")["resolved_gene_name"].unique()
-
     # Convert pandas Series of arrays to a standard Python dictionary of lists
     seq_to_genes = {seq: list(genes) for seq, genes in seq_to_genes_series.items()}
 
@@ -157,6 +183,7 @@ def annotate_hits_bulk(hits_list, genome):
     print(f"Annotation complete in {elapsed:.2f} seconds!")
 
     return seq_to_genes
+
 
 def process_and_assign_genes_bulk(
     input_csv=ORIGINAL_OLIGO_CSV,
@@ -350,4 +377,4 @@ def process_and_assign_genes(
 
 if __name__ == "__main__":
     # This block executes only when run from the command line (e.g., in CI)
-    process_and_assign_genes_bulk()
+    process_and_assign_genes_bulk(threads=1)
