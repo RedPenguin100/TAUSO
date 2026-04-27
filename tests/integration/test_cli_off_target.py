@@ -25,9 +25,7 @@ def test_mipomersen_real_search():
     mipomersen_rna = "GCCUCAGTCTGCTTCGCACC"
 
     # Run the real command (no mocks)
-    result = runner.invoke(
-        main, ["run-off-target", "-o", "off_target.csv", mipomersen_rna]
-    )
+    result = runner.invoke(main, ["run-off-target", "-o", "off_target.csv", mipomersen_rna])
     df = pd.read_csv("off_target.csv")
 
     # If the genome isn't installed, this might fail with exit_code 1
@@ -77,9 +75,7 @@ def test_inotersen_off_target_search():
     ttr_hits = annotated_df[annotated_df["gene_name"] == "TTR"]
 
     # The primary target should be a perfect match (0 mismatches)
-    assert ttr_hits["mismatches"].min() == 0, (
-        "Expected a perfect match for the TTR gene."
-    )
+    assert ttr_hits["mismatches"].min() == 0, "Expected a perfect match for the TTR gene."
 
     # Ensure the region logic works (it should map to an exon or intron of TTR)
     assert ttr_hits["region_type"].iloc[0] in ["exon", "intron", "transcript", "gene"]

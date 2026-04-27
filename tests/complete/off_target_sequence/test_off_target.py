@@ -1,8 +1,8 @@
 import os
-import pytest
-import pandas as pd
 
+import pandas as pd
 from notebooks.data.OligoAI.assign_canonical_gene import process_and_assign_genes_bulk
+
 
 def generate_200_test_sequences():
     # Real transcript segments for high-confidence mapping
@@ -40,6 +40,7 @@ def generate_200_test_sequences():
 
 
 TEST_DATA = generate_200_test_sequences()
+
 
 def test_process_and_assign_genes_bulk_real_genome(tmp_path):
     """
@@ -109,5 +110,5 @@ def test_process_and_assign_genes_bulk_real_genome(tmp_path):
     # Check the negative control (UNKNOWN gene)
     unknown_stats = df_stats[df_stats["original_target_gene"] == "UNKNOWN"].iloc[0]
     assert unknown_stats["total_asos_tested"] == 6
-    assert pd.isna(unknown_stats["most_popular_canonical"]) # Should be NaN since it won't hit anything
+    assert pd.isna(unknown_stats["most_popular_canonical"])  # Should be NaN since it won't hit anything
     assert unknown_stats["popular_hit_count"] == 0
