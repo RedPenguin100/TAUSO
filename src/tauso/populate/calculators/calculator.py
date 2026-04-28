@@ -27,14 +27,17 @@ class Calculator:
         self.index = f"index_{data_version}" if data_version else None
         self.overwrite = overwrite
         self.get_feature_dir_func = get_feature_dir
-
         self.cache = cache if cache else AssetCache(genome="GRCh38")  # TODO: generalize for mice as well
 
         self._genes_u = None
         self._genes_u = self._get_unique_genes()
         self._context_added = False
 
+        if self.get_feature_dir_func is not None:
+            print(f"WARNING get_feature_dir_func is None. To save features, please pass a function to the calculator.")
+
     def _save_calculated_feature(self, feature_name):
+        # Will silently fail, but the warning will be displayed in the constructor
         if self.get_feature_dir_func is not None:
             save_feature_internal(
                 self.data,
@@ -43,8 +46,6 @@ class Calculator:
                 version=self.data_version,
                 saved_dir_func=self.get_feature_dir_func,
             )
-        else:
-            print(f"get_feature_dir_func is None, not saving the feature")
 
     def _check_dependencies(self, required_columns: list):
         """Helper method to ensure upstream prep steps populated the necessary columns."""

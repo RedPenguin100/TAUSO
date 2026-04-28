@@ -12,7 +12,6 @@ from tauso.data.consts import (
     MODIFICATION,
     PS_PATTERN,
     SEQUENCE,
-    VOLUME,
 )
 from tauso.data.data import get_paths
 from tauso.features.names import *
@@ -62,47 +61,66 @@ class Transfection:
     OTHER = "Other"
 
 
-def populate_transfection_features(data, transfection_method):
-    df = data.copy()
+class Config:
+    cell_per_well: int
+    volume: int
 
-    # Cast the boolean result to an int (1 or 0)
-    df["Gymnosis"] = int(transfection_method == Transfection.GYMNOSIS)
-    df["Electroporation"] = int(transfection_method == Transfection.ELECTROPORATION)
-    df["Lipofection"] = int(transfection_method == Transfection.LIPOFECTION)
-    df["Other"] = int(transfection_method == Transfection.OTHER)
+    cell_line: str
+    transfection_method: str
 
-    return df, ["Gymnosis", "Electroporation", "Lipofection", "Other"]
+    standard_chemical_pattern: str
+    standard_ps_pattern: str
+    standard_modification: str
+
+    organism_name: str
+
+
+def default_config():
+    data_config = Config()
+    data_config.cell_per_well = 10000
+    data_config.volume = 100
+    data_config.transfection_method = Transfection.GYMNOSIS
+    data_config.standard_modification = "MOE/5-methylcytosines/deoxy"
+    data_config.standard_ps_pattern = 19 * "*"
+    data_config.standard_chemical_pattern = "MMMMMddddddddddMMMMM"
+
+    data_config.cell_line = "A549"
+
+    data_config.organism_name = "human"
+
+    return data_config
 
 
 def generate_stub_data(
     target_gene: str,
     gene_sequence: str,
     first_n: int = None,
-    transfection=Transfection.GYMNOSIS,
-    genome: str = "GRCh38",
+    version: str = None,
+    data_config: Config = None,
 ):
     data = get_initial_data(gene_sequence, aso_sizes=[20], canonical_name=target_gene)
+
+    if data_config is None:
+        data_config = default_config()
 
     if first_n is not None:
         data = data[300 : 300 + first_n]  # TODO: change at some point
 
-    data[MODIFICATION] = "MOE/5-methylcytosines/deoxy"
-    data[CHEMICAL_PATTERN] = "MMMMMddddddddddMMMMM"
+    data[MODIFICATION] = data_config.standard_modification
+    data[CHEMICAL_PATTERN] = data_config.standard_chemical_pattern
 
-    organism_name = get_organism_name(genome)
-
-    data[CELL_LINE] = "T24"  # TODO: handle empty case
+    data[CELL_LINE] = data_config.cell_line  # TODO: handle empty case
     data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(CELL_LINE_TO_DEPMAP_PROXY_DICT)
     data[CELL_LINE_DEPMAP] = data[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP)
-    data[PS_PATTERN] = 19 * "*"
 
-    data[CELL_LINE_ORGANISM] = organism_name
-    data["transfection_method"] = transfection
+    data[PS_PATTERN] = data_config.standard_ps_pattern
 
-    data[VOLUME] = 100  # A reasonable stub
-    data["cells_per_well"] = 10000
+    data[CELL_LINE_ORGANISM] = data_config.organism_name
+    data["transfection_method"] = data_config.transfection_method
 
-    data.insert(0, "index_generated", range(1, len(data) + 1))
+    if version is None:
+        version = "generated"
+    data.insert(0, f"index_{version}", range(1, len(data) + 1))
     return data
 
 
