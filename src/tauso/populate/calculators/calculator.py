@@ -13,13 +13,13 @@ from tauso.timer import Timer
 
 class Calculator:
     def __init__(
-        self,
-        data: pd.DataFrame,
-        data_version: str = None,
-        overwrite=False,
-        cpus: int = None,
-        cache: AssetCache = None,
-        get_feature_dir=None,
+            self,
+            data: pd.DataFrame,
+            data_version: str = None,
+            overwrite=False,
+            cpus: int = None,
+            cache: AssetCache = None,
+            get_feature_dir=None,
     ):
         self.data = data
         self.cpus = cpus if cpus else 32
@@ -33,6 +33,10 @@ class Calculator:
         self._genes_u = None
         self._genes_u = self._get_unique_genes()
         self._context_added = False
+
+    def _save_calculated_feature(self, feature_name):
+        save_feature_internal(self.data, feature_name=feature_name, overwrite=self.overwrite, version=self.data_version,
+                              saved_dir_func=self.get_feature_dir_func)
 
     def _check_dependencies(self, required_columns: list):
         """Helper method to ensure upstream prep steps populated the necessary columns."""
@@ -94,13 +98,7 @@ class Calculator:
             self.data, feature_names = populate_sequence_features(self.data, features=missing, cpus=self.cpus)
 
             for feature in feature_names:
-                save_feature_internal(
-                    self.data,
-                    feature_name=feature,
-                    overwrite=self.overwrite,
-                    version=self.data_version,
-                    saved_dir_func=self.get_feature_dir_func,
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All sequence features exist. Skipping.")
 
@@ -131,9 +129,7 @@ class Calculator:
                 self.data["chem_3rd_gen"] = self.data[MODIFICATION].str.contains("LNA|cEt", na=False).astype(int)
 
             for feature in missing_basic:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All basic chemistry/hepa features exist. Skipping.")
 
@@ -153,9 +149,7 @@ class Calculator:
 
             # 4. Save
             for feature in missing_transfection:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All transfection features exist. Skipping.")
 
@@ -181,9 +175,7 @@ class Calculator:
             self.data = get_populated_df_with_structure_features(self.data, genes_u, gene_to_data)
 
             for feature in expected_features:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All structure features exist. Skipping.")
 
@@ -208,9 +200,7 @@ class Calculator:
             # Use the dynamically generated features to save,
             # ensuring we catch exactly what the function produced
             for feature in generated_features:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All expression features exist. Skipping.")
 
@@ -248,9 +238,7 @@ class Calculator:
 
             # Save them securely
             for feature in generated_features:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All RNase H features exist. Skipping.")
 
@@ -283,9 +271,7 @@ class Calculator:
                     self.data, feature_name = off_target_specific_seq_pandarallel(
                         self.data, target_gene, gene_to_data_full, cutoff=cutoff, n_jobs=self.cpus, verbose=True
                     )
-                    save_feature_internal(
-                        self.data, feature_name=feature_name, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
         else:
             print("All specific off-target features exist. Skipping.")
 
@@ -311,9 +297,7 @@ class Calculator:
                     self.data, generated_name = on_target_total_hybridization(
                         self.data, gene_to_data, cutoff=cutoff, n_jobs=self.cpus, verbose=True
                     )
-                    save_feature_internal(
-                        self.data, feature_name=generated_name, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
         else:
             print("All on-target hybridization features exist. Skipping.")
 
@@ -348,9 +332,7 @@ class Calculator:
                     )
 
                     for feature in generated_features:
-                        save_feature_internal(
-                            self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                        )
+                        self._save_calculated_feature(feature_name=feature)
         else:
             print("All MFE features exist. Skipping.")
 
@@ -390,9 +372,7 @@ class Calculator:
                         n_jobs=self.cpus,
                     )
 
-                    save_feature_internal(
-                        self.data, feature_name=generated_name, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
                     print(f"Saved: {generated_name}")
         else:
             print("All sense accessibility features exist. Skipping.")
@@ -424,9 +404,7 @@ class Calculator:
 
             for feature in generated_features:
                 if feature in missing:
-                    save_feature_internal(
-                        self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
         else:
             print("All sequence one-hot features exist. Skipping.")
 
@@ -447,9 +425,7 @@ class Calculator:
             )
 
             for feature in generated_features:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All sequence chemistry features exist. Skipping.")
 
@@ -474,9 +450,7 @@ class Calculator:
             )
 
             for feature in generated_features:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All hybridization features exist. Skipping.")
 
@@ -498,9 +472,7 @@ class Calculator:
             )
 
             for feature in generated_features:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All modification features exist. Skipping.")
 
@@ -549,9 +521,7 @@ class Calculator:
                 self.data["po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
 
             for feature in missing:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
         else:
             print("All backbone features exist. Skipping.")
 
@@ -583,9 +553,7 @@ class Calculator:
 
             for feature in generated_features:
                 if feature in missing:
-                    save_feature_internal(
-                        self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
         else:
             print("All Ribo-seq features exist. Skipping.")
 
@@ -626,9 +594,7 @@ class Calculator:
             self.data, generated_features = populate_tai(self.data, cds_windows, registry)
             for feature in generated_features:
                 if feature in missing_tai:
-                    save_feature_internal(
-                        self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
 
         if missing_cai:
             print(f"  -> Computing {len(missing_cai)} CAI features...")
@@ -637,9 +603,7 @@ class Calculator:
             self.data, generated_features = populate_cai(self.data, cds_windows, registry, n_jobs=self.cpus)
             for feature in generated_features:
                 if feature in missing_cai:
-                    save_feature_internal(
-                        self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
 
         if missing_enc:
             print(f"  -> Computing {len(missing_enc)} ENC features...")
@@ -648,9 +612,7 @@ class Calculator:
             self.data, generated_features = populate_enc(self.data, cds_windows, registry, n_jobs=self.cpus)
             for feature in generated_features:
                 if feature in missing_enc:
-                    save_feature_internal(
-                        self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
 
     def calculate_off_target_general(self):
         """Calculates general off-target hybridization scores."""
@@ -696,9 +658,7 @@ class Calculator:
                     )
 
                     for feature in generated_features:
-                        save_feature_internal(
-                            self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                        )
+                        self._save_calculated_feature(feature_name=feature)
         else:
             print("All general off-target features exist. Skipping.")
 
@@ -744,9 +704,7 @@ class Calculator:
                         )
 
                         for feature in generated_features:
-                            save_feature_internal(
-                                self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                            )
+                            self._save_calculated_feature(feature_name=feature)
         else:
             print("All specific off-target features exist. Skipping.")
 
@@ -774,9 +732,7 @@ class Calculator:
             # 3. Save only what was missing
             for feature in generated_features:
                 if feature in missing:
-                    save_feature_internal(
-                        self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
         else:
             print("All mRNA half-life features exist. Skipping.")
 
@@ -839,9 +795,7 @@ class Calculator:
                 self.data, ind_feats, suffix=str(flank_size), type="expression"
             )
             for feature in ind_feats + glob_feats:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
 
         # ==========================================
         # BLOCK B: Affinity Features
@@ -855,9 +809,7 @@ class Calculator:
                 self.data, ind_feats, suffix=str(flank_size), type="generic"
             )
             for feature in ind_feats + glob_feats:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
 
         # ==========================================
         # BLOCK C: Functional Features
@@ -868,9 +820,7 @@ class Calculator:
                 self.data, rbp_role_map_strict, flank_size=flank_size
             )
             for feature in functional_features:
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
 
         # ==========================================
         # BLOCK D: Regional Features
@@ -908,9 +858,7 @@ class Calculator:
                 )
 
                 for feature in new_features:
-                    save_feature_internal(
-                        self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                    )
+                    self._save_calculated_feature(feature_name=feature)
 
     def calculate_oligowalk(self):
         import shutil
@@ -941,9 +889,7 @@ class Calculator:
 
         for feature in new_features:
             if feature != "error":
-                save_feature_internal(
-                    self.data, feature_name=feature, overwrite=self.overwrite, version=self.data_version
-                )
+                self._save_calculated_feature(feature_name=feature)
 
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
