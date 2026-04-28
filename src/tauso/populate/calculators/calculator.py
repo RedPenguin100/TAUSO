@@ -35,13 +35,16 @@ class Calculator:
         self._context_added = False
 
     def _save_calculated_feature(self, feature_name):
-        save_feature_internal(
-            self.data,
-            feature_name=feature_name,
-            overwrite=self.overwrite,
-            version=self.data_version,
-            saved_dir_func=self.get_feature_dir_func,
-        )
+        if self.get_feature_dir_func is not None:
+            save_feature_internal(
+                self.data,
+                feature_name=feature_name,
+                overwrite=self.overwrite,
+                version=self.data_version,
+                saved_dir_func=self.get_feature_dir_func,
+            )
+        else:
+            print(f"get_feature_dir_func is None, not saving the feature")
 
     def _check_dependencies(self, required_columns: list):
         """Helper method to ensure upstream prep steps populated the necessary columns."""
@@ -276,7 +279,7 @@ class Calculator:
                     self.data, feature_name = off_target_specific_seq_pandarallel(
                         self.data, target_gene, gene_to_data_full, cutoff=cutoff, n_jobs=self.cpus, verbose=True
                     )
-                    self._save_calculated_feature(feature_name=feature)
+                    self._save_calculated_feature(feature_name=feature_name)
         else:
             print("All specific off-target features exist. Skipping.")
 
@@ -302,7 +305,9 @@ class Calculator:
                     self.data, generated_name = on_target_total_hybridization(
                         self.data, gene_to_data, cutoff=cutoff, n_jobs=self.cpus, verbose=True
                     )
-                    self._save_calculated_feature(feature_name=feature)
+                    print(f"Generated name: {generated_name}")
+                    print(f"Feature name: {feature_name}")
+                    self._save_calculated_feature(feature_name=feature_name)
         else:
             print("All on-target hybridization features exist. Skipping.")
 
@@ -377,7 +382,7 @@ class Calculator:
                         n_jobs=self.cpus,
                     )
 
-                    self._save_calculated_feature(feature_name=feature)
+                    self._save_calculated_feature(feature_name=generated_name)
                     print(f"Saved: {generated_name}")
         else:
             print("All sense accessibility features exist. Skipping.")
