@@ -32,7 +32,7 @@ def get_initial_data(target_mrna, aso_sizes, canonical_name):
 
     for aso_size in aso_sizes:
         for i in range(0, len(target_mrna) - (aso_size - 1)):
-            target = target_mrna[i: i + aso_size]
+            target = target_mrna[i : i + aso_size]
             candidates.append(get_antisense(str(target)))
             sense_lengths.append(aso_size)
 
@@ -75,16 +75,16 @@ def populate_transfection_features(data, transfection_method):
 
 
 def generate_stub_data(
-        target_gene: str,
-        gene_sequence: str,
-        first_n: int = None,
-        transfection=Transfection.GYMNOSIS,
-        genome: str = "GRCh38",
+    target_gene: str,
+    gene_sequence: str,
+    first_n: int = None,
+    transfection=Transfection.GYMNOSIS,
+    genome: str = "GRCh38",
 ):
     data = get_initial_data(gene_sequence, aso_sizes=[20], canonical_name=target_gene)
 
     if first_n is not None:
-        data = data[300: 300 + first_n]  # TODO: change at some point
+        data = data[300 : 300 + first_n]  # TODO: change at some point
 
     data[MODIFICATION] = "MOE/5-methylcytosines/deoxy"
     data[CHEMICAL_PATTERN] = "MMMMMddddddddddMMMMM"
@@ -106,17 +106,13 @@ def generate_stub_data(
     return data
 
 
-def generate_aso_features(
-        data,
-        cache: AssetCache,
-        n_jobs=1,
-        get_feature_dir_func=None
-):
+def generate_aso_features(data, cache: AssetCache, n_jobs=1, get_feature_dir_func=None):
     original_columns = set(data.columns)
 
     print("version is None, not saving features to disk")
-    calculator = Calculator(data=data, data_version=None, overwrite=True, cpus=n_jobs, cache=cache,
-                            get_feature_dir=get_feature_dir_func)
+    calculator = Calculator(
+        data=data, data_version=None, overwrite=True, cpus=n_jobs, cache=cache, get_feature_dir=get_feature_dir_func
+    )
     calculator.calculate_all()
 
     final_data = calculator.data
