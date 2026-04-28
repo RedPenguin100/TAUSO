@@ -13,13 +13,13 @@ from tauso.timer import Timer
 
 class Calculator:
     def __init__(
-            self,
-            data: pd.DataFrame,
-            data_version: str = None,
-            overwrite=False,
-            cpus: int = None,
-            cache: AssetCache = None,
-            get_feature_dir=None,
+        self,
+        data: pd.DataFrame,
+        data_version: str = None,
+        overwrite=False,
+        cpus: int = None,
+        cache: AssetCache = None,
+        get_feature_dir=None,
     ):
         self.data = data
         self.cpus = cpus if cpus else 32
@@ -35,8 +35,13 @@ class Calculator:
         self._context_added = False
 
     def _save_calculated_feature(self, feature_name):
-        save_feature_internal(self.data, feature_name=feature_name, overwrite=self.overwrite, version=self.data_version,
-                              saved_dir_func=self.get_feature_dir_func)
+        save_feature_internal(
+            self.data,
+            feature_name=feature_name,
+            overwrite=self.overwrite,
+            version=self.data_version,
+            saved_dir_func=self.get_feature_dir_func,
+        )
 
     def _check_dependencies(self, required_columns: list):
         """Helper method to ensure upstream prep steps populated the necessary columns."""
