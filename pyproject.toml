@@ -33,22 +33,29 @@ tauso = "tauso.cli:main"
 # Target the Python version you're using for TAUSO
 target-version = "py38"
 line-length = 120
+src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["F401", "I", "B", "UP"]
+select = ["F401", "I", "B", "UP", "TID"]
 fixable = ["F401", "I", "B", "UP"]
 ignore = [
-    "B905",  # Zip strict
-    "B904",  # Raise from
+    "B905",   # Zip strict
+    "B904",   # Raise from
     "UP015",  # Redundant 'r' in open
     "UP045",  # Using different type of optional type
     "UP006",  # Using different type of list type
     "UP007",  # Using | for annotations
     "UP022",  # capture_output instead of stdout and stderr
-
+    "TID252", # Allow relative imports
 ] # Ignore zip strict, raise from
 
 [tool.ruff.lint.isort]
 # Groups your internal 'tauso' imports separately from 3rd party libs
 known-first-party = ["tauso"]
 combine-as-imports = true
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"notebooks" = { msg = "ILLEGAL IMPORT: src/tauso must never import from notebooks." }
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["TID251"]

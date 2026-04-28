@@ -106,15 +106,13 @@ def generate_stub_data(
     return data
 
 
-def generate_aso_features(
-    data,
-    cache: AssetCache,
-    n_jobs=1,
-):
+def generate_aso_features(data, cache: AssetCache, n_jobs=1, get_feature_dir_func=None):
     original_columns = set(data.columns)
 
     print("version is None, not saving features to disk")
-    calculator = Calculator(data=data, data_version=None, overwrite=True, cpus=n_jobs, cache=cache)
+    calculator = Calculator(
+        data=data, data_version=None, overwrite=True, cpus=n_jobs, cache=cache, get_feature_dir=get_feature_dir_func
+    )
     calculator.calculate_all()
 
     final_data = calculator.data

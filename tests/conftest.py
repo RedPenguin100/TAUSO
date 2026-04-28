@@ -15,9 +15,7 @@ def small_gene_to_data():
     test_cache = TESTS_CACHE / "gene_to_data_test.pickle"
     if not test_cache.exists():
         TESTS_CACHE.mkdir(parents=True, exist_ok=True)
-        gene_to_data = get_locus_to_data_dict(
-            include_introns=True, gene_subset=TESTED_GENES
-        )
+        gene_to_data = get_locus_to_data_dict(include_introns=True, gene_subset=TESTED_GENES)
         with open(test_cache, "wb") as f:
             pickle.dump(gene_to_data, f)
     else:
@@ -41,7 +39,5 @@ def pytest_addoption(parser):
 
 
 def pytest_runtest_setup(item):
-    if "integration" in item.keywords and not item.config.getoption(
-        "--run-integration"
-    ):
+    if "integration" in item.keywords and not item.config.getoption("--run-integration"):
         pytest.skip("Skipping integration tests (use --run-integration to run)")
