@@ -1,14 +1,14 @@
+import multiprocessing
 import os
 import subprocess
 import tempfile
-import multiprocessing
-import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
+
+import pandas as pd
 from Bio.Seq import Seq
 from tqdm import tqdm
 
-# --- User Imports ---
-from tauso.data.consts import SEQUENCE, CANONICAL_GENE
+from tauso.data.consts import CANONICAL_GENE, SEQUENCE
 
 # =====================================================================
 # MULTIPROCESSING GLOBALS
@@ -44,7 +44,7 @@ def _infer_datapath():
         if os.path.isdir(candidate):
             return candidate + "/"
 
-    raise EnvironmentError("Could not infer DATAPATH. Please set the DATAPATH environment variable.")
+    raise OSError("Could not infer DATAPATH. Please set the DATAPATH environment variable.")
 
 
 def get_target_site_seq(aso_seq_str):
@@ -181,7 +181,7 @@ def populate_oligowalk(df: pd.DataFrame, gene_data: dict, window_size: int = 800
             results_dict[idx] = metrics
 
     # Build results dataframe and join back
-    results_df = pd.DataFrame.from_dict(results_dict, orient='index')
+    results_df = pd.DataFrame.from_dict(results_dict, orient="index")
     updated_df = df.join(results_df)
 
     return updated_df, new_features

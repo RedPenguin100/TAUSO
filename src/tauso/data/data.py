@@ -50,12 +50,19 @@ def load_db(genome="GRCh38"):
 
 def load_gff_pyranges(genome="GRCh38"):
     paths = get_paths(genome)
+    if not os.path.exists(paths["gff"]):
+        raise FileNotFoundError(f"GFF for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
+    return pr.read_gff3(paths["gff"])
+
+
+def load_gtf_pyranges(genome="GRCh38"):
+    paths = get_paths(genome)
     if not os.path.exists(paths["gtf"]):
         raise FileNotFoundError(f"GTF for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
-    return pr.read_gff3(paths["gtf"])
+    return pr.read_gtf(paths["gtf"])
 
 
-def load_pyranges_gtf(gtf_path):
+def load_gtf_for_assign_gene(gtf_path):
     # TODO: think about making this faster
     with Timer("Loading GTF into RAM"):
         gr = pr.read_gtf(gtf_path)

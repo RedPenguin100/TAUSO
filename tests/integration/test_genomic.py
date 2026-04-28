@@ -3,6 +3,7 @@ import pytest
 # Imports from your project
 from notebooks.consts import UPDATED_CSV
 from notebooks.preprocessing import get_unique_genes, preprocess_aso_data
+
 from tauso.algorithms.genomic_context_windows import (
     add_external_mrna_and_context_columns,
 )
@@ -28,12 +29,10 @@ def test_pipeline_data_regression(data_regression):
     # B. Initialize Mapper (DB connection)
     mapper = GeneCoordinateMapper(get_paths()["db"])
 
-    print(mapper._get_gene_and_cds('MYO6'))
+    print(mapper._get_gene_and_cds("MYO6"))
 
     # C. Load raw genomic data
-    gene_to_data = get_locus_to_data_dict(
-        include_introns=True, gene_subset=genes_subset
-    )
+    gene_to_data = get_locus_to_data_dict(include_introns=True, gene_subset=genes_subset)
 
     # D. Build Sequence Registry (Pre-calculate mRNA sequences)
     registry = build_gene_sequence_registry(genes_subset, gene_to_data, mapper)
@@ -41,9 +40,7 @@ def test_pipeline_data_regression(data_regression):
     # 3. EXECUTION
     # Note: df_subset must have 'sense_start' calculated before this step
     # (assuming it came from preprocess_aso_data or a previous step)
-    df_result = add_external_mrna_and_context_columns(
-        df=df_subset, mapper=mapper, gene_registry=registry
-    )
+    df_result = add_external_mrna_and_context_columns(df=df_subset, mapper=mapper, gene_registry=registry)
 
     # 4. Clean & Check
     df_result = df_result.reindex(sorted(df_result.columns), axis=1)
@@ -80,9 +77,7 @@ def test_real_genome_filter():
 
     # 3. Mitochondrial -> MUST BE OUT
     # Note: Check your DB to see if it uses 'MT-ND1' or 'ND1'
-    assert "MT-ND1" not in strict_genes, (
-        "Error: MT-ND1 (Mitochondrial) was NOT filtered out!"
-    )
+    assert "MT-ND1" not in strict_genes, "Error: MT-ND1 (Mitochondrial) was NOT filtered out!"
 
     # --- Case 2: Loose Non-Mitochondrial ---
     print("Testing 'non_mt' mode...")
@@ -92,8 +87,6 @@ def test_real_genome_filter():
     assert "MALAT1" in loose_genes, "Error: MALAT1 should be present in non_mt mode!"
 
     # 2. Mitochondrial -> MUST BE OUT
-    assert "MT-ND1" not in loose_genes, (
-        "Error: MT-ND1 should still be filtered in non_mt mode!"
-    )
+    assert "MT-ND1" not in loose_genes, "Error: MT-ND1 should still be filtered in non_mt mode!"
 
     print("\n✅ Real DB Filter Test Passed!")

@@ -10,7 +10,7 @@ import time
 import pandas as pd
 import pyranges as pr
 
-from ..data.data import get_paths, load_db, load_pyranges_gtf
+from ..data.data import get_paths, load_db, load_gtf_for_assign_gene
 from ..timer import Timer
 
 # TODO: standardize logger in the entire package
@@ -378,7 +378,7 @@ def annotate_hits_bulk(hits_list, genome):
         return {}
 
     # Assumes get_paths is defined globally in your script
-    gr_genome = load_pyranges_gtf(get_paths(genome)["gtf"])
+    gr_genome = load_gtf_for_assign_gene(get_paths(genome)["gtf"])
 
     # 1. Convert your raw Bowtie hits to a Pandas DataFrame
     df_hits = pd.DataFrame(hits_list)

@@ -16,9 +16,7 @@ pandarallel.initialize(progress_bar=True, nb_workers=os.cpu_count())
 
 
 @pytest.mark.integration
-def test_off_target_regression(
-    small_gene_to_data, dataframe_regression, data_regression
-):
+def test_off_target_regression(small_gene_to_data, dataframe_regression, data_regression):
     """
     Regression test for off_target_specific_seq.
     Checks if the output DF and feature name match the stored snapshot.
@@ -100,6 +98,4 @@ def test_off_target_regression(
 
     # Check the feature name (scalar string).
     # This ensures the secondary return value hasn't changed.
-    data_regression.check(
-        {"feature_name": feat_name}, basename="off_target_meta_regression"
-    )
+    data_regression.check({"feature_name": feat_name}, basename="off_target_meta_regression")

@@ -1,8 +1,8 @@
 import pytest
-
 from notebooks.data.OligoAI.parse_chemistry import (
     assign_chemistry,
 )
+
 from tauso.populate.populate_rnase import populate_rnase_features
 
 

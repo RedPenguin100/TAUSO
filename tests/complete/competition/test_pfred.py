@@ -1,6 +1,4 @@
 import pytest
-import subprocess
-
 from notebooks.competitors.pfred_utils import populate_pfred, validate_docker_container
 
 

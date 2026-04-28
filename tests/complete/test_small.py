@@ -13,14 +13,10 @@ def sampled_base_data(request, base_data):
 
 
 @pytest.mark.parametrize("sampled_base_data", [10000], indirect=True)
-def test_structure_features_regression(
-    sampled_base_data, target_genes, gene_to_data, dataframe_regression
-):
+def test_structure_features_regression(sampled_base_data, target_genes, gene_to_data, dataframe_regression):
     data = sampled_base_data.copy()
 
-    processed_data = get_populated_df_with_structure_features(
-        data, target_genes, gene_to_data
-    )
+    processed_data = get_populated_df_with_structure_features(data, target_genes, gene_to_data)
 
     features = [
         SENSE_START,
