@@ -38,22 +38,27 @@ def build_risearch_binary(force_target_dir=None):
 
     print(f"--- BUILDING EXTENSION ---")
 
-    # 2. Check Sources
+    # 2. Check Sources - FAIL LOUDLY IF MISSING
     if not os.path.exists(src_dir):
-        print(f"WARNING: C source not found at {src_dir}. Binary will not be built.")
-        return
+        raise FileNotFoundError(
+            f"CRITICAL: C source not found at {src_dir}. "
+            "Ensure the 'external' folder is included in MANIFEST.in or you are using an editable install."
+        )
 
-    # 3. Build
+    # 3. Build - FAIL LOUDLY IF MAKE FAILS
     os.makedirs(bin_dir, exist_ok=True)
-    subprocess.check_call(["make", "-C", src_dir])
+    try:
+        subprocess.check_call(["make", "-C", src_dir])
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"CRITICAL: make failed to compile RIsearch. Error: {e}")
 
-    # 4. Find Binary
+    # 4. Find Binary - FAIL LOUDLY IF NOT FOUND
     compiled_bin = os.path.join(bin_dir, "RIsearch")
     if not os.path.exists(compiled_bin):
         compiled_bin = os.path.join(src_dir, "RIsearch")
 
     if not os.path.exists(compiled_bin):
-        raise FileNotFoundError("Make ran successfully, but RIsearch binary not found.")
+        raise FileNotFoundError("CRITICAL: Make ran successfully, but the RIsearch binary was not found in the expected output folder.")
 
     # 5. Copy
     # This creates src/tauso/out/ if it doesn't exist
