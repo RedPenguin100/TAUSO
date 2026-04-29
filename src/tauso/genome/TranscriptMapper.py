@@ -149,5 +149,15 @@ def build_gene_sequence_registry(
         pre_mrna = _to_str_seq(locus.full_mrna)
         cds = mapper.get_spliced_sequence(gene, pre_mrna)
 
+        # If we don't find a CDS, we need to see is it because we have a non coding RNA, or is
+        # it because it is a custom user RNA?
+        if not cds:
+            gene_type = getattr(locus, "gene_type", "unknown").lower()
+
+            if "lncrna" in gene_type or "non_coding" in gene_type:
+                cds = None  # Explicitly keep it empty for lncRNAs
+            else:
+                cds = pre_mrna  # Assume it's a raw CDS
+
         registry[gene] = {"pre_mrna_sequence": pre_mrna, "cds_sequence": cds}
     return registry

@@ -84,7 +84,7 @@ def default_config():
     data_config.standard_ps_pattern = 19 * "*"
     data_config.standard_chemical_pattern = "MMMMMddddddddddMMMMM"
 
-    data_config.cell_line = "A549"
+    data_config.cell_line = "T24"
 
     data_config.organism_name = "human"
 
