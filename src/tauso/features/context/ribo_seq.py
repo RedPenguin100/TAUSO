@@ -5,7 +5,24 @@ import numpy as np
 from ...data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 
 parent = Path(__file__).parent
-RIBOSEQ_40S_HUMAN_DATA = parent / "human_unselected_40S.RiboProElong.bw"
+
+
+def get_ribo_40s_human_data():
+    """Safely resolves the path to the bundled .bw file."""
+    # __file__ points to the current python script.
+    # We navigate up to the 'tauso' root, then down into features/context
+
+    # NOTE: Adjust the '.parent' chain depending on how deep
+    # THIS specific python script is nested inside your project.
+    base_dir = Path(__file__).resolve().parent
+
+    # Example assuming this code lives right inside src/tauso/features/context/
+    bw_path = base_dir / "human_unselected_40S.RiboProElong.bw"
+
+    if not bw_path.exists():
+        raise FileNotFoundError(f"Missing packaged data file at {bw_path}")
+
+    return str(bw_path)
 
 
 def reduce_values(values, how):

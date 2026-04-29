@@ -273,7 +273,7 @@ def populate_sense_accessibility_batch(
         pandarallel.initialize(nb_workers=n_jobs, verbose=0)
         results_df = valid_df.groupby("batch_group").parallel_apply(_process_batch)
     else:
-        results_df = valid_df.groupby("batch_group").apply(_process_batch)
+        results_df = valid_df.groupby("batch_group").apply(_process_batch, include_groups=False)
 
     # Clean up structure returned by apply
     results_df = results_df.reset_index(drop=True)

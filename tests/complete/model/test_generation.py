@@ -34,14 +34,12 @@ def test_custom_gene(dataframe_regression):
 
 def test_short_gene(dataframe_regression, cache):
     target_gene = "TMSB10"  # Short gene
-    transfection = Transfection.GYMNOSIS
-    genome = "GRCh38"
 
     gene_to_data = cache.get_full_gene_data()
     gene_sequence = gene_to_data[target_gene].full_mrna
 
     data = generate_stub_data(
-        target_gene=target_gene, gene_sequence=gene_sequence, first_n=10, transfection=transfection, genome=genome
+        target_gene=target_gene, gene_sequence=gene_sequence, first_n=10
     )
     df, aso_features = generate_aso_features(data, cache)
 
@@ -59,7 +57,7 @@ def test_short_gene(dataframe_regression, cache):
 #     gene_sequence = gene_to_data[target_gene].full_mrna
 #
 #     data = generate_stub_data(
-#         target_gene=target_gene, gene_sequence=gene_sequence, first_n=100, transfection=transfection, genome=genome
+#         target_gene=target_gene, gene_sequence=gene_sequence, first_n=100
 #     )
 #     df, aso_features = generate_aso_features(data, cache)
 #
@@ -76,7 +74,7 @@ def test_short_gene(dataframe_regression, cache):
 #     gene_sequence = gene_to_data[target_gene].full_mrna
 #
 #     data = generate_stub_data(
-#         target_gene=target_gene, gene_sequence=gene_sequence, first_n=1000, transfection=transfection, genome=genome
+#         target_gene=target_gene, gene_sequence=gene_sequence, first_n=1000
 #     )
 #
 #     df, aso_features = generate_aso_features(data, cache)

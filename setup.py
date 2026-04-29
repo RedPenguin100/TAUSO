@@ -1,7 +1,8 @@
 import os
-import subprocess
 import shutil
-from setuptools import setup, find_packages
+import subprocess
+
+from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.egg_info import egg_info
 
@@ -10,6 +11,7 @@ PACKAGE_NAME = "tauso"
 BINARY_NAME = "risearch_executable"
 
 # ---------------------
+
 
 def build_risearch_binary(force_target_dir=None):
     """
@@ -58,7 +60,9 @@ def build_risearch_binary(force_target_dir=None):
         compiled_bin = os.path.join(src_dir, "RIsearch")
 
     if not os.path.exists(compiled_bin):
-        raise FileNotFoundError("CRITICAL: Make ran successfully, but the RIsearch binary was not found in the expected output folder.")
+        raise FileNotFoundError(
+            "CRITICAL: Make ran successfully, but the RIsearch binary was not found in the expected output folder."
+        )
 
     # 5. Copy
     # This creates src/tauso/out/ if it doesn't exist
@@ -94,10 +98,10 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     cmdclass={
-        'build_py': CustomBuild,
-        'egg_info': CustomEggInfo,
+        "build_py": CustomBuild,
+        "egg_info": CustomEggInfo,
     },
     # Update package_data to include the 'out/' prefix
-    package_data={PACKAGE_NAME: [f"out/{BINARY_NAME}"]},
+    package_data={PACKAGE_NAME: [f"out/{BINARY_NAME}", f"features/context/*.bw"]},
     include_package_data=True,
 )
