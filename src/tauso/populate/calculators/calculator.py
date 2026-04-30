@@ -933,6 +933,7 @@ class Calculator:
 
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
+            print("Starting step: ", step.__name__)
             try:
                 with Timer(name=step.__name__):
                     step()
