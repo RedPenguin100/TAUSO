@@ -67,13 +67,15 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
         print(f"► Starting {col_name}...")
 
     series = df[SEQUENCE]
-    try:
-        from pandarallel import pandarallel
 
-        pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
-        df[col_name] = series.parallel_apply(func)
-    except Exception:
+    # MINIMAL CHANGE 1: Bypass pandarallel completely if cpus=1 for clean debugging
+    if cpus <= 1:
         df[col_name] = series.apply(func)
+    else:
+        try:
+            df[col_name] = series.parallel_apply(func)
+        except Exception:
+            df[col_name] = series.apply(func)
 
     if verbose:
         duration = time.time() - start_time
@@ -87,6 +89,14 @@ def populate_sequence_features(
 ) -> Tuple:
     available = {name: fn for name, fn in FEATURE_SPECS}
     feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
+
+    if cpus > 1:
+        try:
+            from pandarallel import pandarallel
+
+            pandarallel.initialize(progress_bar=False, verbose=0, nb_workers=cpus)
+        except ImportError:
+            pass
 
     for name in feature_names:
         # Wrap each feature calculation in the Timer context manager
