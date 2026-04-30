@@ -68,7 +68,7 @@ def raw_oligo_data():
 @pytest.fixture(scope="session")
 def base_data(raw_oligo_data):
     """Handles basic renaming, filtering, cell line mapping, and one-hot encoding."""
-    with Timer("Rename Columns & Basic Filtering"):
+    with Timer("Rename Columns and Basic Filtering"):
         data = standardize_oligo_ai_data(raw_oligo_data)
 
     with Timer("Transfection One Hot Encoding"):
