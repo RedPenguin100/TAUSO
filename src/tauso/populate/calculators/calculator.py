@@ -933,7 +933,11 @@ class Calculator:
 
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
-            with Timer(name=step.__name__):
-                step()
+            try:
+                with Timer(name=step.__name__):
+                    step()
+            except Exception as _:
+                print(f"\nCalculator crashed during step: {step.__name__}\n")
+                raise
 
         print("=== Pipeline Complete ===")
