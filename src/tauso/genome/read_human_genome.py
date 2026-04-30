@@ -115,6 +115,11 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             locus_info.full_mrna = seq
             locus_to_strand[locus_tag] = gene.strand
 
+            raw_type = gene.attributes.get("gene_type", gene.attributes.get("gene_biotype", ["unannotated"]))
+
+            # gffutils stores attributes as lists (e.g., ["protein_coding"]), so we grab the first element.
+            locus_info.gene_type = raw_type[0] if raw_type else "unannotated"
+
         elif "UTR" in feature.featuretype:
             utr = feature
             bisect.insort(locus_info.utr_indices, (utr.start - 1, utr.end))

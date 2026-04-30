@@ -310,10 +310,13 @@ def populate_rbp_interaction_features(
         for key in final_columns:
             final_columns[key].extend(res[key])
 
-    new_col_names = []
-    for col_name, values in final_columns.items():
-        df[col_name] = values
-        new_col_names.append(col_name)
+    new_features_df = pd.DataFrame(final_columns, index=df.index)
+
+    # 2. Concatenate the original DataFrame and the new one side-by-side
+    df = pd.concat([df, new_features_df], axis=1)
+
+    # 3. Grab the list of new column names
+    new_col_names = list(final_columns.keys())
 
     print(f"Done. Added {len(new_col_names)} interaction features.")
     return df, new_col_names
