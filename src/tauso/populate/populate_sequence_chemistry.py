@@ -16,23 +16,29 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False) -> None:
     """
     Computes a feature using both sequence and chemical pattern.
-    Uses parallel_apply if available.
+    Uses parallel_apply if available and cpus > 1.
     """
     start_time = time.time()
 
     if verbose:
         print(f"► Starting {col_name}...")
 
-    try:
-        from pandarallel import pandarallel
-
-        pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
-
-        # Apply across rows (axis=1) to pass both columns to the function
-        df[col_name] = df.parallel_apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
-    except Exception:
-        # Fallback to standard pandas apply
+    if cpus <= 1:
+        # Discard pandarallel when using a single CPU
         df[col_name] = df.apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
+    else:
+        try:
+            from pandarallel import pandarallel
+
+            # use_memory_fs=False prevents silent hangs in containerized/Docker environments
+            # by avoiding the shared memory file system (/dev/shm) limits.
+            pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus, use_memory_fs=False)
+
+            # Apply across rows (axis=1) to pass both columns to the function
+            df[col_name] = df.parallel_apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
+        except Exception:
+            # Fallback to standard pandas apply
+            df[col_name] = df.apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
 
     if verbose:
         duration = time.time() - start_time
