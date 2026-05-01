@@ -106,6 +106,12 @@ def populate_sequence_features(
     return df, feature_names
 
 
+import time
+from typing import Optional, Tuple
+
+import pandas as pd
+
+
 def populate_sequence_one_hot_encoded(
     df: pd.DataFrame,
     max_len: Optional[int] = None,
@@ -158,13 +164,17 @@ def populate_sequence_one_hot_encoded(
         return encoded
 
     # 3. Apply function (mirroring your pandarallel structure)
-    try:
-        from pandarallel import pandarallel
+    if cpus > 1:
+        try:
+            from pandarallel import pandarallel
 
-        # Only initialize if not already done, though harmless if repeated
-        pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
-        encoded_series = df[SEQUENCE].parallel_apply(encode_and_pad)
-    except Exception:
+            # Only initialize if not already done, though harmless if repeated
+            pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
+            encoded_series = df[SEQUENCE].parallel_apply(encode_and_pad)
+        except Exception:
+            encoded_series = df[SEQUENCE].apply(encode_and_pad)
+    else:
+        # ABSOLUTE MINIMAL CHANGE: Added this else block for cpus == 1
         encoded_series = df[SEQUENCE].apply(encode_and_pad)
 
     # 4. Generate the new feature names

@@ -412,7 +412,7 @@ class Calculator:
             self.data, generated_features = populate_sequence_one_hot_encoded(
                 self.data, max_len=max_len, cpus=self.cpus
             )
-
+            print("After one hot populate ")
             for feature in generated_features:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
