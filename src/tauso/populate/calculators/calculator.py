@@ -1,3 +1,4 @@
+import logging
 import os
 
 import pandas as pd
@@ -9,6 +10,8 @@ from tauso.populate.populate_context import populate_transfection
 from tauso.populate.populate_sequence import FEATURE_SPECS, populate_sequence_features
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
+
+logger = logging.getLogger(__name__)
 
 
 class Calculator:
@@ -929,16 +932,16 @@ class Calculator:
             self.calculate_rbp,
         ]
 
-        print(f"=== Starting pipeline with {len(pipeline_steps)} steps ===")
+        logger.info(f"=== Starting pipeline with {len(pipeline_steps)} steps ===")
 
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
-            print("Starting step: ", step.__name__)
+            logger.info("Starting step: ", step.__name__)
             try:
                 with Timer(name=step.__name__):
                     step()
             except Exception as _:
-                print(f"\nCalculator crashed during step: {step.__name__}\n")
+                logger.error(f"\nCalculator crashed during step: {step.__name__}\n")
                 raise
 
-        print("=== Pipeline Complete ===")
+        logger.info("=== Pipeline Complete ===")
