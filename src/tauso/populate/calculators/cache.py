@@ -1,5 +1,9 @@
+import logging
+
 from tauso.genome.LocusInfo import LocusInfo
 from tauso.genome.read_human_genome import get_locus_to_data_dict
+
+logger = logging.getLogger(__name__)
 
 
 class AssetCache:
@@ -42,7 +46,7 @@ class AssetCache:
     def get_full_gene_data(self):
         """Lazy getter for the full genome data dictionary (no subset)."""
         if self._gene_to_data_full is None:
-            print("Loading FULL genome data dictionary into memory (happens once)...")
+            logger.info("[Cache] Loading FULL genome data dictionary into memory (happens once)...")
 
             self._gene_to_data_full = get_locus_to_data_dict(include_introns=True)
             if self.custom_gene is not None:
@@ -53,7 +57,7 @@ class AssetCache:
     def get_rbp_assets(self):
         """Lazy loader for ATTRACT RBP map and PWM database."""
         if self._rbp_map is None or self._pwm_db is None:
-            print("Loading ATTRACT RBP data into memory (happens once)...")
+            logger.info("[Cache] Loading ATTRACT RBP data into memory (happens once)...")
             from tauso.features.rbp.load_rbp import load_attract_data
 
             self._rbp_map, self._pwm_db = load_attract_data()
@@ -65,9 +69,11 @@ class AssetCache:
             return self._rbp_expr_matrix
 
         if cell_lines_depmap != self._cell_lines_depmap:
-            print(f"Warning: Cells {cell_lines_depmap} differ from cached genes {self._genes_u}, regenerating cache.")
+            logger.warning(
+                f"[Cache] Cells {cell_lines_depmap} differ from cached genes {self._genes_u}, regenerating cache."
+            )
 
-        print("Building RBP expression matrix (happens once)...")
+        logger.info("[Cache] Building RBP expression matrix (happens once)...")
         from tauso.features.rbp.pwm_helper import build_rbp_expression_matrix
 
         # Ensure the raw map and db are loaded first
@@ -79,7 +85,7 @@ class AssetCache:
     def get_halflife_provider(self):
         """Lazy loader for the mRNA Half-Life Provider."""
         if self._halflife_provider is None:
-            print("Loading mRNA Half-Life Oracle into memory (happens once)...")
+            logger.info("[Cache] Loading mRNA Half-Life Oracle into memory (happens once)...")
             from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
 
             mapping = load_halflife_mapping()
@@ -90,7 +96,7 @@ class AssetCache:
     def get_transcriptomes(self, cell_lines_depmap):
         """Lazy loader for the FULL transcriptomes (required for off-target scanning)."""
         if self._transcriptomes is None:
-            print("Loading FULL transcriptomes into memory (happens once)...")
+            logger.info("[Cache] Loading FULL transcriptomes into memory (happens once)...")
             import os
             from pathlib import Path
 
@@ -124,7 +130,7 @@ class AssetCache:
     def get_gene_mapper(self):
         """Lazy loader for the GeneCoordinateMapper."""
         if self._gene_coordinate_mapper is None:
-            print("Loading GeneCoordinateMapper into memory (happens once)...")
+            logger.info("[Cache] Loading GeneCoordinateMapper into memory (happens once)...")
             from tauso.data.data import get_paths
             from tauso.genome.TranscriptMapper import GeneCoordinateMapper
 
@@ -139,7 +145,7 @@ class AssetCache:
             return self._gene_to_data_lean
 
         if genes_u != self._genes_u:
-            print(f"Warning: Genes {genes_u} differ from cached genes {self._genes_u}, regenerating cache.")
+            logger.warning(f"[Cache] Genes {genes_u} differ from cached genes {self._genes_u}, regenerating cache.")
 
         print("Loading genome data dictionary into memory (happens once)...")
         self._gene_to_data_lean = get_locus_to_data_dict(include_introns=True, gene_subset=genes_u, genome=self.genome)
@@ -156,9 +162,9 @@ class AssetCache:
             return self._gene_registry
 
         if genes_u != self._genes_u:
-            print(f"Warning: Genes {genes_u} differ from cached genes {self._genes_u}, regenerating cache.")
+            logger.warning(f"[Cache] Genes {genes_u} differ from cached genes {self._genes_u}, regenerating cache.")
 
-        print("Building gene sequence registry (happens once)...")
+        logger.info("[Cache] Building gene sequence registry (happens once)...")
         from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 
         gene_to_data = self.get_lean_gene(genes_u)

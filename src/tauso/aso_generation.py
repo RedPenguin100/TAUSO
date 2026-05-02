@@ -132,6 +132,7 @@ logger = logging.getLogger(__name__)
 def generate_aso_features(data, cache: AssetCache, n_jobs=1, get_feature_dir_func=None):
     original_columns = set(data.columns)
 
+    # TODO: consider utilizing save features
     logger.info("version is None, not saving features to disk")
 
     calculator = Calculator(

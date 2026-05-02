@@ -38,6 +38,7 @@ class Calculator:
 
         if self.get_feature_dir_func is not None:
             print(f"WARNING get_feature_dir_func is None. To save features, please pass a function to the calculator.")
+        logger.info("[Calculator] Initialized successfully.")
 
     def _save_calculated_feature(self, feature_name):
         # Will silently fail, but the warning will be displayed in the constructor
@@ -179,7 +180,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            print("Computing structure features...")
+            logger.info("[Calculator] Computing structure features...")
 
             genes_u = self._get_unique_genes()
             gene_to_data = self.cache.get_lean_gene(genes_u=genes_u)
@@ -189,7 +190,7 @@ class Calculator:
             for feature in expected_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            print("All structure features exist. Skipping.")
+            logger.info("[Calculator] All structure features exist. Skipping.")
 
     def calculate_expression(self):
         """Calculates mRNA expression features."""
@@ -932,16 +933,16 @@ class Calculator:
             self.calculate_rbp,
         ]
 
-        logger.info(f"=== Starting pipeline with {len(pipeline_steps)} steps ===")
+        logger.info(f"[Calculator] Starting pipeline with {len(pipeline_steps)} steps.")
 
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
-            logger.info("Starting step: ", step.__name__)
+            logger.info("[Calculator] Starting step: ", step.__name__)
             try:
                 with Timer(name=step.__name__):
                     step()
             except Exception as _:
-                logger.error(f"\nCalculator crashed during step: {step.__name__}\n")
+                logger.error(f"\n[Calculator] Crashed during step: {step.__name__}\n")
                 raise
 
-        logger.info("=== Pipeline Complete ===")
+        logger.info("[Calculator] Pipeline Complete")
