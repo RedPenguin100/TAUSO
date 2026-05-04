@@ -452,11 +452,11 @@ def find_all_gene_off_targets_BULK(fasta_path, genome="GRCh38", threads=16, max_
     """
     Main bulk entry point. Replaces your old find_all_gene_off_targets.
     """
-    with Timer("Running bowtie"):
-        hits_list = run_bowtie_search_bulk(fasta_path, genome=genome, max_mismatches=max_mismatches, threads=threads)
+    logger.debug("[Find_OT] Running bowtie")
+    hits_list = run_bowtie_search_bulk(fasta_path, genome=genome, max_mismatches=max_mismatches, threads=threads)
 
-    with Timer("Annotate bowtie hits"):
-        # 2. Annotate the hits in bulk and get the mapping dictionary
-        seq_to_genes = annotate_hits_bulk(hits_list, genome=genome)
+    logger.debug("[Find_OT] Annotate hits")
+    # 2. Annotate the hits in bulk and get the mapping dictionary
+    seq_to_genes = annotate_hits_bulk(hits_list, genome=genome)
 
     return seq_to_genes
