@@ -401,7 +401,7 @@ def annotate_hits_bulk(hits_list, genome):
         df_res_list = []
 
         for i in range(0, len(df_hits), chunk_size):
-            print(f"  Processing chunk {i} to {i + chunk_size}...")
+            logger.debug(f"[Annotate_Hits_Bulk]  Processing chunk {i} to {i + chunk_size}...")
 
             # 1. Slice the dataframe
             df_chunk = df_hits.iloc[i : i + chunk_size]
