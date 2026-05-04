@@ -28,7 +28,8 @@ def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_lis
         from pandarallel import pandarallel
 
         try:
-            pandarallel.initialize(nb_workers=n_cores, verbose=0)
+            logging.debug("[OT_Specific] initializing pandarallel")
+            pandarallel.initialize(nb_workers=n_cores)
         except RuntimeError:
             pass  # Already initialized
 
@@ -128,8 +129,8 @@ def populate_off_target_general(
     if n_cores > 1:
         from pandarallel import pandarallel
 
-        # verbose=1 shows a progress bar, use 0 to silence
-        pandarallel.initialize(nb_workers=n_cores, verbose=1, progress_bar=True)
+        logging.debug("[OT_General] initializing pandarallel")
+        pandarallel.initialize(nb_workers=n_cores)
 
     for top_n in top_n_list:
         general_df = general_df_all.head(top_n)
@@ -203,6 +204,7 @@ def populate_off_target_specific_per_rank(
         from pandarallel import pandarallel
 
         try:
+            logging.debug("[OT_Specific_Rank] initializing pandarallel")
             pandarallel.initialize(nb_workers=n_cores, verbose=0)
         except RuntimeError:
             pass
