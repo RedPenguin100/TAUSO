@@ -1,4 +1,12 @@
+import functools
+import gc
+import logging
+import os
+
+import psutil
 from numba import njit
+
+logger = logging.getLogger(__name__)
 
 
 def get_longer_string(s1: str, s2: str) -> str:
@@ -52,3 +60,24 @@ def get_nucleotide_watson_crick(nucleotide):
     if nucleotide == "U" or nucleotide == "T":
         return "A"
     raise ValueError(f"Unknown nucleotide {nucleotide}")
+
+
+def log_memory_usage(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        process = psutil.Process(os.getpid())
+        mem_before = process.memory_info().rss / (1024**2)
+
+        # Force GC to get a clean baseline
+        gc.collect()
+
+        result = func(*args, **kwargs)
+
+        gc.collect()
+        mem_after = process.memory_info().rss / (1024**2)
+        logger.debug(
+            f"--- [MEM] {func.__name__} | Before: {mem_before:.1f}MB | After: {mem_after:.1f}MB | Change: {mem_after - mem_before:.1f}MB ---"
+        )
+        return result
+
+    return wrapper

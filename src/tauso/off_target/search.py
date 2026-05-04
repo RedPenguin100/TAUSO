@@ -12,6 +12,7 @@ import pyranges as pr
 
 from ..data.data import get_paths, load_db, load_gtf_for_assign_gene
 from ..timer import Timer
+from ..util import log_memory_usage
 
 # TODO: standardize logger in the entire package
 # Setup logger
@@ -448,6 +449,7 @@ def annotate_hits_bulk(hits_list, genome):
     return seq_to_genes
 
 
+@log_memory_usage
 def find_all_gene_off_targets_BULK(fasta_path, genome="GRCh38", threads=16, max_mismatches=0):
     """
     Main bulk entry point. Replaces your old find_all_gene_off_targets.

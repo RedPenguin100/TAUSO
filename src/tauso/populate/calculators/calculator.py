@@ -2,6 +2,8 @@ import logging
 import os
 
 import pandas as pd
+import psutil
+from pympler import asizeof
 
 from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from tauso.features.feature_extraction import save_feature_internal
@@ -942,8 +944,29 @@ class Calculator:
             try:
                 with Timer(name=step.__name__):
                     step()
+                    self.monitor_internal_objects(f"AFTER {step.__name__}")
             except Exception as _:
                 logger.error(f"\n[Calculator] Crashed during step: {step.__name__}\n")
                 raise
 
         logger.info("[Calculator] Pipeline Complete")
+
+    def monitor_internal_objects(self, label=""):
+        logger.debug(f"\n>>> INTERNAL MEMORY REPORT: {label} <<<")
+
+        # 1. Inspect self.data (The DataFrame)
+        if hasattr(self, "data") and hasattr(self.data, "memory_usage"):
+            usage = self.data.memory_usage(deep=True).sum() / (1024**2)
+            logger.debug(f"  [DF] self.data: {usage:.2f} MB")
+            # Print top 3 heaviest columns
+            col_usage = self.data.memory_usage(deep=True) / (1024**2)
+            logger.debug(f"       Heaviest Cols: {col_usage.sort_values(ascending=False).head(3).to_dict()}")
+
+        # 2. Inspect self.cache (The AssetCache)
+        if hasattr(self, "cache"):
+            # asizeof is recursive; it's better for complex objects like caches
+            cache_size = asizeof.asizeof(self.cache) / (1024**2)
+            logger.debug(f"  [CACHE] self.cache: {cache_size:.2f} MB")
+
+        # 3. Check for large local variables in the current scope
+        logger.debug(f"  [PROC] Total Process RSS: {psutil.Process(os.getpid()).memory_info().rss / (1024**2):.1f} MB")

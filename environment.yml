@@ -29,6 +29,7 @@ dependencies:
   - gdown
   - mysql-connector-python
   - platformdirs
+  - psutil
 
   - pybigwig # For ribo-seq
   - bowtie
@@ -39,3 +40,5 @@ dependencies:
   - xgboost
 
   - pandarallel
+  - pip:
+    - pympler
