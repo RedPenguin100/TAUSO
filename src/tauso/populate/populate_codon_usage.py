@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +11,8 @@ from ..features.codon_usage.cai import calc_CAI
 from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import calc_tAI, tai_weights
 
+logger = logging.getLogger(__name__)
+
 
 def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[pd.DataFrame, list[str]]:
     """
@@ -20,7 +23,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     feature_names = []
 
     # 1. Local tAI Scores
-    print("Calculating local tAI scores for CDS windows...")
+    logging.info("Calculating local tAI scores for CDS windows...")
     for flank in cds_windows:
         local_col = f"local_coding_region_around_ASO_{flank}"
 
@@ -35,13 +38,13 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
         feature_names.append(feat_name)
 
     # 2. Global tAI Scores (Registry Lookup)
-    print(f"Pre-calculating Global tAI for {len(registry)} unique genes...")
+    logging.debug(f"Pre-calculating Global tAI for {len(registry)} unique genes...")
     gene_tai_lookup = {
         gene: calc_tAI(data.get("cds_sequence"), weights) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
-    print("Mapping Global tAI scores to dataframe...")
+    logging.debug("Mapping Global tAI scores to dataframe...")
     df["tAI_score_global_CDS"] = df[CANONICAL_GENE].map(gene_tai_lookup)
     feature_names.append("tAI_score_global_CDS")
 
@@ -53,7 +56,6 @@ def populate_enc(
     cds_windows: list,
     registry: dict,
     n_jobs: int = 1,
-    verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates local and global ENC (Effective Number of Codons) scores.
@@ -63,7 +65,6 @@ def populate_enc(
         cds_windows: List of window sizes.
         registry: Dictionary of gene info.
         n_jobs: Number of CPU nodes to use. Defaults to 1 (standard .apply).
-        verbose: If True, prints progress messages.
 
     Returns:
         tuple: (Updated DataFrame, List of new feature names)
@@ -77,15 +78,13 @@ def populate_enc(
             from pandarallel import pandarallel
 
             # Initialize strictly if using parallelism
-            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=0)
+            pandarallel.initialize(nb_workers=n_jobs)
         except ImportError:
-            if verbose:
-                print("Warning: 'pandarallel' not found. Falling back to single core.")
+            logger.warning("Warning: 'pandarallel' not found. Falling back to single core.")
             use_parallel = False
 
     # 2. Local ENC Scores
-    if verbose:
-        print("Calculating local ENC scores for CDS windows...")
+    logging.debug("Calculating local ENC scores for CDS windows...")
 
     for flank in cds_windows:
         local_col = f"local_coding_region_around_ASO_{flank}"
@@ -104,22 +103,19 @@ def populate_enc(
         feature_names.append(enc_col)
 
     # 3. Global ENC Scores (Registry Lookup)
-    if verbose:
-        print(f"Pre-calculating Global ENC for {len(registry)} unique genes...")
+    logger.debug(f"Pre-calculating Global ENC for {len(registry)} unique genes...")
 
     gene_enc_lookup = {
         gene: compute_ENC(data.get("cds_sequence")) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
-    if verbose:
-        print("Mapping Global ENC scores to dataframe...")
+    logger.debug("Mapping Global ENC scores to dataframe...")
 
     df["ENC_score_global_CDS"] = df[CANONICAL_GENE].map(gene_enc_lookup)
     feature_names.append("ENC_score_global_CDS")
 
-    if verbose:
-        print("Global ENC Calculation Complete.")
+    logger.debug("Global ENC Calculation Complete.")
 
     return df, feature_names
 
@@ -129,7 +125,6 @@ def populate_cai(
     cds_windows: list,
     registry: dict,
     n_jobs: int = 1,
-    verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates context-specific CAI scores based on cell line weights.
@@ -140,7 +135,6 @@ def populate_cai(
         cds_windows: List of window sizes.
         registry: Dictionary of gene info (ref_registry).
         n_jobs: Number of CPU nodes (defaults to 1).
-        verbose: Print status messages.
 
     Returns:
         tuple: (Updated DataFrame, List of new feature names)
@@ -155,8 +149,7 @@ def populate_cai(
     with open(weights_path, "r") as f:
         weight_map = json.load(f)
 
-    if verbose:
-        print(f"Loaded CAI profiles for: {list(weight_map.keys())}")
+    logger.debug(f"Loaded CAI profiles for: {list(weight_map.keys())}")
 
     # 2. Setup Parallelization
     use_parallel = n_jobs > 1
@@ -164,10 +157,9 @@ def populate_cai(
         try:
             from pandarallel import pandarallel
 
-            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=0)
+            pandarallel.initialize(nb_workers=n_jobs)
         except ImportError:
-            if verbose:
-                print("Warning: 'pandarallel' not found. Falling back to single core.")
+            logger.warning("Warning: 'pandarallel' not found. Falling back to single core.")
             use_parallel = False
 
     # 3. Define Row-Wise Helper
@@ -186,8 +178,8 @@ def populate_cai(
         if cell_line_name in weight_map:
             weights = weight_map[cell_line_name]
         else:
-            if verbose and cell_line_name not in reported_fallbacks:
-                print(f"⚠️  Cell line '{cell_line_name}' not found in weights. Using 'Generic' profile.")
+            if cell_line_name not in reported_fallbacks:
+                logger.warning(f"⚠️  Cell line '{cell_line_name}' not found in weights. Using 'Generic' profile.")
                 reported_fallbacks.add(cell_line_name)
             weights = weight_map.get("Generic")
 
@@ -197,8 +189,7 @@ def populate_cai(
         return calc_CAI(str(sequence), weights)
 
     # 4. Local CAI Windows
-    if verbose:
-        print("Applying context-specific CAI scores to windows...")
+    logger.info("Applying context-specific CAI scores to windows...")
 
     for flank in cds_windows:
         local_col = f"local_coding_region_around_ASO_{flank}"
@@ -222,8 +213,7 @@ def populate_cai(
         feature_names.append(cai_col)
 
     # 5. Global CAI (Registry Lookup)
-    if verbose:
-        print("Calculating Global CDS CAI Scores...")
+    logger.debug("Calculating Global CDS CAI Scores...")
 
     def _get_global_cai(row):
         gene = row.get(CANONICAL_GENE)
@@ -241,7 +231,6 @@ def populate_cai(
 
     feature_names.append("CAI_score_global_CDS")
 
-    if verbose:
-        print("CAI Calculation Complete.")
+    logger.debug("CAI Calculation Complete.")
 
     return df, feature_names

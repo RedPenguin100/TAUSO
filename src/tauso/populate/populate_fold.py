@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 import numpy as np
@@ -12,6 +13,8 @@ from ..features.rna_access.access_calculator import (
     get_sense_with_flanks,
 )
 from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
+
+logger = logging.getLogger(__name__)
 
 PRE_MRNA_SEQUENCE = "pre_mrna_sequence"
 
@@ -68,7 +71,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     feature_names = []
     for setting in settings:
         flank_size, window_size, step = setting
-        print(f"Starting MFE population with Flank={flank_size}, Window={window_size}, Step={step}")
+        logger.debug(f"Starting MFE population with Flank={flank_size}, Window={window_size}, Step={step}")
 
         feature_name = f"mfe_win{window_size}_flank{flank_size}_step{step}"
         feature_names.append(feature_name)

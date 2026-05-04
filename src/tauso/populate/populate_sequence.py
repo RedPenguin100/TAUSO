@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import Iterable, Optional, Tuple
 
@@ -6,6 +7,9 @@ from Bio.SeqUtils import gc_fraction
 from ..data.consts import SEQUENCE
 from ..features.sequence.seq_features import *
 from ..timer import Timer
+
+logger = logging.getLogger(__name__)
+
 
 FEATURE_SPECS: list[tuple[str, callable]] = [
     # Terminal Clamps
@@ -64,7 +68,7 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     start_time = time.time()
 
     if verbose:
-        print(f"► Starting {col_name}...")
+        logger.info(f"► Starting {col_name}...")
 
     series = df[SEQUENCE]
 
@@ -79,7 +83,7 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
 
     if verbose:
         duration = time.time() - start_time
-        print(f"✔ Finished {col_name} | Time: {duration:.2f}s\n")
+        logger.info(f"✔ Finished {col_name} | Time: {duration:.2f}s\n")
 
 
 def populate_sequence_features(
@@ -113,10 +117,7 @@ import pandas as pd
 
 
 def populate_sequence_one_hot_encoded(
-    df: pd.DataFrame,
-    max_len: Optional[int] = None,
-    cpus: int = 1,
-    verbose: bool = False,
+    df: pd.DataFrame, max_len: Optional[int] = None, cpus: int = 1
 ) -> Tuple[pd.DataFrame, list[str]]:
     """
     One-hot encodes ASO sequences with zero-padding to handle varying lengths.
@@ -127,14 +128,12 @@ def populate_sequence_one_hot_encoded(
     """
     start_time = time.time()
 
-    if verbose:
-        print(f"► Starting One-Hot Encoding with Zero-Padding...")
+    logger.info(f"► Starting One-Hot Encoding with Zero-Padding...")
 
     # 1. Determine max length for padding (if not manually provided)
     if max_len is None:
         max_len = int(df[SEQUENCE].str.len().max())
-        if verbose:
-            print(f"  ↳ Determined max_len automatically: {max_len}")
+        logger.warning(f"  ↳ Determined max_len automatically: {max_len}")
 
     # 2. Map nucleotides to lists (includes U for RNA compatibility)
     # Unknowns or Ns will map to [0, 0, 0, 0]
@@ -169,7 +168,7 @@ def populate_sequence_one_hot_encoded(
             from pandarallel import pandarallel
 
             # Only initialize if not already done, though harmless if repeated
-            pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
+            pandarallel.initialize(nb_workers=cpus)
             encoded_series = df[SEQUENCE].parallel_apply(encode_and_pad)
         except Exception:
             encoded_series = df[SEQUENCE].apply(encode_and_pad)
@@ -195,8 +194,7 @@ def populate_sequence_one_hot_encoded(
     # Concat the new features back to the main dataframe
     df = pd.concat([df, encoded_df], axis=1)
 
-    if verbose:
-        duration = time.time() - start_time
-        print(f"✔ Finished One-Hot Encoding | Added {len(feature_names)} features | Time: {duration:.2f}s\n")
+    duration = time.time() - start_time
+    logger.info(f"✔ Finished One-Hot Encoding | Added {len(feature_names)} features | Time: {duration:.2f}s\n")
 
     return df, feature_names
