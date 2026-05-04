@@ -106,8 +106,15 @@ def setup_attract(force):
     url = "https://attract.cnic.es/attract/static/ATtRACT.zip"
     click.echo("Downloading ATtRACT database...")
 
+    # Spoof a standard web browser to bypass 403 Forbidden blocks
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    }
+
     try:
-        r = requests.get(url)
+        # Pass headers here
+        r = requests.get(url, headers=headers)
         r.raise_for_status()
 
         with zipfile.ZipFile(io.BytesIO(r.content)) as z:

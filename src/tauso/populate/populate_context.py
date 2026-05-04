@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -6,6 +7,8 @@ import pyBigWig
 
 from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import calculate_ribo_seq_row, get_ribo_40s_human_data
+
+logger = logging.getLogger(__name__)
 
 
 def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"):
@@ -40,7 +43,7 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
                 aso_df.at[idx, key] = val
 
         except Exception as e:
-            print(f"Row {idx} failed: {e}")
+            logger.warning(f"[populate_ribo_seq] Row {idx} failed: {e}")
             continue
 
     return aso_df, new_features_list
@@ -57,7 +60,9 @@ def populate_mrna_expression(
     # --- MINIMAL FIX 1: Warn and drop to prevent column duplication ---
     existing_cols = [c for c in ["target_expression", "rnase_expression"] if c in df.columns]
     if existing_cols:
-        print(f"WARNING: Dropping existing columns to prevent alignment breaks: {existing_cols}")
+        logger.warning(
+            f"[populate_mrna_expression] Dropping existing columns to prevent alignment breaks: {existing_cols}"
+        )
         df = df.drop(columns=existing_cols)
     # ------------------------------------------------------------------
 

@@ -100,6 +100,17 @@ jobs:
       - name: Setup mRNA half life
         run: tauso setup-mrna-halflife
 
+      # 1. Add this caching step
+      - name: Cache Attract DB
+        id: cache-attract
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.TAUSO_DATA_DIR }}/pwm.txt
+            ${{ env.TAUSO_DATA_DIR }}/RBS_motifs_Homo_sapiens.csv
+          key: ${{ runner.os }}-tauso.attract-db-v1
+
+      # 2. Existing step remains the same
       - name: Setup Attract DB
         run: tauso setup-attract
 
