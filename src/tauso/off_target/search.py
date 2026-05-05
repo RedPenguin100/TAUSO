@@ -378,8 +378,7 @@ def annotate_hits_bulk(hits_list, genome):
     if not hits_list:
         return {}
 
-    # Assumes get_paths is defined globally in your script
-    gr_genome = load_gtf_for_assign_gene(get_paths(genome)["gtf"])
+    gr_genome = load_gtf_for_assign_gene(get_paths(genome)["gtf_gz"])
 
     # 1. Convert your raw Bowtie hits to a Pandas DataFrame
     df_hits = pd.DataFrame(hits_list)
@@ -422,8 +421,6 @@ def annotate_hits_bulk(hits_list, genome):
     # Combine all the chunked results back into one dataframe
     df_res = pd.concat(df_res_list, ignore_index=True)
 
-    # df_res = intersected.df
-
     if df_res.empty:
         return {}
 
@@ -451,9 +448,6 @@ def annotate_hits_bulk(hits_list, genome):
 
 @log_memory_usage
 def find_all_gene_off_targets_BULK(fasta_path, genome="GRCh38", threads=16, max_mismatches=0):
-    """
-    Main bulk entry point. Replaces your old find_all_gene_off_targets.
-    """
     logger.debug("[Find_OT] Running bowtie")
     hits_list = run_bowtie_search_bulk(fasta_path, genome=genome, max_mismatches=max_mismatches, threads=threads)
 

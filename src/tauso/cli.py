@@ -708,7 +708,7 @@ def get_genome_metadata(genome):
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome name (GRCh38 or GRCm39).")
 @click.option("--force", is_flag=True, help="Force re-download and rebuild.")
-@click.option("--remove-gz", is_flag=False, help="Remove the zipped files after download.")
+@click.option("--remove-gz", is_flag=True, help="Remove the zipped files after download.")
 def setup_genome(genome, force, remove_gz):
     """
     Sets up the genome environment (Download -> Index -> Database).
@@ -801,9 +801,6 @@ def setup_genome(genome, force, remove_gz):
                 disable_infer_transcripts=True,
             )
 
-        # ... (Rest of existing DB build logic: introns, bulk loading, etc.) ...
-
-        # Just to complete the block visually for you:
         print()  # Newline after progress bar
 
         # Calculate Unique Introns
