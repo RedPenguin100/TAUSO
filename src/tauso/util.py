@@ -49,6 +49,13 @@ def get_antisense(sense: str) -> str:
         raise ValueError(f"Unknown nucleotide {e.args[0]}")
 
 
+COMP_U_TABLE = bytes.maketrans(b"ACGTUacgtu", b"UGCAaugcaa")
+
+
+def get_antisense_u(seq: str) -> str:
+    return seq.translate(COMP_U_TABLE)[::-1]
+
+
 @njit
 def get_nucleotide_watson_crick(nucleotide):
     if nucleotide == "A":

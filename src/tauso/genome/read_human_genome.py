@@ -1,10 +1,8 @@
-import bisect
 import logging
-
-from Bio.Seq import Seq
 
 from ..data.data import load_db, load_genome
 from ..timer import Timer
+from ..util import get_antisense_u
 from .LocusInfo import LocusInfo
 
 logger = logging.getLogger(__name__)
@@ -21,12 +19,8 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     locus_to_data = dict()
     locus_to_strand = dict()
 
-    basic_features = ["exon", "gene", "stop_codon", "UTR"]
-
-    feature_types = list(basic_features)
-
-    if include_introns:
-        feature_types.append("intron")
+    basic_features = ("exon", "gene", "stop_codon", "UTR")
+    feature_types = ("exon", "gene", "stop_codon", "UTR", "intron") if include_introns else basic_features
 
     iterator = []
 
@@ -71,30 +65,32 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
         if feature.featuretype == "exon":
             # Just save the coordinates. The actual sequence is derived lazily.
-            bisect.insort(locus_info.exon_indices, (feature.start - 1, feature.end))
+            locus_info.exon_indices.append((feature.start - 1, feature.end))
             locus_to_strand[locus_tag] = feature.strand
 
         elif feature.featuretype == "intron" and include_introns:
-            bisect.insort(locus_info.intron_indices, (feature.start - 1, feature.end))
+            locus_info.intron_indices.append((feature.start - 1, feature.end))
             locus_to_strand[locus_tag] = feature.strand
 
         elif feature.featuretype == "gene":
             # We ONLY pull the sequence into memory at the Gene level
-            seq = Seq(str(fasta_dict[chrom][feature.start - 1 : feature.end]))
+            seq = str(fasta_dict[chrom][feature.start - 1 : feature.end])
             if feature.strand == "-":
-                seq = seq.reverse_complement()
+                seq = get_antisense_u(seq)
+            else:
+                seq = seq.upper()
 
             locus_info.strand = feature.strand
             locus_info.gene_start = feature.start - 1
             locus_info.gene_end = feature.end
-            locus_info.full_mrna = str(seq).upper()
+            locus_info.full_mrna = seq
             locus_to_strand[locus_tag] = feature.strand
 
             raw_type = feature.attributes.get("gene_type", feature.attributes.get("gene_biotype", ["unannotated"]))
             locus_info.gene_type = raw_type[0] if raw_type else "unannotated"
 
         elif "UTR" in feature.featuretype:
-            bisect.insort(locus_info.utr_indices, (feature.start - 1, feature.end))
+            locus_info.utr_indices.append((feature.start - 1, feature.end))
 
         elif feature.featuretype == "stop_codon":
             locus_info.stop_codons.append((feature.start, feature.end))
@@ -105,6 +101,11 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     # Final cleanup: Reverse coordinates for the negative strand so
     # exon_indices go biologically 5' to 3'.
     for locus_tag, locus_info in locus_to_data.items():
+        locus_info.exon_indices.sort()
+        locus_info.utr_indices.sort()
+        if include_introns:
+            locus_info.intron_indices.sort()
+
         if locus_to_strand.get(locus_tag) == "-":
             locus_info.exon_indices.reverse()
             if include_introns:
