@@ -1,3 +1,4 @@
+import logging
 import pickle
 
 import pytest
@@ -5,6 +6,8 @@ import pytest
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 from .common.consts import TESTS_CACHE
+
+logging.getLogger("numba").setLevel(logging.WARNING)
 
 SHORT_GENE = "DDX11L1"
 TESTED_GENES = [SHORT_GENE]

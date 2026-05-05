@@ -1,10 +1,12 @@
 import pytest
+import logging
 
 from tauso.populate.populate_fold import (
     populate_mfe_features,
     populate_sense_accessibility_batch,
 )
 
+logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def mini_sampled_data(request, final_data):
@@ -29,7 +31,7 @@ def test_access(mini_sampled_data, gene_to_data, dataframe_regression):
         c_access = config["access"]
         c_seeds = config["seeds"]
 
-        print(f"Running: Flank={c_flank}, Access={c_access}, Seeds={c_seeds})...")
+        logger.info(f"Running: Flank={c_flank}, Access={c_access}, Seeds={c_seeds})...")
 
         mini_sampled_data, feature_name = populate_sense_accessibility_batch(
             mini_sampled_data,
