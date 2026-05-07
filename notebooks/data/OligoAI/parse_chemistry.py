@@ -5,6 +5,7 @@ import pandas as pd
 from tauso.data.consts import BACKBONE_MODS, CHEMICAL_PATTERN, MODIFICATION, PS_PATTERN, SUGAR_MODS
 
 
+# TODO: speed this function up, very slow (need to write tests before that)
 def _process_chemistry(mod_str):
     if not isinstance(mod_str, str) or not mod_str.startswith("["):
         return None, None
@@ -13,7 +14,7 @@ def _process_chemistry(mod_str):
         mod_list = ast.literal_eval(mod_str)
         mod_set = {m.upper() for m in mod_list}
 
-        # 1. Generate the CHEMICAL_PATTERN (e.g., MMMddd)
+        # 1. Generate the CHEMICAL_PATTERN (e.g., MMMMMddddddddddMMMMM)
         pattern_chars = []
         for m in mod_list:
             m_up = m.upper()

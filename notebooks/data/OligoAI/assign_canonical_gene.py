@@ -28,7 +28,7 @@ def process_and_assign_genes_bulk(
 
     # 1. Extract and write bulk FASTA
     all_unique_seqs = df[sequence_col].dropna().unique()
-    print(f"Extracted {len(all_unique_seqs)} unique ASO sequences.")
+    logger.info(f"[process_and_assign_genes_bulk] Extracted {len(all_unique_seqs)} unique ASO sequences.")
 
     run_id = uuid.uuid4().hex
     temp_fasta = f"bulk_input_{run_id}.fasta"
@@ -39,14 +39,14 @@ def process_and_assign_genes_bulk(
             f.write(f">{dna}\n{dna}\n")
 
     # 2. Run bulk alignment
-    print("Running bulk alignment and annotation...")
+    logger.info("[process_and_assign_genes_bulk] Running bulk alignment and annotation...")
     sequence_to_genes_map = find_all_gene_off_targets_BULK(temp_fasta, genome, threads)
 
     if os.path.exists(temp_fasta):
         os.remove(temp_fasta)
 
     # 3. Map results and calculate stats
-    print("Mapping results back to dataframe and calculating stats...")
+    logger.info("[process_and_assign_genes_bulk] Mapping results back to dataframe and calculating stats...")
     gene_to_seqs = df.dropna(subset=["target_gene", sequence_col]).groupby("target_gene")[sequence_col].unique()
 
     gene_to_canonical = {}
@@ -84,7 +84,7 @@ def process_and_assign_genes_bulk(
         }
 
     df.to_csv(output_csv, index=False)
-    print(f"Saved annotated dataframe → {output_csv}")
+    logger.info(f"[process_and_assign_genes_bulk] Saved annotated dataframe → {output_csv}")
 
     # 4. Convert stats to DataFrame and export
     df_stats = pd.DataFrame.from_dict(gene_stats, orient="index").reset_index()
@@ -92,7 +92,7 @@ def process_and_assign_genes_bulk(
 
     stats_csv = str(output_csv).replace(".csv", "_STATS.csv")
     df_stats.to_csv(stats_csv, index=False)
-    print(f"Saved detailed stats dataframe → {stats_csv}")
+    logger.info(f"[process_and_assign_genes_bulk] Saved detailed stats dataframe → {stats_csv}")
 
     return df, ambiguous_genes, df_stats
 
@@ -163,8 +163,8 @@ def refine_and_clean_canonical_genes(df, gene_stats, output_csv, canonical_mappi
     missing_originals = filtered_df[filtered_df["original_hit_count"] < threshold]
 
     # 4. Print the MISSING ORIGINALS
-    print(f"--- MISSING ORIGINALS ({len(missing_originals)} groups) ---")
-    print("These did not map to the original name at all (or missed the 50% threshold):\n")
+    logger.info(f"--- MISSING ORIGINALS ({len(missing_originals)} groups) ---")
+    logger.info("These did not map to the original name at all (or missed the 50% threshold):\n")
     missing_cols = [
         "original_target_gene",
         "original_hit_count",
@@ -177,8 +177,8 @@ def refine_and_clean_canonical_genes(df, gene_stats, output_csv, canonical_mappi
         print(missing_originals[missing_cols].to_string(index=False))
 
     # 5. Print the RECOVERABLE ORIGINALS
-    print(f"\n--- RECOVERABLE ORIGINALS ({len(present_originals)} groups) ---")
-    print("These exist in the frequencies and can be reverted to the original name:\n")
+    logger.info(f"\n--- RECOVERABLE ORIGINALS ({len(present_originals)} groups) ---")
+    logger.info("These exist in the frequencies and can be reverted to the original name:\n")
     recoverable_cols = [
         "original_target_gene",
         "original_hit_count",
@@ -190,13 +190,13 @@ def refine_and_clean_canonical_genes(df, gene_stats, output_csv, canonical_mappi
         print(present_originals[recoverable_cols].to_string(index=False))
 
     # --- APPLYING CORRECTIONS ---
-    print("\n--- APPLYING CORRECTIONS & CLEANING DATASET ---")
+    logger.info("\n--- APPLYING CORRECTIONS & CLEANING DATASET ---")
     initial_count = len(df)
 
     # 1. First, drop ASOs that don't even have a target_gene to begin with
     df_no_empty_genes = df.dropna(subset=["target_gene"]).copy()
     dropped_empty = initial_count - len(df_no_empty_genes)
-    print(f"Dropped {dropped_empty} ASOs missing an initial 'target_gene'.")
+    logger.info(f"Dropped {dropped_empty} ASOs missing an initial 'target_gene'.")
 
     # 2. Apply the map using .replace() to preserve our pd.NA traps
     df_no_empty_genes[CANONICAL_GENE] = df_no_empty_genes["target_gene"].replace(canonical_mapping)
@@ -205,12 +205,12 @@ def refine_and_clean_canonical_genes(df, gene_stats, output_csv, canonical_mappi
     df_clean = df_no_empty_genes.dropna(subset=[CANONICAL_GENE]).copy()
     dropped_unrecoverable = len(df_no_empty_genes) - len(df_clean)
 
-    print(f"Dataset cleaned! Purged {dropped_unrecoverable} ASOs due to unrecoverable errors (e.g., RHO, NAIP).")
-    print(f"Final dataset contains {len(df_clean)} ASOs ready for TAUSO.")
+    logger.info(f"Dataset cleaned! Purged {dropped_unrecoverable} ASOs due to unrecoverable errors (e.g., RHO, NAIP).")
+    logger.info(f"Final dataset contains {len(df_clean)} ASOs ready for TAUSO.")
 
     # 4. Save to file
     df_clean.to_csv(output_csv, index=False)
-    print(f"Successfully saved to {output_csv}")
+    logger.info(f"Successfully saved to {output_csv}")
 
     return df_clean
 
