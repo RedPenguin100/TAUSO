@@ -10,7 +10,7 @@ def get_data_path(version):
     raise ValueError(f"Invalid version: {version}")
 
 
-def load_and_validate_final_data(version='oligo'):
+def load_and_validate_final_data(version='oligo', load_competition=False):
     """
     Loads features and metadata, ensures shared columns are identical,
     and returns the merged DataFrame along with the final feature list.
@@ -19,11 +19,11 @@ def load_and_validate_final_data(version='oligo'):
 
     data_path = get_data_path(version)
     # 1. Load the data sources
-    loaded_features = load_all_features(version=version, n_jobs=-1)
+    loaded_features = load_all_features(version=version, n_jobs=-1, load_competition=load_competition)
     data = pd.read_csv(data_path)
 
     # 2. Identify common columns to validate (excluding the join key)
-    # Based on your data: sense_start, sense_start_frokm_end, sense_length, etc.
+    # Based on your data: sense_start, sense_start_from_end, sense_length, etc.
     common_cols = [
         'sense_start', 'sense_start_from_end', 'sense_length',
         'sense_exon', 'sense_intron', 'sense_utr', 'sense_type'
