@@ -49,13 +49,15 @@ def load_all_features(filenames=None, light=True, verbose=False, version=None, n
     if verbose:
         print(f"Loading features from: {filenames}")
 
-    if version is None:
-        index = "index"
-    else:
-        index = "index_" + version
+    index = "index" if version is None else f"index_{version}"
+
+    def get_dtype_for_file(filename):
+        if filename.startswith("RBP_"):
+            return "float64"  # Change to "float32" here for a massive memory reduction
+        return None
 
     if n_jobs == 1:
-        dfs = [pd.read_csv(os.path.join(feature_dir, f), index_col=index) for f in filenames]
+        dfs = [pd.read_csv(os.path.join(feature_dir, f), index_col=index, dtype=get_dtype_for_file(f)) for f in filenames]
     else:
         dfs = Parallel(n_jobs=n_jobs, backend="threading")(
             delayed(pd.read_csv)(os.path.join(feature_dir, f), index_col=index) for f in filenames

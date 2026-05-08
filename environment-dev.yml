@@ -8,6 +8,8 @@ dependencies:
   - matplotlib
   - seaborn
   - ipykernel
+  - optuna
+  - cupy
   - pip
   - pip:
     - -e .  # <--- CRITICAL: Installs your 'src' in editable mode
@@ -17,5 +19,3 @@ dependencies:
   - pytest-regressions
   - pytest-xdist
   - conda-build
-
-
