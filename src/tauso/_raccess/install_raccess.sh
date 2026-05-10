@@ -47,13 +47,17 @@ if [ -d "$TARGET_DIR/.git" ]; then
     local_head=$(git -C "$TARGET_DIR" rev-parse HEAD)
 
     if [ "$local_head" = "$TARGET_COMMIT" ]; then
-        echo "Already at desired commit $TARGET_COMMIT — nothing to do."
-        exit 0
+        if [ -x "$TARGET_DIR/src/raccess/run_raccess" ]; then
+            echo "Already at desired commit $TARGET_COMMIT and binary exists — nothing to do."
+            exit 0
+        else
+            echo "Already at desired commit, but binary missing. Proceeding to compilation..."
+        fi
+    else
+        echo "Existing repo but wrong commit, checking out desired commit..."
+        git -C "$TARGET_DIR" fetch --all
+        git -C "$TARGET_DIR" checkout -f "$TARGET_COMMIT"
     fi
-
-    echo "Existing repo but wrong commit, checking out desired commit..."
-    git -C "$TARGET_DIR" fetch --all
-    git -C "$TARGET_DIR" checkout -f "$TARGET_COMMIT"
 else
     echo "Cloning raccess..."
     git clone "$UPSTREAM_URL" "$TARGET_DIR"
@@ -70,7 +74,7 @@ for p in raccess_bugfix.patch \
          raccess_makefile.patch
 do
     echo "Applying patch: $p"
-    patch -p1 < "$PATCH_DIR/$p"
+    patch -N -p1 < "$PATCH_DIR/$p" || true
 done
 
 cd "src"

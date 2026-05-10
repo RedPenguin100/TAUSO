@@ -3,6 +3,7 @@ import hashlib
 import io
 import itertools
 import json
+import logging
 import os
 import re
 import shutil
@@ -30,6 +31,8 @@ from tauso.genome.TranscriptMapper import (
     build_gene_sequence_registry,
 )
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -972,7 +975,10 @@ def install_raccess(ctx, force_clone):
     cmd = ["bash", str(script_path)] + forwarded_args
 
     print(f"+ {' '.join(cmd)}")
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error("\ninstall_raccess.sh failed, consider installing zlib1g-dev ")
 
 
 if __name__ == "__main__":

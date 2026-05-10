@@ -1,11 +1,12 @@
 import ast
-
+from functools import lru_cache
 import pandas as pd
 
 from tauso.data.consts import BACKBONE_MODS, CHEMICAL_PATTERN, MODIFICATION, PS_PATTERN, SUGAR_MODS
 
 
-# TODO: speed this function up, very slow (need to write tests before that)
+# Cache will help store the most common modifications
+@lru_cache(maxsize=100)
 def _process_chemistry(mod_str):
     if not isinstance(mod_str, str) or not mod_str.startswith("["):
         return None, None
@@ -44,6 +45,8 @@ def _process_chemistry(mod_str):
         return None, None
 
 
+# Cache will help store the most common modifications
+@lru_cache(maxsize=100)
 def _parse_backbone(backbone_str):
     if not isinstance(backbone_str, str) or not backbone_str.startswith("["):
         return None

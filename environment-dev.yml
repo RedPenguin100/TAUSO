@@ -10,12 +10,15 @@ dependencies:
   - ipykernel
   - optuna
   - cupy
+  - seaborn
+  - graphviz
   - pip
   - pip:
-    - -e .  # <--- CRITICAL: Installs your 'src' in editable mode
+    - -e .
     - ruff
   # tooling
   - pytest
   - pytest-regressions
   - pytest-xdist
   - conda-build
+  - pandas-stubs

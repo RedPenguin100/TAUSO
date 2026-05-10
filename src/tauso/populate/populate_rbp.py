@@ -21,12 +21,10 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
     if seq_len < motif_len:
         return 0.0
 
-    # Numba vectorizes this numpy math perfectly
     weights = np.log2((pwm_matrix + 1e-9) / background_probs)
 
     total_score = 0.0
 
-    # The classic double loop - Numba excels at this, compiling it down to C
     for i in range(seq_len - motif_len + 1):
         score = 0.0
         valid_window = True
@@ -35,7 +33,7 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
             base_idx = seq_indices[i + pos]
             if base_idx == -1:
                 valid_window = False
-                break  # Instantly skip to the next window
+                break
 
             score += weights[pos, base_idx]
 
