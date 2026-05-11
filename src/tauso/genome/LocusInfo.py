@@ -67,7 +67,7 @@ class LocusInfo:
         "gene_end",
         "strand",
         "gene_type",
-        "utr_indices"
+        "utr_indices",
     )
 
     def __init__(self, seq=None):
