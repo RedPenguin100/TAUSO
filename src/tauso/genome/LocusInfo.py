@@ -67,7 +67,7 @@ class LocusInfo:
         "gene_end",
         "strand",
         "gene_type",
-        "utr_indices",
+        "utr_indices"
     )
 
     def __init__(self, seq=None):
@@ -82,6 +82,7 @@ class LocusInfo:
         self.gene_end = None
         self.strand = None
         self.gene_type = None
+        self.utr_indices = []
 
         if seq is not None:
             self._exon_indices = [(0, len(seq))]
@@ -109,7 +110,7 @@ class LocusInfo:
         self._exon_indices.append((start, end))
 
     def add_intron_indices(self, start, end):
-        self._exon_indices.append((start, end))
+        self._intron_indices.append((start, end))
 
     @property
     def exons(self):

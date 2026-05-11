@@ -19,8 +19,8 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     locus_to_data = dict()
     locus_to_strand = dict()
 
-    basic_features = ("exon", "gene", "stop_codon", "UTR")
-    feature_types = ("exon", "gene", "stop_codon", "UTR", "intron") if include_introns else basic_features
+    basic_features = ("exon", "gene", "UTR")
+    feature_types = ("exon", "gene", "UTR", "intron") if include_introns else basic_features
 
     iterator = []
 
@@ -62,11 +62,9 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         else:
             locus_info = locus_to_data[locus_tag]
 
-        # locus_info.strand = StrandType.from_string(feature.strand)
         locus_info.strand = StrandType.from_string(feature.strand)
 
         if feature.featuretype == "exon":
-            # Just save the coordinates. The actual sequence is derived lazily.
             locus_info.add_exon_indices(feature.start - 1, feature.end)
             locus_to_strand[locus_tag] = locus_info.strand
 
@@ -77,7 +75,6 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         elif feature.featuretype == "gene":
             # We ONLY pull the sequence into memory at the Gene level
             seq = str(fasta_dict[chrom][feature.start - 1 : feature.end])
-            # if locus_info.strand == '-':
             if locus_info.strand == StrandType.NEG:
                 seq = get_antisense_u(seq)
             else:
@@ -95,10 +92,6 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
         elif "UTR" in feature.featuretype:
             locus_info.utr_indices.append((feature.start - 1, feature.end))
-
-        elif feature.featuretype == "stop_codon":
-            locus_info.stop_codons.append((feature.start, feature.end))
-
         else:
             logger.debug(f"[Get_Locus] Feature type: {feature.featuretype}")
 
