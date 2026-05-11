@@ -3,7 +3,7 @@ import logging
 from ..data.data import load_db, load_genome
 from ..timer import Timer
 from ..util import get_antisense_u
-from .LocusInfo import LocusInfo
+from .LocusInfo import LocusInfo, GeneType
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,6 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
                 iterator.append(gene)
 
                 # Add its children (exons, introns, etc.)
-                # db.children() uses the DB index = INSTANT
                 children = db.children(gene, featuretype=feature_types, order_by="start")
                 iterator.extend(list(children))
     else:
@@ -63,31 +62,34 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         else:
             locus_info = locus_to_data[locus_tag]
 
+        locus_info.strand = feature.strand
+
         if feature.featuretype == "exon":
             # Just save the coordinates. The actual sequence is derived lazily.
             locus_info.exon_indices.append((feature.start - 1, feature.end))
-            locus_to_strand[locus_tag] = feature.strand
+            locus_to_strand[locus_tag] = locus_info.strand
 
         elif feature.featuretype == "intron" and include_introns:
             locus_info.intron_indices.append((feature.start - 1, feature.end))
-            locus_to_strand[locus_tag] = feature.strand
+            locus_to_strand[locus_tag] = locus_info.strand
 
         elif feature.featuretype == "gene":
             # We ONLY pull the sequence into memory at the Gene level
             seq = str(fasta_dict[chrom][feature.start - 1 : feature.end])
-            if feature.strand == "-":
+            if locus_info.strand == "-":
                 seq = get_antisense_u(seq)
             else:
                 seq = seq.upper()
 
-            locus_info.strand = feature.strand
             locus_info.gene_start = feature.start - 1
             locus_info.gene_end = feature.end
             locus_info.full_mrna = seq
-            locus_to_strand[locus_tag] = feature.strand
+            locus_to_strand[locus_tag] = locus_info.strand
 
-            raw_type = feature.attributes.get("gene_type", feature.attributes.get("gene_biotype", ["unannotated"]))
-            locus_info.gene_type = raw_type[0] if raw_type else "unannotated"
+            raw_type_list = feature.attributes.get("gene_type", feature.attributes.get("gene_biotype", []))
+            raw_type_str = raw_type_list[0] if raw_type_list else "unannotated"
+
+            locus_info.gene_type = GeneType.from_string(raw_type_str)
 
         elif "UTR" in feature.featuretype:
             locus_info.utr_indices.append((feature.start - 1, feature.end))

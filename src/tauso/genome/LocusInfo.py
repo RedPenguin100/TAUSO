@@ -1,7 +1,39 @@
+from enum import IntEnum
+
+
+class GeneType(IntEnum):
+    UNKNOWN = 0
+    PROTEIN_CODING = 1
+    LNCRNA = 2
+    MIRNA = 3
+    SNO_RNA = 4
+    NON_CODING = 5
+    UNANNOTATED = 6
+
+    @classmethod
+    def from_string(cls, type_str):
+        if not hasattr(cls, "_str_map"):
+            cls._str_map = {
+                "unknown": cls.UNKNOWN,
+                "protein_coding": cls.PROTEIN_CODING,
+                "lncrna": cls.LNCRNA,  # Lowercase for safe matching
+                "mirna": cls.MIRNA,
+                "snorna": cls.SNO_RNA,
+                "non_coding": cls.NON_CODING,  # FIXED: Was mapped to SNO_RNA
+                "unannotated": cls.UNANNOTATED,
+            }
+        # Normalize to lowercase so exact casing from the GFF doesn't break the mapping
+        clean_str = type_str.lower() if type_str else ""
+        return cls._str_map.get(clean_str, cls.UNKNOWN)
+
 class LocusInfo:
+    __slots__ = [
+        'exon_indices', 'intron_indices', 'stop_codons', 'five_prime_utr',
+        'three_prime_utr', 'full_mrna', 'gene_start', 'gene_end',
+        'strand', 'gene_type', 'utr_indices'
+    ]
+
     def __init__(self, seq=None):
-        # Memory Optimization: We no longer store lists of strings for exons/introns.
-        # These are computed on the fly via @property decorators.
         self.exon_indices = []
         self.intron_indices = []
         self.stop_codons = []
@@ -18,12 +50,11 @@ class LocusInfo:
             self.exon_indices = [(0, len(seq))]
             self.gene_start = 0
             self.gene_end = len(seq)
-            self.strand = "+"
-            self.gene_type = "unknown"
+            self.strand = '+'
+            self.gene_type = GeneType.UNKNOWN
             self.full_mrna = seq
 
     def _get_sequence_slice(self, start, end):
-        """Helper to extract a sequence from the full_mrna based on genomic coordinates."""
         if not self.full_mrna or self.gene_start is None or self.gene_end is None:
             return ""
 
@@ -32,8 +63,6 @@ class LocusInfo:
             rel_start = start - self.gene_start
             rel_end = end - self.gene_start
         else:
-            # Relative to the 5' end of the - strand (gene_end)
-            # Because full_mrna is reverse complemented, we map from the right side.
             rel_start = self.gene_end - end
             rel_end = self.gene_end - start
 
@@ -52,8 +81,9 @@ class LocusInfo:
         return "".join(self.exons)
 
     def __repr__(self):
-        print("LocusInfo:")
-        # We use a custom print to avoid aggressively computing properties just for a representation
-        for field, value in self.__dict__.items():
-            print(f"  {field}: {value}")
-        return ""
+        # Since __dict__ no longer exists with __slots__,
+        # we manually iterate the slots for the representation.
+        lines = ["LocusInfo:"]
+        for field in self.__slots__:
+            lines.append(f"  {field}: {getattr(self, field)}")
+        return "\n".join(lines)
