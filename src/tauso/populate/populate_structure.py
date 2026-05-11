@@ -2,6 +2,7 @@ import numpy as np
 
 from ..data.consts import *
 from ..features.names import *
+from ..genome.LocusInfo import StrandType
 from ..util import get_antisense_u
 
 
@@ -74,7 +75,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         out_start_end[v_row_idxs] = pre_mrna_len - v_idxs
 
         # Original coordinate calculation
-        if locus_info.strand == "-":
+        if locus_info.strand == StrandType.NEG:
             gen_coords = locus_info.gene_end - 1 - v_idxs
         else:
             gen_coords = locus_info.gene_start + v_idxs

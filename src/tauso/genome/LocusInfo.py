@@ -1,4 +1,8 @@
+import logging
+
 from enum import IntEnum
+
+logger = logging.getLogger(__name__)
 
 
 class GeneType(IntEnum):
@@ -26,11 +30,30 @@ class GeneType(IntEnum):
         clean_str = type_str.lower() if type_str else ""
         return cls._str_map.get(clean_str, cls.UNKNOWN)
 
+
+class StrandType(IntEnum):
+    POS = 1
+    NEG = 2
+
+    @classmethod
+    def from_string(cls, type_str):
+        _map = {"+": cls.POS, "-": cls.NEG}
+        return _map[type_str]
+
+
 class LocusInfo:
     __slots__ = [
-        'exon_indices', 'intron_indices', 'stop_codons', 'five_prime_utr',
-        'three_prime_utr', 'full_mrna', 'gene_start', 'gene_end',
-        'strand', 'gene_type', 'utr_indices'
+        "exon_indices",
+        "intron_indices",
+        "stop_codons",
+        "five_prime_utr",
+        "three_prime_utr",
+        "full_mrna",
+        "gene_start",
+        "gene_end",
+        "strand",
+        "gene_type",
+        "utr_indices",
     ]
 
     def __init__(self, seq=None):
@@ -50,7 +73,7 @@ class LocusInfo:
             self.exon_indices = [(0, len(seq))]
             self.gene_start = 0
             self.gene_end = len(seq)
-            self.strand = '+'
+            self.strand = StrandType.POS
             self.gene_type = GeneType.UNKNOWN
             self.full_mrna = seq
 
@@ -58,7 +81,7 @@ class LocusInfo:
         if not self.full_mrna or self.gene_start is None or self.gene_end is None:
             return ""
 
-        if self.strand == "+":
+        if self.strand == StrandType.POS:
             # Relative to the 5' end of the + strand (gene_start)
             rel_start = start - self.gene_start
             rel_end = end - self.gene_start

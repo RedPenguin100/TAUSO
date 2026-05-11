@@ -3,7 +3,7 @@ import logging
 from ..data.data import load_db, load_genome
 from ..timer import Timer
 from ..util import get_antisense_u
-from .LocusInfo import LocusInfo, GeneType
+from .LocusInfo import LocusInfo, GeneType, StrandType
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,8 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         else:
             locus_info = locus_to_data[locus_tag]
 
-        locus_info.strand = feature.strand
+        # locus_info.strand = StrandType.from_string(feature.strand)
+        locus_info.strand = StrandType.from_string(feature.strand)
 
         if feature.featuretype == "exon":
             # Just save the coordinates. The actual sequence is derived lazily.
@@ -76,7 +77,8 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         elif feature.featuretype == "gene":
             # We ONLY pull the sequence into memory at the Gene level
             seq = str(fasta_dict[chrom][feature.start - 1 : feature.end])
-            if locus_info.strand == "-":
+            # if locus_info.strand == '-':
+            if locus_info.strand == StrandType.NEG:
                 seq = get_antisense_u(seq)
             else:
                 seq = seq.upper()
@@ -108,7 +110,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         if include_introns:
             locus_info.intron_indices.sort()
 
-        if locus_to_strand.get(locus_tag) == "-":
+        if locus_to_strand.get(locus_tag) == StrandType.NEG:
             locus_info.exon_indices.reverse()
             if include_introns:
                 locus_info.intron_indices.reverse()

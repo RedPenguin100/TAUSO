@@ -67,7 +67,7 @@ class GeneCoordinateMapper:
             return None
 
         # Determine genomic position of the ASO
-        if gene.strand == "+":
+        if gene.strand == '+':
             genomic_pos = gene.start + premrna_idx
         else:
             genomic_pos = gene.end - premrna_idx
@@ -77,7 +77,7 @@ class GeneCoordinateMapper:
             # Check if position falls within this CDS block
             if part.start <= genomic_pos <= part.end:
                 # Calculate offset inside this block
-                if gene.strand == "+":
+                if gene.strand == '+':
                     offset = genomic_pos - part.start
                 else:
                     offset = part.end - genomic_pos
