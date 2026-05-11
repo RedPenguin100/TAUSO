@@ -54,13 +54,7 @@ def load_and_validate_final_data(version="oligo", load_competition=False):
     # 4. Merge: Drop redundant columns from 'data' first to avoid _x/_y
     data_to_merge = data.drop(columns=common_cols)
 
-    del data
-
     final_data = pd.merge(loaded_features, data_to_merge, on=index)
-
-    del loaded_features
-    del data_to_merge
-    gc.collect()
 
     # 5. Define Final Feature List
     features_to_ignore = [index, INHIBITION, "inhibition_percent", "dosage", "split"]
