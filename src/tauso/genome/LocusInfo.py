@@ -48,7 +48,8 @@ class StrandType(IntEnum):
     def from_string(cls, type_str):
         # We use a fast dict lookup without recreating the dict
         # Using .get() prevents KeyErrors if corrupted data is passed
-        return cls._str_map.get(type_str, cls.POS) # Defaults to POS, or handle as needed
+        return cls._str_map.get(type_str, cls.POS)  # Defaults to POS, or handle as needed
+
 
 # Created exactly once.
 StrandType._str_map = {"+": StrandType.POS, "-": StrandType.NEG}
@@ -110,7 +111,6 @@ class LocusInfo:
     def add_intron_indices(self, start, end):
         self._exon_indices.append((start, end))
 
-
     @property
     def exons(self):
         return [self._get_sequence_slice(s, e) for s, e in self._exon_indices]
@@ -119,11 +119,6 @@ class LocusInfo:
     def introns(self):
         return [self._get_sequence_slice(s, e) for s, e in self._intron_indices]
 
-    @property
-    def exon_concat(self):
-        return "".join(self.exons)
-
     def __repr__(self):
-        # A list comprehension here is faster than a loop with .append()
         lines = [f"  {field}: {getattr(self, field)}" for field in self.__slots__]
         return "LocusInfo:\n" + "\n".join(lines)

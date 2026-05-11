@@ -2,6 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def filter_gtf_genes(db, filter_mode):
     """
     Scans the GTF database and returns a set of gene names matching the criteria.
