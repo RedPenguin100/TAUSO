@@ -63,7 +63,7 @@ def evaluate_final_performance(model, X_np, y_true, eval_groups, feature_names):
     preds = model.predict(dmat)
 
     mae = mean_absolute_error(y_true, preds)
-    rmsd = np.sqrt(mean_squared_error(y_true, preds))
+    rmse = np.sqrt(mean_squared_error(y_true, preds))
 
     spearmans, top_1_medians, top_5_medians = [], [], []
     for idxs in eval_groups:
@@ -83,7 +83,7 @@ def evaluate_final_performance(model, X_np, y_true, eval_groups, feature_names):
 
     return {
         "MAE": float(mae),
-        "RMSD": float(rmsd),
+        "RMSE": float(rmse),
         "Spearman": float(np.nanmedian(spearmans)) if spearmans else 0.0,
         "Median_Top1_Inhib": float(np.nanmedian(top_1_medians)) if top_1_medians else 0.0,
         "Median_Top5_Inhib": float(np.nanmedian(top_5_medians)) if top_5_medians else 0.0,

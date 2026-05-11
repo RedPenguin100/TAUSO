@@ -1,14 +1,14 @@
 {
     "Train": {
         "MAE": 15.681710541883392,
-        "RMSD": 19.564875682923,
+        "RMSE": 19.564875682923,
         "Spearman": 0.5943416303939025,
         "Median_Top1_Inhib": 81.0,
         "Median_Top5_Inhib": 77.0
     },
     "Validation": {
         "MAE": 14.439906399192473,
-        "RMSD": 18.09609579135309,
+        "RMSE": 18.09609579135309,
         "Spearman": 0.6376822529438643,
         "Median_Top1_Inhib": 76.0,
         "Median_Top5_Inhib": 73.0
