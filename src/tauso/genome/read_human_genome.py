@@ -3,7 +3,7 @@ import logging
 from ..data.data import load_db, load_genome
 from ..timer import Timer
 from ..util import get_antisense_u
-from .LocusInfo import LocusInfo, GeneType, StrandType
+from .LocusInfo import GeneType, LocusInfo, StrandType
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +67,11 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
         if feature.featuretype == "exon":
             # Just save the coordinates. The actual sequence is derived lazily.
-            locus_info.exon_indices.append((feature.start - 1, feature.end))
+            locus_info.add_exon_indices(feature.start - 1, feature.end)
             locus_to_strand[locus_tag] = locus_info.strand
 
         elif feature.featuretype == "intron" and include_introns:
-            locus_info.intron_indices.append((feature.start - 1, feature.end))
+            locus_info.add_intron_indices(feature.start - 1, feature.end)
             locus_to_strand[locus_tag] = locus_info.strand
 
         elif feature.featuretype == "gene":
@@ -105,14 +105,14 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     # Final cleanup: Reverse coordinates for the negative strand so
     # exon_indices go biologically 5' to 3'.
     for locus_tag, locus_info in locus_to_data.items():
-        locus_info.exon_indices.sort()
+        locus_info._exon_indices.sort()
         locus_info.utr_indices.sort()
         if include_introns:
-            locus_info.intron_indices.sort()
+            locus_info._intron_indices.sort()
 
         if locus_to_strand.get(locus_tag) == StrandType.NEG:
-            locus_info.exon_indices.reverse()
+            locus_info._exon_indices.reverse()
             if include_introns:
-                locus_info.intron_indices.reverse()
+                locus_info._intron_indices.reverse()
 
     return locus_to_data

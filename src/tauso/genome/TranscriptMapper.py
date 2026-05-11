@@ -2,8 +2,8 @@ from typing import Dict, Iterable, Optional
 
 import gffutils
 
-from .LocusInfo import GeneType
 from ..util import _to_str_seq
+from .LocusInfo import GeneType
 
 
 class GeneCoordinateMapper:

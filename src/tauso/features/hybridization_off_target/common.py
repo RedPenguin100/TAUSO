@@ -1,6 +1,11 @@
+import logging
+
 import pandas as pd
 
 # TODO: move this function to a folder / file about expression
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_general_expression_of_genes(EXP_path, valid_genes):
@@ -26,7 +31,7 @@ def get_general_expression_of_genes(EXP_path, valid_genes):
         if gene_name_extracted in valid_genes_set:
             valid_cols.append(col)
 
-    print(f"Filtering: Kept {len(valid_cols)} genes out of {len(potential_gene_cols)} total columns.")
+    logger.info(f"Filtering: Kept {len(valid_cols)} genes out of {len(potential_gene_cols)} total columns.")
 
     # Safety check: if no genes matched, return an empty dataframe with correct columns
     if not valid_cols:

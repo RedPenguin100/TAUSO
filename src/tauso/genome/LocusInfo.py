@@ -1,5 +1,4 @@
 import logging
-
 from enum import IntEnum
 
 logger = logging.getLogger(__name__)
@@ -16,19 +15,29 @@ class GeneType(IntEnum):
 
     @classmethod
     def from_string(cls, type_str):
-        if not hasattr(cls, "_str_map"):
-            cls._str_map = {
-                "unknown": cls.UNKNOWN,
-                "protein_coding": cls.PROTEIN_CODING,
-                "lncrna": cls.LNCRNA,  # Lowercase for safe matching
-                "mirna": cls.MIRNA,
-                "snorna": cls.SNO_RNA,
-                "non_coding": cls.NON_CODING,  # FIXED: Was mapped to SNO_RNA
-                "unannotated": cls.UNANNOTATED,
-            }
-        # Normalize to lowercase so exact casing from the GFF doesn't break the mapping
-        clean_str = type_str.lower() if type_str else ""
-        return cls._str_map.get(clean_str, cls.UNKNOWN)
+        if not type_str:
+            return cls.UNKNOWN
+
+        # We removed the hasattr() check.
+        # Direct lookup first (fast path for exactly matching strings).
+        # If it fails, do the .lower() fallback.
+        mapped = cls._str_map.get(type_str)
+        if mapped is not None:
+            return mapped
+
+        return cls._str_map.get(type_str.lower(), cls.UNKNOWN)
+
+
+# Define the map outside the method so it is only created ONCE at import time.
+GeneType._str_map = {
+    "unknown": GeneType.UNKNOWN,
+    "protein_coding": GeneType.PROTEIN_CODING,
+    "lncrna": GeneType.LNCRNA,
+    "mirna": GeneType.MIRNA,
+    "snorna": GeneType.SNO_RNA,
+    "non_coding": GeneType.NON_CODING,
+    "unannotated": GeneType.UNANNOTATED,
+}
 
 
 class StrandType(IntEnum):
@@ -37,14 +46,18 @@ class StrandType(IntEnum):
 
     @classmethod
     def from_string(cls, type_str):
-        _map = {"+": cls.POS, "-": cls.NEG}
-        return _map[type_str]
+        # We use a fast dict lookup without recreating the dict
+        # Using .get() prevents KeyErrors if corrupted data is passed
+        return cls._str_map.get(type_str, cls.POS) # Defaults to POS, or handle as needed
+
+# Created exactly once.
+StrandType._str_map = {"+": StrandType.POS, "-": StrandType.NEG}
 
 
 class LocusInfo:
-    __slots__ = [
-        "exon_indices",
-        "intron_indices",
+    __slots__ = (  # Tuples are slightly faster/safer for __slots__ definition than lists
+        "_exon_indices",
+        "_intron_indices",
         "stop_codons",
         "five_prime_utr",
         "three_prime_utr",
@@ -54,23 +67,23 @@ class LocusInfo:
         "strand",
         "gene_type",
         "utr_indices",
-    ]
+    )
 
     def __init__(self, seq=None):
-        self.exon_indices = []
-        self.intron_indices = []
+        self._exon_indices = []
+        self._intron_indices = []
         self.stop_codons = []
         self.five_prime_utr = ""
         self.three_prime_utr = ""
+
         self.full_mrna = None
         self.gene_start = None
         self.gene_end = None
         self.strand = None
         self.gene_type = None
-        self.utr_indices = []
 
         if seq is not None:
-            self.exon_indices = [(0, len(seq))]
+            self._exon_indices = [(0, len(seq))]
             self.gene_start = 0
             self.gene_end = len(seq)
             self.strand = StrandType.POS
@@ -91,22 +104,26 @@ class LocusInfo:
 
         return self.full_mrna[rel_start:rel_end]
 
+    def add_exon_indices(self, start, end):
+        self._exon_indices.append((start, end))
+
+    def add_intron_indices(self, start, end):
+        self._exon_indices.append((start, end))
+
+
     @property
     def exons(self):
-        return [self._get_sequence_slice(start, end) for start, end in self.exon_indices]
+        return [self._get_sequence_slice(s, e) for s, e in self._exon_indices]
 
     @property
     def introns(self):
-        return [self._get_sequence_slice(start, end) for start, end in self.intron_indices]
+        return [self._get_sequence_slice(s, e) for s, e in self._intron_indices]
 
     @property
     def exon_concat(self):
         return "".join(self.exons)
 
     def __repr__(self):
-        # Since __dict__ no longer exists with __slots__,
-        # we manually iterate the slots for the representation.
-        lines = ["LocusInfo:"]
-        for field in self.__slots__:
-            lines.append(f"  {field}: {getattr(self, field)}")
-        return "\n".join(lines)
+        # A list comprehension here is faster than a loop with .append()
+        lines = [f"  {field}: {getattr(self, field)}" for field in self.__slots__]
+        return "LocusInfo:\n" + "\n".join(lines)

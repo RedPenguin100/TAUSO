@@ -82,8 +82,8 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
 
         coords_2d = gen_coords[:, None]
 
-        exons = np.array(locus_info.exon_indices)
-        introns = np.array(locus_info.intron_indices)
+        exons = np.array(locus_info._exon_indices)
+        introns = np.array(locus_info._intron_indices)
         utrs = np.array(locus_info.utr_indices)
 
         # Original 2D broadcasting

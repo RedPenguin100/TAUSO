@@ -1,10 +1,14 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 def filter_gtf_genes(db, filter_mode):
     """
     Scans the GTF database and returns a set of gene names matching the criteria.
     """
     allowed_names = set()
 
-    print(f"Querying GTF database for {filter_mode} genes...")
+    logger.info(f"Querying GTF database for {filter_mode} genes...")
 
     # Iterate over all features of type 'gene'
     # Note: adjust 'gene' to 'transcript' if your GTF is transcript-level only,
