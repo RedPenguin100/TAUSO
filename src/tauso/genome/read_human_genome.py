@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 
 from ..data.data import load_db, load_genome
 from ..timer import Timer
@@ -16,8 +17,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         fasta_dict = load_genome(genome)
     logger.debug(f"[Get_Locus] Loaded fasta dict in: {t.elapsed_time}s")
 
-    locus_to_data = dict()
-    locus_to_strand = dict()
+    locus_to_data = defaultdict(LocusInfo)
 
     basic_features = ("exon", "gene", "UTR")
     feature_types = ("exon", "gene", "UTR", "intron") if include_introns else basic_features
@@ -25,6 +25,8 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     iterator = []
 
     # If we have specific genes, don't scan the whole genome.
+    target_names = None
+
     if gene_subset:
         target_names = set(gene_subset)
 
@@ -53,24 +55,18 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             raise ValueError(f"Multiple loci: {locus_tags}")
         locus_tag = locus_tags[0]
 
-        if gene_subset is not None and locus_tag not in gene_subset:
+        if target_names and locus_tag not in target_names:
             continue
 
-        if locus_tag not in locus_to_data:
-            locus_info = LocusInfo()
-            locus_to_data[locus_tag] = locus_info
-        else:
-            locus_info = locus_to_data[locus_tag]
+        locus_info = locus_to_data[locus_tag] # defaultdict will assign the default if missing
 
         locus_info.strand = StrandType.from_string(feature.strand)
 
         if feature.featuretype == "exon":
             locus_info.add_exon_indices(feature.start - 1, feature.end)
-            locus_to_strand[locus_tag] = locus_info.strand
 
         elif feature.featuretype == "intron" and include_introns:
             locus_info.add_intron_indices(feature.start - 1, feature.end)
-            locus_to_strand[locus_tag] = locus_info.strand
 
         elif feature.featuretype == "gene":
             # We ONLY pull the sequence into memory at the Gene level
@@ -83,7 +79,6 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             locus_info.gene_start = feature.start - 1
             locus_info.gene_end = feature.end
             locus_info.full_mrna = seq
-            locus_to_strand[locus_tag] = locus_info.strand
 
             raw_type_list = feature.attributes.get("gene_type", feature.attributes.get("gene_biotype", []))
             raw_type_str = raw_type_list[0] if raw_type_list else "unannotated"
@@ -103,7 +98,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         if include_introns:
             locus_info._intron_indices.sort()
 
-        if locus_to_strand.get(locus_tag) == StrandType.NEG:
+        if locus_info.strand == StrandType.NEG:
             locus_info._exon_indices.reverse()
             if include_introns:
                 locus_info._intron_indices.reverse()
