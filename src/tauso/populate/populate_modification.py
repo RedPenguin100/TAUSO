@@ -1,6 +1,9 @@
+import logging
 import multiprocessing
 
 from pandarallel import pandarallel
+
+logger = logging.getLogger(__name__)
 
 from ..data.consts import CHEMICAL_PATTERN
 from ..features.sequence_modification.mod_features import (
@@ -81,10 +84,9 @@ def populate_modifications(df, n_cores=None, features_to_run=None):  # Added fea
         logic = MODIFICATION_FEATURE_TO_CALCULATION.get(feature)
 
         if callable(logic):
-            print(f"Calculating: {feature}")
-            # Note: ensure CHEMICAL_PATTERN constant is accessible here
+            logger.debug("Calculating: %s", feature)
             all_data[feature] = apply_func(logic, axis=1)
         else:
-            print(f"Warning: {feature} logic not found or not callable. Skipping.")
+            logger.warning("Feature '%s' logic not found or not callable. Skipping.", feature)
 
     return all_data, features_to_run

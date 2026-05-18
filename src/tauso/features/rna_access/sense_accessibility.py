@@ -1,4 +1,8 @@
+import logging
+
 from .access_calculator import AccessCalculator
+
+logger = logging.getLogger(__name__)
 
 
 def compute_sense_accessibility_value(
@@ -17,7 +21,7 @@ def compute_sense_accessibility_value(
     try:
         # Skip invalid rows
         if sense_start == -1:
-            print("Sense start bad!")
+            logger.debug("Sense start is -1, skipping row")
             return 0
 
         # Calculate accessibility
@@ -45,5 +49,5 @@ def compute_sense_accessibility_value(
             # print(f"sense_end_in_flank: {sense_end_in_flank}")
             return 0
     except Exception as e:
-        print(f"Error at {sense_start}, {sense_length} | error: {e}")
+        logger.warning("Error at sense_start=%s, sense_length=%s: %s", sense_start, sense_length, e)
         return 0

@@ -1,8 +1,11 @@
+import logging
 import multiprocessing
 import os
 import subprocess
 import tempfile
 from concurrent.futures import ProcessPoolExecutor
+
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 from Bio.Seq import Seq
@@ -164,8 +167,8 @@ def populate_oligowalk(df: pd.DataFrame, gene_data: dict, window_size: int = 800
         num_workers = max(1, multiprocessing.cpu_count() - 2)
 
     datapath = _infer_datapath()
-    print(f"Inferred DATAPATH: {datapath}")
-    print(f"Running OligoWalk on {len(df)} candidates using {num_workers} parallel workers...")
+    logger.info("Inferred DATAPATH: %s", datapath)
+    logger.info("Running OligoWalk on %d candidates using %d parallel workers...", len(df), num_workers)
 
     # Convert dataframe rows to list of tuples (idx, dict)
     rows_to_process = [(idx, row.to_dict()) for idx, row in df.iterrows()]

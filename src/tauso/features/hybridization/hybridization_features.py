@@ -1,6 +1,10 @@
+import logging
+
 from ...util import get_nucleotide_watson_crick
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
+
+logger = logging.getLogger(__name__)
 
 # https://pmc.ncbi.nlm.nih.gov/articles/PMC9116672/#ack1
 
@@ -153,7 +157,7 @@ def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter="L"):
                 total_dH += params[key]["dH"]
                 total_dS += params[key]["dS"]
             else:
-                print("Whoops")
+                logger.warning("Unknown key in weights table: %s", key)
 
     # Final dG calculation
     total_dG = total_dH - (temp_k * (total_dS / 1000.0))
@@ -203,7 +207,7 @@ def calculate_dna(antisense, temp_c=37.0):
             total_dH += DNA_DNA_WEIGHTS[key]["dH"]
             total_dS += DNA_DNA_WEIGHTS[key]["dS"]
         else:
-            print("Whoops")
+            logger.warning("Unknown key in weights table: %s", key)
 
     # Final dG calculation
     total_dG = total_dH - (temp_k * (total_dS / 1000.0))

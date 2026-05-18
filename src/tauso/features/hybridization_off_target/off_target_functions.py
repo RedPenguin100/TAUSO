@@ -1,8 +1,11 @@
+import logging
 import pickle
 from io import StringIO
 
 import pandas as pd
 from Bio import SeqIO
+
+logger = logging.getLogger(__name__)
 
 """
 This file contains helper functions both getting the mRNA sequences and for off-target calculations
@@ -90,7 +93,7 @@ def parse_gtf(gtf_path, cache_path=None):
         with open(cache_path, "wb") as f:
             pickle.dump(annotations, f)
 
-    print("Read GTF file")
+    logger.info("Read GTF file")
     return annotations
 
 
@@ -101,7 +104,7 @@ def parse_fasta(fasta_path, output_pickle):
         chrom_id = record.id.split()[0]  # e.g., "1", "KI270728.1", "GL000225.1"
         fasta_dict[chrom_id] = str(record.seq).upper()
 
-    print(f"✅ Saved {len(fasta_dict)} main chromosomes to {output_pickle}")
+    logger.info("Saved %d main chromosomes to %s", len(fasta_dict), output_pickle)
     with open(output_pickle, "wb") as f:
         pickle.dump(fasta_dict, f)
 

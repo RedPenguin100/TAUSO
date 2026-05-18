@@ -1,7 +1,10 @@
+import logging
 import os
 import re
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from ...common.gtf import filter_gtf_genes
 from ...data.data import load_db
@@ -23,7 +26,7 @@ def get_top_expressed_genes(file_path, n_top=300):
         target_col = next((c for c in header if "expression_norm" in c), None)
 
         if not target_col:
-            print(f"Warning: 'expression_norm' column missing in {file_path.name}")
+            logger.warning("'expression_norm' column missing in %s", file_path.name)
             return []
 
         # 2. Load only necessary columns
@@ -43,7 +46,7 @@ def get_top_expressed_genes(file_path, n_top=300):
         return top_genes
 
     except Exception as e:
-        print(f"Error reading {file_path.name}: {e}")
+        logger.error("Error reading %s: %s", file_path.name, e)
         return []
 
 
@@ -72,8 +75,8 @@ def load_cell_line_gene_maps(
     # The gene must be biologically valid (GTF) AND technically valid (in your DB/Mapper)
     final_valid_genes = set(valid_db_genes).intersection(gtf_allowed_genes)
 
-    print(f"Filter Ready: {len(final_valid_genes)} genes passed specificiation ({filter_mode}).")
-    print("Processing cell lines...")
+    logger.info("Filter Ready: %d genes passed specification (%s).", len(final_valid_genes), filter_mode)
+    logger.info("Processing cell lines...")
 
     cell_line_top_genes = {}
     all_scan_sets = []
@@ -102,7 +105,7 @@ def load_cell_line_gene_maps(
         genes_scan = df.head(n_scan)["Gene"].tolist()
 
         if not genes_scan:
-            print(f"  -> Warning: No valid genes found for {cell_name}")
+            logger.warning("No valid genes found for %s", cell_name)
             continue
 
         # 1. Specific Set
@@ -113,17 +116,17 @@ def load_cell_line_gene_maps(
         # 2. Intersection Set
         all_scan_sets.append(set(genes_scan[:n_fallback_scan]))
 
-        print(f"  -> {cell_name}: Loaded top {len(genes_specific)} genes.")
+        logger.debug("%s: Loaded top %d genes.", cell_name, len(genes_specific))
 
     # --- Generate Consensus ---
     fallback_genes = []
     if all_scan_sets:
         consensus_genes = set.intersection(*all_scan_sets)
         fallback_genes = list(consensus_genes)
-        print(f"\nFallback Consensus Intersection size: {len(fallback_genes)}")
+        logger.info("Fallback Consensus Intersection size: %d", len(fallback_genes))
         global_fetch_set.update(fallback_genes)
     else:
-        print("\nWarning: No data available for intersection.")
+        logger.warning("No data available for intersection.")
 
     return cell_line_top_genes, fallback_genes, global_fetch_set
 
@@ -134,7 +137,7 @@ def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
     for ach_id in depmap_ids:
         path = os.path.join(expression_dir, f"{ach_id}_expression.csv")
         if not os.path.exists(path):
-            print(f"  -> Warning: No expression data for {ach_id}")
+            logger.warning("No expression data for %s", ach_id)
             continue
 
         # Load and Filter

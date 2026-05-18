@@ -1,4 +1,5 @@
 import gzip
+import logging
 import warnings
 from pathlib import Path
 
@@ -6,6 +7,8 @@ from Bio import SeqIO
 
 from .data.data import get_paths
 from .timer import Timer
+
+logger = logging.getLogger(__name__)
 
 
 def get_fasta_dict_from_path(fasta_path: Path):
@@ -20,7 +23,7 @@ def get_fasta_dict_from_path(fasta_path: Path):
         else:
             with open(str(fasta_path), "r") as handle:
                 fasta_dict = SeqIO.to_dict(SeqIO.parse(handle, "fasta"))
-    print(f"Time took to read fasta: {timer.elapsed_time}")
+    logger.info("Time took to read fasta: %.4fs", timer.elapsed_time)
     return fasta_dict
 
 

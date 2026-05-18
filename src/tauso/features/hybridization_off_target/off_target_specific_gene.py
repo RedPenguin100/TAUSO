@@ -1,8 +1,11 @@
+import logging
 import os
 import uuid
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from ...data.consts import CANONICAL_GENE, SEQUENCE
 from ...util import get_antisense
@@ -47,7 +50,7 @@ def _apply_risearch_scoring(
             pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=verbose_score)
         except ImportError:
             if verbose:
-                print("Warning: 'pandarallel' not found. Falling back to single core.")
+                logger.warning("'pandarallel' not found. Falling back to single core.")
             use_parallel = False
 
     RT = 0.616
