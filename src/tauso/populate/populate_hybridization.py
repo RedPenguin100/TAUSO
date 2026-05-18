@@ -1,6 +1,9 @@
+import logging
 import multiprocessing
 
 from ..data.consts import *
+
+logger = logging.getLogger(__name__)
 from ..features.hybridization.hybridization_features import (
     calc_methylcytosines,
     calculate_cet,
@@ -64,13 +67,13 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
 
         # Only run if logic is a function/lambda
         if callable(logic):
-            print(f"Calculating feature: {feature}...")
+            logger.debug("Calculating feature: %s...", feature)
             all_data[feature] = apply_func(logic, axis=1)
 
     # 3. Run Vectorized Calculations (Fast Post-processing)
     # This avoids redundant function calls for simple arithmetic
     if "DNA_HYBR_DIFF" in features_to_run:
-        print("Calculating vectorized feature: DNA_HYBR_DIFF...")
+        logger.debug("Calculating vectorized feature: DNA_HYBR_DIFF...")
         all_data["DNA_HYBR_DIFF"] = all_data["TOTAL_DNA_HYBR"] - all_data["TOTAL_DNA_RNA_HYBR"]
 
     return all_data, features_to_run

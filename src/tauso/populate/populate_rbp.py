@@ -1,9 +1,13 @@
+import logging
+
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from numba import njit
 from scipy.stats import entropy
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from tauso.features.rbp.RBP_features import (
@@ -128,10 +132,10 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
         )
 
     if not target_tasks:
-        print("Warning: No valid RBP tasks found in PWM DB.")
+        logger.warning("No valid RBP tasks found in PWM DB.")
         return df, []
 
-    print(f"Calculating affinity features for {len(target_tasks)} RBPs on {n_rows} rows...")
+    logger.info("Calculating affinity features for %d RBPs on %d rows...", len(target_tasks), n_rows)
 
     # --- 3. EXECUTION: Parallelize over RBPs, not Rows ---
     # joblib uses 'loky' backend by default, which excels at memory mapping large arrays (background_probs_arr)
@@ -141,14 +145,14 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
     )
 
     # --- 4. AGGREGATION & ASSIGNMENT ---
-    print("Assigning columns...")
+    logger.debug("Assigning columns...")
 
     # Bundle all new columns into a dictionary, then concat once
     new_cols_dict = {col_name: scores for col_name, scores in results}
     df = pd.concat([df, pd.DataFrame(new_cols_dict, index=df.index)], axis=1)
     new_col_names = list(new_cols_dict.keys())
 
-    print(f"Done. Added {len(new_col_names)} affinity features.")
+    logger.info("Done. Added %d affinity features.", len(new_col_names))
     return df, new_col_names
 
 
@@ -207,7 +211,7 @@ def populate_rbp_interaction_features(
             "   Check gene name formats (e.g. 'MYC' vs 'MYC (4609)')."
         )
 
-    print(f"{len(common_cells)} cells, {len(valid_rbps)} valid RBPs found.")
+    logger.info("%d cells, %d valid RBPs found.", len(common_cells), len(valid_rbps))
     # ==========================================
 
     # --- 2. PREPARATION ---
@@ -224,7 +228,7 @@ def populate_rbp_interaction_features(
         if g in gene_to_data:
             background_probs.append(get_background_probs(gene_to_data[g].full_mrna))
         else:
-            print("Using default probabilities for gene: ", g)
+            logger.debug("Using default probabilities for gene: %s", g)
             background_probs.append(default_bg)
 
     n_rows = len(sequences)
@@ -251,10 +255,10 @@ def populate_rbp_interaction_features(
         )
 
     if not target_tasks:
-        print("Warning: No valid RBP tasks remaining after filtering.")
+        logger.warning("No valid RBP tasks remaining after filtering.")
         return df, []
 
-    print(f"Calculating interaction features for {len(target_tasks)} RBPs on {n_rows} rows...")
+    logger.info("Calculating interaction features for %d RBPs on %d rows...", len(target_tasks), n_rows)
 
     # --- 4. PARALLEL WORKER ---
     def process_chunk(chunk_seqs, chunk_cells, chunk_background_probs):
@@ -303,7 +307,7 @@ def populate_rbp_interaction_features(
     )
 
     # --- 6. AGGREGATION ---
-    print("Assigning columns...")
+    logger.debug("Assigning columns...")
     final_columns = {task["col_name"]: [] for task in target_tasks}
 
     for res in results:
@@ -315,7 +319,7 @@ def populate_rbp_interaction_features(
         df[col_name] = values
         new_col_names.append(col_name)
 
-    print(f"Done. Added {len(new_col_names)} interaction features.")
+    logger.info("Done. Added %d interaction features.", len(new_col_names))
     return df, new_col_names
 
 
@@ -352,7 +356,7 @@ def populate_functional_features(df, rbp_map, flank_size=50):
         ]
 
         if not relevant_columns:
-            print(f"Warning: No valid columns found for strict role '{role}'")
+            logger.warning("No valid columns found for strict role '%s'", role)
             continue
 
         # 3. Create the Feature: Sum of Interactions
@@ -417,7 +421,7 @@ def populate_rbp_region(df, region_name, rbp_map, pwm_db, expr_matrix, role_map,
     2. Calculates aggregate Complexity & Functional scores.
     3. Drops the raw columns to return a clean DataFrame.
     """
-    print(f"\n--- Processing Region: {region_name.upper()} ---")
+    logger.info("Processing Region: %s", region_name.upper())
 
     # A. Run the Engine (Generate Raw Features)
     # We assume columns like 'seq_region_left' already exist
@@ -437,7 +441,7 @@ def populate_rbp_region(df, region_name, rbp_map, pwm_db, expr_matrix, role_map,
 
     # C. Cleanup (Drop raw columns immediately)
     df.drop(columns=raw_feats, inplace=True)
-    print(f"Dropped {len(raw_feats)} raw columns for {region_name}.")
+    logger.debug("Dropped %d raw columns for %s.", len(raw_feats), region_name)
 
     # Return DF and list of new columns to save
     return df, complexity_feats + functional_feats

@@ -1,7 +1,10 @@
+import logging
 import os
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def save_feature_internal(df, feature_name, overwrite=False, version=None, saved_dir_func=None):
@@ -36,19 +39,23 @@ def save_feature_internal(df, feature_name, overwrite=False, version=None, saved
 
             if not new_rows.empty:
                 new_rows.to_csv(file_path, mode="a", header=False, index=False)
-                print(f"File exists for '{feature_name}'. Appended {len(new_rows)} new rows.")
+                logger.info("File exists for '%s'. Appended %d new rows.", feature_name, len(new_rows))
             else:
-                print(f"File exists for '{feature_name}' but values are identical (within tolerance). No action taken.")
+                logger.info(
+                    "File exists for '%s' but values are identical (within tolerance). No action taken.", feature_name
+                )
             return
 
-        print(f"!!! Conflict detected for feature: {feature_name} !!!")
-        print(f"Found {len(diff_rows)} differing rows. Top 10 differences:")
-        print(diff_rows[[index, col_new, col_old]].head(10))
-        print("-" * 30)
+        logger.warning("Conflict detected for feature: %s", feature_name)
+        logger.warning(
+            "Found %d differing rows. Top 10 differences:\n%s",
+            len(diff_rows),
+            diff_rows[[index, col_new, col_old]].head(10).to_string(),
+        )
 
         if overwrite:
             sub_df.to_csv(file_path, index=False)
-            print(f"Overwrote feature: {feature_name}")
+            logger.info("Overwrote feature: %s", feature_name)
             return  # Prevent fall-through to the non-existent file block below
         else:
             # 2. Abort on collision
@@ -56,7 +63,7 @@ def save_feature_internal(df, feature_name, overwrite=False, version=None, saved
 
     # 3. Only reached if the file does not exist initially
     sub_df.to_csv(file_path, index=False)
-    print(f"Saved feature: {feature_name}")
+    logger.info("Saved feature: %s", feature_name)
 
 
 def check_saved_features_conflicts(new_sub_df, file_path, feature_name, index):

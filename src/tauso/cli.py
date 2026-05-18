@@ -9,7 +9,6 @@ import shutil
 import subprocess
 import sys
 import time
-import zipfile
 from importlib.resources import files
 from pathlib import Path
 
@@ -82,69 +81,6 @@ def batch_iterator(iterator, batch_size=1000):
         if not batch:
             break
         yield batch
-
-
-@main.command()
-@click.option("--force", is_flag=True, help="Force redownload.")
-def setup_attract(force):
-    """
-    Downloads ATtRACT database.
-    1. Extracts 'pwm.txt' (The matrices).
-    2. Filters 'ATtRACT_db.txt' for Homo sapiens and saves as 'RBS_motifs_Homo_sapiens.csv'.
-    """
-    data_dir = get_data_dir()
-    os.makedirs(data_dir, exist_ok=True)
-
-    # Define output paths
-    metadata_output = os.path.join(data_dir, "RBS_motifs_Homo_sapiens.csv")
-    pwm_output = os.path.join(data_dir, "pwm.txt")
-
-    if os.path.exists(metadata_output) and os.path.exists(pwm_output) and not force:
-        click.echo(f"✓ ATtRACT data already exists in {data_dir}")
-        return
-
-    url = "https://attract.cnic.es/attract/static/ATtRACT.zip"
-    click.echo("Downloading ATtRACT database...")
-
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-
-        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-            # 1. Find and Extract pwm.txt
-            try:
-                pwm_filename = next(name for name in z.namelist() if name.endswith("pwm.txt"))
-                click.echo(f"  Extracting {pwm_filename}...")
-                with z.open(pwm_filename) as source, open(pwm_output, "wb") as target:
-                    target.write(source.read())
-            except StopIteration:
-                raise FileNotFoundError("pwm.txt not found in the archive.")
-
-            # 2. Find and Process ATtRACT_db.txt
-            try:
-                db_filename = next(name for name in z.namelist() if name.endswith("ATtRACT_db.txt"))
-            except StopIteration:
-                raise FileNotFoundError("ATtRACT_db.txt not found in the archive.")
-
-            click.echo(f"  Processing {db_filename}...")
-            with z.open(db_filename) as f:
-                # Read original tab-separated file
-                df = pd.read_csv(f, sep="\t")
-
-                click.echo(f"  Filtering {len(df)} entries for Homo sapiens...")
-                human_df = df[df["Organism"] == "Homo_sapiens"].copy()
-
-                if human_df.empty:
-                    raise ValueError("No Homo_sapiens entries found.")
-
-                # Save as standard CSV
-                human_df.to_csv(metadata_output, index=False)
-                click.echo(f"✓ Saved metadata to {metadata_output}")
-                click.echo(f"✓ Saved matrices to {pwm_output}")
-
-    except Exception as e:
-        click.echo(click.style(f"❌ Error: {e}", fg="red"))
-        sys.exit(1)
 
 
 @main.command()

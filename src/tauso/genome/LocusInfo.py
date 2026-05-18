@@ -26,6 +26,7 @@ class LocusInfo:
             self.full_mrna = seq
 
     def __repr__(self):
-        print("LocusInfo:")
+        lines = ["LocusInfo:"]
         for field, value in self.__dict__.items():
-            print(f"  {field}: {value}")
+            lines.append(f"  {field}: {value}")
+        return "\n".join(lines)

@@ -100,9 +100,6 @@ jobs:
       - name: Setup mRNA half life
         run: tauso setup-mrna-halflife
 
-      - name: Setup Attract DB
-        run: tauso setup-attract
-
       - name: Cache DepMap Data
         id: cache-depmap
         uses: actions/cache@v4

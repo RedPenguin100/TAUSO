@@ -87,6 +87,3 @@ ps_po_g50 = ps_po_g50_raw.to_dict()
 
 ps_diff_g37 = (ps_po_g37_raw - po_po_g37_raw).to_dict()
 ps_diff_g50 = (ps_po_g50_raw - po_po_g50_raw).to_dict()
-
-for key, value in ps_diff_g50.items():
-    print(f"{key},   {100 * value}")

@@ -1,3 +1,4 @@
+import logging
 import os
 
 import gffutils
@@ -6,6 +7,8 @@ from platformdirs import user_data_dir
 from pyfaidx import Fasta
 
 from tauso.timer import Timer
+
+logger = logging.getLogger(__name__)
 
 APP_NAME = "tauso"
 
@@ -67,10 +70,10 @@ def load_gtf_for_assign_gene(gtf_path):
     with Timer("Loading GTF into RAM"):
         gr = pr.read_gtf(gtf_path)
 
-    print(f"Done loading GTF, {len(gr)} rows in gr")
+    logger.info("Done loading GTF, %d rows in gr", len(gr))
 
     gr = gr[gr.Feature == "gene"]
-    print(f"Filtered gene only regions, left with {len(gr)} rows in gr")
+    logger.info("Filtered gene only regions, left with %d rows in gr", len(gr))
 
     return gr
 
