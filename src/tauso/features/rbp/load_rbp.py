@@ -6,23 +6,22 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-from ...data.data import get_data_dir
+# Files sourced from ATtRACT.zip (https://attract.cnic.es/attract/static/ATtRACT.zip)
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
 def load_attract_data():
     """
-    Parses the processed ATtRACT files.
+    Parses the bundled ATtRACT files.
     """
 
-    data_dir = get_data_dir()
-
-    # Point to the files created by the CLI
-    csv_path = os.path.join(data_dir, "RBS_motifs_Homo_sapiens.csv")
-    pwm_path = os.path.join(data_dir, "pwm.txt")
+    # Point to the bundled files
+    csv_path = os.path.join(_DATA_DIR, "RBS_motifs_Homo_sapiens.csv")
+    pwm_path = os.path.join(_DATA_DIR, "pwm.txt")
 
     # Check if they exist before running
     if not os.path.exists(csv_path) or not os.path.exists(pwm_path):
-        raise FileNotFoundError("ATtRACT files not found. Please run 'tauso setup-attract' first.")
+        raise FileNotFoundError(f"Bundled ATtRACT files not found in {_DATA_DIR}.")
 
     logger.info("Loading RBP metadata from %s...", csv_path)
 

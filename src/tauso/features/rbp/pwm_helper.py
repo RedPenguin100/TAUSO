@@ -10,6 +10,8 @@ from ...data.consts import CELL_LINE_DEPMAP
 from ...data.data import get_data_dir
 from ..codon_usage.find_cai_reference import load_cell_line_gene_expression
 
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
 
 def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=False):
     # FORCE ARRAY
@@ -89,7 +91,7 @@ def build_rbp_expression_matrix(
     if data_dir is None:
         data_dir = get_data_dir()
 
-    attract_csv_path = os.path.join(data_dir, "RBS_motifs_Homo_sapiens.csv")
+    attract_csv_path = os.path.join(_DATA_DIR, "RBS_motifs_Homo_sapiens.csv")
     expression_dir = os.path.join(data_dir, "processed_expression")
 
     if not os.path.exists(attract_csv_path):
