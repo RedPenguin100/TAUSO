@@ -1,8 +1,11 @@
+import logging
 import os
 
 import numpy as np
 import pandas as pd
 from scipy.stats import gmean
+
+logger = logging.getLogger(__name__)
 
 from ...data.consts import CANONICAL_GENE, CELL_LINE
 from ...data.data import get_data_dir
@@ -16,7 +19,7 @@ def load_halflife_mapping():
     data_dir = get_data_dir()
     path = os.path.join(data_dir, "mrna_half_life.csv.gz")
 
-    print(f"Loading half-life data from {path}...")
+    logger.info("Loading half-life data from %s...", path)
 
     if not os.path.exists(path):
         raise FileNotFoundError(f"Data file not found at {path}. Run 'tauso setup-mrna-halflife' first.")
@@ -68,7 +71,7 @@ def load_halflife_mapping():
     # 9. Convert to Dictionary
     mapping = df_clean.to_dict()
 
-    print(f"Successfully loaded {len(mapping)} specific (Gene+Cell) stability profiles.")
+    logger.info("Successfully loaded %d specific (Gene+Cell) stability profiles.", len(mapping))
     return mapping
 
 
@@ -102,7 +105,7 @@ class HalfLifeProvider:
 
         self.global_count = len(all_values)
 
-        print(f"Provider ready. Global Geometric Mean: {self.global_val:.2f}h (N={self.global_count})")
+        logger.info("Provider ready. Global Geometric Mean: %.2fh (N=%d)", self.global_val, self.global_count)
 
     def get_halflife(self, gene, cell_line):
         """
@@ -209,7 +212,7 @@ def populate_mrna_halflife_features(all_data, provider):
         all_data (pd.DataFrame): Dataframe containing CANONICAL_GENE and CELL_LINE columns.
                       ['mRNA_HalfLife', 'HalfLife_Source', 'Mapped_Cell_Proxy']
     """
-    print(f"Calculating stability features for {len(all_data)} rows...")
+    logger.info("Calculating stability features for %d rows...", len(all_data))
 
     features = ["mRNA_HalfLife", "HalfLife_Source", "Mapped_Cell_Proxy"]
 
@@ -241,5 +244,5 @@ def populate_mrna_halflife_features(all_data, provider):
     # Concatenate the new columns to the main dataframe matching indices
     enriched_df = pd.concat([all_data, features_df], axis=1)
 
-    print("Features populated successfully.")
+    logger.info("Features populated successfully.")
     return enriched_df, features

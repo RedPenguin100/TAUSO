@@ -1,7 +1,10 @@
+import logging
 import os
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from ...data.consts import CELL_LINE_DEPMAP
 from ...data.data import get_data_dir
@@ -16,13 +19,13 @@ def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=
         pwm_matrix = np.array(pwm_matrix)
 
     if debug:
-        print(f"      [AFFINITY-INTERNAL] Matrix Shape: {pwm_matrix.shape}")
-        print(f"      [AFFINITY-INTERNAL] Seq Length: {len(str(sequence))}")
-        print(f"      [AFFINITY-INTERNAL] Sequence Sample: {str(sequence)[:10]}...")
+        logger.debug("[AFFINITY-INTERNAL] Matrix Shape: %s", pwm_matrix.shape)
+        logger.debug("[AFFINITY-INTERNAL] Seq Length: %d", len(str(sequence)))
+        logger.debug("[AFFINITY-INTERNAL] Sequence Sample: %s...", str(sequence)[:10])
 
     if pd.isna(sequence) or len(sequence) == 0:
         if debug:
-            print("      [AFFINITY-INTERNAL] ❌ Empty/NaN Sequence")
+            logger.debug("[AFFINITY-INTERNAL] Empty/NaN Sequence")
         return 0.0
 
     if background_probs is None:
@@ -40,7 +43,7 @@ def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=
 
     if seq_len < motif_len:
         if debug:
-            print(f"      [AFFINITY-INTERNAL] ❌ Seq too short ({seq_len} < {motif_len})")
+            logger.debug("[AFFINITY-INTERNAL] Seq too short (%d < %d)", seq_len, motif_len)
         return 0.0
 
     total_score = 0.0
@@ -59,7 +62,7 @@ def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=
             total_score += score
 
     if debug:
-        print(f"      [AFFINITY-INTERNAL] ✅ Final Score: {total_score}")
+        logger.debug("[AFFINITY-INTERNAL] Final Score: %f", total_score)
 
     return total_score
 
@@ -96,7 +99,7 @@ def build_rbp_expression_matrix(
         raise FileNotFoundError(f"CRITICAL: Expression directory not found at {expression_dir}")
 
     # --- 2. MAP MATRIX ID -> GENE NAME ---
-    print(f"Loading metadata from {attract_csv_path} to map Matrix IDs to Gene Names...")
+    logger.info("Loading metadata from %s to map Matrix IDs to Gene Names...", attract_csv_path)
     meta_df = pd.read_csv(attract_csv_path)
 
     # Filter metadata to only include the matrices currently in your pwm_db
@@ -108,11 +111,11 @@ def build_rbp_expression_matrix(
 
     # Get the unique list of REAL Gene names
     target_gene_names = filtered_meta["Gene_name"].unique().tolist()
-    print(f"Mapped {len(valid_matrix_ids)} matrices to {len(target_gene_names)} unique gene names.")
+    logger.info("Mapped %d matrices to %d unique gene names.", len(valid_matrix_ids), len(target_gene_names))
 
     # --- 3. LOAD EXPRESSION DATA ---
     unique_cell_ids = list(set(cell_lines))
-    print(f"Loading expression for {len(unique_cell_ids)} cell lines...")
+    logger.info("Loading expression for %d cell lines...", len(unique_cell_ids))
 
     # Use existing function to load raw data
     transcriptomes = load_cell_line_gene_expression(
@@ -128,7 +131,7 @@ def build_rbp_expression_matrix(
         )
 
     # --- 4. CREATE EXPRESSION MATRIX ---
-    print("Building lookup matrix...")
+    logger.info("Building lookup matrix...")
     expr_list = []
 
     for ach_id, df_expr in transcriptomes.items():
@@ -158,5 +161,5 @@ def build_rbp_expression_matrix(
     if expression_matrix.empty:
         raise ValueError("CRITICAL: Final expression matrix is empty!")
 
-    print(f"Success. Expression matrix ready: {expression_matrix.shape}")
+    logger.info("Success. Expression matrix ready: %s", expression_matrix.shape)
     return expression_matrix

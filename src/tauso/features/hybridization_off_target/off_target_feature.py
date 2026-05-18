@@ -1,7 +1,11 @@
+import logging
+
 import numpy as np
 import pandas as pd
 
 from ...data.consts import CELL_LINE_DEPMAP
+
+logger = logging.getLogger(__name__)
 from .add_off_target_feat import compute_single_row
 
 
@@ -30,7 +34,7 @@ def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_lis
 
     for top_n in top_n_list:
         for cutoff in cutoff_list:
-            print(f"Running Specific Config: TopN={top_n}, Cutoff={cutoff}")
+            logger.debug("Running Specific Config: TopN=%d, Cutoff=%d", top_n, cutoff)
             spec_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=True)
 
             # Container for the results
@@ -147,7 +151,7 @@ def populate_off_target_general(
             )
 
         for cutoff in cutoff_list:
-            print(f"Running config: TopN={top_n}, Cutoff={cutoff}")
+            logger.debug("Running config: TopN=%d, Cutoff=%d", top_n, cutoff)
             gen_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=False)
 
             # 2. Parallel vs Single-Core Execution
@@ -208,15 +212,15 @@ def populate_off_target_specific_per_rank(
     # Structure: accumulator[column_name] = [series_group1, series_group2, ...]
     accumulator = {}
 
-    print(f"Grouping by cell line to calculate specific ranks 1 to {max_rank}...")
+    logger.info("Grouping by cell line to calculate specific ranks 1 to %d...", max_rank)
     grouped = ASO_df.groupby(CELL_LINE_DEPMAP)
 
     for cell_line, group_df in grouped:
         if verbose:
-            print("Analyzing cell line: ", cell_line)
+            logger.debug("Analyzing cell line: %s", cell_line)
         # 1. Validation: Check if we have data for this cell line
         if cell_line not in cell_line2data:
-            print(f"Warning! missing cell line: {cell_line}")
+            logger.warning("Missing cell line: %s", cell_line)
             # Missing context: fill this group with NaNs later
             continue
 
@@ -232,7 +236,7 @@ def populate_off_target_specific_per_rank(
         # Iterate 0 to max_rank-1 (i.e., Rank 1 to Rank N)
         for rank_idx in range(max_rank):
             if verbose:
-                print(f"Rank: {rank_idx}")
+                logger.debug("Rank: %d", rank_idx)
             current_rank = rank_idx + 1  # 1-based index for naming
 
             # If the cell line has fewer genes than the requested rank, skip or fill 0
@@ -245,7 +249,7 @@ def populate_off_target_specific_per_rank(
             gene_row = specific_df.iloc[rank_idx]
             gene_name = gene_row["Gene"].split()[0]
             if verbose:
-                print("Analyzing gene: ", gene_name)
+                logger.debug("Analyzing gene: %s", gene_name)
             # Expression value tuple: (TPM, Norm)
             exp_val_tuple = (
                 gene_row.get("expression_TPM", 0),
@@ -308,7 +312,7 @@ def populate_off_target_specific_per_rank(
                     feature_names.extend([col_score, col_gene, col_exp])
 
     # 4. Reassemble Dataframe
-    print("Reassembling chunks...")
+    logger.debug("Reassembling chunks...")
     for col_name, chunks in accumulator.items():
         if chunks:
             full_series = pd.concat(chunks)

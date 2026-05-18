@@ -1,7 +1,10 @@
+import logging
 import time
 from typing import Iterable, Optional, Tuple
 
 from Bio.SeqUtils import gc_fraction
+
+logger = logging.getLogger(__name__)
 
 from ..data.consts import SEQUENCE
 from ..features.sequence.seq_features import *
@@ -63,8 +66,7 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     """
     start_time = time.time()
 
-    if verbose:
-        print(f"► Starting {col_name}...")
+    logger.debug("Starting %s...", col_name)
 
     series = df[SEQUENCE]
     try:
@@ -75,9 +77,8 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     except Exception:
         df[col_name] = series.apply(func)
 
-    if verbose:
-        duration = time.time() - start_time
-        print(f"✔ Finished {col_name} | Time: {duration:.2f}s\n")
+    duration = time.time() - start_time
+    logger.debug("Finished %s | Time: %.2fs", col_name, duration)
 
 
 def populate_sequence_features(
@@ -111,14 +112,12 @@ def populate_sequence_one_hot_encoded(
     """
     start_time = time.time()
 
-    if verbose:
-        print(f"► Starting One-Hot Encoding with Zero-Padding...")
+    logger.debug("Starting One-Hot Encoding with Zero-Padding...")
 
     # 1. Determine max length for padding (if not manually provided)
     if max_len is None:
         max_len = int(df[SEQUENCE].str.len().max())
-        if verbose:
-            print(f"  ↳ Determined max_len automatically: {max_len}")
+        logger.debug("Determined max_len automatically: %d", max_len)
 
     # 2. Map nucleotides to lists (includes U for RNA compatibility)
     # Unknowns or Ns will map to [0, 0, 0, 0]
@@ -175,8 +174,7 @@ def populate_sequence_one_hot_encoded(
     # Concat the new features back to the main dataframe
     df = pd.concat([df, encoded_df], axis=1)
 
-    if verbose:
-        duration = time.time() - start_time
-        print(f"✔ Finished One-Hot Encoding | Added {len(feature_names)} features | Time: {duration:.2f}s\n")
+    duration = time.time() - start_time
+    logger.debug("Finished One-Hot Encoding | Added %d features | Time: %.2fs", len(feature_names), duration)
 
     return df, feature_names

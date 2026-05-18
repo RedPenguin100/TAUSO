@@ -1,7 +1,10 @@
+import logging
 import os
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from ...data.data import get_data_dir
 
@@ -21,7 +24,7 @@ def load_attract_data():
     if not os.path.exists(csv_path) or not os.path.exists(pwm_path):
         raise FileNotFoundError("ATtRACT files not found. Please run 'tauso setup-attract' first.")
 
-    print(f"Loading RBP metadata from {csv_path}...")
+    logger.info("Loading RBP metadata from %s...", csv_path)
 
     # NOTE: We now read the CSV created by setup_attract (comma-separated)
     df = pd.read_csv(csv_path)
@@ -30,7 +33,7 @@ def load_attract_data():
     # (No need to filter for Organism here, it was done in setup_attract)
     rbp_to_matrices = df.groupby("Gene_name")["Matrix_id"].apply(list).to_dict()
 
-    print(f"Loading PWM matrices from {pwm_path}...")
+    logger.info("Loading PWM matrices from %s...", pwm_path)
     pwms = {}
     current_matrix_id = None
     matrix_data = []
@@ -58,5 +61,5 @@ def load_attract_data():
         if current_matrix_id and matrix_data:
             pwms[current_matrix_id] = np.array(matrix_data)
 
-    print(f"Loaded {len(pwms)} PWMs covering {len(rbp_to_matrices)} unique RBPs.")
+    logger.info("Loaded %d PWMs covering %d unique RBPs.", len(pwms), len(rbp_to_matrices))
     return rbp_to_matrices, pwms

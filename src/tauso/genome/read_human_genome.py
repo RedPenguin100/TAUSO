@@ -1,4 +1,5 @@
 import bisect
+import logging
 
 from Bio.Seq import Seq
 
@@ -6,20 +7,22 @@ from ..data.data import load_db, load_genome
 from ..timer import Timer
 from .LocusInfo import LocusInfo
 
+logger = logging.getLogger(__name__)
+
 
 def cond_print(text, verbose=False):
     if verbose:
-        print(text)
+        logger.debug("%s", text)
 
 
 def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh38"):
     with Timer() as t:
         db = load_db(genome)
-    print("Elapsed DB: ", t.elapsed_time)
+    logger.debug("Elapsed DB: %.4fs", t.elapsed_time)
     fasta_dict = load_genome(genome)
-    print("Elapsed Fasta: ", t.elapsed_time)
+    logger.debug("Elapsed Fasta: %.4fs", t.elapsed_time)
 
-    print("Length: ", len(fasta_dict))
+    logger.debug("Fasta length: %d", len(fasta_dict))
 
     locus_to_data = dict()
     locus_to_strand = dict()
@@ -121,7 +124,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         elif feature.featuretype == "stop_codon":
             locus_info.stop_codons.append((feature.start, feature.end))
         else:
-            print("Feature type: ", feature.featuretype)
+            logger.debug("Unhandled feature type: %s", feature.featuretype)
 
     for locus_tag in locus_to_data:
         locus_info = locus_to_data[locus_tag]

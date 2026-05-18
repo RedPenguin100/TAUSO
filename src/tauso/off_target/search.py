@@ -13,15 +13,7 @@ import pyranges as pr
 from ..data.data import get_paths, load_db, load_gtf_for_assign_gene
 from ..timer import Timer
 
-# TODO: standardize logger in the entire package
-# Setup logger
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler(sys.stderr)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
 
 
 def get_bowtie_index_base(genome="GRCh38", force_rebuild=False, threads=1, mem_per_thread_mb=800):
@@ -400,7 +392,7 @@ def annotate_hits_bulk(hits_list, genome):
         df_res_list = []
 
         for i in range(0, len(df_hits), chunk_size):
-            print(f"  Processing chunk {i} to {i + chunk_size}...")
+            logger.debug("Processing chunk %d to %d...", i, i + chunk_size)
 
             # 1. Slice the dataframe
             df_chunk = df_hits.iloc[i : i + chunk_size]
