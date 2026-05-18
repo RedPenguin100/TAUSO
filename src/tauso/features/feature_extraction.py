@@ -41,11 +41,17 @@ def save_feature_internal(df, feature_name, overwrite=False, version=None, saved
                 new_rows.to_csv(file_path, mode="a", header=False, index=False)
                 logger.info("File exists for '%s'. Appended %d new rows.", feature_name, len(new_rows))
             else:
-                logger.info("File exists for '%s' but values are identical (within tolerance). No action taken.", feature_name)
+                logger.info(
+                    "File exists for '%s' but values are identical (within tolerance). No action taken.", feature_name
+                )
             return
 
         logger.warning("Conflict detected for feature: %s", feature_name)
-        logger.warning("Found %d differing rows. Top 10 differences:\n%s", len(diff_rows), diff_rows[[index, col_new, col_old]].head(10).to_string())
+        logger.warning(
+            "Found %d differing rows. Top 10 differences:\n%s",
+            len(diff_rows),
+            diff_rows[[index, col_new, col_old]].head(10).to_string(),
+        )
 
         if overwrite:
             sub_df.to_csv(file_path, index=False)

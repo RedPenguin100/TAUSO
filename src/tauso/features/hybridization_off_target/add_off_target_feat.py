@@ -54,7 +54,9 @@ def compute_single_row(row, general_seq_map, general_exp_map, cutoff, method):
     result_df_agg = result_df_agg[result_df_agg["target"] != target_gene]
 
     if result_df_agg.empty:
-        logger.warning("Target gene %s excluded all off-target hits; score set to 0 for ASO %s", target_gene, row[SEQUENCE])
+        logger.warning(
+            "Target gene %s excluded all off-target hits; score set to 0 for ASO %s", target_gene, row[SEQUENCE]
+        )
         return 0
 
     # Extract energies and compute score

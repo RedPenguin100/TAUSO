@@ -69,7 +69,9 @@ class AssetCache:
             return self._rbp_expr_matrix
 
         if cell_lines_depmap != self._cell_lines_depmap:
-            logger.warning("Cells %s differ from cached genes %s, regenerating cache.", cell_lines_depmap, self._genes_u)
+            logger.warning(
+                "Cells %s differ from cached genes %s, regenerating cache.", cell_lines_depmap, self._genes_u
+            )
 
         logger.info("Building RBP expression matrix (happens once)...")
         from tauso.features.rbp.pwm_helper import build_rbp_expression_matrix
