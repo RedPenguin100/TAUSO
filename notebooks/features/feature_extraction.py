@@ -81,6 +81,8 @@ def get_dtype_for_feature(filename, index_col_name):
         "sense_start.csv",
         "sense_start_from_end.csv",
         "sense_utr.csv",
+        "sense_3utr.csv",
+        "sense_5utr.csv",
     ]:
         feat_type = "int"
     elif filename in ["on_target_total_hybridization_0.csv", "on_target_total_hybridization_1200.csv"]:
