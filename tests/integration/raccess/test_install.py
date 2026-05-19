@@ -41,7 +41,7 @@ def test_setup_raccess_custom_dir(temp_data_dir, clean_bin_dir):
     subprocess.run(cmd, check=True, capture_output=True, text=True)
     
     # 1. Check it exists in the data dir
-    raccess_exe = temp_data_dir / "bin" / "run_raccess"
+    raccess_exe = temp_data_dir / "raccess" / "bin" / "run_raccess"
     assert raccess_exe.exists()
     assert os.access(raccess_exe, os.X_OK)
     
@@ -64,7 +64,7 @@ def test_find_raccess_fallback_to_bin(temp_data_dir, clean_bin_dir):
     dummy_exe.chmod(0o755)
     
     # Ensure data dir doesn't have it
-    raccess_in_data = temp_data_dir / "bin" / "run_raccess"
+    raccess_in_data = temp_data_dir / "raccess" / "bin" / "run_raccess"
     assert not raccess_in_data.exists()
     
     # Should find the one in bin/
