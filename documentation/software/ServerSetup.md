@@ -3,6 +3,7 @@ Servers were run on Ubuntu 24.04
 After cloning the webserver, run the following commands to obtain a docker container
 
 
+Installing docker:
 ```
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -16,7 +17,7 @@ sudo apt update
 sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
-Before running docker, we need to create an `.env.local` file, that would be composed of these values 
+After installing docker, before running it, we need to create an `.env.local` file, that would be composed of these values 
 
 ```
 BREVO_API_KEY=... # Key for the BREVO API that is used to send emails
