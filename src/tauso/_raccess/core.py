@@ -2,8 +2,8 @@ import os
 import shutil
 from pathlib import Path
 
-from tauso._raccess.consts import RACCESS_EXE_ENV, RACCESS_EXE_NAME
-from tauso.data.data import get_data_dir
+from ..data.data import get_data_dir
+from .consts import RACCESS_EXE_ENV, RACCESS_EXE_NAME
 
 
 def find_raccess():
@@ -29,4 +29,4 @@ def find_raccess():
     if which:
         return which
 
-    raise RuntimeError(f"raccess not found. Run `tauso install-raccess` or set {RACCESS_EXE_ENV} environment variable.")
+    raise RuntimeError(f"raccess not found. Run `tauso setup-raccess` or set {RACCESS_EXE_ENV} environment variable.")
