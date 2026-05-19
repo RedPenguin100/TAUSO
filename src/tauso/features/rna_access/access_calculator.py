@@ -101,7 +101,7 @@ class AccessCalculator:
             weight_sum = np.sum(weights)
 
             abs_offsets = rel_offsets[None, :] + positions[:, None]  # (n_pos, n_values)
-            vals = cols_np[s][col_len - 1 - abs_offsets]             # (n_pos, n_values)
+            vals = cols_np[s][col_len - 1 - abs_offsets]  # (n_pos, n_values)
             avg_cols[f"{s}_avg"] = (vals * norm_factor * weights).sum(axis=1) / weight_sum
 
         return pd.DataFrame(avg_cols, index=positions)
