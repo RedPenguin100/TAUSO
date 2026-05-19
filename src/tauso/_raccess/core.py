@@ -14,9 +14,9 @@ def find_raccess():
 
     # 2. Look in the data directory (respects TAUSO_DATA_DIR)
     data_dir = Path(get_data_dir())
-    data_path = data_dir / "raccess" / "bin" / RACCESS_EXE_NAME
-    if data_path.exists() and os.access(data_path, os.X_OK):
-        return str(data_path)
+    bin_path = data_dir / "raccess" / "bin" / RACCESS_EXE_NAME
+    if bin_path.exists() and os.access(bin_path, os.X_OK):
+        return str(bin_path)
 
     # 3. Look relative to this file (in case it's built in the repo/package)
     # e.g. tauso/_raccess/bin/run_raccess
