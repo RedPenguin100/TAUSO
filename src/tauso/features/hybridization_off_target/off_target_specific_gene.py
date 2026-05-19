@@ -17,6 +17,14 @@ from ..hybridization.fast_hybridization import (
 )
 from .off_target_functions import parse_risearch_output
 
+_RT = 0.616
+
+
+def _sum_exp_energy_by_trigger(result_df: pd.DataFrame) -> dict:
+    """Return {trigger_id: sum(exp(-RT * energy))} for every trigger in result_df."""
+    exp_vals = np.exp(-_RT * result_df["energy"].to_numpy())
+    return result_df.assign(_exp=exp_vals).groupby("trigger", sort=False)["_exp"].sum().to_dict()
+
 
 def _validate_genes_found(target_genes, gene_to_data):
     not_found_genes = []
@@ -40,7 +48,6 @@ def _apply_risearch_scoring(
     """Core logic for RIsearch hybridization scoring to avoid code duplication."""
     _validate_genes_found(target_genes, gene_to_data)
 
-    RT = 0.616
     TMP_PATH.mkdir(exist_ok=True)
 
     # Pre-compute target files for all required genes (one per gene, reused for all rows)
@@ -88,9 +95,7 @@ def _apply_risearch_scoring(
             if result_df.empty or "energy" not in result_df.columns:
                 continue
 
-            # Vectorized: compute exp(-RT*energy) once, then sum per trigger via groupby
-            result_df = result_df.assign(_exp=np.exp(-RT * result_df["energy"].to_numpy()))
-            score_dict = result_df.groupby("trigger", sort=False)["_exp"].sum().to_dict()
+            score_dict = _sum_exp_energy_by_trigger(result_df)
             del result_df
             for idx, _ in row_triggers:
                 val = score_dict.get(str(idx))
