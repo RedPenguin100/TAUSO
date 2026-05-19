@@ -31,38 +31,21 @@ if [ "${1:-}" = "--force-clone" ] || [ "${1:-}" = "-f" ]; then
 fi
 
 # Now $1 is either the target dir OR empty
-DEFAULT_TARGET="${TAUSO_DATA_DIR:-$HOME/.local/share/tauso}/raccess"
-TARGET_DIR="${1:-$DEFAULT_TARGET}"
+DEFAULT_DATA_DIR="${TAUSO_DATA_DIR:-$HOME/.local/share/tauso}"
+DATA_DIR="${1:-$DEFAULT_DATA_DIR}"
+DATA_DIR="$(readlink -f "$DATA_DIR")"
 
-mkdir -p "$(dirname "$TARGET_DIR")"
-TARGET_DIR="$(readlink -f "$TARGET_DIR")"
+# We'll use a temporary directory for building
+BUILD_DIR=$(mktemp -d)
+trap 'rm -rf "$BUILD_DIR"' EXIT
 
-echo "Installing raccess into: $TARGET_DIR"
+echo "Downloading and building raccess in temporary directory: $BUILD_DIR"
 
-if [ "$FORCE_CLONE" -eq 1 ]; then
-    echo "Force re-clone requested, removing existing directory (if any)..."
-    rm -rf "$TARGET_DIR"
-fi
+echo "Cloning raccess..."
+git clone "$UPSTREAM_URL" "$BUILD_DIR"
+git -C "$BUILD_DIR" checkout -f "$TARGET_COMMIT"
 
-if [ -d "$TARGET_DIR/.git" ]; then
-    # already cloned — check commit
-    local_head=$(git -C "$TARGET_DIR" rev-parse HEAD)
-
-    if [ "$local_head" = "$TARGET_COMMIT" ]; then
-        echo "Already at desired commit $TARGET_COMMIT — nothing to do."
-        exit 0
-    fi
-
-    echo "Existing repo but wrong commit, checking out desired commit..."
-    git -C "$TARGET_DIR" fetch --all
-    git -C "$TARGET_DIR" checkout -f "$TARGET_COMMIT"
-else
-    echo "Cloning raccess..."
-    git clone "$UPSTREAM_URL" "$TARGET_DIR"
-    git -C "$TARGET_DIR" checkout -f "$TARGET_COMMIT"
-fi
-
-cd "$TARGET_DIR"
+cd "$BUILD_DIR"
 
 PATCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/patches"
 
@@ -92,12 +75,18 @@ make clean
 make -j$(nproc)
 
 echo
-echo "raccess built at: $TARGET_DIR/src/raccess/run_raccess"
+echo "raccess built at: $BUILD_DIR/src/raccess/run_raccess"
+
+# Copy to the data directory's bin folder
+mkdir -p "$DATA_DIR/bin"
+cp "$BUILD_DIR/src/raccess/run_raccess" "$DATA_DIR/bin/run_raccess"
+
+echo "Successfully installed executable to: $DATA_DIR/bin/run_raccess"
 
 # Copy to the package bin directory for auto-discovery
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$PACKAGE_DIR/bin"
-cp "$TARGET_DIR/src/raccess/run_raccess" "$PACKAGE_DIR/bin/"
+cp "$BUILD_DIR/src/raccess/run_raccess" "$PACKAGE_DIR/bin/"
 
 echo "Successfully copied executable to: $PACKAGE_DIR/bin/run_raccess"
 echo "It will now be auto-discovered by tauso."
