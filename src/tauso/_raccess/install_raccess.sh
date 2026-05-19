@@ -31,7 +31,9 @@ if [ "${1:-}" = "--force-clone" ] || [ "${1:-}" = "-f" ]; then
 fi
 
 # Now $1 is either the target dir OR empty
-TARGET_DIR="${1:-$HOME/.local/share/tauso/raccess}"
+DEFAULT_TARGET="${TAUSO_DATA_DIR:-$HOME/.local/share/tauso}/raccess"
+TARGET_DIR="${1:-$DEFAULT_TARGET}"
+
 mkdir -p "$(dirname "$TARGET_DIR")"
 TARGET_DIR="$(readlink -f "$TARGET_DIR")"
 
@@ -91,7 +93,13 @@ make -j$(nproc)
 
 echo
 echo "raccess built at: $TARGET_DIR/src/raccess/run_raccess"
-echo "Add this to your shell (e.g. ~/.bashrc):"
-echo "  export RACCESS_EXE=\"$TARGET_DIR/src/raccess/run_raccess\""
+
+# Copy to the package bin directory for auto-discovery
+PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "$PACKAGE_DIR/bin"
+cp "$TARGET_DIR/src/raccess/run_raccess" "$PACKAGE_DIR/bin/"
+
+echo "Successfully copied executable to: $PACKAGE_DIR/bin/run_raccess"
+echo "It will now be auto-discovered by tauso."
 echo
 echo "Done."
