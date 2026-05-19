@@ -42,16 +42,25 @@ def get_paths(genome="GRCh38"):
         "gtf_gz": os.path.join(d, f"{genome}.gtf.gz"),
         "gff": os.path.join(d, f"{genome}.gff3"),
         "gff_gz": os.path.join(d, f"{genome}.gff3.gz"),
-        "db": os.path.join(d, f"{genome}.db"),
+        "gff_db": os.path.join(d, f"{genome}.gff3.db"),
+        "gtf_db": os.path.join(d, f"{genome}.gtf.db"),
     }
 
+def load_gtf_db(genome="GRCh38"):
+    """Returns the gffutils database for the specified genome."""
+    paths = get_paths(genome)
+    if not os.path.exists(paths["gtf_db"]):
+        raise FileNotFoundError(f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
+    return gffutils.FeatureDB(paths["gtf_db"])
 
+
+# TODO: remove this function
 def load_db(genome="GRCh38"):
     """Returns the gffutils database for the specified genome."""
     paths = get_paths(genome)
-    if not os.path.exists(paths["db"]):
+    if not os.path.exists(paths["gtf_db"]):
         raise FileNotFoundError(f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
-    return gffutils.FeatureDB(paths["db"])
+    return gffutils.FeatureDB(paths["gtf_db"])
 
 
 def load_gff_pyranges(genome="GRCh38"):
@@ -75,6 +84,9 @@ def _open_any_gtf(filepath: str, mode: str = "rt"):
     return open(filepath, mode)
 
 
+import subprocess
+import shutil
+
 def _create_filtered_gtf(input_gtf_path: str, output_temp_path: str):
     """Streams a GTF and writes only header and 'gene' lines to the output path."""
 
@@ -92,7 +104,7 @@ def _create_filtered_gtf(input_gtf_path: str, output_temp_path: str):
                 f_out.write(line)
 
 
-def load_gtf_for_assign_gene(gtf_path: str):
+def load_gtf_pyranges_gene_only(gtf_path: str):
     logger.info(f"[Load_GTF_assign_gene] Pre-filtering GTF only for genes {gtf_path}")
 
     # Generate a safe temporary file path

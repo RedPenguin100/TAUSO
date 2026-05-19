@@ -10,15 +10,14 @@ dependencies:
   - ipykernel
   - optuna
   - cupy
-  - seaborn
   - graphviz
   - pip
   - pip:
     - -e .
-    - ruff
   # tooling
   - pytest
   - pytest-regressions
   - pytest-xdist
   - conda-build
   - pandas-stubs
+  - scipy-stubs

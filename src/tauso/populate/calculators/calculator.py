@@ -5,13 +5,14 @@ import pandas as pd
 import psutil
 from pympler import asizeof
 
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
-from tauso.features.feature_extraction import save_feature_internal
-from tauso.populate.calculators.cache import AssetCache
-from tauso.populate.populate_context import populate_transfection
-from tauso.populate.populate_sequence import FEATURE_SPECS, populate_sequence_features
-from tauso.populate.populate_structure import get_populated_df_with_structure_features
-from tauso.timer import Timer
+from ...data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
+from ...features.feature_extraction import save_feature_internal
+from ...features.names import *
+from ...timer import Timer
+from ..populate_context import populate_transfection
+from ..populate_sequence import FEATURE_SPECS, populate_sequence_features
+from ..populate_structure import get_populated_df_with_structure_features
+from .cache import AssetCache
 
 logger = logging.getLogger(__name__)
 
@@ -175,10 +176,17 @@ class Calculator:
             "sense_start",
             "sense_start_from_end",
             "sense_length",
-            "sense_exon",
-            "sense_intron",
-            "sense_utr",
+            SENSE_EXON,
+            SENSE_INTRON,
+            SENSE_UTR,
+            SENSE_3UTR,
+            SENSE_5UTR,
             "sense_type",
+            f"n_{SENSE_EXON}",
+            f"n_{SENSE_INTRON}",
+            f"n_{SENSE_3UTR}",
+            f"n_{SENSE_5UTR}",
+            f"n_{SENSE_UTR}",
         ]
 
         missing = self._get_missing_features(expected_features)

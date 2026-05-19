@@ -40,5 +40,3 @@ dependencies:
   - xgboost
 
   - pandarallel
-  - pip:
-    - pympler

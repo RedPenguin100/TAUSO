@@ -89,7 +89,7 @@ def mapper():
     """Initializes and returns the GeneCoordinateMapper."""
     with Timer("Path & Mapper Initialization"):
         paths = get_paths("GRCh38")
-        return GeneCoordinateMapper(paths["db"])
+        return GeneCoordinateMapper(paths["gtf_db"])
 
 
 @pytest.fixture(scope="session")
@@ -97,6 +97,13 @@ def gene_to_data(target_genes):
     """Fetches the locus to data dictionary based on target genes."""
     with Timer("Get Locus to Data Dict"):
         return get_locus_to_data_dict(include_introns=True, gene_subset=target_genes)
+
+@pytest.fixture(scope="session")
+def gene_to_data_full(target_genes):
+    """Fetches the locus to data dictionary for all genes"""
+    with Timer("Get Locus to Data Dict"):
+        return get_locus_to_data_dict(include_introns=True)
+
 
 
 @pytest.fixture(scope="session")

@@ -10,7 +10,7 @@ import time
 import pandas as pd
 import pyranges as pr
 
-from ..data.data import get_paths, load_db, load_gtf_for_assign_gene
+from ..data.data import get_paths, load_db, load_gtf_pyranges_gene_only
 from ..timer import Timer
 from ..util import log_memory_usage
 
@@ -378,7 +378,7 @@ def annotate_hits_bulk(hits_list, genome):
     if not hits_list:
         return {}
 
-    gr_genome = load_gtf_for_assign_gene(get_paths(genome)["gtf_gz"])
+    gr_genome = load_gtf_pyranges_gene_only(get_paths(genome)["gtf_gz"])
 
     # 1. Convert your raw Bowtie hits to a Pandas DataFrame
     df_hits = pd.DataFrame(hits_list)

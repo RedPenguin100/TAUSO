@@ -154,7 +154,7 @@ if __name__ == "__main__":
     gene_to_data = get_locus_to_data_dict(gene_subset=[target_gene], genome=genome)
 
     paths = get_paths(genome)
-    mapper = GeneCoordinateMapper(paths["db"])
+    mapper = GeneCoordinateMapper(paths["gtf_db"])
 
     ref_registry = build_gene_sequence_registry(genes=[target_gene], gene_to_data=gene_to_data, mapper=mapper)
 
