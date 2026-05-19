@@ -26,6 +26,7 @@ class FileUtil:
 
         # Fallback to the centralized data directory
         from tauso.data.data import get_data_dir
+
         return os.path.join(get_data_dir(), "raccess_output")
 
     @classmethod

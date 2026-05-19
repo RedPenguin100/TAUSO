@@ -29,6 +29,4 @@ def find_raccess():
     if which:
         return which
 
-    raise RuntimeError(
-        f"raccess not found. Run `tauso install-raccess` or set {RACCESS_EXE_ENV} environment variable."
-    )
+    raise RuntimeError(f"raccess not found. Run `tauso install-raccess` or set {RACCESS_EXE_ENV} environment variable.")
