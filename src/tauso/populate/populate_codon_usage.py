@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 from ..data.consts import CANONICAL_GENE, CELL_LINE, standardize_cell_line_name
 from ..data.data import get_data_dir
 from ..features.codon_usage.cai import calc_CAI
@@ -23,7 +25,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     feature_names = []
 
     # 1. Local tAI Scores
-    logging.info("Calculating local tAI scores for CDS windows...")
+    logger.info("Calculating local tAI scores for CDS windows...")
     for flank in cds_windows:
         local_col = f"local_coding_region_around_ASO_{flank}"
 
@@ -38,13 +40,13 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
         feature_names.append(feat_name)
 
     # 2. Global tAI Scores (Registry Lookup)
-    logging.debug(f"Pre-calculating Global tAI for {len(registry)} unique genes...")
+    logger.info("Pre-calculating Global tAI for %d unique genes...", len(registry))
     gene_tai_lookup = {
         gene: calc_tAI(data.get("cds_sequence"), weights) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
-    logging.debug("Mapping Global tAI scores to dataframe...")
+    logger.info("Mapping Global tAI scores to dataframe...")
     df["tAI_score_global_CDS"] = df[CANONICAL_GENE].map(gene_tai_lookup)
     feature_names.append("tAI_score_global_CDS")
 
@@ -80,11 +82,11 @@ def populate_enc(
             # Initialize strictly if using parallelism
             pandarallel.initialize(nb_workers=n_jobs)
         except ImportError:
-            logger.warning("Warning: 'pandarallel' not found. Falling back to single core.")
+            logger.warning("'pandarallel' not found. Falling back to single core.")
             use_parallel = False
 
     # 2. Local ENC Scores
-    logging.debug("Calculating local ENC scores for CDS windows...")
+    logger.info("Calculating local ENC scores for CDS windows...")
 
     for flank in cds_windows:
         local_col = f"local_coding_region_around_ASO_{flank}"
@@ -103,19 +105,19 @@ def populate_enc(
         feature_names.append(enc_col)
 
     # 3. Global ENC Scores (Registry Lookup)
-    logger.debug(f"Pre-calculating Global ENC for {len(registry)} unique genes...")
+    logger.info("Pre-calculating Global ENC for %d unique genes...", len(registry))
 
     gene_enc_lookup = {
         gene: compute_ENC(data.get("cds_sequence")) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
-    logger.debug("Mapping Global ENC scores to dataframe...")
+    logger.info("Mapping Global ENC scores to dataframe...")
 
     df["ENC_score_global_CDS"] = df[CANONICAL_GENE].map(gene_enc_lookup)
     feature_names.append("ENC_score_global_CDS")
 
-    logger.debug("Global ENC Calculation Complete.")
+    logger.info("Global ENC Calculation Complete.")
 
     return df, feature_names
 
@@ -149,7 +151,7 @@ def populate_cai(
     with open(weights_path, "r") as f:
         weight_map = json.load(f)
 
-    logger.debug(f"Loaded CAI profiles for: {list(weight_map.keys())}")
+    logger.info("Loaded CAI profiles for: %s", list(weight_map.keys()))
 
     # 2. Setup Parallelization
     use_parallel = n_jobs > 1
@@ -159,7 +161,7 @@ def populate_cai(
 
             pandarallel.initialize(nb_workers=n_jobs)
         except ImportError:
-            logger.warning("Warning: 'pandarallel' not found. Falling back to single core.")
+            logger.warning("'pandarallel' not found. Falling back to single core.")
             use_parallel = False
 
     # 3. Define Row-Wise Helper
@@ -179,7 +181,7 @@ def populate_cai(
             weights = weight_map[cell_line_name]
         else:
             if cell_line_name not in reported_fallbacks:
-                logger.warning(f"⚠️  Cell line '{cell_line_name}' not found in weights. Using 'Generic' profile.")
+                logger.warning("Cell line '%s' not found in weights. Using 'Generic' profile.", cell_line_name)
                 reported_fallbacks.add(cell_line_name)
             weights = weight_map.get("Generic")
 
@@ -213,7 +215,7 @@ def populate_cai(
         feature_names.append(cai_col)
 
     # 5. Global CAI (Registry Lookup)
-    logger.debug("Calculating Global CDS CAI Scores...")
+    logger.info("Calculating Global CDS CAI Scores...")
 
     def _get_global_cai(row):
         gene = row.get(CANONICAL_GENE)
@@ -231,6 +233,6 @@ def populate_cai(
 
     feature_names.append("CAI_score_global_CDS")
 
-    logger.debug("CAI Calculation Complete.")
+    logger.info("CAI Calculation Complete.")
 
     return df, feature_names

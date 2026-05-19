@@ -46,6 +46,7 @@ def get_paths(genome="GRCh38"):
         "gtf_db": os.path.join(d, f"{genome}.gtf.db"),
     }
 
+
 def load_gtf_db(genome="GRCh38"):
     """Returns the gffutils database for the specified genome."""
     paths = get_paths(genome)
@@ -83,9 +84,6 @@ def _open_any_gtf(filepath: str, mode: str = "rt"):
         return gzip.open(filepath, mode)
     return open(filepath, mode)
 
-
-import subprocess
-import shutil
 
 def _create_filtered_gtf(input_gtf_path: str, output_temp_path: str):
     """Streams a GTF and writes only header and 'gene' lines to the output path."""

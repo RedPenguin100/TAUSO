@@ -1,7 +1,10 @@
+import logging
 import time
 from typing import Iterable, Optional, Tuple
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from ..data.consts import CHEMICAL_PATTERN, SEQUENCE
 from ..features.sequence.seq_chemistry import gap_gc_content, wing_gap_gc_delta
@@ -20,8 +23,7 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     """
     start_time = time.time()
 
-    if verbose:
-        print(f"► Starting {col_name}...")
+    logger.debug("Starting %s...", col_name)
 
     if cpus <= 1:
         # Discard pandarallel when using a single CPU
@@ -40,9 +42,8 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
             # Fallback to standard pandas apply
             df[col_name] = df.apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
 
-    if verbose:
-        duration = time.time() - start_time
-        print(f"✔ Finished {col_name} | Time: {duration:.2f}s\n")
+    duration = time.time() - start_time
+    logger.debug("Finished %s | Time: %.2fs", col_name, duration)
 
 
 def populate_sequence_chemistry_features(

@@ -4,6 +4,8 @@ import pandas as pd
 
 # TODO: move this function to a folder / file about expression
 
+logger = logging.getLogger(__name__)
+
 
 logger = logging.getLogger(__name__)
 

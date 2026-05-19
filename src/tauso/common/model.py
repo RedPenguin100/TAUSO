@@ -1,6 +1,9 @@
+import logging
 from typing import Optional
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from tauso.data.consts import *
 from tauso.genome.read_human_genome import get_locus_to_data_dict
@@ -18,7 +21,7 @@ def get_target_sequence(target_name: str, custom_sequence: Optional[str] = None)
         return custom_sequence.upper().replace("T", "U")
 
     # Use the optimized subset loader from read_human_genome.py
-    print(f"Fetching sequence for {target_name}...")
+    logger.info("Fetching sequence for %s...", target_name)
     locus_data = get_locus_to_data_dict(include_introns=False, gene_subset=[target_name])
 
     if target_name not in locus_data:

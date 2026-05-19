@@ -72,7 +72,7 @@ class Calculator:
         for feature in expected_features:
             file_path = os.path.join(feature_dir, f"{feature}.csv")
             if os.path.exists(file_path):
-                logger.info(f"[Calculator] Skipping '{feature}': CSV already exists.")
+                logger.debug("Skipping '%s': CSV already exists.", feature)
             else:
                 missing.append(feature)
 
@@ -90,7 +90,7 @@ class Calculator:
     def _ensure_genomic_context(self, cds_windows: list):
         """Ensures context columns exist in self.data before running codon algorithms."""
         if not self._context_added:
-            logger.info("[Calculator] Adding external mRNA and genomic context columns...")
+            logger.info("Adding external mRNA and genomic context columns...")
             from tauso.algorithms.genomic_context_windows import add_external_mrna_and_context_columns
 
             mapper = self.cache.get_gene_mapper()
@@ -112,13 +112,13 @@ class Calculator:
         missing = self._get_missing_features(features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} sequence features...")
+            logger.info("Computing %d sequence features...", len(missing))
             self.data, feature_names = populate_sequence_features(self.data, features=missing, cpus=self.cpus)
 
             for feature in feature_names:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All sequence features exist. Skipping.")
+            logger.info("All sequence features exist. Skipping.")
 
     def calculate_basic(self):
         """Calculates fast boolean/categorical and transfection features with dependency checking."""
@@ -130,7 +130,7 @@ class Calculator:
         missing_basic = self._get_missing_features(expected_basic)
 
         if missing_basic:
-            logger.info(f"[Calculator] Computing {len(missing_basic)} basic features...")
+            logger.info("Computing %d basic features...", len(missing_basic))
 
             # Check dependencies BEFORE attempting to compute
             from tauso.data.consts import CELL_LINE_DEPMAP_PROXY, HEPA_PROXIES, MODIFICATION
@@ -149,7 +149,7 @@ class Calculator:
             for feature in missing_basic:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All basic chemistry/hepa features exist. Skipping.")
+            logger.info("All basic chemistry/hepa features exist. Skipping.")
 
         # ==========================================
         # 2. Transfection Features
@@ -158,7 +158,7 @@ class Calculator:
         missing_transfection = self._get_missing_features(expected_transfection)
 
         if missing_transfection:
-            logger.info(f"[Calculator] Computing {len(missing_transfection)} transfection features...")
+            logger.info("Computing %d transfection features...", len(missing_transfection))
 
             # 2. Check Dependency
             self._check_dependencies(["transfection_method"])
@@ -169,7 +169,7 @@ class Calculator:
             for feature in missing_transfection:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All transfection features exist. Skipping.")
+            logger.info("All transfection features exist. Skipping.")
 
     def calculate_structure(self):
         expected_features = [
@@ -192,7 +192,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("[Calculator] Computing structure features...")
+            logger.info("Computing structure features...")
 
             genes_u = self._get_unique_genes()
             gene_to_data = self.cache.get_lean_gene(genes_u=genes_u)
@@ -202,7 +202,7 @@ class Calculator:
             for feature in expected_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All structure features exist. Skipping.")
+            logger.info("All structure features exist. Skipping.")
 
     def calculate_expression(self):
         """Calculates mRNA expression features."""
@@ -211,7 +211,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} expression features...")
+            logger.info("Computing %d expression features...", len(missing))
 
             self._check_dependencies([CELL_LINE_DEPMAP])
             cell_lines_depmap = self.data[CELL_LINE_DEPMAP].dropna().unique().tolist()
@@ -227,7 +227,7 @@ class Calculator:
             for feature in generated_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All expression features exist. Skipping.")
+            logger.info("All expression features exist. Skipping.")
 
     def calculate_rnase(self):
         """Calculates RNase H features."""
@@ -253,7 +253,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} RNase H features...")
+            logger.info("Computing %d RNase H features...", len(missing))
 
             # Lazy import to keep initialization fast
             from tauso.populate.populate_rnase import populate_rnase_features
@@ -265,7 +265,7 @@ class Calculator:
             for feature in generated_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All RNase H features exist. Skipping.")
+            logger.info("All RNase H features exist. Skipping.")
 
     def calculate_off_target_single(self):
         """Calculates specific gene off-target features using the full gene dictionary."""
@@ -280,7 +280,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("[Calculator] Computing specific off-target features...")
+            logger.info("Computing specific off-target features...")
 
             from tauso.features.hybridization_off_target.off_target_specific_gene import (
                 off_target_specific_seq_pandarallel,
@@ -298,7 +298,7 @@ class Calculator:
                     )
                     self._save_calculated_feature(feature_name=feature_name)
         else:
-            logger.info("[Calculator] All specific off-target features exist. Skipping.")
+            logger.info("All specific off-target features exist. Skipping.")
 
     def calculate_on_target_hybridization(self):
         """Calculates on-target total hybridization features."""
@@ -308,7 +308,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} on-target hybridization features...")
+            logger.info("Computing %d on-target hybridization features...", len(missing))
 
             from tauso.features.hybridization_off_target.off_target_specific_gene import on_target_total_hybridization
 
@@ -322,11 +322,11 @@ class Calculator:
                     self.data, generated_name = on_target_total_hybridization(
                         self.data, gene_to_data, cutoff=cutoff, n_jobs=self.cpus, verbose=True
                     )
-                    logger.debug(f"[Calculator] Generated name: {generated_name}")
-                    logger.debug(f"[Calculator] Feature name: {feature_name}")
+                    logger.debug("Generated name: %s", generated_name)
+                    logger.debug("Feature name: %s", feature_name)
                     self._save_calculated_feature(feature_name=feature_name)
         else:
-            logger.info("[Calculator] All on-target hybridization features exist. Skipping.")
+            logger.info("All on-target hybridization features exist. Skipping.")
 
     def calculate_mfe(self):
         """Calculates Minimum Free Energy (MFE) fold features."""
@@ -341,7 +341,7 @@ class Calculator:
         from tauso.data.consts import SENSE_LENGTH, SENSE_START
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} MFE features...")
+            logger.info("Computing %d MFE features...", len(missing))
 
             self._check_dependencies([SENSE_START, SENSE_LENGTH])
 
@@ -361,7 +361,7 @@ class Calculator:
                     for feature in generated_features:
                         self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All MFE features exist. Skipping.")
+            logger.info("All MFE features exist. Skipping.")
 
     def calculate_sense_accessibility(self):
         """Calculates sense accessibility features."""
@@ -376,7 +376,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("[Calculator] Computing sense accessibility features...")
+            logger.info("Computing sense accessibility features...")
 
             # Reuse the lean dictionary securely
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
@@ -387,7 +387,7 @@ class Calculator:
                     c_access = config["access"]
                     c_seeds = config["seeds"]
 
-                    logger.debug(f"[Calculator] Running: Flank={c_flank}, Access={c_access}, Seeds={c_seeds}...")
+                    logger.info("Running: Flank=%d, Access=%d, Seeds=%s...", c_flank, c_access, c_seeds)
 
                     self.data, generated_name = populate_sense_accessibility_batch(
                         self.data,
@@ -400,9 +400,9 @@ class Calculator:
                     )
 
                     self._save_calculated_feature(feature_name=generated_name)
-                    logger.info(f"[Calculator] Saved: {generated_name}")
+                    logger.info("Saved: %s", generated_name)
         else:
-            logger.info("[Calculator] All sense accessibility features exist. Skipping.")
+            logger.info("All sense accessibility features exist. Skipping.")
 
     def calculate_sequence_one_hot(self):
         """Calculates one-hot encoded sequence features."""
@@ -421,7 +421,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("[Calculator] Computing sequence one-hot features...")
+            logger.info("Computing sequence one-hot features...")
             from tauso.populate.populate_sequence import populate_sequence_one_hot_encoded
 
             # Pass max_len so it strictly aligns with our expected features
@@ -432,7 +432,7 @@ class Calculator:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All sequence one-hot features exist. Skipping.")
+            logger.info("All sequence one-hot features exist. Skipping.")
 
     def calculate_sequence_chemistry(self):
         """Calculates sequence chemistry features."""
@@ -442,7 +442,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} sequence chemistry features...")
+            logger.info("Computing %d sequence chemistry features...", len(missing))
             from tauso.populate.populate_sequence_chemistry import populate_sequence_chemistry_features
 
             # Pass only the missing features to avoid redundant calculations
@@ -453,7 +453,7 @@ class Calculator:
             for feature in generated_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All sequence chemistry features exist. Skipping.")
+            logger.info("All sequence chemistry features exist. Skipping.")
 
     def calculate_hybridization(self):
         """Calculates hybridization features."""
@@ -467,7 +467,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} hybridization features...")
+            logger.info("Computing %d hybridization features...", len(missing))
             from tauso.populate.populate_hybridization import populate_hybridization
 
             # Pass `missing` so it ONLY computes the deltas
@@ -478,7 +478,7 @@ class Calculator:
             for feature in generated_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All hybridization features exist. Skipping.")
+            logger.info("All hybridization features exist. Skipping.")
 
     def calculate_modification(self):
         """Calculates modification features."""
@@ -489,7 +489,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} modification features...")
+            logger.info("Computing %d modification features...", len(missing))
             from tauso.populate.populate_modification import populate_modifications
 
             # Pass `missing` to `features_to_run` so it ONLY computes the deltas
@@ -500,7 +500,7 @@ class Calculator:
             for feature in generated_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All modification features exist. Skipping.")
+            logger.info("All modification features exist. Skipping.")
 
     def calculate_backbone_features(self):
         """Calculates features derived from the PS_PATTERN backbone."""
@@ -508,7 +508,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} backbone features...")
+            logger.info("Computing %d backbone features...", len(missing))
             import re
 
             from tauso.data.consts import PS_PATTERN
@@ -549,7 +549,7 @@ class Calculator:
             for feature in missing:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All backbone features exist. Skipping.")
+            logger.info("All backbone features exist. Skipping.")
 
     def calculate_ribo_seq(self):
         """Calculates ribosome profiling (Ribo-seq) features."""
@@ -567,7 +567,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} Ribo-seq features...")
+            logger.info("Computing %d Ribo-seq features...", len(missing))
             from tauso.features.context.ribo_seq import add_genomic_coordinates
             from tauso.populate.populate_context import populate_ribo_seq
 
@@ -581,7 +581,7 @@ class Calculator:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All Ribo-seq features exist. Skipping.")
+            logger.info("All Ribo-seq features exist. Skipping.")
 
     def calculate_cub(self):
         """Calculates all Codon Usage Bias (CUB) features: tAI, CAI, and ENC."""
@@ -599,10 +599,10 @@ class Calculator:
 
         # 3. If nothing is missing, skip everything
         if not any([missing_tai, missing_cai, missing_enc]):
-            logger.info("[Calculator] All Codon Usage Bias (CUB) features exist. Skipping.")
+            logger.info("All Codon Usage Bias (CUB) features exist. Skipping.")
             return
 
-        logger.info("[Calculator] Computing Codon Usage Bias (CUB) features...")
+        logger.info("Computing Codon Usage Bias (CUB) features...")
 
         from tauso.data.consts import SENSE_START
 
@@ -614,7 +614,7 @@ class Calculator:
 
         # 5. Execute conditionally based on what is missing
         if missing_tai:
-            logger.info(f"[Calculator] Computing {len(missing_tai)} tAI features...")
+            logger.info("Computing %d tAI features...", len(missing_tai))
             from tauso.populate.populate_codon_usage import populate_tai
 
             self.data, generated_features = populate_tai(self.data, cds_windows, registry)
@@ -623,7 +623,7 @@ class Calculator:
                     self._save_calculated_feature(feature_name=feature)
 
         if missing_cai:
-            logger.info(f"[Calculator] Computing {len(missing_cai)} CAI features...")
+            logger.info("Computing %d CAI features...", len(missing_cai))
             from tauso.populate.populate_codon_usage import populate_cai
 
             self.data, generated_features = populate_cai(self.data, cds_windows, registry, n_jobs=self.cpus)
@@ -632,7 +632,7 @@ class Calculator:
                     self._save_calculated_feature(feature_name=feature)
 
         if missing_enc:
-            logger.info(f"[Calculator] Computing {len(missing_enc)} ENC features...")
+            logger.info("Computing %d ENC features...", len(missing_enc))
             from tauso.populate.populate_codon_usage import populate_enc
 
             self.data, generated_features = populate_enc(self.data, cds_windows, registry, n_jobs=self.cpus)
@@ -657,7 +657,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} general off-target features...")
+            logger.info("Computing %d general off-target features...", len(missing))
             from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_general
 
             # Load the heavy dictionaries (happens instantly if already in memory)
@@ -686,7 +686,7 @@ class Calculator:
                     for feature in generated_features:
                         self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All general off-target features exist. Skipping.")
+            logger.info("All general off-target features exist. Skipping.")
 
     def calculate_off_target_specific(self):
         """Calculates cell-line specific off-target hybridization scores."""
@@ -705,7 +705,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} specific off-target features...")
+            logger.info("Computing %d specific off-target features...", len(missing))
             from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_specific
 
             gene_to_data = self.cache.get_full_gene_data()
@@ -732,7 +732,7 @@ class Calculator:
                         for feature in generated_features:
                             self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All specific off-target features exist. Skipping.")
+            logger.info("All specific off-target features exist. Skipping.")
 
     def calculate_mrna_halflife(self):
         """Calculates mRNA stability and half-life features."""
@@ -740,7 +740,7 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info(f"[Calculator] Computing {len(missing)} mRNA half-life features...")
+            logger.info("Computing %d mRNA half-life features...", len(missing))
 
             # Check dependencies BEFORE loading heavy objects
             from tauso.data.consts import CANONICAL_GENE, CELL_LINE
@@ -760,7 +760,7 @@ class Calculator:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("[Calculator] All mRNA half-life features exist. Skipping.")
+            logger.info("All mRNA half-life features exist. Skipping.")
 
     def calculate_rbp(self):
         """Calculates all RBP Affinity, Interaction, Functional, and Regional features."""
@@ -785,10 +785,10 @@ class Calculator:
         missing_reg = self._get_missing_features(expected_regions)
 
         if not any([missing_int, missing_aff, missing_func, missing_reg]):
-            logger.info("[Calculator] All RBP features exist. Skipping.")
+            logger.info("All RBP features exist. Skipping.")
             return
 
-        logger.info("[Calculator] Computing RBP Pipeline...")
+        logger.info("Computing RBP Pipeline...")
 
         # --- THE FIX: Ensure context exists instead of just checking for it ---
         # We pass the standard cds_windows so it matches what CUB needs later/earlier
@@ -813,7 +813,7 @@ class Calculator:
         # BLOCK A: Interaction Features
         # ==========================================
         if missing_int:
-            logger.info("[Calculator] Processing Interaction Features")
+            logger.info("Processing Interaction Features...")
             self.data, ind_feats = populate_rbp_interaction_features(
                 self.data, rbp_map, pwm_db, expression_matrix, gene_to_data, window_col, n_jobs=self.cpus
             )
@@ -827,7 +827,7 @@ class Calculator:
         # BLOCK B: Affinity Features
         # ==========================================
         if missing_aff:
-            logger.info("[Calculator] Processing Affinity Features")
+            logger.info("Processing Affinity Features...")
             self.data, ind_feats = populate_rbp_affinity_features(
                 self.data, rbp_map, pwm_db, gene_to_data, window_col, n_jobs=self.cpus
             )
@@ -841,7 +841,7 @@ class Calculator:
         # BLOCK C: Functional Features
         # ==========================================
         if missing_func:
-            logger.info("[Calculator] Processing Functional Features")
+            logger.info("Processing Functional Features...")
             self.data, functional_features = populate_functional_features(
                 self.data, rbp_role_map_strict, flank_size=flank_size
             )
@@ -852,7 +852,7 @@ class Calculator:
         # BLOCK D: Regional Features
         # ==========================================
         if missing_reg:
-            logger.info("[Calculator] Processing Regional Features")
+            logger.info("Processing Regional Features...")
             import warnings
 
             import pandas as pd
@@ -904,13 +904,12 @@ class Calculator:
 
         if not self.data["error"].isnull().all():
             unique_errors = self.data["error"].dropna().unique()
-            msg = f"Found {len(unique_errors)} unique error types:"
-            logger.info(f"[Calculator] OligoWalk: {msg}")
-            err_str = msg
+            err_str = f"Found {len(unique_errors)} unique error types:"
+            logger.warning(err_str)
             for err in unique_errors:
-                msg = f" - {err}"
-                logger.info(f"[Calculator] OligoWalk: {msg}")
-                err_str += "\n" + msg
+                line = f" - {err}"
+                logger.warning(line)
+                err_str += "\n" + line
             raise ValueError(err_str)
 
         for feature in new_features:
@@ -944,7 +943,7 @@ class Calculator:
             self.calculate_rbp,
         ]
 
-        logger.info(f"[Calculator] Starting pipeline with {len(pipeline_steps)} steps.")
+        logger.info("=== Starting pipeline with %d steps ===", len(pipeline_steps))
 
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')

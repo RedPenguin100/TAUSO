@@ -14,15 +14,7 @@ from ..data.data import get_paths, load_db, load_gtf_pyranges_gene_only
 from ..timer import Timer
 from ..util import log_memory_usage
 
-# TODO: standardize logger in the entire package
-# Setup logger
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler(sys.stderr)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
 
 
 def get_bowtie_index_base(genome="GRCh38", force_rebuild=False, threads=1, mem_per_thread_mb=800):
@@ -179,7 +171,7 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
         "-a",  # Report all valid alignments
         "-S",
         "--sam-nohead",
-        "-x",  # <--- ADD THIS LINE
+        "-x",
         index_base,
         "-c",
         sequence,
@@ -400,7 +392,7 @@ def annotate_hits_bulk(hits_list, genome):
         df_res_list = []
 
         for i in range(0, len(df_hits), chunk_size):
-            logger.debug(f"[Annotate_Hits_Bulk]  Processing chunk {i} to {i + chunk_size}...")
+            logger.debug("Processing chunk %d to %d...", i, i + chunk_size)
 
             # 1. Slice the dataframe
             df_chunk = df_hits.iloc[i : i + chunk_size]

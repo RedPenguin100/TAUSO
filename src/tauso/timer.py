@@ -1,9 +1,11 @@
+import logging
 import time
+
+logger = logging.getLogger(__name__)
 
 
 class Timer:
     def __init__(self, name="Task"):
-        """Initialize with a task name for clear console output."""
         self.name = name
 
     def __enter__(self):
@@ -13,5 +15,4 @@ class Timer:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = time.time()
         self.elapsed_time = self.end_time - self.start_time
-        # Automatically print the duration when the block finishes
-        print(f"[{self.name}] finished in {self.elapsed_time:.4f}s")
+        logger.info("[%s] finished in %.4fs", self.name, self.elapsed_time)

@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 
+logger = logging.getLogger(__name__)
+
 from ..data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
 from ..features.rna_access.access_calculator import (
@@ -71,7 +73,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     feature_names = []
     for setting in settings:
         flank_size, window_size, step = setting
-        logger.debug(f"Starting MFE population with Flank={flank_size}, Window={window_size}, Step={step}")
+        logger.debug("Starting MFE population with Flank=%d, Window=%d, Step=%d", flank_size, window_size, step)
 
         feature_name = f"mfe_win{window_size}_flank{flank_size}_step{step}"
         feature_names.append(feature_name)

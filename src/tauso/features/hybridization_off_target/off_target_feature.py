@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 
 from ...data.consts import CELL_LINE_DEPMAP
+
+logger = logging.getLogger(__name__)
 from .add_off_target_feat import compute_single_row
 
 logger = logging.getLogger(__name__)
@@ -35,7 +37,7 @@ def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_lis
 
     for top_n in top_n_list:
         for cutoff in cutoff_list:
-            logger.debug(f"[OT_Populate_Specific] Running Specific Config: TopN={top_n}, Cutoff={cutoff}")
+            logger.debug("Running Specific Config: TopN=%d, Cutoff=%d", top_n, cutoff)
             spec_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=True)
 
             # Container for the results
@@ -152,7 +154,7 @@ def populate_off_target_general(
             )
 
         for cutoff in cutoff_list:
-            logger.debug(f"[OT_Populate_General] Running config: TopN={top_n}, Cutoff={cutoff}")
+            logger.debug("Running config: TopN=%d, Cutoff=%d", top_n, cutoff)
             gen_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=False)
 
             # 2. Parallel vs Single-Core Execution
@@ -235,7 +237,7 @@ def populate_off_target_specific_per_rank(
 
         # Iterate 0 to max_rank-1 (i.e., Rank 1 to Rank N)
         for rank_idx in range(max_rank):
-            logger.debug(f"[OT_Specific_Rank] Rank: {rank_idx}")
+            logger.debug("Rank: %d", rank_idx)
             current_rank = rank_idx + 1  # 1-based index for naming
 
             # If the cell line has fewer genes than the requested rank, skip or fill 0
@@ -247,7 +249,7 @@ def populate_off_target_specific_per_rank(
             # Get the gene data for this specific rank
             gene_row = specific_df.iloc[rank_idx]
             gene_name = gene_row["Gene"].split()[0]
-            logger.debug(f"[OT_Specific_Rank] Analyzing gene: {gene_name}")
+            logger.debug("Analyzing gene: %s", gene_name)
             # Expression value tuple: (TPM, Norm)
             exp_val_tuple = (
                 gene_row.get("expression_TPM", 0),
@@ -310,7 +312,7 @@ def populate_off_target_specific_per_rank(
                     feature_names.extend([col_score, col_gene, col_exp])
 
     # 4. Reassemble Dataframe
-    logger.debug("[OT_Specific_Rank] Reassembling chunks...")
+    logger.debug("Reassembling chunks...")
     for col_name, chunks in accumulator.items():
         if chunks:
             full_series = pd.concat(chunks)

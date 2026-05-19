@@ -1,4 +1,8 @@
+import logging
+
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 from tauso.data.consts import (
     CANONICAL_GENE,
@@ -134,7 +138,6 @@ def generate_aso_features(data, cache: AssetCache, n_jobs=1, get_feature_dir_fun
 
     # TODO: consider utilizing save features
     logger.info("version is None, not saving features to disk")
-
     calculator = Calculator(
         data=data, data_version=None, overwrite=True, cpus=n_jobs, cache=cache, get_feature_dir=get_feature_dir_func
     )

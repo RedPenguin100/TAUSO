@@ -8,16 +8,6 @@ from .LocusInfo import GeneType, LocusInfo, StrandType
 
 logger = logging.getLogger(__name__)
 
-import logging
-from collections import defaultdict
-
-from ..data.data import load_db, load_genome
-from ..timer import Timer
-from ..util import get_antisense_u
-from .LocusInfo import GeneType, LocusInfo, StrandType
-
-logger = logging.getLogger(__name__)
-
 
 def _merge_overlapping_exons(exon_list):
     if not exon_list:
@@ -476,15 +466,15 @@ def get_locus_to_data_dict_old(include_introns=True, gene_subset=None, genome="G
     for _, locus_info in locus_to_data.items():
         locus_info._exon_indices.sort()
         locus_info.utr_indices.sort()
-        locus_info._five_prime_utr_indices.sort()  # NEW
-        locus_info._three_prime_utr_indices.sort()  # NEW
+        locus_info._five_prime_utr_indices.sort()
+        locus_info._three_prime_utr_indices.sort()
         if include_introns:
             locus_info._intron_indices.sort()
 
         if locus_info.strand == StrandType.NEG:
             locus_info._exon_indices.reverse()
-            locus_info._five_prime_utr_indices.reverse()  # NEW
-            locus_info._three_prime_utr_indices.reverse()  # NEW
+            locus_info._five_prime_utr_indices.reverse()
+            locus_info._three_prime_utr_indices.reverse()
             if include_introns:
                 locus_info._intron_indices.reverse()
 
