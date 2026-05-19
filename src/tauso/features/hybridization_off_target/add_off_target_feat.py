@@ -1,14 +1,20 @@
 import logging
+import os
+import uuid
 
 import numpy as np
+import pandas as pd
 
 from ...data.consts import CANONICAL_GENE, SEQUENCE
 
 logger = logging.getLogger(__name__)
 from ...util import get_antisense
 from ..hybridization.fast_hybridization import (
+    TMP_PATH,
     Interaction,
+    dump_target_file,
     get_trigger_mfe_scores_by_risearch,
+    get_triggers_mfe_scores_batch,
 )
 from .off_target_functions import aggregate_off_targets, parse_risearch_output
 
@@ -134,3 +140,77 @@ def calculate_score_helper(energy_dict, expression_dict, method):
     # For now, this returns the raw Sum.
 
     return score
+
+
+def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=None):
+    """Batch version of compute_single_row: one RIsearch call for the entire group.
+
+    Pre-creates the target FASTA once from seq_map (or uses prebuilt_target_path), batches
+    all queries, then applies the same per-row aggregation logic as compute_single_row.
+    Results are identical to per-row scoring.
+
+    prebuilt_target_path: if provided, the caller owns the file lifecycle (no create/delete here).
+    """
+    if group_df.empty:
+        return pd.Series(dtype=float)
+
+    TMP_PATH.mkdir(exist_ok=True)
+
+    _owns_target = prebuilt_target_path is None
+    target_path = (
+        dump_target_file(f"target-batch-{uuid.uuid4().hex}.fa", seq_map) if _owns_target else prebuilt_target_path
+    )
+
+    # Avoid iterrows: build (id, antisense) pairs from column arrays
+    indices = group_df.index.tolist()
+    sequences = group_df[SEQUENCE].tolist()
+    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, sequences)]
+
+    try:
+        result = get_triggers_mfe_scores_batch(
+            trigger_id_seq_pairs=query_pairs,
+            target_file_path=target_path,
+            minimum_score=cutoff,
+            parsing_type="2",
+            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+            transpose=True,
+            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+        )
+    finally:
+        if _owns_target and os.path.exists(target_path):
+            os.remove(target_path)
+
+    scores = pd.Series(0.0, index=group_df.index, dtype=float)
+
+    if not result.strip():
+        return scores
+
+    all_hits = parse_risearch_output(result)
+    del result
+
+    if all_hits.empty or "energy" not in all_hits.columns:
+        return scores
+
+    # One aggregate pass: min energy per (trigger, target) — replaces N per-row groupby calls
+    agg_all = all_hits.groupby(["trigger", "target"], sort=False)["energy"].min().reset_index()
+    del all_hits
+
+    # Vectorized self-target filter: map each trigger id → its canonical gene
+    idx_to_gene = {str(i): g for i, g in zip(group_df.index, group_df[CANONICAL_GENE])}
+    agg_all["_own"] = agg_all["trigger"].map(idx_to_gene)
+    agg_filtered = agg_all[agg_all["target"] != agg_all["_own"]]
+    del agg_all
+
+    # O(1) lookup per trigger
+    hits_by_trigger = {k: v for k, v in agg_filtered.groupby("trigger", sort=False)}
+    del agg_filtered
+
+    for idx in indices:
+        trigger_id = str(idx)
+        hits = hits_by_trigger.get(trigger_id)
+        if hits is None:
+            continue
+        simple_energies = dict(zip(hits["target"], hits["energy"]))
+        scores[idx] = calculate_score_helper(simple_energies, exp_map, method)
+
+    return scores

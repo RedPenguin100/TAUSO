@@ -23,7 +23,13 @@ def parse_risearch_output(output_str: str) -> pd.DataFrame:
         "score",
         "energy",
     ]
-    df = pd.read_csv(StringIO(output_str.strip()), sep="\t", header=None, names=columns)
+    df = pd.read_csv(
+        StringIO(output_str.strip()),
+        sep="\t",
+        header=None,
+        names=columns,
+        dtype={"trigger": str},  # keep query IDs as strings for all downstream lookups
+    )
     return df
 
 

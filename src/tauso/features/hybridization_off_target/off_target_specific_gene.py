@@ -13,7 +13,7 @@ from ..hybridization.fast_hybridization import (
     TMP_PATH,
     Interaction,
     dump_target_file,
-    get_trigger_mfe_scores_by_risearch,
+    get_triggers_mfe_scores_batch,
 )
 from .off_target_functions import parse_risearch_output
 
@@ -40,79 +40,64 @@ def _apply_risearch_scoring(
     """Core logic for RIsearch hybridization scoring to avoid code duplication."""
     _validate_genes_found(target_genes, gene_to_data)
 
-    # 1. Setup Parallelization
-    use_parallel = n_jobs != 1
-    if use_parallel:
-        try:
-            from pandarallel import pandarallel
-
-            verbose_score = 2 if verbose else 0
-            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=verbose_score)
-        except ImportError:
-            if verbose:
-                logger.warning("'pandarallel' not found. Falling back to single core.")
-            use_parallel = False
-
     RT = 0.616
     TMP_PATH.mkdir(exist_ok=True)
 
-    # 2. Pre-compute target files for all required genes
+    # Pre-compute target files for all required genes (one per gene, reused for all rows)
     gene_to_target_info = {}
 
     try:
         for gene in target_genes:
             sequence = gene_to_data[gene].full_mrna
-            name_to_seq = {gene: sequence}
+            target_path = dump_target_file(f"target-{gene}-{uuid.uuid4().hex}.fa", {gene: sequence})
+            gene_to_target_info[gene] = {"target_path": target_path}
 
-            target_hash = uuid.uuid4().hex
-            target_filename = f"target-{gene}-{target_hash}.fa"
-            target_path = dump_target_file(target_filename, name_to_seq)
+        # Group rows by their target gene so we fire one RIsearch call per gene
+        # instead of one per row. Use column arrays to avoid per-row Series creation.
+        indices = aso_df.index.tolist()
+        seqs = aso_df[SEQUENCE].tolist()
+        genes_col = aso_df.apply(get_gene_fn, axis=1).tolist()
 
-            gene_to_target_info[gene] = {
-                "name_to_seq": name_to_seq,
-                "target_path": target_path,
-            }
+        from collections import defaultdict
 
-        # 3. Define the scoring function per row
-        def calculate_score(row):
-            gene = get_gene_fn(row)
-
-            # Return 0.0 if the gene is NaN or wasn't successfully cached
+        gene_to_row_triggers = defaultdict(list)
+        for idx, seq, gene in zip(indices, seqs, genes_col):
             if pd.isna(gene) or gene not in gene_to_target_info:
-                return 0.0
+                continue
+            gene_to_row_triggers[gene].append((idx, get_antisense(seq)))
 
-            aso_seq = row[SEQUENCE]
-            trigger = get_antisense(aso_seq)
-            run_id = f"{os.getpid()}-{uuid.uuid4().hex}"
+        scores = pd.Series(0.0, index=aso_df.index)
 
-            info = gene_to_target_info[gene]
-
-            result_dict = get_trigger_mfe_scores_by_risearch(
-                trigger,
-                info["name_to_seq"],
+        for gene, row_triggers in gene_to_row_triggers.items():
+            result = get_triggers_mfe_scores_batch(
+                trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in row_triggers],
+                target_file_path=gene_to_target_info[gene]["target_path"],
                 minimum_score=cutoff,
                 parsing_type="2",
                 interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
                 transpose=True,
-                target_file_cache=info["target_path"],
-                unique_id=run_id,
+                batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
             )
 
-            result_df = parse_risearch_output(result_dict)
+            if not result.strip():
+                continue
 
-            if not result_df.empty and "energy" in result_df.columns:
-                return np.exp(-RT * result_df["energy"]).sum()
-            else:
-                return 0.0
+            result_df = parse_risearch_output(result)
+            del result
 
-        # 4. Apply the function
-        if use_parallel:
-            scores = aso_df.parallel_apply(calculate_score, axis=1)
-        else:
-            scores = aso_df.apply(calculate_score, axis=1)
+            if result_df.empty or "energy" not in result_df.columns:
+                continue
+
+            # Vectorized: compute exp(-RT*energy) once, then sum per trigger via groupby
+            result_df = result_df.assign(_exp=np.exp(-RT * result_df["energy"].to_numpy()))
+            score_dict = result_df.groupby("trigger", sort=False)["_exp"].sum().to_dict()
+            del result_df
+            for idx, _ in row_triggers:
+                val = score_dict.get(str(idx))
+                if val is not None:
+                    scores[idx] = val
 
     finally:
-        # 5. Cleanup all cached target FASTA files securely
         for info in gene_to_target_info.values():
             if os.path.exists(info["target_path"]):
                 os.remove(info["target_path"])

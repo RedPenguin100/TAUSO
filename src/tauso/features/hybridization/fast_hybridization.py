@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from importlib.resources import files
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from Bio.Seq import Seq
 
@@ -18,6 +18,9 @@ if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
 else:
     TMP_PATH = Path(tempfile.gettempdir()) / "tauso_risearch_tmp"
+
+# reverse-then-translate: equivalent to Seq(trigger).reverse_complement_rna() without Bio.Seq overhead
+_RC_RNA_TABLE = str.maketrans("ACGT", "UGCA")
 
 
 def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
@@ -117,6 +120,82 @@ def get_trigger_mfe_scores_by_risearch(
             os.remove(target_path)
         if query_path.exists():
             query_path.unlink()
+    return result
+
+
+def get_triggers_mfe_scores_batch(
+    trigger_id_seq_pairs: List[Tuple[str, str]],
+    target_file_path,
+    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
+    minimum_score: int = 900,
+    neighborhood: int = 0,
+    parsing_type=None,
+    transpose=False,
+    batch_id=None,
+) -> str:
+    """Run RIsearch once for all (id, trigger) pairs against a pre-built target file.
+
+    Identical to calling get_trigger_mfe_scores_by_risearch per row, but with one
+    subprocess instead of N. The output is the raw -p2 text; each hit line is
+    tagged with its query id so callers can split results back per row.
+    """
+    if not trigger_id_seq_pairs:
+        return ""
+
+    TMP_PATH.mkdir(parents=True, exist_ok=True)
+
+    if batch_id is None:
+        batch_id = uuid.uuid4().hex
+
+    risearch_path = get_risearch_path()
+    query_path = (TMP_PATH / f"query-batch-{batch_id}.fa").resolve()
+
+    lines: List[str] = []
+    for query_id, trigger in trigger_id_seq_pairs:
+        lines.append(f">{query_id}")
+        lines.append(trigger[::-1].translate(_RC_RNA_TABLE))
+    query_path.write_text("\n".join(lines) + "\n")
+
+    if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
+        m = "su95_noGU"
+    elif interaction_type == Interaction.RNA_RNA:
+        m = "t04"
+    else:
+        raise ValueError(f"Unsupported interaction type: {interaction_type}")
+
+    args = [
+        risearch_path,
+        "-q",
+        str(query_path),
+        "-t",
+        str(target_file_path),
+        "-s",
+        f"{minimum_score}",
+        "-d",
+        "30",
+        "-m",
+        m,
+        "-n",
+        f"{neighborhood}",
+    ]
+    if transpose:
+        args.append("-R")
+    if parsing_type is not None:
+        args.append(f"-p{parsing_type}")
+
+    try:
+        result = subprocess.check_output(
+            args,
+            universal_newlines=True,
+            text=True,
+            cwd=str(OUT_FOLDER),
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+        )
+    finally:
+        if query_path.exists():
+            query_path.unlink()
+
     return result
 
 

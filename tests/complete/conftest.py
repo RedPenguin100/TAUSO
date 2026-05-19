@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import pytest
 from notebooks.consts import OLIGO_CSV_INDEXED
+from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
 
 from tauso.algorithms.genomic_context_windows import (
@@ -113,6 +114,10 @@ def structure_data(base_data, target_genes, gene_to_data):
     with Timer("Populate DF with Structure Features"):
         return get_populated_df_with_structure_features(base_data, target_genes, gene_to_data)
 
+@pytest.fixture(scope="session")
+def chemistry_data(structure_data):
+    return assign_chemistry(structure_data)
+
 
 @pytest.fixture(scope="session")
 def ref_registry(target_genes, gene_to_data, mapper):
@@ -134,7 +139,7 @@ def final_data(structure_data, mapper, ref_registry):
         )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mini_sampled_data(request, final_data):
     """Samples the fully processed DataFrame right before the test runs."""
     n_samples = getattr(request, "param", 1000)
