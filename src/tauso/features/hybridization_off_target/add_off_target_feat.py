@@ -52,7 +52,8 @@ def compute_single_row(row, general_seq_map, general_exp_map, cutoff, method):
     if result_df_agg.empty:
         logger.warning(
             "Target gene %s excluded all off-target hits; score set to 0 for ASO %s",
-            target_gene, row[SEQUENCE],
+            target_gene,
+            row[SEQUENCE],
         )
         return 0
 
@@ -137,9 +138,7 @@ def _score_triggers(hits_by_trigger: dict, indices, exp_map, method) -> pd.Serie
     for idx in indices:
         hits = hits_by_trigger.get(str(idx))
         if hits is not None:
-            scores[idx] = calculate_score_helper(
-                dict(zip(hits["target"], hits["energy"])), exp_map, method
-            )
+            scores[idx] = calculate_score_helper(dict(zip(hits["target"], hits["energy"])), exp_map, method)
     return scores
 
 
@@ -155,9 +154,7 @@ def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_tar
 
     _owns_target = prebuilt_target_path is None
     target_path = (
-        dump_target_file(f"target-batch-{uuid.uuid4().hex}.fa", seq_map)
-        if _owns_target
-        else prebuilt_target_path
+        dump_target_file(f"target-batch-{uuid.uuid4().hex}.fa", seq_map) if _owns_target else prebuilt_target_path
     )
 
     indices = group_df.index.tolist()

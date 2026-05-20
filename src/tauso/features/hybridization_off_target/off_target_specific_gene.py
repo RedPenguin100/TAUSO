@@ -92,8 +92,11 @@ def _apply_risearch_scoring(
             with ThreadPoolExecutor(max_workers=effective_workers) as pool:
                 futures = {
                     gene: pool.submit(
-                        _score_one_gene, gene, row_triggers,
-                        gene_to_target_info[gene], cutoff,
+                        _score_one_gene,
+                        gene,
+                        row_triggers,
+                        gene_to_target_info[gene],
+                        cutoff,
                     )
                     for gene, row_triggers in gene_to_row_triggers.items()
                 }

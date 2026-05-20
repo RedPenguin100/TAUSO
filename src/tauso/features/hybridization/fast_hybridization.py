@@ -56,12 +56,18 @@ def _build_risearch_args(
 ) -> List[str]:
     args = [
         get_risearch_path(),
-        "-q", str(query_path),
-        "-t", str(target_path),
-        "-s", str(min_score),
-        "-d", "30",
-        "-m", mode,
-        "-n", str(neighborhood),
+        "-q",
+        str(query_path),
+        "-t",
+        str(target_path),
+        "-s",
+        str(min_score),
+        "-d",
+        "30",
+        "-m",
+        mode,
+        "-n",
+        str(neighborhood),
     ]
     if transpose:
         args.append("-R")
@@ -154,7 +160,9 @@ def get_triggers_mfe_scores_batch(
     query_path.write_text("\n".join(lines) + "\n")
 
     mode = _interaction_mode(interaction_type)
-    args = _build_risearch_args(query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type)
+    args = _build_risearch_args(
+        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
+    )
 
     try:
         return _run_risearch(args)
@@ -190,9 +198,7 @@ def get_mfe_scores(result: str, parsing_type=None) -> List[List[float]]:
         for gene_result in result.split("\n\nquery trigger")[1:]:
             stripped_result = gene_result.strip()
             regex_results = re.findall("Free energy \\[kcal/mol\\]: [0-9-.]+ ", stripped_result)
-            mfe_results.append(
-                [float(r.replace("Free energy [kcal/mol]: ", "").strip()) for r in regex_results]
-            )
+            mfe_results.append([float(r.replace("Free energy [kcal/mol]: ", "").strip()) for r in regex_results])
     elif parsing_type == "2":
         return _parse_mfe_scores_2(result)
 
