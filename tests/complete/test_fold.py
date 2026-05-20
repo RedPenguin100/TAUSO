@@ -13,14 +13,6 @@ ACCESS_CONFIGURATIONS = [
 ]
 
 
-@pytest.fixture
-def mini_sampled_data(request, final_data):
-    """Samples the fully processed DataFrame right before the test runs."""
-    n_samples = getattr(request, "param", 1000)
-    actual_samples = min(n_samples, len(final_data))
-    return final_data.sample(n=actual_samples, random_state=42).copy()
-
-
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
 @pytest.mark.parametrize("config", ACCESS_CONFIGURATIONS)
 def test_access(mini_sampled_data, gene_to_data, config, dataframe_regression):
@@ -38,6 +30,6 @@ def test_access(mini_sampled_data, gene_to_data, config, dataframe_regression):
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
 def test_mfe(mini_sampled_data, gene_to_data, dataframe_regression):
-    mini_sampled_data, feature_names = populate_mfe_features(mini_sampled_data, gene_to_data)
-
-    dataframe_regression.check(mini_sampled_data[["index_oligo"] + feature_names])
+    # populate_mfe_features mutates its input — copy to protect the session fixture
+    data, feature_names = populate_mfe_features(mini_sampled_data.copy(), gene_to_data)
+    dataframe_regression.check(data[["index_oligo"] + feature_names])
