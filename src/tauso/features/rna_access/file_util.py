@@ -20,7 +20,14 @@ class FileUtil:
 
     @classmethod
     def get_output_dir(cls):
-        return "/dev/shm/tauso/_raccess/output"
+        # Prefer /dev/shm for performance if it exists and is writable
+        if os.path.isdir("/dev/shm") and os.access("/dev/shm", os.W_OK):
+            return "/dev/shm/tauso/_raccess/output"
+
+        # Fallback to the centralized data directory
+        from tauso.data.data import get_data_dir
+
+        return os.path.join(get_data_dir(), "raccess_output")
 
     @classmethod
     def get_output_path(cls, file_name):

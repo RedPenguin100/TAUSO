@@ -891,19 +891,23 @@ def setup_bowtie(genome, force, threads, mem_per_thread):
     is_flag=True,
     help="Force re-cloning of the raccess repository (passed to install_raccess.sh).",
 )
-def install_raccess(ctx, force_clone):
+def setup_raccess(ctx, force_clone):
     """
-    Run the raccess installation per their license
+    Run the raccess installation per their license.
+    Installs into the configured TAUSO_DATA_DIR.
     """
     script_path = files("tauso._raccess") / "install_raccess.sh"
+    data_dir = get_data_dir()
+    raccess_dir = os.path.join(data_dir, "raccess")
 
     forwarded_args = list(ctx.args)
     if force_clone:
-        forwarded_args.append("--force-clone")  # or "-f", your choice
+        forwarded_args.append("--force-clone")
 
-    cmd = ["bash", str(script_path)] + forwarded_args
+    # Pass raccess_dir as the first argument to the script
+    cmd = ["bash", str(script_path), raccess_dir] + forwarded_args
 
-    print(f"+ {' '.join(cmd)}")
+    click.echo(f"Executing: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
 
 
