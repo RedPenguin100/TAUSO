@@ -1,6 +1,12 @@
 import pytest
+from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 
 from tauso.populate.populate_hybridization import populate_hybridization
+
+
+@pytest.fixture(scope="session")
+def chemistry_data(structure_data):
+    return assign_chemistry(structure_data)
 
 
 @pytest.fixture(scope="session")
