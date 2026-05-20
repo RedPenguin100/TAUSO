@@ -94,27 +94,32 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         introns = np.array(locus_info._intron_indices)
         utrs3 = np.array(locus_info._3utr_indices)
         utrs5 = np.array(locus_info._5utr_indices)
-        utrs = np.array(locus_info.utr_indices) # For capturing all UTRs
+        utrs = np.array(locus_info.utr_indices)  # For capturing all UTRs
 
         is_exon = (
             ((coords_2d >= exons[:, 0]) & (coords_2d < exons[:, 1])).any(axis=1)
-            if len(exons) > 0 else np.zeros(len(gen_coords), dtype=bool)
+            if len(exons) > 0
+            else np.zeros(len(gen_coords), dtype=bool)
         )
         is_intron = (
             ((coords_2d >= introns[:, 0]) & (coords_2d < introns[:, 1])).any(axis=1)
-            if len(introns) > 0 else np.zeros(len(gen_coords), dtype=bool)
+            if len(introns) > 0
+            else np.zeros(len(gen_coords), dtype=bool)
         )
         is_utr3 = (
             ((coords_2d >= utrs3[:, 0]) & (coords_2d < utrs3[:, 1])).any(axis=1)
-            if len(utrs3) > 0 else np.zeros(len(gen_coords), dtype=bool)
+            if len(utrs3) > 0
+            else np.zeros(len(gen_coords), dtype=bool)
         )
         is_utr5 = (
             ((coords_2d >= utrs5[:, 0]) & (coords_2d < utrs5[:, 1])).any(axis=1)
-            if len(utrs5) > 0 else np.zeros(len(gen_coords), dtype=bool)
+            if len(utrs5) > 0
+            else np.zeros(len(gen_coords), dtype=bool)
         )
         is_generic_utr = (
             ((coords_2d >= utrs[:, 0]) & (coords_2d < utrs[:, 1])).any(axis=1)
-            if len(utrs) > 0 else np.zeros(len(gen_coords), dtype=bool)
+            if len(utrs) > 0
+            else np.zeros(len(gen_coords), dtype=bool)
         )
 
         # --- NON-EXCLUSIVE ASSIGNMENTS ---

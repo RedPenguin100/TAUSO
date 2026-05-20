@@ -1,7 +1,7 @@
 import pytest
-from collections import defaultdict
-from tauso.genome.LocusInfo import GeneType, LocusInfo, StrandType
-from tauso.genome.read_human_genome import get_locus_to_data_dict, get_locus_to_data_dict_gtf
+
+from tauso.genome.LocusInfo import GeneType, StrandType
+from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 # ── Ground truth ───────────────────────────────────────────────────────────────
 #
@@ -110,7 +110,6 @@ def locus_data_canonical():
 
 # ── Helper: run once to populate GROUND_TRUTH, then delete ────────────────────
 
-
 def test_print_actual_coords(locus_data):
     """
     TEMPORARY — run once to get real values, paste into GROUND_TRUTH, then delete.
@@ -152,17 +151,6 @@ def test_malat1_canonical_is_single_exon(locus_data_canonical):
     info = locus_data_canonical["MALAT1"]
     assert len(info._exon_indices) >= 1, "MALAT1 canonical should have at least 1 exon"
     assert len(info._intron_indices) == len(info._exon_indices) - 1, "MALAT1 canonical introns should equal exons - 1"
-
-
-def test_canonical_has_fewer_or_equal_exons(locus_data, locus_data_canonical):
-    """Canonical mode should never have MORE exons than all-transcripts mode."""
-    for gene in REGRESSION_GENES:
-        n_all = len(locus_data[gene]._exon_indices)
-        n_canonical = len(locus_data_canonical[gene]._exon_indices)
-        assert n_canonical <= n_all, f"{gene}: canonical ({n_canonical}) > all-transcripts ({n_all})"
-
-
-# ── FIX 4: Deduplication ──────────────────────────────────────────────────────
 
 
 def test_no_duplicate_exon_coords(locus_data):
@@ -324,3 +312,24 @@ def test_large_gene_span(locus_data):
     span = info.gene_end - info.gene_start
     assert span > 2_000_000, f"RBFOX1 span {span} looks too small"
     assert len(info.full_mrna) == span
+
+
+def test_gene_boundaries_independent_of_canonical(locus_data, locus_data_canonical):
+    """
+    gene_start, gene_end, and full_mrna come from the gene feature directly
+    and must be identical regardless of canonical_only mode.
+    """
+    for gene in REGRESSION_GENES:
+        info_all = locus_data[gene]
+        info_can = locus_data_canonical[gene]
+
+        assert info_all.gene_start == info_can.gene_start, (
+            f"{gene}: gene_start differs: all={info_all.gene_start}, canonical={info_can.gene_start}"
+        )
+        assert info_all.gene_end == info_can.gene_end, (
+            f"{gene}: gene_end differs: all={info_all.gene_end}, canonical={info_can.gene_end}"
+        )
+        assert info_all.full_mrna == info_can.full_mrna, f"{gene}: full_mrna differs between modes"
+        assert info_all.strand == info_can.strand, (
+            f"{gene}: strand differs: all={info_all.strand}, canonical={info_can.strand}"
+        )

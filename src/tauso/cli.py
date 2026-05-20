@@ -37,7 +37,11 @@ logger = logging.getLogger(__name__)
 @click.group()
 def main():
     """Tauso: ASO Design Toolkit"""
-    pass
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
 
 def download_and_gunzip(url, dest_path, remove_gz=False):
@@ -595,14 +599,14 @@ def get_genome_metadata(genome):
         # --- MAMMALS (GENCODE) ---
         "GRCh38": {
             "base_url": f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_HUMAN_RELEASE}",
-            "fasta_name": "GRCh38.p13.genome.fa.gz",
-            "gtf_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gtf.gz",
-            "gff_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gff3.gz",
+            "fasta_name": "GRCh38.primary_assembly.genome.fa.gz",
+            "gtf_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.annotation.gtf.gz",
+            "gff_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.annotation.gff3.gz",
         },
         "GRCm39": {
             "base_url": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M33",
-            "fasta_name": "GRCm39.genome.fa.gz",
-            "gtf_name": "gencode.vM33.chr_patch_hapl_scaff.basic.annotation.gtf.gz",
+            "fasta_name": "GRCm39.primary_assembly.genome.fa.gz",
+            "gtf_name": "gencode.vM33.annotation.gtf.gz",
         },
         # --- YEAST (Ensembl) ---
         "R64-1-1": {

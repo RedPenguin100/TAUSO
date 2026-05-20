@@ -121,13 +121,17 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False, threads=1, mem_p
         # Route both stdout and stderr to the log file instead of DEVNULL
         with open(log_file_path, "w") as log_file:
             with subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True) as proc:
-                spinner = itertools.cycle(["-", "/", "|", "\\"])
+                start_time = time.time()
                 while proc.poll() is None:
-                    sys.stdout.write(f"\r  Compiling {genome} Index... {next(spinner)}")
-                    sys.stdout.flush()
-                    time.sleep(0.5)
+                    elapsed = time.time() - start_time
+                    index_files = glob.glob(f"{index_base}*.ebwt*")
+                    total_gb = sum(os.path.getsize(f) for f in index_files if os.path.exists(f)) / (1024**3)
+                    logger.info(
+                        f"Building {genome} index... {total_gb:.2f} GB written | elapsed: {int(elapsed // 60)}m{int(elapsed % 60)}s"
+                    )
+                    time.sleep(30)
 
-            sys.stdout.write(f"\r  Compiling {genome} Index... Done!      \n")
+            logger.info(f"Compiling {genome} Index... Done!")
 
             if proc.returncode != 0:
                 # Grab the last 15 lines of the log to see the actual error
@@ -298,8 +302,8 @@ def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
     # Use the hits list for annotation as before
     df = annotate_hits(hits_list, genome=genome)
 
-    # print(f"Counts: {counts_dict}")
-    # print(f"hits_list: {hits_list}")
+    # logger.debug(f"Counts: {counts_dict}")
+    # logger.debug(f"hits_list: {hits_list}")
 
     return df
 

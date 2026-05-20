@@ -44,3 +44,53 @@ def filter_gtf_genes(db, filter_mode):
             raise ValueError(f"Unknown filter mode: {filter_mode}")
 
     return allowed_names
+
+
+def filter_gff_genes(db, filter_mode):
+    """
+    Scans the GENCODE GFF3 database and returns a set of gene names matching the criteria.
+
+    GENCODE GFF3 attributes:
+    - Gene name: 'gene_name' (primary), fallback to 'Name', 'gene'
+    - Biotype:   'gene_type' (primary), fallback to 'biotype', 'gene_biotype'
+    """
+    allowed_names = set()
+
+    logger.info(f"Querying GENCODE GFF3 database for {filter_mode} genes...")
+
+    for feature in db.features_of_type("gene"):
+        # --- Gene name (GENCODE priority order) ---
+        gene_name = None
+        for attr in ("gene_name", "Name", "gene"):
+            val = feature.attributes.get(attr, [])
+            if val:
+                gene_name = val[0]
+                break
+
+        if not gene_name:
+            continue
+
+        # --- Biotype (GENCODE priority order) ---
+        biotype = None
+        for attr in ("gene_type", "biotype", "gene_biotype"):
+            val = feature.attributes.get(attr, [])
+            if val:
+                biotype = val[0]
+                break
+
+        # --- Mitochondrial check ---
+        is_mitochondrial = feature.seqid in ("chrM", "MT", "M")
+
+        # --- Filter logic ---
+        if filter_mode == "protein_coding":
+            if biotype == "protein_coding" and not is_mitochondrial:
+                allowed_names.add(gene_name)
+
+        elif filter_mode == "non_mt":
+            if not is_mitochondrial:
+                allowed_names.add(gene_name)
+
+        else:
+            raise ValueError(f"Unknown filter mode: {filter_mode}")
+
+    return allowed_names

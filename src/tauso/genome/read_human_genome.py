@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 
-from ..data.data import load_db, load_genome
+from ..data.data import load_db, load_genome, load_gff_db
 from ..timer import Timer
 from ..util import get_antisense_u
 from .LocusInfo import GeneType, LocusInfo, StrandType
@@ -91,25 +91,23 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     """
     CANONICAL_CHROMS = {f"chr{i}" for i in range(1, 23)} | {"chrX", "chrY"}
 
-    # GFF3 UTR feature type names differ from GTF
     UTR_FEATURE_TYPES = (
         "five_prime_UTR",
         "three_prime_UTR",
         "five_prime_utr",
-        "three_prime_utr",  # some sources lowercase
+        "three_prime_utr",
         "UTR",
-    )  # fallback / converted files
+    )
 
-    # exon + all known UTR spellings — CDS deliberately excluded because
-    # we derive introns from exon gaps rather than trusting CDS records
     child_feature_types = ("exon",) + UTR_FEATURE_TYPES
 
-    with Timer() as t:
-        db = load_db(genome)
-    logger.debug(f"[Get_Locus] Loaded annotation database in: {t.elapsed_time}s")
-    with Timer() as t:
-        fasta_dict = load_genome(genome)
-    logger.debug(f"[Get_Locus] Loaded fasta dict in: {t.elapsed_time}s")
+    logger.debug("Loading database")
+    db = load_gff_db(genome)
+    logger.debug(f"[Get_Locus] Loaded annotation database.")
+
+    logger.debug(f"[Get_Locus] Loading fasta dict")
+    fasta_dict = load_genome(genome)
+    logger.debug(f"[Get_Locus] Loaded fasta dict.")
 
     locus_to_data = defaultdict(LocusInfo)
     target_names = set(gene_subset) if gene_subset else None
@@ -146,10 +144,10 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
         if canonical_only:
             canonical_transcripts = set()
-            for transcript in db.children(gene, featuretype=("mRNA", "transcript"), order_by="start"):
+            for transcript in db.children(
+                gene, featuretype=("mRNA", "transcript"), level=1, order_by="start"
+            ):  # CHANGE 1: added level=1
                 tags = transcript.attributes.get("tag", [])
-
-                # Check if 'Ensembl_canonical' is in any of the tag strings
                 if any("Ensembl_canonical" in t for t in tags):
                     canonical_transcripts.add(transcript.id)
 
@@ -159,7 +157,12 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             else:
                 feature_iter = _canonical_iter(db, canonical_transcripts, child_feature_types)
         else:
-            feature_iter = db.children(gene, featuretype=child_feature_types, order_by="start")
+            # CHANGE 2: go through transcripts explicitly to reach grandchild exons
+            all_transcript_ids = set(tx.id for tx in db.children(gene, featuretype=("mRNA", "transcript"), level=1))
+            if all_transcript_ids:
+                feature_iter = _canonical_iter(db, all_transcript_ids, child_feature_types)
+            else:
+                feature_iter = db.children(gene, featuretype=child_feature_types, order_by="start")
 
         seen = set()
         duplicates_skipped = 0
@@ -176,7 +179,6 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             if ft == "exon":
                 exons_collected.append((feature.start - 1, feature.end))
             elif "UTR" in ft or "utr" in ft:
-                # catches five_prime_UTR, three_prime_UTR, five_prime_utr, UTR, etc.
                 locus_info.utr_indices.append((feature.start - 1, feature.end))
             else:
                 logger.debug(f"[Get_Locus] Unexpected feature type: {ft}")
