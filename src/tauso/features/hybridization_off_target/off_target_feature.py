@@ -9,7 +9,7 @@ from ...data.consts import CELL_LINE_DEPMAP
 
 logger = logging.getLogger(__name__)
 from ..hybridization.fast_hybridization import TMP_PATH, dump_target_file
-from .add_off_target_feat import compute_group_batch, compute_single_row
+from .add_off_target_feat import compute_group_batch
 
 
 def serialize_feature_name(method, top_n, cutoff, is_specific):
@@ -193,15 +193,6 @@ def populate_off_target_specific_per_rank(
     """
     ASO_df = ASO_df.copy()
     feature_names = []
-
-    if n_cores > 1:
-        from pandarallel import pandarallel
-
-        try:
-            pandarallel.initialize(nb_workers=n_cores, verbose=0)
-        except RuntimeError:
-            pass
-
     accumulator = {}
 
     logger.info("Grouping by cell line to calculate specific ranks 1 to %d...", max_rank)
@@ -273,19 +264,7 @@ def populate_off_target_specific_per_rank(
                 if col_exp not in accumulator:
                     accumulator[col_exp] = []
 
-                # Compute Score
-                if n_cores > 1 and len(group_df) > n_cores:
-                    scores = group_df.parallel_apply(
-                        compute_single_row,
-                        axis=1,
-                        args=(single_seq_map, single_exp_map, cutoff, method),
-                    )
-                else:
-                    scores = group_df.apply(
-                        compute_single_row,
-                        axis=1,
-                        args=(single_seq_map, single_exp_map, cutoff, method),
-                    )
+                scores = compute_group_batch(group_df, single_seq_map, single_exp_map, cutoff, method)
 
                 # Store Results
                 accumulator[col_score].append(scores)

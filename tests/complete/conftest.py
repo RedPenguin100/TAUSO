@@ -1,8 +1,6 @@
-import logging
 import os
 
 import pandas as pd
-import psutil
 import pytest
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
@@ -25,27 +23,6 @@ from tauso.genome.TranscriptMapper import (
 )
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
-
-_log = logging.getLogger("tests.complete.memory")
-
-
-def _rss_mb() -> float:
-    return psutil.Process().memory_info().rss / 1024**2
-
-
-@pytest.fixture(autouse=True)
-def log_test_memory(request):
-    """Log RSS before and after every test so CI logs show which test caused growth."""
-    before = _rss_mb()
-    _log.warning("[MEM] START  %-60s  RSS=%.0f MB", request.node.nodeid, before)
-    yield
-    after = _rss_mb()
-    _log.warning(
-        "[MEM] END    %-60s  RSS=%.0f MB  Δ%+.0f MB",
-        request.node.nodeid,
-        after,
-        after - before,
-    )
 
 
 @pytest.fixture(scope="session")
@@ -119,11 +96,8 @@ def mapper():
 @pytest.fixture(scope="session")
 def gene_to_data(target_genes):
     """Fetches the locus to data dictionary based on target genes."""
-    _log.warning("[MEM] gene_to_data: loading  RSS=%.0f MB", _rss_mb())
     with Timer("Get Locus to Data Dict"):
-        result = get_locus_to_data_dict(include_introns=True, gene_subset=target_genes)
-    _log.warning("[MEM] gene_to_data: done     RSS=%.0f MB  (%d genes)", _rss_mb(), len(result))
-    return result
+        return get_locus_to_data_dict(include_introns=True, gene_subset=target_genes)
 
 
 @pytest.fixture(scope="session")
@@ -137,11 +111,8 @@ def half_life_provider():
 @pytest.fixture(scope="session")
 def structure_data(base_data, target_genes, gene_to_data):
     """Populates the dataframe with structure features."""
-    _log.warning("[MEM] structure_data: loading  RSS=%.0f MB", _rss_mb())
     with Timer("Populate DF with Structure Features"):
-        result = get_populated_df_with_structure_features(base_data, target_genes, gene_to_data)
-    _log.warning("[MEM] structure_data: done     RSS=%.0f MB", _rss_mb())
-    return result
+        return get_populated_df_with_structure_features(base_data, target_genes, gene_to_data)
 
 
 @pytest.fixture(scope="session")
@@ -159,7 +130,6 @@ def ref_registry(target_genes, gene_to_data, mapper):
 @pytest.fixture(scope="session")
 def final_data(structure_data, mapper, ref_registry):
     """Runs the optimized context generator to add external mRNA and context columns."""
-    _log.warning("[MEM] final_data: loading  RSS=%.0f MB", _rss_mb())
     with Timer("Add External mRNA & Context Columns"):
         return add_external_mrna_and_context_columns(
             df=structure_data,
