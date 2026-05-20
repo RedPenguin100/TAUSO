@@ -266,13 +266,18 @@ def populate_sense_accessibility_batch(
     # 3. Execution
     valid_df["batch_group"] = np.arange(len(valid_df)) // batch_size
 
+    # Drop the grouping column before apply so neither pandas nor pandarallel
+    # needs include_groups (pandarallel doesn't support that kwarg).
+    batch_groups = valid_df["batch_group"]
+    valid_df_for_apply = valid_df.drop(columns=["batch_group"])
+
     if n_jobs > 1:
         from pandarallel import pandarallel
 
         pandarallel.initialize(nb_workers=n_jobs, verbose=0)
-        results_df = valid_df.groupby("batch_group").parallel_apply(_process_batch, include_groups=False)
+        results_df = valid_df_for_apply.groupby(batch_groups).parallel_apply(_process_batch)
     else:
-        results_df = valid_df.groupby("batch_group").apply(_process_batch, include_groups=False)
+        results_df = valid_df_for_apply.groupby(batch_groups).apply(_process_batch)
 
     # Clean up structure returned by apply
     results_df = results_df.reset_index(drop=True)
