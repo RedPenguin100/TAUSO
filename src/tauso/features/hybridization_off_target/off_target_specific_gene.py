@@ -1,6 +1,8 @@
 import logging
 import os
 import uuid
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -27,12 +29,29 @@ def _sum_exp_energy_by_trigger(result_df: pd.DataFrame) -> dict:
 
 
 def _validate_genes_found(target_genes, gene_to_data):
-    not_found_genes = []
-    for gene in target_genes:
-        if gene not in gene_to_data:
-            not_found_genes.append(gene)
-    if not_found_genes:
-        raise ValueError(f"The following genes are not found in gene_to_data: {not_found_genes}")
+    not_found = [g for g in target_genes if g not in gene_to_data]
+    if not_found:
+        raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
+
+
+def _score_one_gene(gene, row_triggers, target_path, cutoff):
+    """Run RIsearch for one gene and return {trigger_id: score}. Thread-safe."""
+    result = get_triggers_mfe_scores_batch(
+        trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in row_triggers],
+        target_file_path=target_path,
+        minimum_score=cutoff,
+        parsing_type="2",
+        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+        transpose=True,
+        batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+    )
+    if not result.strip():
+        return {}
+    result_df = parse_risearch_output(result)
+    del result
+    if result_df.empty or "energy" not in result_df.columns:
+        return {}
+    return _sum_exp_energy_by_trigger(result_df)
 
 
 def _apply_risearch_scoring(
@@ -45,82 +64,71 @@ def _apply_risearch_scoring(
     n_jobs,
     verbose,
 ):
-    """Core logic for RIsearch hybridization scoring to avoid code duplication."""
+    """Core logic for RIsearch hybridization scoring."""
     _validate_genes_found(target_genes, gene_to_data)
-
     TMP_PATH.mkdir(exist_ok=True)
 
-    # Pre-compute target files for all required genes (one per gene, reused for all rows)
     gene_to_target_info = {}
-
     try:
         for gene in target_genes:
             sequence = gene_to_data[gene].full_mrna
             target_path = dump_target_file(f"target-{gene}-{uuid.uuid4().hex}.fa", {gene: sequence})
-            gene_to_target_info[gene] = {"target_path": target_path}
-
-        # Group rows by their target gene so we fire one RIsearch call per gene
-        # instead of one per row. Use column arrays to avoid per-row Series creation.
-        indices = aso_df.index.tolist()
-        seqs = aso_df[SEQUENCE].tolist()
-        genes_col = aso_df.apply(get_gene_fn, axis=1).tolist()
-
-        from collections import defaultdict
+            gene_to_target_info[gene] = target_path
 
         gene_to_row_triggers = defaultdict(list)
-        for idx, seq, gene in zip(indices, seqs, genes_col):
+        for idx, seq, gene in zip(
+            aso_df.index,
+            aso_df[SEQUENCE],
+            aso_df.apply(get_gene_fn, axis=1),
+        ):
             if pd.isna(gene) or gene not in gene_to_target_info:
                 continue
             gene_to_row_triggers[gene].append((idx, get_antisense(seq)))
 
         scores = pd.Series(0.0, index=aso_df.index)
+        effective_workers = min(n_jobs, len(gene_to_row_triggers)) if n_jobs > 1 else 1
 
-        for gene, row_triggers in gene_to_row_triggers.items():
-            result = get_triggers_mfe_scores_batch(
-                trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in row_triggers],
-                target_file_path=gene_to_target_info[gene]["target_path"],
-                minimum_score=cutoff,
-                parsing_type="2",
-                interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-                transpose=True,
-                batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-            )
-
-            if not result.strip():
-                continue
-
-            result_df = parse_risearch_output(result)
-            del result
-
-            if result_df.empty or "energy" not in result_df.columns:
-                continue
-
-            score_dict = _sum_exp_energy_by_trigger(result_df)
-            del result_df
-            for idx, _ in row_triggers:
-                val = score_dict.get(str(idx))
-                if val is not None:
-                    scores[idx] = val
+        if effective_workers > 1:
+            with ThreadPoolExecutor(max_workers=effective_workers) as pool:
+                futures = {
+                    gene: pool.submit(
+                        _score_one_gene, gene, row_triggers,
+                        gene_to_target_info[gene], cutoff,
+                    )
+                    for gene, row_triggers in gene_to_row_triggers.items()
+                }
+                for gene, fut in futures.items():
+                    score_dict = fut.result()
+                    for idx, _ in gene_to_row_triggers[gene]:
+                        val = score_dict.get(str(idx))
+                        if val is not None:
+                            scores[idx] = val
+        else:
+            for gene, row_triggers in gene_to_row_triggers.items():
+                score_dict = _score_one_gene(gene, row_triggers, gene_to_target_info[gene], cutoff)
+                for idx, _ in row_triggers:
+                    val = score_dict.get(str(idx))
+                    if val is not None:
+                        scores[idx] = val
 
     finally:
-        for info in gene_to_target_info.values():
-            if os.path.exists(info["target_path"]):
-                os.remove(info["target_path"])
+        for path in gene_to_target_info.values():
+            if os.path.exists(path):
+                os.remove(path)
 
     aso_df[feature_name] = scores
     return aso_df, feature_name
 
 
 def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False):
-    """Scores against the dynamic canonical gene found in each row."""
+    """Scores each oligo against its own canonical gene."""
     unique_genes = aso_df[CANONICAL_GENE].dropna().unique()
     feature_name = f"on_target_total_hybridization_{cutoff}"
-
     return _apply_risearch_scoring(
         aso_df=aso_df,
         gene_to_data=gene_to_data,
         target_genes=unique_genes,
-        get_gene_fn=lambda row: row[CANONICAL_GENE],  # Fetch gene dynamically
+        get_gene_fn=lambda row: row[CANONICAL_GENE],
         feature_name=feature_name,
         cutoff=cutoff,
         n_jobs=n_jobs,
@@ -129,14 +137,13 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbos
 
 
 def off_target_specific_seq_pandarallel(aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False):
-    """Scores against a single statically provided gene."""
+    """Scores each oligo against a single statically provided gene."""
     feature_name = f"off_target_single_{gene_name}_c{cutoff}"
-
     return _apply_risearch_scoring(
         aso_df=aso_df,
         gene_to_data=gene_to_data,
         target_genes=[gene_name],
-        get_gene_fn=lambda row: gene_name,  # Fetch gene statically
+        get_gene_fn=lambda row: gene_name,
         feature_name=feature_name,
         cutoff=cutoff,
         n_jobs=n_jobs,

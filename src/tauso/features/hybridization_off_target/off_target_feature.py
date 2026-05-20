@@ -194,7 +194,6 @@ def populate_off_target_specific_per_rank(
     ASO_df = ASO_df.copy()
     feature_names = []
 
-    # Initialize pandarallel if needed
     if n_cores > 1:
         from pandarallel import pandarallel
 
@@ -203,8 +202,6 @@ def populate_off_target_specific_per_rank(
         except RuntimeError:
             pass
 
-    # Dictionary to hold lists of partial Series for each new column
-    # Structure: accumulator[column_name] = [series_group1, series_group2, ...]
     accumulator = {}
 
     logger.info("Grouping by cell line to calculate specific ranks 1 to %d...", max_rank)
@@ -277,7 +274,6 @@ def populate_off_target_specific_per_rank(
                     accumulator[col_exp] = []
 
                 # Compute Score
-                # Optimization: Use parallel only for large groups
                 if n_cores > 1 and len(group_df) > n_cores:
                     scores = group_df.parallel_apply(
                         compute_single_row,
