@@ -141,9 +141,12 @@ def final_data(structure_data, mapper, ref_registry):
         )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mini_sampled_data(request, final_data):
-    """Samples the fully processed DataFrame right before the test runs."""
+    """Samples final_data once per (n_samples, session) and caches the result.
+
+    Tests must call .copy() before mutating the returned DataFrame.
+    """
     n_samples = getattr(request, "param", 1000)
     actual_samples = min(n_samples, len(final_data))
     return final_data.sample(n=actual_samples, random_state=42).copy()

@@ -57,7 +57,7 @@ jobs:
         run: micromamba run -n tauso pip install -e .
 
       - name: Install raccess
-        run: tauso install-raccess
+        run: tauso setup-raccess
 
       - name: Cache Genome Database
         id: cache-genome
