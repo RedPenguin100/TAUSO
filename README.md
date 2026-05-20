@@ -38,7 +38,7 @@ The best way to use the library is with a separate conda environment
 
 The tool allows you to install genomes easily and index them. Every command has a `--help` option.
 
-`tauso install-raccess` - Install a folding prediction tool named raccess. Distribution of the code is prohibited, so
+`tauso setup-raccess` - Install a folding prediction tool named raccess. Distribution of the code is prohibited, so
 the user has to install manually. **This command is necessary to run the tool**
 
 `tauso setup-genome` - download the genome and annotation files. Currently, GRCh38 and GRCm39 are supported. Can take
