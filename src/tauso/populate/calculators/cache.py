@@ -48,7 +48,7 @@ class AssetCache:
         if self._gene_to_data_full is None:
             logger.info("Loading FULL genome data dictionary into memory (happens once)...")
 
-            self._gene_to_data_full = get_locus_to_data_dict(include_introns=True)
+            self._gene_to_data_full = get_locus_to_data_dict(include_introns=True, genome=self.genome)
             if self.custom_gene is not None:
                 name, locus_info = self.custom_gene
                 self._gene_to_data_full[name] = locus_info
