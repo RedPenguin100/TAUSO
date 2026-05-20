@@ -85,7 +85,7 @@ class CustomEggInfo(egg_info):
 
 setup(
     name="tauso",
-    version="1.0",
+    version="1.0.0",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     cmdclass={
