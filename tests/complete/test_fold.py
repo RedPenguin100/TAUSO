@@ -13,24 +13,23 @@ ACCESS_CONFIGURATIONS = [
 ]
 
 
-
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
 @pytest.mark.parametrize("config", ACCESS_CONFIGURATIONS)
 def test_access(mini_sampled_data, gene_to_data, config, dataframe_regression):
     data, feature_name = populate_sense_accessibility_batch(
         mini_sampled_data,
         gene_to_data,
-        batch_size=1000,
+        batch_size=250,
         flank_size=config["flank"],
         access_size=config["access"],
         seed_sizes=config["seeds"],
-        n_jobs=1,
+        n_jobs=4,
     )
     dataframe_regression.check(data[["index_oligo", feature_name]])
 
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
 def test_mfe(mini_sampled_data, gene_to_data, dataframe_regression):
-    mini_sampled_data, feature_names = populate_mfe_features(mini_sampled_data, gene_to_data)
-
-    dataframe_regression.check(mini_sampled_data[["index_oligo"] + feature_names])
+    # populate_mfe_features mutates its input — copy to protect the session fixture
+    data, feature_names = populate_mfe_features(mini_sampled_data.copy(), gene_to_data)
+    dataframe_regression.check(data[["index_oligo"] + feature_names])
