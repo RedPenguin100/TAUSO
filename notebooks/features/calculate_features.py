@@ -4,11 +4,11 @@ Calculate features for a dataset and save them to disk.
 Each feature is written as an individual CSV. If the script crashes and is
 re-run, already-written features are skipped automatically.
 
-Usage:
-    python notebooks/features/calculate_features.py --dataset oligo --cpus 48
-    python notebooks/features/calculate_features.py --dataset oligo --step hybridization
-    python notebooks/features/calculate_features.py --dataset oligo --input /path/to/data.csv.gz
-    python notebooks/features/calculate_features.py --dataset oligo --overwrite
+Usage (run from project root):
+    python -m notebooks.features.calculate_features --dataset oligo --cpus 48
+    python -m notebooks.features.calculate_features --dataset oligo --step hybridization
+    python -m notebooks.features.calculate_features --dataset oligo --input /path/to/data.csv.gz
+    python -m notebooks.features.calculate_features --dataset oligo --overwrite
 
 SLURM note: run with `python -u` or set PYTHONUNBUFFERED=1 for live log output.
 """
