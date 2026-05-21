@@ -8,10 +8,11 @@ from concurrent.futures import ProcessPoolExecutor
 logger = logging.getLogger(__name__)
 
 import pandas as pd
-from Bio.Seq import Seq
 from tqdm import tqdm
 
 from tauso.data.consts import CANONICAL_GENE, SEQUENCE
+
+from ...util import get_antisense
 
 # =====================================================================
 # MULTIPROCESSING GLOBALS
@@ -52,8 +53,8 @@ def _infer_datapath():
 
 def get_target_site_seq(aso_seq_str):
     """Converts ASO to Target Site (RevComp)."""
-    clean_seq = "".join(c for c in str(aso_seq_str) if c.isalpha())
-    return str(Seq(clean_seq).reverse_complement())
+    clean_seq = "".join(c for c in str(aso_seq_str) if c.isalpha()).upper()
+    return get_antisense(clean_seq)
 
 
 def _run_single_aso_worker(row_tuple):

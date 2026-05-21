@@ -250,13 +250,13 @@ def populate_sense_accessibility_batch(
             cache=access_cache,
         )
 
-        df["pos_in_flank"] = df.groupby("rna_id", sort=False).cumcount()
+        df["pos_in_flank"] = df.groupby("rna_id", sort=False, observed=True).cumcount()
         df["sense_length"] = df["rna_id"].map(sense_len_map)
         df["rel_start"] = df["rna_id"].map(sense_start_map)
 
         mask = (df["pos_in_flank"] >= df["rel_start"]) & (df["pos_in_flank"] < df["rel_start"] + df["sense_length"])
 
-        batch_result = df[mask].groupby("rna_id", as_index=False)["avg_access"].mean()
+        batch_result = df[mask].groupby("rna_id", as_index=False, observed=True)["avg_access"].mean()
 
         batch_result.rename(columns={"rna_id": "_temp_id", "avg_access": feature_name}, inplace=True)
         batch_result["_temp_id"] = batch_result["_temp_id"].astype(int)
@@ -275,9 +275,9 @@ def populate_sense_accessibility_batch(
         from pandarallel import pandarallel
 
         pandarallel.initialize(nb_workers=n_jobs, verbose=0)
-        results_df = valid_df_for_apply.groupby(batch_groups).parallel_apply(_process_batch)
+        results_df = valid_df_for_apply.groupby(batch_groups, observed=True).parallel_apply(_process_batch)
     else:
-        results_df = valid_df_for_apply.groupby(batch_groups).apply(_process_batch)
+        results_df = valid_df_for_apply.groupby(batch_groups, observed=True).apply(_process_batch)
 
     # Clean up structure returned by apply
     results_df = results_df.reset_index(drop=True)
