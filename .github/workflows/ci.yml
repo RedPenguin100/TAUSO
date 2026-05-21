@@ -23,22 +23,10 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
-      - name: Free Disk Space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
-            "$AGENT_TOOLSDIRECTORY"
-          docker system prune -af || true
-          sudo apt-get clean
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: true
-
-      - name: Compute env hash
-        id: envhash
-        run: echo "hash=$(cat environment.yml | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
       - name: Create Data Directory
         run: mkdir -p ${{ env.TAUSO_DATA_DIR }}
@@ -46,14 +34,11 @@ jobs:
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          environment-file: environment.yml
+          environment-file: conda-linux-64-dev.lock
           environment-name: tauso
           cache-downloads: true
           cache-environment: true
-          cache-environment-key: ${{ runner.os }}-tauso-${{ steps.envhash.outputs.hash }}
-
-      - name: Install Dev Dependencies
-        run: micromamba install -n tauso -f environment-dev.yml -y
+          cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
 
       - name: Run Ruff Check (Linting)
         run: micromamba run -n tauso ruff check src/
@@ -104,9 +89,13 @@ jobs:
         id: cache-depmap
         uses: actions/cache@v4
         with:
-          # Replace this with the actual path returned by tauso.data.data.get_data_dir()
-          # usually something like ~/.tauso/data or a specific repo directory
-          path: ${{ env.TAUSO_DATA_DIR }}
+          path: |
+            ${{ env.TAUSO_DATA_DIR }}/Model.csv
+            ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv
+            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.csv
+            ${{ env.TAUSO_DATA_DIR }}/processed_expression
+            ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
+            ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.csv.gz
           key: depmap-25Q3-v1
 
       - name: Setup DepMap
