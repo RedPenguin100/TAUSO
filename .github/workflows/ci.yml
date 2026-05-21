@@ -34,11 +34,13 @@ jobs:
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          environment-file: conda-linux-64-dev.lock
+          environment-file: environment.yml
           environment-name: tauso
           cache-downloads: true
           cache-environment: true
-          cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
+
+      - name: Install Dev Dependencies
+        run: micromamba install -n tauso -f environment-dev.yml -y
 
       - name: Run Ruff Check (Linting)
         run: micromamba run -n tauso ruff check src/
