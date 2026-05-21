@@ -44,7 +44,14 @@ def _get_gene_type_gff(gene):
 
 
 def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh38", canonical_only=True):
-    """GFF3-based genome loader. Builds a {gene_name: LocusInfo} dict."""
+    """GFF3-based genome loader. Builds a {gene_name: LocusInfo} dict.
+
+    Duplicate gene names (e.g. Y_RNA, U6, 5S_rRNA — ncRNAs with hundreds of
+    genomic copies) are resolved by keeping the locus with the lowest genomic
+    start coordinate, because gffutils iterates with order_by="start" globally
+    across all canonical chromosomes.  This is deterministic but not
+    biologically motivated; such genes are generally not ASO targets.
+    """
     UTR_FEATURE_TYPES = (
         "five_prime_UTR",
         "three_prime_UTR",
@@ -57,14 +64,15 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
     logger.debug("Loading database")
     db = load_gff_db(genome)
-    logger.debug(f"[Get_Locus] Loaded annotation database.")
+    logger.debug("[Get_Locus] Loaded annotation database.")
 
-    logger.debug(f"[Get_Locus] Loading fasta dict")
+    logger.debug("[Get_Locus] Loading fasta dict")
     fasta_dict = load_genome(genome)
-    logger.debug(f"[Get_Locus] Loaded fasta dict.")
+    logger.debug("[Get_Locus] Loaded fasta dict.")
 
     locus_to_data = defaultdict(LocusInfo)
     target_names = set(gene_subset) if gene_subset else None
+    duplicate_counts: dict[str, int] = {}
 
     for gene in db.features_of_type("gene", order_by="start"):
         chrom = gene.seqid
@@ -78,11 +86,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             continue
 
         if locus_tag in locus_to_data:
-            logger.warning(
-                f"[Get_Locus] Duplicate gene {locus_tag} on {chrom} "
-                f"(strand={gene.strand}, start={gene.start}), "
-                f"already seen on strand={locus_to_data[locus_tag].strand}. Skipping."
-            )
+            duplicate_counts[locus_tag] = duplicate_counts.get(locus_tag, 0) + 1
             continue
 
         locus_info = locus_to_data[locus_tag]
@@ -160,6 +164,14 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             for intron_start, intron_end in _derive_introns_from_exons(exons_collected):
                 locus_info.add_intron_indices(intron_start, intron_end)
 
+    if duplicate_counts:
+        n_total = sum(duplicate_counts.values())
+        examples = ", ".join(list(duplicate_counts)[:5])
+        logger.warning(
+            f"[Get_Locus] Skipped {n_total} duplicate loci across {len(duplicate_counts)} gene name(s) "
+            f"(e.g. {examples}). Kept the locus with the lowest genomic start coordinate."
+        )
+
     logger.debug("[Get_Locus] Iteration done, sorting indices")
 
     for _, locus_info in locus_to_data.items():
@@ -229,6 +241,7 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
     locus_to_data = defaultdict(LocusInfo)
     target_names = set(gene_subset) if gene_subset else None
     child_feature_types = ("exon", "UTR")
+    duplicate_counts: dict[str, int] = {}
 
     for gene in db.features_of_type("gene", order_by="start"):
         chrom = gene.seqid
@@ -249,11 +262,7 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
 
         # FIX 2 — duplicate gene guard (pseudogenes, alt loci, readthroughs)
         if locus_tag in locus_to_data:
-            logger.warning(
-                f"[Get_Locus] Duplicate gene {locus_tag} on {chrom} "
-                f"(strand={gene.strand}, start={gene.start}), "
-                f"already seen on strand={locus_to_data[locus_tag].strand}. Skipping."
-            )
+            duplicate_counts[locus_tag] = duplicate_counts.get(locus_tag, 0) + 1
             continue
 
         locus_info = locus_to_data[locus_tag]
@@ -322,6 +331,14 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
         if include_introns:
             for intron_start, intron_end in _derive_introns_from_exons(exons_collected):
                 locus_info.add_intron_indices(intron_start, intron_end)
+
+    if duplicate_counts:
+        n_total = sum(duplicate_counts.values())
+        examples = ", ".join(list(duplicate_counts)[:5])
+        logger.warning(
+            f"[Get_Locus] Skipped {n_total} duplicate loci across {len(duplicate_counts)} gene name(s) "
+            f"(e.g. {examples}). Kept the locus with the lowest genomic start coordinate."
+        )
 
     logger.debug("[Get_Locus] Iteration done, sorting indices")
 

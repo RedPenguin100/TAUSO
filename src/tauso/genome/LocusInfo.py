@@ -38,7 +38,7 @@ GeneType._str_map = {
 
 class StrandType(IntEnum):
     POS = 1
-    NEG = 2
+    NEG = -1
 
     @classmethod
     def from_string(cls, type_str):
@@ -137,8 +137,10 @@ class LocusInfo:
 
     def __repr__(self):
         mrna_len = len(self.full_mrna) if self.full_mrna else 0
+        strand_sym = "+" if self.strand == StrandType.POS else "-" if self.strand == StrandType.NEG else "?"
+        gene_type_name = self.gene_type.name if self.gene_type is not None else None
         return (
-            f"LocusInfo(strand={self.strand}, type={self.gene_type}, "
+            f"LocusInfo(strand={strand_sym}, type={gene_type_name}, "
             f"coords={self.gene_start}-{self.gene_end}, mrna_len={mrna_len}, "
             f"exons={len(self._exon_indices)}, introns={len(self._intron_indices)})"
         )
