@@ -136,5 +136,9 @@ class LocusInfo:
         return [self._get_sequence_slice(s, e) for s, e in self._3utr_indices]
 
     def __repr__(self):
-        lines = [f"  {field}: {getattr(self, field)}" for field in self.__slots__]
-        return "LocusInfo:\n" + "\n".join(lines)
+        mrna_len = len(self.full_mrna) if self.full_mrna else 0
+        return (
+            f"LocusInfo(strand={self.strand}, type={self.gene_type}, "
+            f"coords={self.gene_start}-{self.gene_end}, mrna_len={mrna_len}, "
+            f"exons={len(self._exon_indices)}, introns={len(self._intron_indices)})"
+        )
