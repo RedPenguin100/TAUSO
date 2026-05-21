@@ -63,15 +63,6 @@ def load_gff_db(genome="GRCh38"):
     return gffutils.FeatureDB(paths["gff_db"])
 
 
-# TODO: remove this function
-def load_db(genome="GRCh38"):
-    """Returns the gffutils database for the specified genome."""
-    paths = get_paths(genome)
-    if not os.path.exists(paths["gtf_db"]):
-        raise FileNotFoundError(f"Database for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
-    return gffutils.FeatureDB(paths["gtf_db"])
-
-
 def load_gff_pyranges(genome="GRCh38"):
     paths = get_paths(genome)
     if not os.path.exists(paths["gff"]):

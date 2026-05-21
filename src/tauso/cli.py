@@ -100,37 +100,40 @@ def setup_depmap(force):
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
 
-    # 1. Configuration
     RELEASE = "DepMap Public 25Q3"
     TARGET_FILES = {
-        # Remote Filename -> Local Filename (can be same)
-        "Model.csv": "Model.csv",  # <--- Added Model.csv here
+        "Model.csv": "Model.csv",
         "OmicsProfiles.csv": "OmicsProfiles.csv",
         "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv",
     }
 
     click.echo(f"Initializing DepMap setup for: {RELEASE}")
+
+    # Check what needs downloading before hitting the API
+    to_download = {
+        remote: local
+        for remote, local in TARGET_FILES.items()
+        if force or not os.path.exists(os.path.join(data_dir, local))
+    }
+
+    if not to_download:
+        click.echo("✓ All DepMap files already present.")
+        click.echo("\nDepMap setup complete.")
+        return
+
+    # Only fetch the index if we actually need to download something
     click.echo("Fetching fresh download URLs from DepMap API...")
-
-    # ---> CHANGE 1: Added headers dict <---
     headers = {"User-Agent": "Mozilla/5.0"}
-
-    # 2. Fetch the Master Index CSV
-    # This endpoint returns a CSV with columns: release, filename, url, etc.
     index_url = "https://depmap.org/portal/api/download/files"
 
     try:
-        # ---> CHANGE 2: Added headers=headers to requests.get <---
         r = requests.get(index_url, headers=headers)
         r.raise_for_status()
-        # Parse directly into Pandas
         df = pd.read_csv(io.StringIO(r.text))
     except Exception as e:
         click.echo(click.style(f"❌ Error fetching DepMap index: {e}", fg="red"))
         sys.exit(1)
 
-    # 3. Filter for 25Q3
-    # Note: Column names are 'release', 'filename', 'url'
     release_df = df[df["release"] == RELEASE]
 
     if release_df.empty:
@@ -138,32 +141,19 @@ def setup_depmap(force):
         click.echo(f"Available releases: {df['release'].unique()[:5]}...")
         sys.exit(1)
 
-    # 4. Download Loop
-    for remote_name, local_name in TARGET_FILES.items():
+    for remote_name, local_name in to_download.items():
         dest = os.path.join(data_dir, local_name)
 
-        if os.path.exists(dest) and not force:
-            click.echo(f"✓ {local_name} exists.")
-            continue
-
-        # Find the row for this specific file
         file_row = release_df[release_df["filename"] == remote_name]
 
         if file_row.empty:
-            click.echo(
-                click.style(
-                    f"⚠ Warning: File '{remote_name}' not found in {RELEASE}.",
-                    fg="yellow",
-                )
-            )
+            click.echo(click.style(f"⚠ Warning: File '{remote_name}' not found in {RELEASE}.", fg="yellow"))
             continue
 
-        # Extract the signed URL
         download_url = file_row.iloc[0]["url"]
 
         click.echo(f"Downloading {local_name}...")
         try:
-            # ---> CHANGE 3: Added "-U", "Mozilla/5.0" to the wget list <---
             subprocess.run(["wget", "-q", "--show-progress", "-U", "Mozilla/5.0", "-O", dest, download_url], check=True)
             click.echo(click.style(f"✓ Downloaded {local_name}", fg="green"))
         except subprocess.CalledProcessError:
@@ -172,6 +162,9 @@ def setup_depmap(force):
                 os.remove(dest)
 
     click.echo("\nDepMap setup complete.")
+
+
+import re
 
 
 @main.command()
@@ -212,7 +205,8 @@ def add_cell(cell_names, reset):
 
     # 3. Search
     for query in cell_names:
-        clean_q = query.replace("-", "").replace(" ", "").upper()
+        # FIXED: Use the exact same regex as the dataframe to avoid mismatch on periods/underscores
+        clean_q = re.sub(r"[^a-zA-Z0-9]", "", query).upper()
 
         # Exact match
         match = df[df["clean"] == clean_q]
@@ -232,7 +226,9 @@ def add_cell(cell_names, reset):
             cohort[found_name] = ach_id
             click.echo(click.style(f"✓ Found: {query} -> {found_name} ({ach_id})", fg="green"))
         else:
-            click.echo(click.style(f"⚠ Not Found: {query}", fg="yellow"))
+            # ADDED: Reasons why it might not be found
+            reasons = " (Reasons: Known by different alias, primary/non-cancer cell line, or lacks Omics profiling)"
+            click.echo(click.style(f"⚠ Not Found: {query}{reasons}", fg="yellow"))
 
     # 4. Save
     with open(manifest_path, "w") as f:
@@ -825,9 +821,10 @@ def setup_genome(genome, force, remove_gz):
     build_annotation_db(
         annotation_path=gtf_path, db_path=gtf_db_path, db_success_path=gtf_db_success, genome=genome, fmt="GTF"
     )
-    build_annotation_db(
-        annotation_path=gff_path, db_path=gff_db_path, db_success_path=gff_db_success, genome=genome, fmt="GFF"
-    )
+    if genome == "GRCh38":
+        build_annotation_db(
+            annotation_path=gff_path, db_path=gff_db_path, db_success_path=gff_db_success, genome=genome, fmt="GFF"
+        )
 
 
 # --- NEW COMMAND: OFF-TARGET SEARCH ---
@@ -961,7 +958,8 @@ def setup_raccess(ctx, force_clone):
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
-        logger.error("\ninstall_raccess.sh failed, consider installing zlib1g-dev ")
+        logger.error("install_raccess.sh failed, consider installing zlib1g-dev")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

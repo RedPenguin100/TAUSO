@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 
-from ..data.data import load_db, load_genome, load_gff_db
+from ..data.data import load_genome, load_gff_db, load_gtf_db
 from ..timer import Timer
 from ..util import get_antisense_u
 from .LocusInfo import GeneType, LocusInfo, StrandType
@@ -74,7 +74,6 @@ def _get_gene_type_gff(gene):
             return val[0]
     return "unannotated"
 
-
 def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh38", canonical_only=True):
     """
     GFF3-compatible version of get_locus_to_data_dict.
@@ -146,7 +145,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             canonical_transcripts = set()
             for transcript in db.children(
                 gene, featuretype=("mRNA", "transcript"), level=1, order_by="start"
-            ):  # CHANGE 1: added level=1
+            ):
                 tags = transcript.attributes.get("tag", [])
                 if any("Ensembl_canonical" in t for t in tags):
                     canonical_transcripts.add(transcript.id)
@@ -157,7 +156,6 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             else:
                 feature_iter = _canonical_iter(db, canonical_transcripts, child_feature_types)
         else:
-            # CHANGE 2: go through transcripts explicitly to reach grandchild exons
             all_transcript_ids = set(tx.id for tx in db.children(gene, featuretype=("mRNA", "transcript"), level=1))
             if all_transcript_ids:
                 feature_iter = _canonical_iter(db, all_transcript_ids, child_feature_types)
@@ -178,8 +176,22 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             ft = feature.featuretype
             if ft == "exon":
                 exons_collected.append((feature.start - 1, feature.end))
-            elif "UTR" in ft or "utr" in ft:
+
+            elif ft in ("five_prime_UTR", "five_prime_utr"):
+                locus_info.add_5utr_indices(feature.start - 1, feature.end)
                 locus_info.utr_indices.append((feature.start - 1, feature.end))
+
+            elif ft in ("three_prime_UTR", "three_prime_utr"):
+                locus_info.add_3utr_indices(feature.start - 1, feature.end)
+                locus_info.utr_indices.append((feature.start - 1, feature.end))
+
+            elif "UTR" in ft or "utr" in ft:
+                raise ValueError(
+                    f"[Get_Locus] Unrecognized UTR feature type '{ft}' for gene '{locus_tag}' "
+                    f"at ({feature.start - 1}, {feature.end}). "
+                    f"Add '{ft}' to the five_prime or three_prime dispatch above."
+                )
+
             else:
                 logger.debug(f"[Get_Locus] Unexpected feature type: {ft}")
 
@@ -200,16 +212,19 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     for _, locus_info in locus_to_data.items():
         locus_info._exon_indices.sort()
         locus_info.utr_indices.sort()
+        locus_info._5utr_indices.sort()
+        locus_info._3utr_indices.sort()
         if include_introns:
             locus_info._intron_indices.sort()
 
         if locus_info.strand == StrandType.NEG:
             locus_info._exon_indices.reverse()
+            locus_info._5utr_indices.reverse()
+            locus_info._3utr_indices.reverse()
             if include_introns:
                 locus_info._intron_indices.reverse()
 
     return locus_to_data
-
 
 def _merge_overlapping_exons(exon_list):
     """Merge overlapping/nested exons into non-overlapping intervals."""
@@ -252,7 +267,7 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
     CANONICAL_CHROMS = {f"chr{i}" for i in range(1, 23)} | {"chrX", "chrY"}
 
     with Timer() as t:
-        db = load_db(genome)
+        db = load_gtf_db(genome)
     logger.debug(f"[Get_Locus] Loaded annotation database in: {t.elapsed_time}s")
     with Timer() as t:
         fasta_dict = load_genome(genome)
@@ -335,11 +350,11 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
                 exons_collected.append((feature.start - 1, feature.end))
 
             elif ft in ("five_prime_UTR", "five_prime_utr"):
-                locus_info.add_five_prime_utr_indices(feature.start - 1, feature.end)
+                locus_info.add_5utr_indices(feature.start - 1, feature.end)
                 locus_info.utr_indices.append((feature.start - 1, feature.end))  # keep legacy field
 
             elif ft in ("three_prime_UTR", "three_prime_utr"):
-                locus_info.add_three_prime_utr_indices(feature.start - 1, feature.end)
+                locus_info.add_3utr_indices(feature.start - 1, feature.end)
                 locus_info.utr_indices.append((feature.start - 1, feature.end))
 
             elif "UTR" in ft or "utr" in ft:
@@ -375,108 +390,6 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
 
         if locus_info.strand == StrandType.NEG:
             locus_info._exon_indices.reverse()
-            if include_introns:
-                locus_info._intron_indices.reverse()
-
-    return locus_to_data
-
-
-def get_locus_to_data_dict_old(include_introns=True, gene_subset=None, genome="GRCh38"):
-    with Timer() as t:
-        db = load_db(genome)
-    logger.debug(f"[Get_Locus] Loaded annotation database in: {t.elapsed_time}s")
-    with Timer() as t:
-        fasta_dict = load_genome(genome)
-    logger.debug(f"[Get_Locus] Loaded fasta dict in: {t.elapsed_time}s")
-
-    locus_to_data = defaultdict(LocusInfo)
-
-    basic_features = ("exon", "gene", "UTR")
-    feature_types = ("exon", "gene", "UTR", "intron") if include_introns else basic_features
-
-    iterator = []
-
-    # If we have specific genes, don't scan the whole genome.
-    target_names = None
-
-    if gene_subset:
-        target_names = set(gene_subset)
-
-        # 2. Iterate ONLY genes (Fast, ~60k items vs millions)
-        # Note: If you have Gene IDs (ENSG...), you could do db[id] which is O(1).
-        # Since you use names (KLKB1), we scan the genes.
-        for gene in db.features_of_type("gene"):
-            name_list = gene.attributes.get("gene_name", [])
-            if name_list and name_list[0] in target_names:
-                # Add the gene itself
-                iterator.append(gene)
-
-                # Add its children (exons, introns, etc.)
-                children = db.children(gene, featuretype=feature_types, order_by="start")
-                iterator.extend(list(children))
-    else:
-        iterator = db.features_of_type(feature_types, order_by="featuretype")
-    logger.debug("[Get_Locus] Beginning iteration")
-    for feature in iterator:
-        chrom = feature.seqid
-        if "chrM" == chrom:
-            continue
-
-        locus_tags = feature.attributes["gene_name"]
-        if len(locus_tags) != 1:
-            raise ValueError(f"Multiple loci: {locus_tags}")
-        locus_tag = locus_tags[0]
-
-        if target_names and locus_tag not in target_names:
-            continue
-
-        locus_info = locus_to_data[locus_tag]  # defaultdict will assign the default if missing
-
-        locus_info.strand = StrandType.from_string(feature.strand)
-
-        if feature.featuretype == "exon":
-            locus_info.add_exon_indices(feature.start - 1, feature.end)
-
-        elif feature.featuretype == "intron" and include_introns:
-            locus_info.add_intron_indices(feature.start - 1, feature.end)
-
-        elif feature.featuretype == "gene":
-            # We ONLY pull the sequence into memory at the Gene level
-            seq = str(fasta_dict[chrom][feature.start - 1 : feature.end])
-            if locus_info.strand == StrandType.NEG:
-                seq = get_antisense_u(seq)
-            else:
-                seq = seq.upper()
-
-            locus_info.gene_start = feature.start - 1
-            locus_info.gene_end = feature.end
-            locus_info.full_mrna = seq
-
-            raw_type_list = feature.attributes.get("gene_type", feature.attributes.get("gene_biotype", ()))
-            raw_type_str = raw_type_list[0] if raw_type_list else "unannotated"
-
-            locus_info.gene_type = GeneType.from_string(raw_type_str)
-
-        elif "UTR" in feature.featuretype:
-            locus_info.utr_indices.append((feature.start - 1, feature.end))
-        else:
-            logger.debug(f"[Get_Locus] Feature type: {feature.featuretype}")
-    logger.debug("[Get_Locus iteration done]")
-
-    # Final cleanup: Reverse coordinates for the negative strand so
-    # exon_indices go biologically 5' to 3'.
-    for _, locus_info in locus_to_data.items():
-        locus_info._exon_indices.sort()
-        locus_info.utr_indices.sort()
-        locus_info._five_prime_utr_indices.sort()
-        locus_info._three_prime_utr_indices.sort()
-        if include_introns:
-            locus_info._intron_indices.sort()
-
-        if locus_info.strand == StrandType.NEG:
-            locus_info._exon_indices.reverse()
-            locus_info._five_prime_utr_indices.reverse()
-            locus_info._three_prime_utr_indices.reverse()
             if include_introns:
                 locus_info._intron_indices.reverse()
 

@@ -39,9 +39,9 @@ class Calculator:
         self._genes_u = self._get_unique_genes()
         self._context_added = False
 
-        if self.get_feature_dir_func is not None:
+        if self.get_feature_dir_func is None:
             logger.warning(
-                f"[Calculator] get_feature_dir_func is None. To save features, please pass a function to the calculator."
+                "[Calculator] get_feature_dir_func is None. To save features, please pass a function to the calculator."
             )
         logger.info("[Calculator] Initialized successfully.")
 

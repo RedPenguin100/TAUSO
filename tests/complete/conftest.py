@@ -98,12 +98,12 @@ def gene_to_data(target_genes):
     with Timer("Get Locus to Data Dict"):
         return get_locus_to_data_dict(include_introns=True, gene_subset=target_genes)
 
+
 @pytest.fixture(scope="session")
 def gene_to_data_full(target_genes):
     """Fetches the locus to data dictionary for all genes"""
     with Timer("Get Locus to Data Dict"):
         return get_locus_to_data_dict(include_introns=True)
-
 
 
 @pytest.fixture(scope="session")

@@ -18,9 +18,6 @@ class GeneType(IntEnum):
         if not type_str:
             return cls.UNKNOWN
 
-        # We removed the hasattr() check.
-        # Direct lookup first (fast path for exactly matching strings).
-        # If it fails, do the .lower() fallback.
         mapped = cls._str_map.get(type_str)
         if mapped is not None:
             return mapped
@@ -28,7 +25,6 @@ class GeneType(IntEnum):
         return cls._str_map.get(type_str.lower(), cls.UNKNOWN)
 
 
-# Define the map outside the method so it is only created ONCE at import time.
 GeneType._str_map = {
     "unknown": GeneType.UNKNOWN,
     "protein_coding": GeneType.PROTEIN_CODING,
@@ -46,12 +42,9 @@ class StrandType(IntEnum):
 
     @classmethod
     def from_string(cls, type_str):
-        # We use a fast dict lookup without recreating the dict
-        # Using .get() prevents KeyErrors if corrupted data is passed
-        return cls._str_map.get(type_str, cls.POS)  # Defaults to POS, or handle as needed
+        return cls._str_map.get(type_str, cls.POS)
 
 
-# Created exactly once.
 StrandType._str_map = {"+": StrandType.POS, "-": StrandType.NEG}
 
 

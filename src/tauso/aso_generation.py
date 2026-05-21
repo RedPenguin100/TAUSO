@@ -128,11 +128,6 @@ def generate_stub_data(
     return data
 
 
-import logging
-
-logger = logging.getLogger(__name__)
-
-
 def generate_aso_features(data, cache: AssetCache, n_jobs=1, get_feature_dir_func=None):
     original_columns = set(data.columns)
 

@@ -7,9 +7,6 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-logger = logging.getLogger(__name__)
-
-
 def get_general_expression_of_genes(EXP_path, valid_genes):
     """
     Loads expression data, filters for valid genes based on GTF (e.g., protein_coding),

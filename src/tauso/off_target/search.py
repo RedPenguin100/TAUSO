@@ -1,16 +1,14 @@
 import glob
-import itertools
 import logging
 import os
 import shutil
 import subprocess
-import sys
 import time
 
 import pandas as pd
 import pyranges as pr
 
-from ..data.data import get_paths, load_db, load_gtf_pyranges_gene_only
+from ..data.data import get_paths, load_gtf_db, load_gtf_pyranges_gene_only
 from ..timer import Timer
 from ..util import log_memory_usage
 
@@ -237,7 +235,7 @@ def annotate_hits(hits_list, genome="GRCh38"):
     if not hits_list:
         return pd.DataFrame()
 
-    db = load_db(genome=genome)
+    db = load_gtf_db(genome=genome)
     annotated = []
 
     for hit in hits_list:

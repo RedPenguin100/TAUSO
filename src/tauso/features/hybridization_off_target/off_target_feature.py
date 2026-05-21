@@ -6,9 +6,8 @@ import pandas as pd
 from ...data.consts import CELL_LINE_DEPMAP
 
 logger = logging.getLogger(__name__)
-from .add_off_target_feat import compute_single_row
 
-logger = logging.getLogger(__name__)
+from .add_off_target_feat import compute_single_row
 
 
 def serialize_feature_name(method, top_n, cutoff, is_specific):
@@ -30,7 +29,7 @@ def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_lis
         from pandarallel import pandarallel
 
         try:
-            logging.debug("[OT_Specific] initializing pandarallel")
+            logger.debug("[OT_Specific] initializing pandarallel")
             pandarallel.initialize(nb_workers=n_cores)
         except RuntimeError:
             pass  # Already initialized
@@ -131,7 +130,7 @@ def populate_off_target_general(
     if n_cores > 1:
         from pandarallel import pandarallel
 
-        logging.debug("[OT_General] initializing pandarallel")
+        logger.debug("[OT_General] initializing pandarallel")
         pandarallel.initialize(nb_workers=n_cores)
 
     for top_n in top_n_list:
@@ -206,7 +205,7 @@ def populate_off_target_specific_per_rank(
         from pandarallel import pandarallel
 
         try:
-            logging.debug("[OT_Specific_Rank] initializing pandarallel")
+            logger.debug("[OT_Specific_Rank] initializing pandarallel")
             pandarallel.initialize(nb_workers=n_cores, verbose=0)
         except RuntimeError:
             pass

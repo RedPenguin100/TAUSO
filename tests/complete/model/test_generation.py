@@ -38,9 +38,7 @@ def test_short_gene(dataframe_regression, cache):
     gene_to_data = cache.get_full_gene_data()
     gene_sequence = gene_to_data[target_gene].full_mrna
 
-    data = generate_stub_data(
-        target_gene=target_gene, gene_sequence=gene_sequence, first_n=10
-    )
+    data = generate_stub_data(target_gene=target_gene, gene_sequence=gene_sequence, first_n=10)
     df, aso_features = generate_aso_features(data, cache)
 
     # Check the resulting DataFrame against the saved regression file

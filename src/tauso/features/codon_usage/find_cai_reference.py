@@ -7,7 +7,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from ...common.gtf import filter_gtf_genes
-from ...data.data import load_db
+from ...data.data import load_gtf_db
 
 # --- CORE FUNCTIONS ---
 
@@ -66,7 +66,7 @@ def load_cell_line_gene_maps(
     # 1. Initialize DB Connection
     if genome_db is None:
         # Calls your existing function
-        genome_db = load_db()
+        genome_db = load_gtf_db()
 
         # 2. Build the Biological Allowlist (The "Truth" Set)
     gtf_allowed_genes = filter_gtf_genes(genome_db, filter_mode)

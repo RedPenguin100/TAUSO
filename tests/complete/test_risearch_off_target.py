@@ -26,6 +26,8 @@ def test_off_target_hybridization(request, mini_sampled_data, dataframe_regressi
     cell_lines_depmap = mini_sampled_data[CELL_LINE_DEPMAP].dropna().unique().tolist()
     transcriptomes = load_transcriptomes(cell_lines_depmap)
 
-    mini_sampled_data, feature_names = populate_off_target_specific(mini_sampled_data, gene_to_data_full, transcriptomes, [50], [1200], method='ARTM')
+    mini_sampled_data, feature_names = populate_off_target_specific(
+        mini_sampled_data, gene_to_data_full, transcriptomes, [50], [1200], method="ARTM"
+    )
 
     dataframe_regression.check(mini_sampled_data[["index_oligo"] + feature_names])

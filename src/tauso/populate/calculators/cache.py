@@ -122,7 +122,7 @@ class AssetCache:
             logger.warning("Genes %s differ from cached genes %s, regenerating cache.", genes_u, self._genes_u)
 
         logger.info("Loading genome data dictionary into memory (happens once)...")
-        self._gene_to_data_lean = get_locus_to_data_dict(include_introns=True, gene_subset=genes_u, genome=self.genome)
+        self._gene_to_data_lean = get_locus_to_data_dict(include_introns=True, gene_subset=genes_u, genome=self.genome, canonical_only=True)
         if self.custom_gene is not None:
             name, locus_info = self.custom_gene
             self._gene_to_data_lean[name] = locus_info

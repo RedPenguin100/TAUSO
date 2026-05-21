@@ -35,16 +35,21 @@ SMILES = "Smiles"
 PS_PATTERN = "ps_pattern"
 
 
-def standardize_cell_line_name(name: str) -> str:
-    """
-    Standardizes cell line names to alphanumeric uppercase.
-    Example: 'A-431' -> 'A431'
-    """
-    if not name or not isinstance(name, str):
-        return str(name)
-    if name == "U-251" or name == "U251":
-        return "U251MG"
-    return re.sub(r"[^a-zA-Z0-9]", "", name).upper()
+def standardize_cell_line_name(raw: str) -> str:
+    if not raw or not isinstance(raw, str) or raw.strip().lower() == "none":
+        return "Generic"
+
+    lookup_key = raw.strip().lower()
+
+    # Check if the key exists in our programmatic lowercase proxy roadmap
+    if lookup_key in _PROXY_LOOKUP_LOWER:
+        proxy = _PROXY_LOOKUP_LOWER[lookup_key]
+        if proxy is None:
+            return "Generic"  # Explicitly blocked proxy (e.g., HEK293T)
+        return re.sub(r"[^a-zA-Z0-9]", "", proxy).upper()
+
+    # Fallback normalization
+    return re.sub(r"[^a-zA-Z0-9]", "", raw).upper()
 
 
 HEPG2 = "HepG2"  # Note: DepMap usually lists this as HepG2, but keeping your key 'HepG'
@@ -81,6 +86,7 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "HepG2/Hep3B": "Hep G2",  # Split: Mapping to dominant line
     "Huh7": "HuH-7",
     "HK-2": "HK-2",
+    "HK2": "HK-2",
     "Jurkat": "JURKAT",
     "K-562": "K-562",
     "KARPAS-229": "Karpas-299",  # Typo Fixed
@@ -126,7 +132,11 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "differentiated human adipocytes": None,
     "iCell cardiomyocytes2": None,
     "iCell cardiomyocytes (R1017)": None,
+    "HEK293T": None,  # Might be tempting to put "HEK293", but they are likely too different
 }
+
+# Programmatically builds the lowercase lookup map at runtime so original dict stays pristine
+_PROXY_LOOKUP_LOWER = {k.lower(): v for k, v in CELL_LINE_TO_DEPMAP_PROXY_DICT.items()}
 
 HEPA_PROXIES = {"Hep 3B2.1-7", "Hep G2", "HuH-7", "SNU-449", "HepaRG"}
 
