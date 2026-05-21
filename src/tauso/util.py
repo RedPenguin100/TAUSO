@@ -25,20 +25,22 @@ def _to_str_seq(x) -> str:
     return s.replace(" ", "").replace("\t", "").replace("\n", "").replace("U", "T").upper()
 
 
-# Define the dictionary globally for fast O(1) lookups
+# Legacy dict kept for get_nucleotide_watson_crick (used by numba-compiled code)
 WATSON_CRICK_MAP = {"A": "T", "G": "C", "C": "G", "T": "A", "U": "A"}
+
+# str.translate tables — ~10× faster than per-char dict lookup
+_DNA_TABLE = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")  # output: T
+_RC_RNA_TABLE = str.maketrans("ACGTUacgtu", "UGCAAugcaa")  # output: U
 
 
 def get_antisense(sense: str) -> str:
-    """
-    Fast native Python reverse complement using a dictionary mapping.
-    """
-    try:
-        # List comprehension inside .join() is highly optimized in C
-        return "".join([WATSON_CRICK_MAP[n] for n in reversed(sense)])
-    except KeyError as e:
-        # e.args[0] grabs the specific character that failed the dictionary lookup
-        raise ValueError(f"Unknown nucleotide {e.args[0]}")
+    """Reverse complement in DNA alphabet (output uses T)."""
+    return sense[::-1].translate(_DNA_TABLE)
+
+
+def get_antisense_rna(sense: str) -> str:
+    """Reverse complement in RNA alphabet (output uses U, not T)."""
+    return sense[::-1].translate(_RC_RNA_TABLE)
 
 
 @njit

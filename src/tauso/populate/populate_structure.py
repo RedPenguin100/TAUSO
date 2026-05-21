@@ -2,6 +2,7 @@ import numpy as np
 
 from ..data.consts import *
 from ..features.names import *
+from ..util import get_antisense_rna
 
 
 def _build_multilength_index(text: bytes, lengths):
@@ -13,13 +14,6 @@ def _find_all_indices(big_string: bytes, small_strings: list[bytes]):
     lengths = [len(s) for s in small_strings]
     indexes = _build_multilength_index(big_string, lengths)
     return np.array([indexes[len(s)].get(s, -1) for s in small_strings], dtype=np.int32)
-
-
-COMP_U_TABLE = bytes.maketrans(b"ACGTUacgtu", b"UGCAaugcaa")
-
-
-def get_antisense_u(seq: str) -> str:
-    return seq.encode().translate(COMP_U_TABLE)[::-1].decode()
 
 
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask=True):
@@ -35,7 +29,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     trans_table = str.maketrans("tT", "uU")
 
     unique_seqs = all_data[SEQUENCE].unique()
-    sense_cache = {seq: get_antisense_u(seq) for seq in unique_seqs}
+    sense_cache = {seq: get_antisense_rna(seq) for seq in unique_seqs}
 
     # OPTIMIZATION 2: Map to a temp column to avoid slow .loc index lookups in the loop
     all_data["__temp_sense"] = all_data[SEQUENCE].map(sense_cache)
