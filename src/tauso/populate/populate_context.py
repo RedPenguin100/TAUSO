@@ -34,17 +34,25 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
         aso_df[col] = np.nan
 
     # Iterate by index to assign directly in place
+    skipped = {}  # contig -> list of genes
     for idx, row in aso_df.iterrows():
         try:
             feat_dict = calculate_ribo_seq_row(row, bw, flanks, how)
-
-            # Assign values directly to the specific index
             for key, val in feat_dict.items():
                 aso_df.at[idx, key] = val
-
         except Exception as e:
-            logger.warning("Row %s failed: %s", idx, e)
+            contig = str(e)
+            gene = row.get(CANONICAL_GENE, "unknown")
+            skipped.setdefault(contig, set()).add(gene)
             continue
+
+    for contig, genes in skipped.items():
+        n_rows = (aso_df.get("chrom", pd.Series()) == contig).sum() if "chrom" in aso_df.columns else "?"
+        logger.warning(
+            "Skipped ribo-seq for %s rows on non-canonical contig '%s' (genes: %s). "
+            "These rows will have NaN ribo-seq features.",
+            n_rows, contig, ", ".join(sorted(genes)),
+        )
 
     return aso_df, new_features_list
 
