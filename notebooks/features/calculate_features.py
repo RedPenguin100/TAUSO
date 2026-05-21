@@ -21,6 +21,7 @@ import pandas as pd
 
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
+from notebooks.features.feature_extraction import _get_saved_features_dir
 from tauso.populate.calculators.calculator import Calculator
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,7 @@ def main():
         data_version=config['version'],
         overwrite=args.overwrite,
         cpus=args.cpus,
+        get_feature_dir=_get_saved_features_dir,
     )
 
     for step in steps:
