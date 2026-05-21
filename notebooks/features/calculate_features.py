@@ -15,39 +15,12 @@ from pathlib import Path
 import pandas as pd
 
 from notebooks.consts import OLIGO_CSV_INDEXED
-from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
-from tauso.data.consts import (
-    CANONICAL_GENE,
-    CELL_LINE,
-    CELL_LINE_DEPMAP,
-    CELL_LINE_DEPMAP_PROXY,
-    CELL_LINE_ORGANISM,
-    CELL_LINE_TO_DEPMAP,
-    CELL_LINE_TO_DEPMAP_PROXY_DICT,
-    INHIBITION,
-    SEQUENCE,
-    VOLUME,
-)
+from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
 from tauso.populate.calculators.calculator import Calculator
 
 
 def _load_oligo(csv_path: Path) -> pd.DataFrame:
-    data = pd.read_csv(csv_path)
-    rename_scheme = {
-        'aso_sequence_5_to_3': SEQUENCE,
-        'Canonical Gene Name': CANONICAL_GENE,
-        'cell_line': CELL_LINE,
-        'cell_line_species': CELL_LINE_ORGANISM,
-        'inhibition_percent': INHIBITION,
-        'dosage': VOLUME,
-    }
-    data = data.rename(columns=rename_scheme)
-    data = data[data['steric_blocking'] == False]
-    data = data[data[INHIBITION].notna()]
-    data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(CELL_LINE_TO_DEPMAP_PROXY_DICT)
-    data[CELL_LINE_DEPMAP] = data[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP)
-    data = assign_chemistry(data)
-    return data
+    return standardize_oligo_ai_data(pd.read_csv(csv_path))
 
 
 DATASETS = {
