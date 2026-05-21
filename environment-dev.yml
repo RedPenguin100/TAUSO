@@ -10,7 +10,5 @@ dependencies:
   - cupy
   - graphviz
   - uv
-  - conda-build
-  - conda-lock
   - pip:
     - -e ".[dev]"  # installs tauso + all runtime + dev extras
