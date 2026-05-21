@@ -36,21 +36,17 @@ jobs:
         with:
           submodules: true
 
-      - name: Compute env hash
-        id: envhash
-        run: echo "hash=$(cat environment.yml | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-
       - name: Create Data Directory
         run: mkdir -p ${{ env.TAUSO_DATA_DIR }}
 
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          environment-file: environment.yml
+          environment-file: conda-lock.yml
           environment-name: tauso
           cache-downloads: true
           cache-environment: true
-          cache-environment-key: ${{ runner.os }}-tauso-${{ steps.envhash.outputs.hash }}
+          cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-lock.yml') }}
 
       - name: Install Dev Dependencies
         run: micromamba install -n tauso -f environment-dev.yml -y

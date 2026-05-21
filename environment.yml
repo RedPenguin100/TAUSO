@@ -8,34 +8,24 @@ dependencies:
  # core python deps (no build pins)
   - requests
   - numpy==2.3.4
-  - pandas<3
+  - pandas>=2.0,<3
   - pyarrow
   - scipy
   - numba
-  - biopython
-  - bcbio-gff
-  - gffutils
-  - pyranges
-  - fuzzysearch
+  - biopython>=1.87,<2
+  - gffutils>=0.14,<1
+  - pyranges>=0.1.4,<0.2
   - primer3-py
   - tqdm
-  - simplejson
-  - pytz
-  - tomli
-  - zipp
-  - pympler
-  - multiprocess
   - click
   - gdown
-  - mysql-connector-python
   - platformdirs
 
   - pybigwig # For ribo-seq
   - bowtie
 
-  - codon-bias==0.3.5
   - viennarna==2.7.2
-  - gget
-  - xgboost
+  - xgboost>=3.2,<4
+  - numba>=0.65,<0.66
 
   - pandarallel

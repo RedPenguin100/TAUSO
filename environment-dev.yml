@@ -18,5 +18,6 @@ dependencies:
   - pytest-regressions
   - pytest-xdist
   - conda-build
+  - conda-lock
 
 

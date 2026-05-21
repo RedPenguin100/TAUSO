@@ -1,0 +1,49 @@
+name: Update conda lockfile
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 3:00 AM UTC, same window as CI
+  workflow_dispatch:      # allow manual trigger
+
+jobs:
+  update-lockfile:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-name: lock-env
+          create-args: >-
+            conda-lock
+            micromamba
+          cache-downloads: true
+
+      - name: Regenerate lockfile
+        run: |
+          conda-lock lock \
+            --file environment.yml \
+            --platform linux-64 \
+            --lockfile conda-lock.yml \
+            --micromamba
+
+      - name: Commit updated lockfile if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet conda-lock.yml; then
+            echo "Lockfile unchanged, nothing to commit."
+          else
+            git add conda-lock.yml
+            git commit -m "chore: update conda-lock.yml [skip ci]"
+            git push
+          fi
