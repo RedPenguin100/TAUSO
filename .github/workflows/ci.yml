@@ -49,12 +49,18 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Free Disk Space
+        # Intentionally no `wait` — deletions run in the background while
+        # checkout and micromamba proceed. This is safe in practice because
+        # by the time Bowtie cache restore needs the space, the rms are done.
         run: |
+          df -h /
           sudo rm -rf /usr/share/dotnet &
           sudo rm -rf /usr/local/lib/android &
           sudo rm -rf /opt/ghc &
           sudo rm -rf /opt/hostedtoolcache/CodeQL &
           sudo rm -rf /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" &
+          echo "Deletions running in background. Current disk:"
+          df -h /
 
       - name: Checkout repository
         uses: actions/checkout@v4
