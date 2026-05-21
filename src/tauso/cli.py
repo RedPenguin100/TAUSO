@@ -79,7 +79,7 @@ def download_and_gunzip(url, dest_path, remove_gz=False):
 
 def count_lines(filepath):
     with open(filepath, "rb") as f:
-        return sum(1 for _ in f)
+        return sum(1 for line in f if not line.startswith(b"#"))
 
 
 def batch_iterator(iterator, batch_size=1000):
@@ -701,35 +701,6 @@ def build_annotation_db(
             )
 
         print()  # newline after progress bar
-
-        # ── Intron calculation ───────────────────────────────────────────────
-        click.echo("  - Calculating unique introns...")
-        seen_keys: set = set()
-        unique_introns = []
-        for intron in db.create_introns():
-            key = (intron.seqid, intron.start, intron.end, intron.strand)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                unique_introns.append(intron)
-
-        # ── Bulk-load introns ────────────────────────────────────────────────
-        click.echo(f"  - Bulk loading {len(unique_introns):,} introns...")
-        del db  # close the create_db handle before reopening
-        db = gffutils.FeatureDB(db_path)  # ← fixed: was db_path (wrong var)
-
-        with click.progressbar(length=len(unique_introns), label="    Importing") as bar:
-
-            def monitor_gen(introns=unique_introns, progress_bar=bar):
-                for intron in introns:
-                    yield intron
-                    progress_bar.update(1)
-
-            db.update(
-                monitor_gen(),
-                merge_strategy="create_unique",
-                disable_infer_genes=True,
-                disable_infer_transcripts=True,
-            )
 
         # ── Write success sentinel ───────────────────────────────────────────
         with open(db_success_path, "w") as f:  # ← fixed: was writing to db_path

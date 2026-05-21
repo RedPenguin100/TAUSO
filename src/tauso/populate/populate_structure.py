@@ -71,13 +71,13 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
             continue
 
         locus_info = gene_to_data[gene_name]
-        pre_mrna_b = pre_mrna_cache[gene_name]
+        pre_mrna = pre_mrna_cache[gene_name]
 
         row_idxs = group["__temp_idx"].values
         group_senses_b = group["__temp_sense"].values
 
         group_lengths = set(len(s) for s in group_senses_b)
-        index = _build_multilength_index(pre_mrna_b, group_lengths)
+        index = _build_multilength_index(pre_mrna, group_lengths)
         idxs = np.array([index[len(s)].get(s, -1) for s in group_senses_b], dtype=np.int32)
 
         valid_mask = idxs != -1
@@ -88,7 +88,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         v_idxs = idxs[valid_mask]
 
         out_start[v_row_idxs] = v_idxs
-        out_start_end[v_row_idxs] = len(pre_mrna_b) - v_idxs
+        out_start_end[v_row_idxs] = len(pre_mrna) - v_idxs
 
         # Get lengths of the valid matches
         v_seq_lengths = seq_lengths[v_row_idxs]

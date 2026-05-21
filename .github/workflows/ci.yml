@@ -64,8 +64,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.success
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3.db
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3.db.success
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf

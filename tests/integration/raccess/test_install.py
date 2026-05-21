@@ -36,6 +36,7 @@ def clean_bin_dir():
         shutil.move(temp_bin, bin_dir)
 
 
+@pytest.mark.integration
 def test_setup_raccess_custom_dir(temp_data_dir, clean_bin_dir):
     """Test that setup-raccess installs into TAUSO_DATA_DIR and copies to bin/."""
     # Run the setup command

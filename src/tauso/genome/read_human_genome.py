@@ -8,39 +8,7 @@ from .LocusInfo import GeneType, LocusInfo, StrandType
 
 logger = logging.getLogger(__name__)
 
-
-def _merge_overlapping_exons(exon_list):
-    if not exon_list:
-        return []
-    sorted_exons = sorted(exon_list)
-    merged = [sorted_exons[0]]
-    for start, end in sorted_exons[1:]:
-        prev_start, prev_end = merged[-1]
-        if start <= prev_end:
-            merged[-1] = (prev_start, max(prev_end, end))
-        else:
-            merged.append((start, end))
-    return merged
-
-
-def _derive_introns_from_exons(exon_list):
-    sorted_exons = sorted(exon_list)
-    introns = []
-    for i in range(len(sorted_exons) - 1):
-        intron_start = sorted_exons[i][1]
-        intron_end = sorted_exons[i + 1][0]
-        if intron_start < intron_end:
-            introns.append((intron_start, intron_end))
-    return introns
-
-
-def _canonical_iter(db, canonical_transcripts, child_feature_types):
-    for tx_id in canonical_transcripts:
-        try:
-            tx = db[tx_id]
-            yield from db.children(tx, featuretype=child_feature_types, order_by="start")
-        except Exception:
-            logger.warning(f"[Get_Locus] Could not fetch transcript {tx_id}")
+CANONICAL_CHROMS = {f"chr{i}" for i in range(1, 23)} | {"chrX", "chrY"}
 
 
 def _get_gene_name_gff(gene):
@@ -74,22 +42,9 @@ def _get_gene_type_gff(gene):
             return val[0]
     return "unannotated"
 
+
 def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh38", canonical_only=True):
-    """
-    GFF3-compatible version of get_locus_to_data_dict.
-
-    Key differences from the GTF version:
-    - Gene name resolution tries GFF3 attribute names first (Name, gene)
-    - Gene biotype resolution tries GFF3 attribute names first (biotype, gene_biotype)
-    - child_feature_types includes 'CDS' instead of 'UTR' (GFF3 represents UTRs
-      as five_prime_UTR / three_prime_UTR, so we cast on the "UTR" substring check below)
-    - Canonical transcript tag check is the same ('Ensembl_canonical') but falls
-      back gracefully since NCBI GFF3s don't have this tag at all
-    - Duplicate name handling: GFF3 genes on alt loci often share a Name with the
-      primary locus, so the existing skip-on-duplicate logic is intentionally kept
-    """
-    CANONICAL_CHROMS = {f"chr{i}" for i in range(1, 23)} | {"chrX", "chrY"}
-
+    """GFF3-based genome loader. Builds a {gene_name: LocusInfo} dict."""
     UTR_FEATURE_TYPES = (
         "five_prime_UTR",
         "three_prime_UTR",
@@ -143,9 +98,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
         if canonical_only:
             canonical_transcripts = set()
-            for transcript in db.children(
-                gene, featuretype=("mRNA", "transcript"), level=1, order_by="start"
-            ):
+            for transcript in db.children(gene, featuretype=("mRNA", "transcript"), level=1, order_by="start"):
                 tags = transcript.attributes.get("tag", [])
                 if any("Ensembl_canonical" in t for t in tags):
                     canonical_transcripts.add(transcript.id)
@@ -226,6 +179,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
     return locus_to_data
 
+
 def _merge_overlapping_exons(exon_list):
     """Merge overlapping/nested exons into non-overlapping intervals."""
     if not exon_list:
@@ -264,7 +218,6 @@ def _canonical_iter(db, canonical_transcripts, child_feature_types):
 
 
 def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="GRCh38", canonical_only=False):
-    CANONICAL_CHROMS = {f"chr{i}" for i in range(1, 23)} | {"chrX", "chrY"}
 
     with Timer() as t:
         db = load_gtf_db(genome)
@@ -275,7 +228,7 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
 
     locus_to_data = defaultdict(LocusInfo)
     target_names = set(gene_subset) if gene_subset else None
-    child_feature_types = ("exon", "UTR", "five_prime_UTR", "three_prime_UTR")
+    child_feature_types = ("exon", "UTR")
 
     for gene in db.features_of_type("gene", order_by="start"):
         chrom = gene.seqid
@@ -349,17 +302,7 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
             if ft == "exon":
                 exons_collected.append((feature.start - 1, feature.end))
 
-            elif ft in ("five_prime_UTR", "five_prime_utr"):
-                locus_info.add_5utr_indices(feature.start - 1, feature.end)
-                locus_info.utr_indices.append((feature.start - 1, feature.end))  # keep legacy field
-
-            elif ft in ("three_prime_UTR", "three_prime_utr"):
-                locus_info.add_3utr_indices(feature.start - 1, feature.end)
-                locus_info.utr_indices.append((feature.start - 1, feature.end))
-
-            elif "UTR" in ft or "utr" in ft:
-                # Untyped UTR — goes into legacy utr_indices only, can't assign to 5'/3'
-                logger.debug(f"[Get_Locus] Untyped UTR for {locus_tag}, cannot assign to 5' or 3'")
+            elif ft == "UTR":
                 locus_info.utr_indices.append((feature.start - 1, feature.end))
 
             else:

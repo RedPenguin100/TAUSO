@@ -87,7 +87,6 @@ def _open_any_gtf(filepath: str, mode: str = "rt"):
 def _create_filtered_gtf(input_gtf_path: str, output_temp_path: str):
     """Streams a GTF and writes only header and 'gene' lines to the output path."""
 
-    # Notice we swapped gzip.open for our new helper function here!
     with _open_any_gtf(input_gtf_path, "rt") as f_in, open(output_temp_path, "wt") as f_out:
         for line in f_in:
             # Keep header lines
