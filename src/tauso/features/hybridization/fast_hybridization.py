@@ -6,18 +6,19 @@ import tempfile
 import uuid
 from importlib.resources import files
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from Bio.Seq import Seq
 
-from ...common.consts import OUT_FOLDER
 from .Interaction import Interaction
 
-# /dev/shm is a temporary folder on the RAM, which will speed up the calculation considerably.
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
 else:
     TMP_PATH = Path(tempfile.gettempdir()) / "tauso_risearch_tmp"
+
+# reverse-then-translate: equivalent to Seq(trigger).reverse_complement_rna() without Bio.Seq overhead
+_RC_RNA_TABLE = str.maketrans("ACGT", "UGCA")
 
 
 def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
@@ -31,10 +32,60 @@ def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
 
 def get_risearch_path() -> str:
     binary_path = files("tauso") / "out" / "risearch_executable"
-
     if not binary_path.is_file():
         raise FileNotFoundError(f"Binary missing at {binary_path}")
     return str(binary_path)
+
+
+def _interaction_mode(interaction_type: Interaction) -> str:
+    if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
+        return "su95_noGU"
+    if interaction_type == Interaction.RNA_RNA:
+        return "t04"
+    raise ValueError(f"Unsupported interaction type: {interaction_type}")
+
+
+def _build_risearch_args(
+    query_path: Path,
+    target_path: Path,
+    min_score: int,
+    mode: str,
+    neighborhood: int,
+    transpose: bool,
+    parsing_type,
+) -> List[str]:
+    args = [
+        get_risearch_path(),
+        "-q",
+        str(query_path),
+        "-t",
+        str(target_path),
+        "-s",
+        str(min_score),
+        "-d",
+        "30",
+        "-m",
+        mode,
+        "-n",
+        str(neighborhood),
+    ]
+    if transpose:
+        args.append("-R")
+    if parsing_type is not None:
+        args.append(f"-p{parsing_type}")
+    return args
+
+
+def _run_risearch(args: List[str]) -> str:
+    TMP_PATH.mkdir(parents=True, exist_ok=True)
+    return subprocess.check_output(
+        args,
+        universal_newlines=True,
+        text=True,
+        cwd=str(TMP_PATH),
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+    )
 
 
 def get_trigger_mfe_scores_by_risearch(
@@ -52,81 +103,72 @@ def get_trigger_mfe_scores_by_risearch(
         raise ValueError("name_to_sequence is empty!")
     TMP_PATH.mkdir(parents=True, exist_ok=True)
 
-    risearch_path = get_risearch_path()
-
     if unique_id is None:
         unique_id = uuid.uuid4().hex
 
     if target_file_cache is None:
-        target_filename = f"target-{unique_id}.fa"
-        target_path = Path(dump_target_file(target_filename, name_to_sequence)).resolve()
+        target_path = Path(dump_target_file(f"target-{unique_id}.fa", name_to_sequence)).resolve()
     else:
         target_path = Path(target_file_cache).resolve()
 
     query_path = (TMP_PATH / f"query-{unique_id}.fa").resolve()
-
     with open(query_path, "w") as f:
         f.write(f">trigger\n{Seq(trigger).reverse_complement_rna()}\n")
 
-    # --- MINIMAL ADDITION: Validation Exceptions ---
     for p, name in [(target_path, "Target"), (query_path, "Query")]:
         if not p.exists():
             raise FileNotFoundError(f"{name} file was not created at {p}")
         if p.stat().st_size == 0:
-            raise ValueError(f"{name} file is empty (0 bytes) at {p}. Disk might be full or write failed.")
+            raise ValueError(f"{name} file is empty at {p}. Disk might be full.")
 
-    if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
-        m = "su95_noGU"
-    elif interaction_type == Interaction.RNA_RNA:
-        m = "t04"
-    else:
-        raise ValueError(f"Unsupported interaction type: {interaction_type}={str({interaction_type})}")
-
-    args = [
-        risearch_path,
-        "-q",
-        str(query_path),
-        "-t",
-        str(target_path),
-        "-s",
-        f"{minimum_score}",
-        "-d",
-        "30",
-        "-m",
-        m,
-        "-n",
-        f"{neighborhood}",
-    ]
-    if transpose:
-        args.append("-R")
+    mode = _interaction_mode(interaction_type)
+    args = _build_risearch_args(query_path, target_path, minimum_score, mode, neighborhood, transpose, parsing_type)
 
     try:
-        if parsing_type is not None:
-            args.append(f"-p{parsing_type}")
-        # Capture stderr to see the actual RIsearch error if it returns 255
-        result = subprocess.check_output(
-            args,
-            universal_newlines=True,
-            text=True,
-            cwd=str(OUT_FOLDER),
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-        )
+        return _run_risearch(args)
     finally:
         if target_file_cache is None and target_path.exists():
             os.remove(target_path)
         if query_path.exists():
             query_path.unlink()
-    return result
 
 
-"""
-note: I used hashing here to be able to run multiple sequences (triggers in my case) in parallel (for multiple triggers) without conflicts with the files,
-you can remove it if it's not an issue for you 
-note: in my case I first preformed reverse_complement_rna to the trigger because my goal was to find sequences that might undesirably bind to the
-trigger binding site of the toehold, adjust it for your particular case
-note: play with the d and s parameters I passed here, and with other parameters that might be relevant for your usecase
-"""
+def get_triggers_mfe_scores_batch(
+    trigger_id_seq_pairs: List[Tuple[str, str]],
+    target_file_path,
+    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
+    minimum_score: int = 900,
+    neighborhood: int = 0,
+    parsing_type=None,
+    transpose=False,
+    batch_id=None,
+) -> str:
+    """Run RIsearch once for all (id, trigger) pairs against a pre-built target file."""
+    if not trigger_id_seq_pairs:
+        return ""
+
+    TMP_PATH.mkdir(parents=True, exist_ok=True)
+
+    if batch_id is None:
+        batch_id = uuid.uuid4().hex
+
+    query_path = (TMP_PATH / f"query-batch-{batch_id}.fa").resolve()
+    lines: List[str] = []
+    for query_id, trigger in trigger_id_seq_pairs:
+        lines.append(f">{query_id}")
+        lines.append(trigger[::-1].translate(_RC_RNA_TABLE))
+    query_path.write_text("\n".join(lines) + "\n")
+
+    mode = _interaction_mode(interaction_type)
+    args = _build_risearch_args(
+        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
+    )
+
+    try:
+        return _run_risearch(args)
+    finally:
+        if query_path.exists():
+            query_path.unlink()
 
 
 def _parse_mfe_scores_2(result):
@@ -146,21 +188,17 @@ def _parse_mfe_scores_2(result):
         else:
             target_to_energies[target_name] = [float(target_energy)]
 
-    # ignore the keys at this point
     return list(target_to_energies.values())
 
 
-# in my case I was only interested in the energy scores and didn't care about the actual sequences, this is the parsing I used in case it helps you
 def get_mfe_scores(result: str, parsing_type=None) -> List[List[float]]:
     mfe_results = []
 
     if parsing_type is None:
         for gene_result in result.split("\n\nquery trigger")[1:]:
             stripped_result = gene_result.strip()
-            regex_results = re.findall("Free energy \[kcal/mol\]: [0-9-.]+ ", stripped_result)
-            mfe_results.append(
-                [float(regex_result.replace("Free energy [kcal/mol]: ", "").strip()) for regex_result in regex_results]
-            )
+            regex_results = re.findall("Free energy \\[kcal/mol\\]: [0-9-.]+ ", stripped_result)
+            mfe_results.append([float(r.replace("Free energy [kcal/mol]: ", "").strip()) for r in regex_results])
     elif parsing_type == "2":
         return _parse_mfe_scores_2(result)
 
