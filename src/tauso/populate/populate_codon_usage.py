@@ -13,6 +13,8 @@ from ..features.codon_usage.cai import calc_CAI
 from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import calc_tAI, tai_weights
 
+logger = logging.getLogger(__name__)
+
 
 def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[pd.DataFrame, list[str]]:
     """
@@ -56,7 +58,6 @@ def populate_enc(
     cds_windows: list,
     registry: dict,
     n_jobs: int = 1,
-    verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates local and global ENC (Effective Number of Codons) scores.
@@ -66,7 +67,6 @@ def populate_enc(
         cds_windows: List of window sizes.
         registry: Dictionary of gene info.
         n_jobs: Number of CPU nodes to use. Defaults to 1 (standard .apply).
-        verbose: If True, prints progress messages.
 
     Returns:
         tuple: (Updated DataFrame, List of new feature names)
@@ -80,7 +80,7 @@ def populate_enc(
             from pandarallel import pandarallel
 
             # Initialize strictly if using parallelism
-            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=0)
+            pandarallel.initialize(nb_workers=n_jobs)
         except ImportError:
             logger.warning("'pandarallel' not found. Falling back to single core.")
             use_parallel = False
@@ -127,7 +127,6 @@ def populate_cai(
     cds_windows: list,
     registry: dict,
     n_jobs: int = 1,
-    verbose: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates context-specific CAI scores based on cell line weights.
@@ -138,7 +137,6 @@ def populate_cai(
         cds_windows: List of window sizes.
         registry: Dictionary of gene info (ref_registry).
         n_jobs: Number of CPU nodes (defaults to 1).
-        verbose: Print status messages.
 
     Returns:
         tuple: (Updated DataFrame, List of new feature names)
@@ -161,7 +159,7 @@ def populate_cai(
         try:
             from pandarallel import pandarallel
 
-            pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=0)
+            pandarallel.initialize(nb_workers=n_jobs)
         except ImportError:
             logger.warning("'pandarallel' not found. Falling back to single core.")
             use_parallel = False

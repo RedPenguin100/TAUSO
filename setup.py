@@ -1,15 +1,17 @@
+import logging
 import os
-import subprocess
 import shutil
-from setuptools import setup, find_packages
+import subprocess
+
+from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.egg_info import egg_info
 
-# --- CONFIGURATION ---
 PACKAGE_NAME = "tauso"
 BINARY_NAME = "risearch_executable"
 
-# ---------------------
+logger = logging.getLogger(__name__)
+
 
 def build_risearch_binary(force_target_dir=None):
     """
@@ -38,27 +40,36 @@ def build_risearch_binary(force_target_dir=None):
 
     print(f"--- BUILDING EXTENSION ---")
 
-    # 2. Check Sources
+    # 2. Check Sources - FAIL LOUDLY IF MISSING
     if not os.path.exists(src_dir):
-        print(f"WARNING: C source not found at {src_dir}. Binary will not be built.")
-        return
+        raise FileNotFoundError(
+            f"CRITICAL: C source not found at {src_dir}. "
+            "Ensure the 'external' folder is included in MANIFEST.in or you are using an editable install."
+        )
 
-    # 3. Build
+    # 3. Build - FAIL LOUDLY IF MAKE FAILS
     os.makedirs(bin_dir, exist_ok=True)
-    subprocess.check_call(["make", "-C", src_dir])
+    try:
+        logger.info("Compiling RISearch...")
+        subprocess.check_call(["make", "-C", src_dir])
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"CRITICAL: make failed to compile RIsearch. Error: {e}")
 
-    # 4. Find Binary
+    # 4. Find Binary - FAIL LOUDLY IF NOT FOUND
     compiled_bin = os.path.join(bin_dir, "RIsearch")
     if not os.path.exists(compiled_bin):
         compiled_bin = os.path.join(src_dir, "RIsearch")
 
     if not os.path.exists(compiled_bin):
-        raise FileNotFoundError("Make ran successfully, but RIsearch binary not found.")
+        raise FileNotFoundError(
+            "CRITICAL: Make ran successfully, but the RIsearch binary was not found in the expected output folder."
+        )
+    logger.info("Found RISearch binary")
 
     # 5. Copy
     # This creates src/tauso/out/ if it doesn't exist
     os.makedirs(dest_dir, exist_ok=True)
-    print(f"Copying binary to {dest_path}")
+    logger.info(f"Copying binary to {dest_path}")
     shutil.copy(compiled_bin, dest_path)
     os.chmod(dest_path, 0o755)
 
@@ -79,6 +90,7 @@ class CustomEggInfo(egg_info):
     """
 
     def run(self):
+        logger.info("Running build_risearch_binary...")
         build_risearch_binary(force_target_dir=None)
         super().run()
 
@@ -89,10 +101,10 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     cmdclass={
-        'build_py': CustomBuild,
-        'egg_info': CustomEggInfo,
+        "build_py": CustomBuild,
+        "egg_info": CustomEggInfo,
     },
     # Update package_data to include the 'out/' prefix
-    package_data={PACKAGE_NAME: [f"out/{BINARY_NAME}"]},
+    package_data={PACKAGE_NAME: [f"out/{BINARY_NAME}", f"features/context/*.bw"]},
     include_package_data=True,
 )

@@ -1,17 +1,16 @@
 import glob
-import itertools
 import logging
 import os
 import shutil
 import subprocess
-import sys
 import time
 
 import pandas as pd
 import pyranges as pr
 
-from ..data.data import get_paths, load_db, load_gtf_for_assign_gene
+from ..data.data import get_paths, load_gtf_db, load_gtf_pyranges_gene_only
 from ..timer import Timer
+from ..util import log_memory_usage
 
 logger = logging.getLogger(__name__)
 
@@ -120,13 +119,17 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False, threads=1, mem_p
         # Route both stdout and stderr to the log file instead of DEVNULL
         with open(log_file_path, "w") as log_file:
             with subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True) as proc:
-                spinner = itertools.cycle(["-", "/", "|", "\\"])
+                start_time = time.time()
                 while proc.poll() is None:
-                    sys.stdout.write(f"\r  Compiling {genome} Index... {next(spinner)}")
-                    sys.stdout.flush()
-                    time.sleep(0.5)
+                    elapsed = time.time() - start_time
+                    index_files = glob.glob(f"{index_base}*.ebwt*")
+                    total_gb = sum(os.path.getsize(f) for f in index_files if os.path.exists(f)) / (1024**3)
+                    logger.info(
+                        f"Building {genome} index... {total_gb:.2f} GB written | elapsed: {int(elapsed // 60)}m{int(elapsed % 60)}s"
+                    )
+                    time.sleep(30)
 
-            sys.stdout.write(f"\r  Compiling {genome} Index... Done!      \n")
+            logger.info(f"Compiling {genome} Index... Done!")
 
             if proc.returncode != 0:
                 # Grab the last 15 lines of the log to see the actual error
@@ -170,7 +173,7 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
         "-a",  # Report all valid alignments
         "-S",
         "--sam-nohead",
-        "-x",  # <--- ADD THIS LINE
+        "-x",
         index_base,
         "-c",
         sequence,
@@ -232,7 +235,7 @@ def annotate_hits(hits_list, genome="GRCh38"):
     if not hits_list:
         return pd.DataFrame()
 
-    db = load_db(genome=genome)
+    db = load_gtf_db(genome=genome)
     annotated = []
 
     for hit in hits_list:
@@ -297,8 +300,8 @@ def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
     # Use the hits list for annotation as before
     df = annotate_hits(hits_list, genome=genome)
 
-    # print(f"Counts: {counts_dict}")
-    # print(f"hits_list: {hits_list}")
+    # logger.debug(f"Counts: {counts_dict}")
+    # logger.debug(f"hits_list: {hits_list}")
 
     return df
 
@@ -369,8 +372,7 @@ def annotate_hits_bulk(hits_list, genome):
     if not hits_list:
         return {}
 
-    # Assumes get_paths is defined globally in your script
-    gr_genome = load_gtf_for_assign_gene(get_paths(genome)["gtf"])
+    gr_genome = load_gtf_pyranges_gene_only(get_paths(genome)["gtf_gz"])
 
     # 1. Convert your raw Bowtie hits to a Pandas DataFrame
     df_hits = pd.DataFrame(hits_list)
@@ -413,8 +415,6 @@ def annotate_hits_bulk(hits_list, genome):
     # Combine all the chunked results back into one dataframe
     df_res = pd.concat(df_res_list, ignore_index=True)
 
-    # df_res = intersected.df
-
     if df_res.empty:
         return {}
 
@@ -440,15 +440,13 @@ def annotate_hits_bulk(hits_list, genome):
     return seq_to_genes
 
 
+@log_memory_usage
 def find_all_gene_off_targets_BULK(fasta_path, genome="GRCh38", threads=16, max_mismatches=0):
-    """
-    Main bulk entry point. Replaces your old find_all_gene_off_targets.
-    """
-    with Timer("Running bowtie"):
-        hits_list = run_bowtie_search_bulk(fasta_path, genome=genome, max_mismatches=max_mismatches, threads=threads)
+    logger.debug("[Find_OT] Running bowtie")
+    hits_list = run_bowtie_search_bulk(fasta_path, genome=genome, max_mismatches=max_mismatches, threads=threads)
 
-    with Timer("Annotate bowtie hits"):
-        # 2. Annotate the hits in bulk and get the mapping dictionary
-        seq_to_genes = annotate_hits_bulk(hits_list, genome=genome)
+    logger.debug("[Find_OT] Annotate hits")
+    # 2. Annotate the hits in bulk and get the mapping dictionary
+    seq_to_genes = annotate_hits_bulk(hits_list, genome=genome)
 
     return seq_to_genes

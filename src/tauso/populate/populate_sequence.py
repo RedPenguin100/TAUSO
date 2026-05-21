@@ -10,6 +10,9 @@ from ..data.consts import SEQUENCE
 from ..features.sequence.seq_features import *
 from ..timer import Timer
 
+logger = logging.getLogger(__name__)
+
+
 FEATURE_SPECS: list[tuple[str, callable]] = [
     # Terminal Clamps
     # Returns 1 if 5' end is G/C, else 0
@@ -69,13 +72,15 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     logger.debug("Starting %s...", col_name)
 
     series = df[SEQUENCE]
-    try:
-        from pandarallel import pandarallel
 
-        pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
-        df[col_name] = series.parallel_apply(func)
-    except Exception:
+    # MINIMAL CHANGE 1: Bypass pandarallel completely if cpus=1 for clean debugging
+    if cpus <= 1:
         df[col_name] = series.apply(func)
+    else:
+        try:
+            df[col_name] = series.parallel_apply(func)
+        except Exception:
+            df[col_name] = series.apply(func)
 
     duration = time.time() - start_time
     logger.debug("Finished %s | Time: %.2fs", col_name, duration)
@@ -89,6 +94,14 @@ def populate_sequence_features(
     available = {name: fn for name, fn in FEATURE_SPECS}
     feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
 
+    if cpus > 1:
+        try:
+            from pandarallel import pandarallel
+
+            pandarallel.initialize(progress_bar=False, verbose=0, nb_workers=cpus)
+        except ImportError:
+            pass
+
     for name in feature_names:
         # Wrap each feature calculation in the Timer context manager
         with Timer(name):
@@ -97,11 +110,14 @@ def populate_sequence_features(
     return df, feature_names
 
 
+import time
+from typing import Optional, Tuple
+
+import pandas as pd
+
+
 def populate_sequence_one_hot_encoded(
-    df: pd.DataFrame,
-    max_len: Optional[int] = None,
-    cpus: int = 1,
-    verbose: bool = False,
+    df: pd.DataFrame, max_len: Optional[int] = None, cpus: int = 1
 ) -> Tuple[pd.DataFrame, list[str]]:
     """
     One-hot encodes ASO sequences with zero-padding to handle varying lengths.
@@ -147,13 +163,17 @@ def populate_sequence_one_hot_encoded(
         return encoded
 
     # 3. Apply function (mirroring your pandarallel structure)
-    try:
-        from pandarallel import pandarallel
+    if cpus > 1:
+        try:
+            from pandarallel import pandarallel
 
-        # Only initialize if not already done, though harmless if repeated
-        pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus)
-        encoded_series = df[SEQUENCE].parallel_apply(encode_and_pad)
-    except Exception:
+            # Only initialize if not already done, though harmless if repeated
+            pandarallel.initialize(nb_workers=cpus)
+            encoded_series = df[SEQUENCE].parallel_apply(encode_and_pad)
+        except Exception:
+            encoded_series = df[SEQUENCE].apply(encode_and_pad)
+    else:
+        # ABSOLUTE MINIMAL CHANGE: Added this else block for cpus == 1
         encoded_series = df[SEQUENCE].apply(encode_and_pad)
 
     # 4. Generate the new feature names

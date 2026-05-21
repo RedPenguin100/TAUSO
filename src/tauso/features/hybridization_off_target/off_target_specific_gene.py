@@ -34,24 +34,34 @@ def _validate_genes_found(target_genes, gene_to_data):
         raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
 
 
-def _score_one_gene(gene, row_triggers, target_path, cutoff):
-    """Run RIsearch for one gene and return {trigger_id: score}. Thread-safe."""
-    result = get_triggers_mfe_scores_batch(
-        trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in row_triggers],
-        target_file_path=target_path,
-        minimum_score=cutoff,
-        parsing_type="2",
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-        transpose=True,
-        batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-    )
-    if not result.strip():
-        return {}
-    result_df = parse_risearch_output(result)
-    del result
-    if result_df.empty or "energy" not in result_df.columns:
-        return {}
-    return _sum_exp_energy_by_trigger(result_df)
+def _score_one_gene(gene, row_triggers, target_path, cutoff, chunk_size=100):
+    """Run RIsearch for one gene in chunks and return {trigger_id: score}. Thread-safe.
+
+    Chunking caps peak memory: with cutoff=0 a single 1000-query call can
+    generate hundreds of MB of RIsearch output held in RAM before parsing.
+    chunk_size=100 gives 10 calls instead of 1 while still being ~100x
+    faster than the old one-subprocess-per-row approach.
+    """
+    combined: dict = {}
+    for i in range(0, len(row_triggers), chunk_size):
+        chunk = row_triggers[i : i + chunk_size]
+        result = get_triggers_mfe_scores_batch(
+            trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
+            target_file_path=target_path,
+            minimum_score=cutoff,
+            parsing_type="2",
+            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+            transpose=True,
+            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+        )
+        if not result.strip():
+            continue
+        result_df = parse_risearch_output(result)
+        del result
+        if result_df.empty or "energy" not in result_df.columns:
+            continue
+        combined.update(_sum_exp_energy_by_trigger(result_df))
+    return combined
 
 
 def _apply_risearch_scoring(

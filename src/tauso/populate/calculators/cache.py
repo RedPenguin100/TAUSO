@@ -1,7 +1,7 @@
 import logging
 
-from tauso.genome.LocusInfo import LocusInfo
-from tauso.genome.read_human_genome import get_locus_to_data_dict
+from ...genome.LocusInfo import LocusInfo
+from ...genome.read_human_genome import get_locus_to_data_dict
 
 logger = logging.getLogger(__name__)
 
@@ -101,25 +101,22 @@ class AssetCache:
             from pathlib import Path
 
             from tauso.common.gtf import filter_gtf_genes
-            from tauso.data.data import get_data_dir, load_db
+            from tauso.data.data import get_data_dir, load_gtf_db
             from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
             from tauso.features.hybridization_off_target.common import get_general_expression_of_genes
 
-            # 1. Load the full database and get valid non-mitochondrial genes
-            db = load_db()
+            db = load_gtf_db()
             valid_genes = filter_gtf_genes(db, filter_mode="non_mt")
 
             data_dir = get_data_dir()
             expression_dir = os.path.join(data_dir, "processed_expression")
 
-            # 2. Load cell-line specific transcriptomes
             self._transcriptomes = load_cell_line_gene_expression(
                 cell_lines_depmap,
                 valid_genes,
                 expression_dir=expression_dir,
             )
 
-            # 3. Load the general mean expression
             mean_exp_data = get_general_expression_of_genes(
                 Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet", valid_genes
             )
@@ -135,7 +132,7 @@ class AssetCache:
             from tauso.genome.TranscriptMapper import GeneCoordinateMapper
 
             paths = get_paths(self.genome)
-            self._gene_coordinate_mapper = GeneCoordinateMapper(paths["db"])
+            self._gene_coordinate_mapper = GeneCoordinateMapper(paths["gtf_db"])
 
         return self._gene_coordinate_mapper
 
@@ -148,7 +145,9 @@ class AssetCache:
             logger.warning("Genes %s differ from cached genes %s, regenerating cache.", genes_u, self._genes_u)
 
         logger.info("Loading genome data dictionary into memory (happens once)...")
-        self._gene_to_data_lean = get_locus_to_data_dict(include_introns=True, gene_subset=genes_u, genome=self.genome)
+        self._gene_to_data_lean = get_locus_to_data_dict(
+            include_introns=True, gene_subset=genes_u, genome=self.genome, canonical_only=True
+        )
         if self.custom_gene is not None:
             name, locus_info = self.custom_gene
             self._gene_to_data_lean[name] = locus_info

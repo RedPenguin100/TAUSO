@@ -5,6 +5,7 @@ from tauso.populate.populate_rbp import (
     populate_complexity_features,
     populate_rbp_affinity_features,
 )
+from tests.complete.conftest import get_n_jobs
 
 
 @pytest.fixture
@@ -30,7 +31,7 @@ def test_rbp_complexity_features_regression(
         window_col = f"flank_sequence_{flank_size}"
 
         data, individual_features = populate_rbp_affinity_features(
-            data, rbp_map, pwm_db, gene_to_data, window_col, n_jobs=2
+            data, rbp_map, pwm_db, gene_to_data, window_col, n_jobs=get_n_jobs()
         )
 
         data, global_features = populate_complexity_features(

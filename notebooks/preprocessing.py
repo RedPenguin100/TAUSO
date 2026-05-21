@@ -99,6 +99,7 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
 def process_oligo_data_rename(data):
     rename_scheme = {
         "aso_sequence_5_to_3": SEQUENCE,
+        "Canonical Gene Name": CANONICAL_GENE,
         "cell_line": CELL_LINE,
         "cell_line_species": CELL_LINE_ORGANISM,
         "inhibition_percent": INHIBITION,

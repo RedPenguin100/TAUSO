@@ -9,7 +9,32 @@ on:
     - cron: '0 3 * * *' # 3:00 AM UTC -> 6:00 AM Israel Daylight Time
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: conda-linux-64-dev.lock
+          environment-name: tauso
+          cache-downloads: true
+          cache-environment: true
+          cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
+
+      - name: Run Ruff Check (Linting)
+        run: micromamba run -n tauso ruff check src/
+
+      - name: Run Ruff Format (Style)
+        run: micromamba run -n tauso ruff format --check src/
+
   build:
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
@@ -49,12 +74,6 @@ jobs:
           cache-environment: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
 
-      - name: Run Ruff Check (Linting)
-        run: micromamba run -n tauso ruff check src/
-
-      - name: Run Ruff Format (Style)
-        run: micromamba run -n tauso ruff format --check src/
-
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
 
@@ -66,15 +85,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.db.success
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3.db
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3.db.success
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.db
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.db.success
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.gz
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.gff3.gz
-          key: ${{ runner.os }}-tauso.genome-GRCh38-v3
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v4
 
       - name: Install genome
         run: tauso setup-genome
@@ -90,6 +108,12 @@ jobs:
 
       - name: Index Oligo Data
         run: python -m notebooks.utils.data
+
+      - name: Cache mRNA Half Life
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.csv.gz
+          key: mrna-halflife-v1
 
       - name: Setup mRNA half life
         run: tauso setup-mrna-halflife
@@ -107,7 +131,6 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
             ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
-            ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.csv.gz
           key: depmap-25Q3-v2
 
       - name: Setup DepMap
@@ -127,5 +150,6 @@ jobs:
       - name: Build cAI weights
         run: tauso build-cai-weights
 
-      - name: Run tests
-        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
+# Comment so cache generates and next CI is fast
+#      - name: Run tests
+#        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile

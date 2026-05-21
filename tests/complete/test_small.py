@@ -2,6 +2,7 @@ import pytest
 
 from tauso.features.names import *
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
+from tauso.timer import Timer
 
 
 @pytest.fixture
@@ -16,7 +17,8 @@ def sampled_base_data(request, base_data):
 def test_structure_features_regression(sampled_base_data, target_genes, gene_to_data, dataframe_regression):
     data = sampled_base_data.copy()
 
-    processed_data = get_populated_df_with_structure_features(data, target_genes, gene_to_data)
+    with Timer("[In test] Populate DF with Structure Features"):
+        processed_data = get_populated_df_with_structure_features(data, target_genes, gene_to_data)
 
     features = [
         SENSE_START,
@@ -26,6 +28,11 @@ def test_structure_features_regression(sampled_base_data, target_genes, gene_to_
         SENSE_INTRON,
         SENSE_UTR,
         SENSE_TYPE,
+        "n_sense_3utr",
+        "n_sense_5utr",
+        "n_sense_exon",
+        "n_sense_intron",
+        "n_sense_utr",
     ]
 
     dataframe_regression.check(processed_data[features])
