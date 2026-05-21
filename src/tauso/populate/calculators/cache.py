@@ -2,7 +2,6 @@ import logging
 
 from ...genome.LocusInfo import LocusInfo
 from ...genome.read_human_genome import get_locus_to_data_dict
-from ...genome.transcriptome import load_transcriptomes
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +97,31 @@ class AssetCache:
         """Lazy loader for the FULL transcriptomes (required for off-target scanning)."""
         if self._transcriptomes is None:
             logger.info("Loading FULL transcriptomes into memory (happens once)...")
-            self._transcriptomes = load_transcriptomes(cell_lines_depmap)
+            import os
+            from pathlib import Path
+
+            from tauso.common.gtf import filter_gtf_genes
+            from tauso.data.data import get_data_dir, load_gtf_db
+            from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
+            from tauso.features.hybridization_off_target.common import get_general_expression_of_genes
+
+            db = load_gtf_db()
+            valid_genes = filter_gtf_genes(db, filter_mode="non_mt")
+
+            data_dir = get_data_dir()
+            expression_dir = os.path.join(data_dir, "processed_expression")
+
+            self._transcriptomes = load_cell_line_gene_expression(
+                cell_lines_depmap,
+                valid_genes,
+                expression_dir=expression_dir,
+            )
+
+            mean_exp_data = get_general_expression_of_genes(
+                Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet", valid_genes
+            )
+            self._transcriptomes["general"] = mean_exp_data
+
         return self._transcriptomes
 
     def get_gene_mapper(self):

@@ -90,12 +90,21 @@ def batch_iterator(iterator, batch_size=1000):
         yield batch
 
 
+def _sha256_file(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
 def setup_depmap(force):
     """
     Downloads DepMap Public 25Q3 data directly from the DepMap API.
     Auto-fetches fresh signed URLs to ensure downloads work.
+    OmicsExpression is converted to Parquet after download; original CSV is deleted.
     """
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
@@ -106,6 +115,8 @@ def setup_depmap(force):
         "OmicsProfiles.csv": "OmicsProfiles.csv",
         "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv",
     }
+    # These CSVs are converted to Parquet and the original CSV deleted afterwards.
+    CONVERT_TO_PARQUET = {"OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"}
 
     click.echo(f"Initializing DepMap setup for: {RELEASE}")
 
@@ -123,43 +134,92 @@ def setup_depmap(force):
 
     # Only fetch the index if we actually need to download something
     click.echo("Fetching fresh download URLs from DepMap API...")
+
     headers = {"User-Agent": "Mozilla/5.0"}
     index_url = "https://depmap.org/portal/api/download/files"
 
     try:
         r = requests.get(index_url, headers=headers)
         r.raise_for_status()
-        df = pd.read_csv(io.StringIO(r.text))
+        index_df = pd.read_csv(io.StringIO(r.text))
     except Exception as e:
         click.echo(click.style(f"❌ Error fetching DepMap index: {e}", fg="red"))
         sys.exit(1)
 
-    release_df = df[df["release"] == RELEASE]
-
+    release_df = index_df[index_df["release"] == RELEASE]
     if release_df.empty:
         click.echo(click.style(f"❌ Release '{RELEASE}' not found in API.", fg="red"))
-        click.echo(f"Available releases: {df['release'].unique()[:5]}...")
+        click.echo(f"Available releases: {index_df['release'].unique()[:5]}...")
         sys.exit(1)
 
-    for remote_name, local_name in to_download.items():
+    # Check if the API provides checksums (column may be named 'md5', 'sha256', etc.)
+    checksum_col = next((c for c in release_df.columns if c.lower() in ("md5", "sha256", "checksum")), None)
+
+    for remote_name, local_name in TARGET_FILES.items():
         dest = os.path.join(data_dir, local_name)
+        sha256_dest = dest + ".sha256"
+
+        if local_name in CONVERT_TO_PARQUET:
+            parquet_dest = dest.replace(".csv", ".parquet")
+            # Migration: CSV exists but parquet does not → convert and delete
+            if os.path.exists(dest) and not os.path.exists(parquet_dest):
+                click.echo(f"  Converting {local_name} to Parquet...")
+                pd.read_csv(dest).to_parquet(parquet_dest, index=False)
+                os.remove(dest)
+                click.echo(click.style(f"✓ Converted {local_name} → parquet, original deleted.", fg="green"))
+            if os.path.exists(parquet_dest) and not force:
+                click.echo(f"✓ {local_name} (parquet) exists.")
+                continue
+        else:
+            if os.path.exists(dest) and not force:
+                # Verify stored SHA256 if available
+                if os.path.exists(sha256_dest):
+                    with open(sha256_dest) as fh:
+                        stored = fh.read().strip()
+                    if _sha256_file(dest) != stored:
+                        click.echo(click.style(f"⚠ SHA256 mismatch for {local_name} — re-downloading.", fg="yellow"))
+                    else:
+                        click.echo(f"✓ {local_name} exists (SHA256 verified).")
+                        continue
+                else:
+                    click.echo(f"✓ {local_name} exists.")
+                    continue
 
         file_row = release_df[release_df["filename"] == remote_name]
-
         if file_row.empty:
-            click.echo(click.style(f"⚠ Warning: File '{remote_name}' not found in {RELEASE}.", fg="yellow"))
+            click.echo(click.style(f"⚠ Warning: '{remote_name}' not found in {RELEASE}.", fg="yellow"))
             continue
 
         download_url = file_row.iloc[0]["url"]
+        expected_checksum = file_row.iloc[0].get(checksum_col) if checksum_col else None
 
         click.echo(f"Downloading {local_name}...")
         try:
-            subprocess.run(["wget", "-q", "--show-progress", "-U", "Mozilla/5.0", "-O", dest, download_url], check=True)
-            click.echo(click.style(f"✓ Downloaded {local_name}", fg="green"))
+            subprocess.run(
+                ["wget", "-q", "--show-progress", "-U", "Mozilla/5.0", "-O", dest, download_url],
+                check=True,
+            )
         except subprocess.CalledProcessError:
             click.echo(click.style(f"❌ Failed to download {local_name}", fg="red"))
             if os.path.exists(dest):
                 os.remove(dest)
+            continue
+
+        # SHA256 verification
+        actual_sha256 = _sha256_file(dest)
+        if expected_checksum and expected_checksum.lower() != actual_sha256:
+            click.echo(click.style(f"❌ Checksum mismatch for {local_name}! Deleting.", fg="red"))
+            os.remove(dest)
+            continue
+        with open(sha256_dest, "w") as fh:
+            fh.write(actual_sha256)
+        click.echo(click.style(f"✓ Downloaded {local_name} (SHA256 saved).", fg="green"))
+
+        if local_name in CONVERT_TO_PARQUET:
+            click.echo(f"  Converting {local_name} to Parquet...")
+            pd.read_csv(dest).to_parquet(parquet_dest, index=False)
+            os.remove(dest)
+            click.echo(click.style(f"✓ Converted to Parquet, original CSV deleted.", fg="green"))
 
     click.echo("\nDepMap setup complete.")
 
@@ -255,114 +315,51 @@ def build_omics(genome):
 
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
-    exp_path = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv")
+    exp_path = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet")
 
     if not os.path.exists(manifest_path):
         click.echo(click.style("❌ No cohort found. Use 'tauso add-cell' first.", fg="red"))
         return
 
     if not os.path.exists(exp_path):
-        click.echo(click.style(f"❌ Expression file not found: {exp_path}", fg="red"))
-        click.echo("Run 'tauso setup-depmap' to download it.")
+        click.echo(click.style(f"❌ Expression parquet not found: {exp_path}", fg="red"))
+        click.echo("Run 'tauso setup-depmap' to download and convert it.")
         return
 
     with open(manifest_path, "r") as f:
         cohort = json.load(f)
 
-    # We need the set of ACH-IDs to find in the huge CSV
     target_ids = set(cohort.values())
     click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
-    # --- Step 1: Parse Header & Clean Gene Names ---
-    click.echo(f"Scanning {os.path.basename(exp_path)}...")
+    click.echo(f"Loading {os.path.basename(exp_path)}...")
+    exp_df = pd.read_parquet(exp_path)
 
-    with open(exp_path, "r") as f:
-        header_line = f.readline().strip()
-        header = header_line.split(",")
+    model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
+    gene_cols = [c for c in exp_df.columns if c != model_col]
 
-    try:
-        model_idx = header.index("ModelID")
-    except ValueError:
-        # DepMap CSVs usually have ModelID as the first column (index 0) if not named explicitly
-        model_idx = 0
+    gene_regex = re.compile(r"^(.+?) \(\d+\)$")
+    clean_gene_map = {c: (m.group(1) if (m := gene_regex.match(c)) else c) for c in gene_cols}
 
-        # Identify Gene Columns: All columns AFTER the metadata (usually everything after ModelID)
-    # The header looks like: ,ENSG000..., RPH3AL-AS1 (100506388), ...
-    # We skip the first column (empty in your snippet) and ModelID column.
-
-    # We'll assume any column that isn't ModelID is a data column.
-    # Let's dynamically find the start of data.
-    data_indices = [i for i, c in enumerate(header) if i != model_idx and c.strip()]
-
-    # Pre-calculate clean gene names for the header
-    # Format 1: "RPH3AL-AS1 (100506388)" -> "RPH3AL-AS1"
-    # Format 2: "ENSG00000262038.1" -> "ENSG00000262038.1" (Keep as is, or strip version)
-    clean_genes = []
-    gene_regex = re.compile(r"^(.+?) \(\d+\)$")  # Capture "Symbol" from "Symbol (ID)"
-
-    for i in data_indices:
-        raw_col = header[i]
-        match = gene_regex.match(raw_col)
-        if match:
-            clean_genes.append(match.group(1))
-        else:
-            clean_genes.append(raw_col)
-
-    # --- Step 2: Stream & Extract ---
     output_dir = os.path.join(data_dir, "processed_expression")
     os.makedirs(output_dir, exist_ok=True)
 
     found_count = 0
+    for curr_id in target_ids:
+        cell_rows = exp_df[exp_df[model_col] == curr_id]
+        if cell_rows.empty:
+            continue
 
-    with open(exp_path, "r") as f:
-        # Skip header since we read it
-        next(f)
+        click.echo(f"  Extracting {curr_id}...")
+        row = cell_rows.iloc[0]
+        vals = pd.to_numeric(row[gene_cols], errors="coerce").fillna(0.0).values
+        clean_genes = [clean_gene_map[c] for c in gene_cols]
 
-        for line in f:
-            # Optimization: Only split the start of the line to check ModelID
-            # This avoids splitting 20k+ columns for rows we don't need
-            row_start = line.split(",", model_idx + 1)
-            if len(row_start) <= model_idx:
-                continue
-
-            curr_id = row_start[model_idx]
-
-            if curr_id in target_ids:
-                click.echo(f"  Extracting {curr_id}...")
-
-                # Now split the full line
-                parts = line.strip().split(",")
-
-                # Extract values corresponding to our data indices
-                vals = []
-                for idx in data_indices:
-                    try:
-                        # DepMap values are Log2(TPM+1)
-                        val = float(parts[idx])
-                    except (ValueError, IndexError):
-                        val = 0.0
-                    vals.append(val)
-
-                # Create DataFrame
-                # Gene: The cleaned symbol
-                # expression_norm: The value from the file (Log2(TPM+1))
-                # expression_TPM: Calculated Linear TPM (2^x - 1)
-
-                df = pd.DataFrame({"Gene": clean_genes, "expression_norm": vals})
-
-                # Calculate linear TPM
-                df["expression_TPM"] = (2 ** df["expression_norm"]) - 1
-
-                # Sort by expression (optional, but nice for inspection)
-                df = df.sort_values("expression_norm", ascending=False)
-
-                # Save
-                out_name = f"{curr_id}_expression.csv"
-                df.to_csv(os.path.join(output_dir, out_name), index=False)
-
-                found_count += 1
-                if found_count == len(target_ids):
-                    break
+        out_df = pd.DataFrame({"Gene": clean_genes, "expression_norm": vals})
+        out_df["expression_TPM"] = (2 ** out_df["expression_norm"]) - 1
+        out_df = out_df.sort_values("expression_norm", ascending=False)
+        out_df.to_csv(os.path.join(output_dir, f"{curr_id}_expression.csv"), index=False)
+        found_count += 1
 
     click.echo(f"✓ Processed {found_count} cell lines. Data in {output_dir}")
 
