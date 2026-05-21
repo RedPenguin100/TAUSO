@@ -8,6 +8,7 @@ dependencies:
   - matplotlib
   - seaborn
   - ipykernel
+  - optuna
   - pip
   - pip:
     - -e .  # <--- CRITICAL: Installs your 'src' in editable mode

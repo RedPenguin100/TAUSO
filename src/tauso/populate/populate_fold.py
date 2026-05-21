@@ -212,11 +212,9 @@ def populate_sense_accessibility_batch(
             current_id = str(row["_temp_id"])
             gene_name = row[CANONICAL_GENE]
 
-            # --- MINIMAL CHANGE 2: Pull directly from seq_dict ---
             if gene_name not in lightweight_gene_to_data:
                 continue
             full_mrna_seq = lightweight_gene_to_data[gene_name]
-            # -----------------------------------------------------
 
             current_sense_start = row[SENSE_START]
             flank_start = max(0, current_sense_start - flank_size)
@@ -252,16 +250,14 @@ def populate_sense_accessibility_batch(
             cache=access_cache,
         )
 
-        df["pos_in_flank"] = df.groupby("rna_id", as_index=False).cumcount()
+        df["pos_in_flank"] = df.groupby("rna_id", sort=False).cumcount()
         df["sense_length"] = df["rna_id"].map(sense_len_map)
         df["rel_start"] = df["rna_id"].map(sense_start_map)
 
         mask = (df["pos_in_flank"] >= df["rel_start"]) & (df["pos_in_flank"] < df["rel_start"] + df["sense_length"])
 
-        # Aggregate strictly as a DataFrame
         batch_result = df[mask].groupby("rna_id", as_index=False)["avg_access"].mean()
 
-        # Rename tracker back and ensure it's an integer
         batch_result.rename(columns={"rna_id": "_temp_id", "avg_access": feature_name}, inplace=True)
         batch_result["_temp_id"] = batch_result["_temp_id"].astype(int)
 
@@ -270,13 +266,18 @@ def populate_sense_accessibility_batch(
     # 3. Execution
     valid_df["batch_group"] = np.arange(len(valid_df)) // batch_size
 
+    # Drop the grouping column before apply so neither pandas nor pandarallel
+    # needs include_groups (pandarallel doesn't support that kwarg).
+    batch_groups = valid_df["batch_group"]
+    valid_df_for_apply = valid_df.drop(columns=["batch_group"])
+
     if n_jobs > 1:
         from pandarallel import pandarallel
 
         pandarallel.initialize(nb_workers=n_jobs, verbose=0)
-        results_df = valid_df.groupby("batch_group").parallel_apply(_process_batch)
+        results_df = valid_df_for_apply.groupby(batch_groups).parallel_apply(_process_batch)
     else:
-        results_df = valid_df.groupby("batch_group").apply(_process_batch)
+        results_df = valid_df_for_apply.groupby(batch_groups).apply(_process_batch)
 
     # Clean up structure returned by apply
     results_df = results_df.reset_index(drop=True)
