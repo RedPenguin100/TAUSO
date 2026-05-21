@@ -90,6 +90,12 @@ jobs:
       - name: Index Oligo Data
         run: python -m notebooks.utils.data
 
+      - name: Cache mRNA Half Life
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.csv.gz
+          key: mrna-halflife-v1
+
       - name: Setup mRNA half life
         run: tauso setup-mrna-halflife
 
@@ -106,7 +112,6 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
             ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
-            ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.csv.gz
           key: depmap-25Q3-v2
 
       - name: Setup DepMap
@@ -124,7 +129,7 @@ jobs:
         run: tauso build-omics
 
       - name: Build cAI weights
-        run: tauso build-cai-weights --force
+        run: tauso build-cai-weights
 
 # Comment so cache genreates and next CI is fast
 #      - name: Run tests
