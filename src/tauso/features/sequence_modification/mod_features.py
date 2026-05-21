@@ -17,7 +17,6 @@ def compute_mod_fraction(pattern):
     return modified / total
 
 
-##########################################################################
 def compute_mod_type_count(pattern):
     """
     Returns the normalized number of unique modification characters (excluding 'd'),
@@ -30,9 +29,6 @@ def compute_mod_type_count(pattern):
 
     unique_mods = set(mod_chars)
     return len(unique_mods) / len(mod_chars)
-
-
-########################################################################
 
 
 def compute_mod_5prime_run(pattern):
@@ -55,7 +51,6 @@ def compute_mod_5prime_run(pattern):
     return run / length
 
 
-###########################################################################
 def compute_mod_3prime_run(pattern):
     """
     Returns the length of the longest consecutive stretch of modified residues
@@ -76,7 +71,6 @@ def compute_mod_3prime_run(pattern):
     return run / length
 
 
-###########################################################################
 def compute_mod_min_distance_to_5prime(pattern):
     """
     Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
@@ -376,8 +370,8 @@ def compute_mod_longest_repeat_run(pattern):
 ############################################################################
 def compute_mod_adjacent_pair_count(pattern):
     """
-    Returns the number of adjacent identical modification pairs (e.g., 'LL', 'OO'),
-    where both characters are the same and not 'd'.
+    Returns the number of adjacent identical modification pairs (e.g., 'CC', 'MM'),
+    where both characters are the same and not 'd' (DNA).
     Each overlapping identical pair is counted once.
     """
     pattern = str(pattern)
@@ -422,6 +416,3 @@ def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
     if length == 0:
         return 0
     return count / length
-
-
-############################################################################

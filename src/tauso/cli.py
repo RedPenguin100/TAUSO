@@ -3,6 +3,7 @@ import hashlib
 import io
 import itertools
 import json
+import logging
 import os
 import re
 import shutil
@@ -30,11 +31,17 @@ from tauso.genome.TranscriptMapper import (
 )
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
+logger = logging.getLogger(__name__)
+
 
 @click.group()
 def main():
     """Tauso: ASO Design Toolkit"""
-    pass
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
 
 def download_and_gunzip(url, dest_path, remove_gz=False):
@@ -72,7 +79,7 @@ def download_and_gunzip(url, dest_path, remove_gz=False):
 
 def count_lines(filepath):
     with open(filepath, "rb") as f:
-        return sum(1 for _ in f)
+        return sum(1 for line in f if not line.startswith(b"#"))
 
 
 def batch_iterator(iterator, batch_size=1000):
@@ -112,6 +119,20 @@ def setup_depmap(force):
     CONVERT_TO_PARQUET = {"OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"}
 
     click.echo(f"Initializing DepMap setup for: {RELEASE}")
+
+    # Check what needs downloading before hitting the API
+    to_download = {
+        remote: local
+        for remote, local in TARGET_FILES.items()
+        if force or not os.path.exists(os.path.join(data_dir, local))
+    }
+
+    if not to_download:
+        click.echo("✓ All DepMap files already present.")
+        click.echo("\nDepMap setup complete.")
+        return
+
+    # Only fetch the index if we actually need to download something
     click.echo("Fetching fresh download URLs from DepMap API...")
 
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -203,6 +224,9 @@ def setup_depmap(force):
     click.echo("\nDepMap setup complete.")
 
 
+import re
+
+
 @main.command()
 @click.argument("cell_names", nargs=-1)
 @click.option("--reset", is_flag=True, help="Clear existing list before adding.")
@@ -241,7 +265,8 @@ def add_cell(cell_names, reset):
 
     # 3. Search
     for query in cell_names:
-        clean_q = query.replace("-", "").replace(" ", "").upper()
+        # FIXED: Use the exact same regex as the dataframe to avoid mismatch on periods/underscores
+        clean_q = re.sub(r"[^a-zA-Z0-9]", "", query).upper()
 
         # Exact match
         match = df[df["clean"] == clean_q]
@@ -261,7 +286,9 @@ def add_cell(cell_names, reset):
             cohort[found_name] = ach_id
             click.echo(click.style(f"✓ Found: {query} -> {found_name} ({ach_id})", fg="green"))
         else:
-            click.echo(click.style(f"⚠ Not Found: {query}", fg="yellow"))
+            # ADDED: Reasons why it might not be found
+            reasons = " (Reasons: Known by different alias, primary/non-cancer cell line, or lacks Omics profiling)"
+            click.echo(click.style(f"⚠ Not Found: {query}{reasons}", fg="yellow"))
 
     # 4. Save
     with open(manifest_path, "w") as f:
@@ -374,7 +401,7 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
 
     paths = get_paths(genome)
     # 1. Initialize Mapper first to get valid gene set
-    mapper = GeneCoordinateMapper(paths["db"])
+    mapper = GeneCoordinateMapper(paths["gtf_db"])
     valid_db_genes = set(mapper.gene_name_map.keys())
 
     # 2. PHASE 1: Use the fixed orchestrator function
@@ -565,14 +592,14 @@ def get_genome_metadata(genome):
         # --- MAMMALS (GENCODE) ---
         "GRCh38": {
             "base_url": f"https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_HUMAN_RELEASE}",
-            "fasta_name": "GRCh38.p13.genome.fa.gz",
-            "gtf_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gtf.gz",
-            "gff_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.chr_patch_hapl_scaff.annotation.gff3.gz",
+            "fasta_name": "GRCh38.primary_assembly.genome.fa.gz",
+            "gtf_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.annotation.gtf.gz",
+            "gff_name": f"gencode.v{GENCODE_HUMAN_RELEASE}.annotation.gff3.gz",
         },
         "GRCm39": {
             "base_url": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M33",
-            "fasta_name": "GRCm39.genome.fa.gz",
-            "gtf_name": "gencode.vM33.chr_patch_hapl_scaff.basic.annotation.gtf.gz",
+            "fasta_name": "GRCm39.primary_assembly.genome.fa.gz",
+            "gtf_name": "gencode.vM33.annotation.gtf.gz",
         },
         # --- YEAST (Ensembl) ---
         "R64-1-1": {
@@ -607,10 +634,89 @@ def get_genome_metadata(genome):
     return url_dict
 
 
+def build_annotation_db(
+    annotation_path: str,
+    db_path: str,
+    db_success_path: str,
+    genome: str,
+    fmt: str = "GTF",  # "GTF" or "GFF"
+) -> None:
+    """
+    Build a gffutils database from a GTF or GFF annotation file.
+
+    Args:
+        annotation_path:  Path to the source .gtf / .gff file.
+        db_path:          Path where the SQLite database will be written.
+        db_success_path:  Path to the sentinel file written on success.
+        genome:           Genome label used in user-facing messages.
+        fmt:              Format label shown in progress messages ("GTF" or "GFF").
+
+    Raises:
+        SystemExit: on any database-build failure (after cleanup).
+    """
+    # ── Guard: already built ────────────────────────────────────────────────
+    if os.path.exists(db_path):
+        if os.path.exists(db_success_path):
+            click.echo(f"✓ {fmt} Database already exists at {db_path}")
+            return
+        click.echo(
+            click.style(
+                f"⚠ Found incomplete/corrupt {fmt} database. Rebuilding...",
+                fg="yellow",
+            )
+        )
+        os.remove(db_path)
+
+    # ── Build ────────────────────────────────────────────────────────────────
+    try:
+        click.echo(f"Building database at {db_path}...")
+
+        total_lines = count_lines(annotation_path)
+        data_it = DataIterator(annotation_path)
+
+        click.echo(f"  - Parsing {total_lines:,} annotation lines...")
+        with click.progressbar(length=total_lines, label=f"    Parsing {fmt}") as bar:
+
+            def progress_wrapper(iterator=data_it, progress_bar=bar):
+                for feature in iterator:
+                    progress_bar.update(1)
+                    yield feature
+
+            merge_strat = "merge" if fmt == "GTF" else "create_unique"
+            keep_ord = fmt == "GTF"
+            sort_attrs = fmt == "GTF"
+
+            db = gffutils.create_db(
+                progress_wrapper(),
+                dbfn=db_path,
+                force=True,
+                keep_order=keep_ord,
+                merge_strategy=merge_strat,
+                sort_attribute_values=sort_attrs,
+                disable_infer_genes=True,
+                disable_infer_transcripts=True,
+            )
+
+        print()  # newline after progress bar
+
+        # ── Write success sentinel ───────────────────────────────────────────
+        with open(db_success_path, "w") as f:  # ← fixed: was writing to db_path
+            f.write("Setup completed successfully.")
+
+        click.echo(click.style(f"✓ Setup complete for {genome}.", fg="green"))
+
+    except Exception as e:
+        click.echo(click.style(f"\nError building {fmt} database: {e}", fg="red"))
+        for path in (db_path, db_success_path):
+            if os.path.exists(path):
+                os.remove(path)
+        sys.exit(1)
+
+
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome name (GRCh38 or GRCm39).")
 @click.option("--force", is_flag=True, help="Force re-download and rebuild.")
-@click.option("--remove-gz", is_flag=False, help="Remove the zipped files after download.")
+@click.option("--remove-gz", is_flag=True, help="Remove the zipped files after download.")
 def setup_genome(genome, force, remove_gz):
     """
     Sets up the genome environment (Download -> Index -> Database).
@@ -623,12 +729,24 @@ def setup_genome(genome, force, remove_gz):
     fasta_path = paths["fasta"]
     gtf_path = paths["gtf"]
     gff_path = paths["gff"]
-    db_path = paths["db"]
-    sentinel_path = db_path + ".success"
+    gtf_db_path = paths["gtf_db"]
+    gff_db_path = paths["gff_db"]
+
+    gtf_db_success = gtf_db_path + ".success"
+    gff_db_success = gff_db_path + ".success"
 
     if force:
         click.echo("Force flag detected. Cleaning up old files...")
-        for f in [fasta_path, gtf_path, gff_path, db_path, fasta_path + ".fai", sentinel_path]:
+        for f in [
+            fasta_path,
+            gtf_path,
+            gff_path,
+            gtf_db_path,
+            gff_db_path,
+            fasta_path + ".fai",
+            gtf_db_success,
+            gff_db_success,
+        ]:
             if os.path.exists(f):
                 os.remove(f)
 
@@ -642,8 +760,16 @@ def setup_genome(genome, force, remove_gz):
                 if file_type == "gff" and genome != "GRCh38":  # TODO: support GFF for all
                     continue
                 if not os.path.exists(paths[file_type]):
-                    click.echo(f"Downloading {file_type} from GENCODE...")
-                    download_and_gunzip(download_url, paths[file_type], remove_gz=remove_gz)
+                    # Check for a cached compressed copy before hitting the network
+                    gz_key = f"{file_type}_gz"
+                    gz_path = paths.get(gz_key, paths[file_type] + ".gz")
+                    if os.path.exists(gz_path):
+                        click.echo(f"  Found cached {os.path.basename(gz_path)}, decompressing...")
+                        with gzip.open(gz_path, "rb") as f_in, open(paths[file_type], "wb") as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                    else:
+                        click.echo(f"Downloading {file_type} from GENCODE...")
+                        download_and_gunzip(download_url, paths[file_type], remove_gz=remove_gz)
         else:
             # Fallback for unsupported genomes
             if not os.path.exists(fasta_path) or not os.path.exists(gtf_path):
@@ -666,91 +792,15 @@ def setup_genome(genome, force, remove_gz):
         click.echo(click.style(f"Error during setup: {e}", fg="red"))
         sys.exit(1)
 
-    # --- PHASE 3: Build Database ---
+    # --- PHASE 3: Build GTF & GFF Databases ---
     # (Database building logic remains identical)
-    if os.path.exists(db_path):
-        if os.path.exists(sentinel_path):
-            click.echo(f"✓ Database already exists at {db_path}")
-            return
-        else:
-            click.echo(click.style(f"⚠ Found incomplete/corrupt database. Rebuilding...", fg="yellow"))
-            if os.path.exists(db_path):
-                os.remove(db_path)
-
-    try:
-        click.echo(f"Building database at {db_path}...")
-
-        # 1. Parsing GTF
-        total_lines = count_lines(gtf_path)
-        data_it = DataIterator(gtf_path)
-
-        click.echo(f"  - Parsing {total_lines:,} annotation lines...")
-        with click.progressbar(length=total_lines, label="    Parsing GTF") as bar:
-
-            def progress_wrapper():
-                for feature in data_it:
-                    bar.update(1)
-                    yield feature
-
-            db = gffutils.create_db(
-                progress_wrapper(),
-                dbfn=db_path,
-                force=True,
-                keep_order=True,
-                merge_strategy="merge",
-                sort_attribute_values=True,
-                disable_infer_genes=True,
-                disable_infer_transcripts=True,
-            )
-
-        # ... (Rest of existing DB build logic: introns, bulk loading, etc.) ...
-
-        # Just to complete the block visually for you:
-        print()  # Newline after progress bar
-
-        # Calculate Unique Introns
-        click.echo("  - Calculating unique introns...")
-        intron_gen = db.create_introns()
-        unique_introns = []
-        seen_keys = set()
-        for _, intron in enumerate(intron_gen):
-            key = (intron.seqid, intron.start, intron.end, intron.strand)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                unique_introns.append(intron)
-        del seen_keys
-
-        # Bulk Load Introns
-        click.echo(f"  - Bulk loading {len(unique_introns):,} introns...")
-        del db
-        db = gffutils.FeatureDB(db_path)
-        # Set PRAGMA opts...
-        with click.progressbar(length=len(unique_introns), label="    Importing") as bar:
-
-            def monitor_gen():
-                for x in unique_introns:
-                    yield x
-                    bar.update(1)
-
-            db.update(
-                monitor_gen(),
-                merge_strategy="create_unique",
-                disable_infer_genes=True,
-                disable_infer_transcripts=True,
-            )
-
-        with open(sentinel_path, "w") as f:
-            f.write("Setup completed successfully.")
-
-        click.echo(click.style(f"✓ Setup complete for {genome}.", fg="green"))
-
-    except Exception as e:
-        click.echo(click.style(f"\nError building database: {e}", fg="red"))
-        if os.path.exists(db_path):
-            os.remove(db_path)
-        if os.path.exists(sentinel_path):
-            os.remove(sentinel_path)
-        sys.exit(1)
+    build_annotation_db(
+        annotation_path=gtf_path, db_path=gtf_db_path, db_success_path=gtf_db_success, genome=genome, fmt="GTF"
+    )
+    if genome == "GRCh38":
+        build_annotation_db(
+            annotation_path=gff_path, db_path=gff_db_path, db_success_path=gff_db_success, genome=genome, fmt="GFF"
+        )
 
 
 # --- NEW COMMAND: OFF-TARGET SEARCH ---
@@ -880,8 +930,12 @@ def setup_raccess(ctx, force_clone):
     # Pass raccess_dir as the first argument to the script
     cmd = ["bash", str(script_path), raccess_dir] + forwarded_args
 
-    click.echo(f"Executing: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True)
+    click.echo(f"+ {' '.join(cmd)}")
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error("install_raccess.sh failed, consider installing zlib1g-dev")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

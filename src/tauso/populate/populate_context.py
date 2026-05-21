@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import pyBigWig
 
-logger = logging.getLogger(__name__)
-
 from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
-from ..features.context.ribo_seq import RIBOSEQ_40S_HUMAN_DATA, calculate_ribo_seq_row
+from ..features.context.ribo_seq import calculate_ribo_seq_row, get_ribo_40s_human_data
+
+logger = logging.getLogger(__name__)
 
 
 def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"):
@@ -18,7 +18,7 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     if how not in {"sum", "mean", "max", "nz_mean"}:
         raise ValueError(how)
 
-    bw = pyBigWig.open(str(RIBOSEQ_40S_HUMAN_DATA))
+    bw = pyBigWig.open(str(get_ribo_40s_human_data()))
 
     # Pre-initialize columns with NaN to ensure structure exists even if rows fail
     # We define the column names first based on flanks and 'how'
@@ -51,7 +51,9 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
         logger.warning(
             "Skipped ribo-seq for %s rows on non-canonical contig '%s' (genes: %s). "
             "These rows will have NaN ribo-seq features.",
-            n_rows, contig, ", ".join(sorted(genes)),
+            n_rows,
+            contig,
+            ", ".join(sorted(genes)),
         )
 
     return aso_df, new_features_list

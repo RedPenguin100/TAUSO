@@ -25,12 +25,10 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
     if seq_len < motif_len:
         return 0.0
 
-    # Numba vectorizes this numpy math perfectly
     weights = np.log2((pwm_matrix + 1e-9) / background_probs)
 
     total_score = 0.0
 
-    # The classic double loop - Numba excels at this, compiling it down to C
     for i in range(seq_len - motif_len + 1):
         score = 0.0
         valid_window = True
@@ -39,7 +37,7 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
             base_idx = seq_indices[i + pos]
             if base_idx == -1:
                 valid_window = False
-                break  # Instantly skip to the next window
+                break
 
             score += weights[pos, base_idx]
 
@@ -314,10 +312,13 @@ def populate_rbp_interaction_features(
         for key in final_columns:
             final_columns[key].extend(res[key])
 
-    new_col_names = []
-    for col_name, values in final_columns.items():
-        df[col_name] = values
-        new_col_names.append(col_name)
+    new_features_df = pd.DataFrame(final_columns, index=df.index)
+
+    # 2. Concatenate the original DataFrame and the new one side-by-side
+    df = pd.concat([df, new_features_df], axis=1)
+
+    # 3. Grab the list of new column names
+    new_col_names = list(final_columns.keys())
 
     logger.info("Done. Added %d interaction features.", len(new_col_names))
     return df, new_col_names

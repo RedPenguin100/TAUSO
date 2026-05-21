@@ -15,6 +15,8 @@ from ..features.rna_access.access_calculator import (
 )
 from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
 
+logger = logging.getLogger(__name__)
+
 PRE_MRNA_SEQUENCE = "pre_mrna_sequence"
 
 

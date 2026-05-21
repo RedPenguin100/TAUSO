@@ -10,7 +10,7 @@ from tauso.off_target.search import (
 
 
 @pytest.mark.integration
-def test_mipomersen_real_search():
+def test_mipomersen_real_search(tmp_path):
     """
     Integration Test: Runs Mipomersen (RNA) against the real local genome.
 
@@ -23,10 +23,11 @@ def test_mipomersen_real_search():
 
     # Mipomersen sequence with Uracils
     mipomersen_rna = "GCCUCAGTCTGCTTCGCACC"
+    out_csv = str(tmp_path / "off_target.csv")
 
     # Run the real command (no mocks)
-    result = runner.invoke(main, ["run-off-target", "-o", "off_target.csv", mipomersen_rna])
-    df = pd.read_csv("off_target.csv")
+    result = runner.invoke(main, ["run-off-target", "-o", out_csv, mipomersen_rna])
+    df = pd.read_csv(out_csv)
 
     # If the genome isn't installed, this might fail with exit_code 1
     if result.exit_code != 0:
@@ -43,6 +44,7 @@ def test_mipomersen_real_search():
     assert (df["mismatches"] == 0).any()
 
 
+@pytest.mark.integration
 def test_inotersen_off_target_search():
     """
     Real end-to-end integration test for off-target search.

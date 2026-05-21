@@ -1,10 +1,12 @@
 import ast
-
+from functools import lru_cache
 import pandas as pd
 
 from tauso.data.consts import BACKBONE_MODS, CHEMICAL_PATTERN, MODIFICATION, PS_PATTERN, SUGAR_MODS
 
 
+# Cache will help store the most common modifications
+@lru_cache(maxsize=100)
 def _process_chemistry(mod_str):
     if not isinstance(mod_str, str) or not mod_str.startswith("["):
         return None, None
@@ -13,7 +15,7 @@ def _process_chemistry(mod_str):
         mod_list = ast.literal_eval(mod_str)
         mod_set = {m.upper() for m in mod_list}
 
-        # 1. Generate the CHEMICAL_PATTERN (e.g., MMMddd)
+        # 1. Generate the CHEMICAL_PATTERN (e.g., MMMMMddddddddddMMMMM)
         pattern_chars = []
         for m in mod_list:
             m_up = m.upper()
@@ -43,6 +45,8 @@ def _process_chemistry(mod_str):
         return None, None
 
 
+# Cache will help store the most common modifications
+@lru_cache(maxsize=100)
 def _parse_backbone(backbone_str):
     if not isinstance(backbone_str, str) or not backbone_str.startswith("["):
         return None

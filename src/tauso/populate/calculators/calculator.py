@@ -2,16 +2,19 @@ import logging
 import os
 
 import pandas as pd
+import psutil
+from pympler import asizeof
+
+from ...data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
+from ...features.feature_extraction import save_feature_internal
+from ...features.names import *
+from ...timer import Timer
+from ..populate_context import populate_transfection
+from ..populate_sequence import FEATURE_SPECS, populate_sequence_features
+from ..populate_structure import get_populated_df_with_structure_features
+from .cache import AssetCache
 
 logger = logging.getLogger(__name__)
-
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
-from tauso.features.feature_extraction import save_feature_internal
-from tauso.populate.calculators.cache import AssetCache
-from tauso.populate.populate_context import populate_transfection
-from tauso.populate.populate_sequence import FEATURE_SPECS, populate_sequence_features
-from tauso.populate.populate_structure import get_populated_df_with_structure_features
-from tauso.timer import Timer
 
 
 class Calculator:
@@ -30,14 +33,20 @@ class Calculator:
         self.index = f"index_{data_version}" if data_version else None
         self.overwrite = overwrite
         self.get_feature_dir_func = get_feature_dir
-
         self.cache = cache if cache else AssetCache(genome="GRCh38")  # TODO: generalize for mice as well
 
         self._genes_u = None
         self._genes_u = self._get_unique_genes()
         self._context_added = False
 
+        if self.get_feature_dir_func is None:
+            logger.warning(
+                "[Calculator] get_feature_dir_func is None. To save features, please pass a function to the calculator."
+            )
+        logger.info("[Calculator] Initialized successfully.")
+
     def _save_calculated_feature(self, feature_name):
+        # Will silently fail, but the warning will be displayed in the constructor
         if self.get_feature_dir_func is not None:
             save_feature_internal(
                 self.data,
@@ -46,8 +55,6 @@ class Calculator:
                 version=self.data_version,
                 saved_dir_func=self.get_feature_dir_func,
             )
-        else:
-            logger.debug("get_feature_dir_func is None, not saving the feature")
 
     def _check_dependencies(self, required_columns: list):
         """Helper method to ensure upstream prep steps populated the necessary columns."""
@@ -180,10 +187,17 @@ class Calculator:
             "sense_start",
             "sense_start_from_end",
             "sense_length",
-            "sense_exon",
-            "sense_intron",
-            "sense_utr",
+            SENSE_EXON,
+            SENSE_INTRON,
+            SENSE_UTR,
+            SENSE_3UTR,
+            SENSE_5UTR,
             "sense_type",
+            f"n_{SENSE_EXON}",
+            f"n_{SENSE_INTRON}",
+            f"n_{SENSE_3UTR}",
+            f"n_{SENSE_5UTR}",
+            f"n_{SENSE_UTR}",
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -426,7 +440,6 @@ class Calculator:
             self.data, generated_features = populate_sequence_one_hot_encoded(
                 self.data, max_len=max_len, cpus=self.cpus
             )
-
             for feature in generated_features:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
@@ -679,7 +692,7 @@ class Calculator:
                         top_n_list=[top_n],
                         cutoff_list=[cutoff],
                         method=method,
-                        n_cores=self.cpus,
+                        n_jobs=self.cpus,
                     )
 
                     for feature in generated_features:
@@ -725,7 +738,7 @@ class Calculator:
                             top_n_list=[top_n],
                             cutoff_list=[cutoff],
                             method=method,
-                            n_cores=self.cpus,
+                            n_jobs=self.cpus,
                         )
 
                         for feature in generated_features:
@@ -946,7 +959,33 @@ class Calculator:
 
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
-            with Timer(name=step.__name__):
-                step()
+            logger.info(f"[Calculator] Starting step: {step.__name__}")
+            try:
+                with Timer(name=step.__name__):
+                    step()
+                    self.monitor_internal_objects(f"AFTER {step.__name__}")
+            except Exception as _:
+                logger.error(f"\n[Calculator] Crashed during step: {step.__name__}\n")
+                raise
 
-        logger.info("=== Pipeline Complete ===")
+        logger.info("[Calculator] Pipeline Complete")
+
+    def monitor_internal_objects(self, label=""):
+        logger.debug(f"\n>>> INTERNAL MEMORY REPORT: {label} <<<")
+
+        # 1. Inspect self.data (The DataFrame)
+        if hasattr(self, "data") and hasattr(self.data, "memory_usage"):
+            usage = self.data.memory_usage(deep=True).sum() / (1024**2)
+            logger.debug(f"  [DF] self.data: {usage:.2f} MB")
+            # Print top 3 heaviest columns
+            col_usage = self.data.memory_usage(deep=True) / (1024**2)
+            logger.debug(f"       Heaviest Cols: {col_usage.sort_values(ascending=False).head(3).to_dict()}")
+
+        # 2. Inspect self.cache (The AssetCache)
+        if hasattr(self, "cache"):
+            # asizeof is recursive; it's better for complex objects like caches
+            cache_size = asizeof.asizeof(self.cache) / (1024**2)
+            logger.debug(f"  [CACHE] self.cache: {cache_size:.2f} MB")
+
+        # 3. Check for large local variables in the current scope
+        logger.debug(f"  [PROC] Total Process RSS: {psutil.Process(os.getpid()).memory_info().rss / (1024**2):.1f} MB")

@@ -3,22 +3,23 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - ruff
+  - ruff==0.15.12
   - shap
   - jupyterlab
   - matplotlib
   - seaborn
   - ipykernel
   - optuna
+  - cupy
+  - graphviz
   - pip
   - pip:
-    - -e .  # <--- CRITICAL: Installs your 'src' in editable mode
-    - ruff
+    - -e .
   # tooling
   - pytest
   - pytest-regressions
   - pytest-xdist
   - conda-build
   - conda-lock
-
-
+  - pandas-stubs
+  - scipy-stubs

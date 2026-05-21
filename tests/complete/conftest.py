@@ -2,6 +2,22 @@ import os
 
 import pandas as pd
 import pytest
+
+# ---------------------------------------------------------------------------
+# Implicit n_jobs helper
+# Tests call get_n_jobs() inline — no fixture parameter needed.
+# Value is set once at session start from the --n-jobs CLI option.
+# ---------------------------------------------------------------------------
+_n_jobs: list[int] = [1]
+
+
+def get_n_jobs() -> int:
+    return _n_jobs[0]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _configure_n_jobs(request):
+    _n_jobs[0] = request.config.getoption("--n-jobs")
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
@@ -69,7 +85,7 @@ def raw_oligo_data():
 @pytest.fixture(scope="session")
 def base_data(raw_oligo_data):
     """Handles basic renaming, filtering, cell line mapping, and one-hot encoding."""
-    with Timer("Rename Columns & Basic Filtering"):
+    with Timer("Rename Columns and Basic Filtering"):
         data = standardize_oligo_ai_data(raw_oligo_data)
 
     with Timer("Transfection One Hot Encoding"):
@@ -90,7 +106,7 @@ def mapper():
     """Initializes and returns the GeneCoordinateMapper."""
     with Timer("Path & Mapper Initialization"):
         paths = get_paths("GRCh38")
-        return GeneCoordinateMapper(paths["db"])
+        return GeneCoordinateMapper(paths["gtf_db"])
 
 
 @pytest.fixture(scope="session")
@@ -98,6 +114,13 @@ def gene_to_data(target_genes):
     """Fetches the locus to data dictionary based on target genes."""
     with Timer("Get Locus to Data Dict"):
         return get_locus_to_data_dict(include_introns=True, gene_subset=target_genes)
+
+
+@pytest.fixture(scope="session")
+def gene_to_data_full(target_genes):
+    """Fetches the locus to data dictionary for all genes"""
+    with Timer("Get Locus to Data Dict"):
+        return get_locus_to_data_dict(include_introns=True)
 
 
 @pytest.fixture(scope="session")
