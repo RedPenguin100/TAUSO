@@ -51,7 +51,9 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
         logger.warning(
             "Skipped ribo-seq for %s rows on non-canonical contig '%s' (genes: %s). "
             "These rows will have NaN ribo-seq features.",
-            n_rows, contig, ", ".join(sorted(genes)),
+            n_rows,
+            contig,
+            ", ".join(sorted(genes)),
         )
 
     return aso_df, new_features_list
