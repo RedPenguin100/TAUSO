@@ -1,6 +1,7 @@
 name: tauso
 channels:
   - conda-forge
+  - bioconda
 dependencies:
   - ruff
   - shap
