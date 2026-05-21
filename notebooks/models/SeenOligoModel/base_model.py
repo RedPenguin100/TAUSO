@@ -1,116 +1,123 @@
 import gc
 import json
+import logging
 import os
 
-import pandas as pd
 import numpy as np
-import cupy as cp
-import xgboost as xgb
+import numpy as cp  # swap for cupy on GPU: import cupy as cp
 import optuna
+import pandas as pd
+import xgboost as xgb
 from scipy.stats import spearmanr
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from tqdm.auto import tqdm
 
 from tauso.data.consts import INHIBITION
 
-# Constants
+logger = logging.getLogger(__name__)
+
 PARSIMONY_TOLERANCE = 0.03
 EARLY_STOP_DROP = 0.15
 
 
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
 def split_data(df, features, split_col="split", train_val="train", val_val="val", test_val="test"):
-    train_df = df[df[split_col] == train_val].copy()
-    val_df = df[df[split_col] == val_val].copy()
-    test_df = df[df[split_col] == test_val].copy()
-    return train_df, val_df, test_df
+    return (
+        df[df[split_col] == train_val].copy(),
+        df[df[split_col] == val_val].copy(),
+        df[df[split_col] == test_val].copy(),
+    )
 
 
 def get_large_cohort_indices(df, group_cols, min_size=50):
-    indices = []
-    df_reset = df.reset_index(drop=True)
-    for cohort, group in df_reset.groupby(group_cols):
-        if len(group) >= min_size:
-            indices.append(group.index.values)
-    return indices
+    df = df.reset_index(drop=True)
+    return [g.index.values for _, g in df.groupby(group_cols) if len(g) >= min_size]
+
+
+def _collect_group_stats(y_true, preds, eval_groups):
+    """Returns (spearmans, top1_arrays, top5_arrays) over eval groups."""
+    spearmans, top1s, top5s = [], [], []
+    for idxs in eval_groups:
+        t, p = y_true[idxs], preds[idxs]
+        corr, _ = spearmanr(t, p)
+        if not np.isnan(corr):
+            spearmans.append(corr)
+        n = len(t)
+        k1, k5 = max(1, int(n * 0.01)), max(1, int(n * 0.05))
+        top1s.append(t[np.argpartition(p, -k1)[-k1:]])
+        top5s.append(t[np.argpartition(p, -k5)[-k5:]])
+    return spearmans, top1s, top5s
 
 
 def calculate_metrics(preds, y_true, eval_groups):
-    spearmans, top_1_means, top_5_means = [], [], []
-    for idxs in eval_groups:
-        t_vals, p_vals = y_true[idxs], preds[idxs]
-        corr, _ = spearmanr(t_vals, p_vals)
-        if not np.isnan(corr):
-            spearmans.append(corr)
-
-        n = len(t_vals)
-        k1, k5 = max(1, int(n * 0.01)), max(1, int(n * 0.05))
-
-        if k5 > 0:
-            top_5_means.append(np.mean(t_vals[np.argpartition(p_vals, -k5)[-k5:]]))
-        if k1 > 0:
-            top_1_means.append(np.mean(t_vals[np.argpartition(p_vals, -k1)[-k1:]]))
-
+    spearmans, top1s, top5s = _collect_group_stats(y_true, preds, eval_groups)
     return {
         "spearman": np.nanmedian(spearmans) if spearmans else 0.0,
-        "top1_inhibition": np.nanmean(top_1_means) if top_1_means else 0.0,
-        "top5_inhibition": np.nanmean(top_5_means) if top_5_means else 0.0,
+        "top1_inhibition": float(np.nanmean([np.mean(t) for t in top1s])) if top1s else 0.0,
+        "top5_inhibition": float(np.nanmean([np.mean(t) for t in top5s])) if top5s else 0.0,
     }
 
 
 def evaluate_final_performance(model, X_np, y_true, eval_groups, feature_names):
-    """Calculates specific final metrics for JSON tracking without altering RFE tracking."""
-    dmat = xgb.DMatrix(X_np, feature_names=feature_names)
-    preds = model.predict(dmat)
-
-    mae = mean_absolute_error(y_true, preds)
-    rmse = np.sqrt(mean_squared_error(y_true, preds))
-
-    spearmans, top_1_medians, top_5_medians = [], [], []
-    for idxs in eval_groups:
-        t_vals, p_vals = y_true[idxs], preds[idxs]
-
-        corr, _ = spearmanr(t_vals, p_vals)
-        if not np.isnan(corr):
-            spearmans.append(corr)
-
-        n = len(t_vals)
-        k1, k5 = max(1, int(n * 0.01)), max(1, int(n * 0.05))
-
-        if k5 > 0:
-            top_5_medians.append(np.median(t_vals[np.argpartition(p_vals, -k5)[-k5:]]))
-        if k1 > 0:
-            top_1_medians.append(np.median(t_vals[np.argpartition(p_vals, -k1)[-k1:]]))
-
+    preds = model.predict(xgb.DMatrix(X_np, feature_names=feature_names))
+    spearmans, top1s, top5s = _collect_group_stats(y_true, preds, eval_groups)
     return {
-        "MAE": float(mae),
-        "RMSE": float(rmse),
+        "MAE": float(mean_absolute_error(y_true, preds)),
+        "RMSE": float(np.sqrt(mean_squared_error(y_true, preds))),
         "Spearman": float(np.nanmedian(spearmans)) if spearmans else 0.0,
-        "Median_Top1_Inhib": float(np.nanmedian(top_1_medians)) if top_1_medians else 0.0,
-        "Median_Top5_Inhib": float(np.nanmedian(top_5_medians)) if top_5_medians else 0.0,
+        "Median_Top1_Inhib": float(np.nanmedian([np.median(t) for t in top1s])) if top1s else 0.0,
+        "Median_Top5_Inhib": float(np.nanmedian([np.median(t) for t in top5s])) if top5s else 0.0,
     }
 
 
-def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna, seed):
-    X_train_np, y_train_np = train_data
-    X_val_np, y_val_np = val_data
+def _group_spearman(preds, eval_groups):
+    scores = [spearmanr(y, preds[idxs])[0] for idxs, y in eval_groups]
+    scores = [s for s in scores if not np.isnan(s)]
+    return np.nanmean(scores) if scores else 0.0
 
-    dtrain_opt = xgb.DMatrix(X_train_np, label=y_train_np)
-    dval_opt = xgb.DMatrix(X_val_np, label=y_val_np)
 
-    def calculate_fast_spearman(preds, eval_groups):
-        spearmans = [
-            spearmanr(true_vals, preds[idxs])[0]
-            for idxs, true_vals in eval_groups
-            if not np.isnan(spearmanr(true_vals, preds[idxs])[0])
-        ]
-        return np.nanmean(spearmans) if spearmans else 0.0
+def _log_trial(study, trial):
+    logger.info(
+        "Optuna trial %d | spearman=%.4f | best=%.4f | rounds=%s depth=%s lr=%.4f",
+        trial.number + 1,
+        trial.value if trial.value is not None else float("nan"),
+        study.best_value,
+        trial.params.get("num_boost_round"),
+        trial.params.get("max_depth"),
+        trial.params.get("learning_rate", 0.0),
+    )
+
+
+def _save_outputs(path_base, model_tv, model_all, metrics_tv, metrics_all, history_df):
+    path_tv = path_base.replace(".json", "_TrainVal.json")
+    path_ad = path_base.replace(".json", "_AllData.json")
+    model_tv.save_model(path_tv)
+    model_all.save_model(path_ad)
+    for path, metrics in [(path_tv, metrics_tv), (path_ad, metrics_all)]:
+        with open(path.replace(".json", "_metrics.json"), "w") as f:
+            json.dump(metrics, f, indent=4)
+    history_df.to_csv(path_base.replace(".json", "_RFE_History.csv"), index=False)
+    logger.info("TrainVal -> %s", path_tv)
+    logger.info("AllData  -> %s", path_ad)
+
+
+# ---------------------------------------------------------------------------
+# Training steps
+# ---------------------------------------------------------------------------
+
+def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna, seed, device="cpu", n_jobs=1):
+    X_train, y_train = train_data
+    X_val, y_val = val_data
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dval = xgb.DMatrix(X_val, label=y_val)
 
     def objective_func(trial):
         params = {
-            "tree_method": "hist",
-            "device": "cuda",
-            "objective": objective,
-            "seed": seed,  # <-- Local seed for XGBoost
+            "tree_method": "hist", "device": device, "nthread": n_jobs,
+            "objective": objective, "seed": seed,
             "max_depth": trial.suggest_int("max_depth", 2, 6),
             "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
             "subsample": trial.suggest_float("subsample", 0.4, 0.9),
@@ -120,283 +127,193 @@ def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna
             "reg_alpha": trial.suggest_float("reg_alpha", 0.1, 100.0, log=True),
             "reg_lambda": trial.suggest_float("reg_lambda", 0.1, 100.0, log=True),
         }
-
         bst = xgb.train(
-            params,
-            dtrain_opt,
+            params, dtrain,
             num_boost_round=trial.suggest_int("num_boost_round", 200, 1500, step=100),
-            evals=[(dval_opt, "val")],
-            early_stopping_rounds=50,
-            verbose_eval=False,
+            evals=[(dval, "val")], early_stopping_rounds=50, verbose_eval=False,
         )
-
-        # <-- FIX 2: Save the ACTUAL best iteration where early stopping halted
         trial.set_user_attr("best_iteration", bst.best_iteration)
+        return _group_spearman(bst.predict(dval), val_eval_groups_optuna)
 
-        return calculate_fast_spearman(bst.predict(dval_opt), val_eval_groups_optuna)
-
-    sampler = optuna.samplers.TPESampler(seed=seed)  # <-- Local seed for Optuna
-    study = optuna.create_study(direction="maximize", sampler=sampler)
-    study.optimize(objective_func, n_trials=50, show_progress_bar=True)
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=seed))
+    logger.info("Optuna tuning: 50 trials | objective=%s device=%s n_jobs=%d", objective, device, n_jobs)
+    study.optimize(objective_func, n_trials=50, show_progress_bar=True, callbacks=[_log_trial])
 
     best_params = study.best_params.copy()
+    best_params["num_boost_round"] = study.best_trial.user_attrs["best_iteration"]
+    best_params.update({"tree_method": "hist", "device": device, "nthread": n_jobs, "objective": objective, "seed": seed})
 
-    actual_best_rounds = study.best_trial.user_attrs["best_iteration"]
-    best_params["num_boost_round"] = actual_best_rounds
-
-    best_params.update(
-        {"tree_method": "hist", "device": "cuda", "objective": objective, "seed": seed}
-    )
-
+    logger.info("Tuning complete | best_spearman=%.4f | params=%s", study.best_value, best_params)
     return best_params
 
 
-# === SEED ADDED AS PARAMETER ===
 def run_backward_selection(
     train_data, val_data, test_data, features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed
 ):
-    X_train_gpu, y_train_gpu, y_train_np = train_data
-    X_val_gpu, y_val_np = val_data
-    X_test_gpu, y_test_np = test_data
+    X_train, y_train, y_train_np = train_data
+    X_val, y_val = val_data
+    X_test, y_test = test_data
 
     feat_to_idx = {f: i for i, f in enumerate(features)}
     current_features = list(features)
-    selection_history = []
-    max_spearman_seen = -1.0
+    history, max_spearman = [], -1.0
 
-    selection_params = best_params.copy()
+    params = best_params.copy()
+    if params.get("seed") != seed:
+        raise ValueError(f"Seed mismatch: best_params={params.get('seed')} vs argument={seed}")
+    num_rounds = params.pop("num_boost_round", 1000)
 
-    # 1. Ensure "seed" exists in the dictionary and matches the expected parameter
-    if "seed" not in selection_params:
-        raise KeyError("Critical Error: 'seed' was not found in best_params. Reproducibility is compromised.")
+    logger.info("RFE start | features=%d rounds=%d", len(current_features), num_rounds)
+    total = ((len(current_features) - 100) // 5) + 100 if len(current_features) > 100 else len(current_features)
+    pbar = tqdm(total=total, desc="Dropping Features")
 
-    # 2. Optional: Verify the value matches the function argument to prevent accidental mismatches
-    if selection_params["seed"] != seed:
-        raise ValueError(f"Mismatched Seed: best_params has {selection_params['seed']} but function received {seed}.")
+    for step in range(len(current_features)):
+        idxs = [feat_to_idx[f] for f in current_features]
+        Xtr, Xvl, Xte = X_train[:, idxs], X_val[:, idxs], X_test[:, idxs]
 
-    # 3. Extract the boost rounds
-    num_rounds = selection_params.pop("num_boost_round", 1000)
+        dtrain = xgb.QuantileDMatrix(Xtr, label=y_train, feature_names=current_features)
+        bst = xgb.train(params, dtrain, num_boost_round=num_rounds, verbose_eval=False)
 
-    total_iters = ((len(current_features) - 100) // 5) + 100 if len(current_features) > 100 else len(current_features)
-    pbar = tqdm(total=total_iters, desc="Dropping Features")
+        tr_preds, vl_preds, te_preds = bst.inplace_predict(Xtr), bst.inplace_predict(Xvl), bst.inplace_predict(Xte)
+        if hasattr(tr_preds, "get"):
+            tr_preds, vl_preds, te_preds = tr_preds.get(), vl_preds.get(), te_preds.get()
 
-    while len(current_features) > 0:
-        curr_idxs = [feat_to_idx[f] for f in current_features]
-        curr_X_train = X_train_gpu[:, curr_idxs]
-        curr_X_val = X_val_gpu[:, curr_idxs]
-        curr_X_test = X_test_gpu[:, curr_idxs]
+        m_train = calculate_metrics(tr_preds, y_train_np, val_eval_idx)
+        val_spear = calculate_metrics(vl_preds, y_val, val_select_idx)["spearman"]
+        max_spearman = max(max_spearman, val_spear)
 
-        dtrain = xgb.QuantileDMatrix(curr_X_train, label=y_train_gpu, feature_names=current_features)
-        bst = xgb.train(selection_params, dtrain, num_boost_round=num_rounds, verbose_eval=False)
-
-        train_preds, val_preds, test_preds = (
-            bst.inplace_predict(curr_X_train),
-            bst.inplace_predict(curr_X_val),
-            bst.inplace_predict(curr_X_test),
+        logger.info(
+            "RFE step %d | features=%d | val=%.4f train=%.4f peak=%.4f delta=%.4f",
+            step, len(current_features), val_spear, m_train["spearman"], max_spearman, val_spear - max_spearman,
         )
-        if hasattr(train_preds, "get"):
-            train_preds, val_preds, test_preds = train_preds.get(), val_preds.get(), test_preds.get()
 
-        metrics_train = calculate_metrics(train_preds, y_train_np, val_eval_idx)
-        metrics_val = calculate_metrics(val_preds, y_val_np, val_eval_idx)
-
-        val_spear_select = calculate_metrics(val_preds, y_val_np, val_select_idx)["spearman"]
-
-        if val_spear_select > max_spearman_seen:
-            max_spearman_seen = val_spear_select
-
-        step_data = {
+        row = {
             "num_features": len(current_features),
             "features_list": current_features.copy(),
-            "train_spearman": metrics_train["spearman"],
-            "val_spearman": metrics_val["spearman"],
-            "val_spearman_select": val_spear_select,
+            "train_spearman": m_train["spearman"],
+            "val_spearman": calculate_metrics(vl_preds, y_val, val_eval_idx)["spearman"],
+            "val_spearman_select": val_spear,
         }
 
-        if val_spear_select < (max_spearman_seen - EARLY_STOP_DROP):
-            step_data["dropped_features"] = []
-            selection_history.append(step_data)
+        if val_spear < max_spearman - EARLY_STOP_DROP:
+            logger.info("Early stop: val %.4f dropped %.2f below peak %.4f", val_spear, EARLY_STOP_DROP, max_spearman)
+            row["dropped_features"] = []
+            history.append(row)
             break
 
         if len(current_features) == 1:
-            step_data["dropped_features"] = current_features
-            selection_history.append(step_data)
+            row["dropped_features"] = current_features
+            history.append(row)
             pbar.update(1)
             break
 
-        imp_dict = bst.get_score(importance_type="gain")
-        sorted_feats = sorted({f: imp_dict.get(f, 0.0) for f in current_features}.items(), key=lambda x: x[1])
-
+        imp = bst.get_score(importance_type="gain")
+        ranked = sorted({f: imp.get(f, 0.0) for f in current_features}.items(), key=lambda x: x[1])
         drop_n = min(5 if len(current_features) > 100 else 1, len(current_features) - 1)
-        feats_to_drop = [x[0] for x in sorted_feats[:drop_n]]
+        to_drop = [f for f, _ in ranked[:drop_n]]
+        logger.debug("Dropping %d: %s", drop_n, to_drop)
 
-        step_data["dropped_features"] = feats_to_drop
-        selection_history.append(step_data)
-        current_features = [f for f in current_features if f not in feats_to_drop]
+        row["dropped_features"] = to_drop
+        history.append(row)
+        current_features = [f for f in current_features if f not in to_drop]
         pbar.update(1)
 
-        del dtrain, bst, curr_X_train, curr_X_val, curr_X_test
-        cp.get_default_memory_pool().free_all_blocks()
+        del dtrain, bst, Xtr, Xvl, Xte
+        if hasattr(cp, "get_default_memory_pool"):
+            cp.get_default_memory_pool().free_all_blocks()
         gc.collect()
 
     pbar.close()
 
-    df_backward_selection = pd.DataFrame(selection_history)
-    threshold = df_backward_selection["val_spearman_select"].max() - PARSIMONY_TOLERANCE
-    best_row = df_backward_selection[df_backward_selection["val_spearman_select"] >= threshold].iloc[-1]
+    df_hist = pd.DataFrame(history)
+    threshold = df_hist["val_spearman_select"].max() - PARSIMONY_TOLERANCE
+    optimal = df_hist[df_hist["val_spearman_select"] >= threshold].iloc[-1]["features_list"]
 
-    return best_row["features_list"], df_backward_selection
+    logger.info("RFE complete | selected=%d / %d | best_val=%.4f", len(optimal), len(features), df_hist["val_spearman_select"].max())
+    return optimal, df_hist
 
 
-# === SEED ADDED AS PARAMETER ===
 def train_final_model(optimal_features, features, train_data, best_params, seed):
-    X_gpu, y_gpu = train_data
-
+    X, y = train_data
     feat_to_idx = {f: i for i, f in enumerate(features)}
-    opt_idxs = [feat_to_idx[f] for f in optimal_features]
+    idxs = [feat_to_idx[f] for f in optimal_features]
+    params = {**best_params, "seed": seed}
+    num_rounds = params.pop("num_boost_round", 1000)
 
-    final_X = X_gpu[:, opt_idxs]
-    final_dtrain = xgb.QuantileDMatrix(final_X, label=y_gpu, feature_names=optimal_features)
+    logger.info("Training final model | features=%d rounds=%d", len(optimal_features), num_rounds)
+    dtrain = xgb.QuantileDMatrix(X[:, idxs], label=y, feature_names=optimal_features)
+    return xgb.train(params, dtrain, num_boost_round=num_rounds, verbose_eval=False)
 
-    train_params = best_params.copy()
-    num_rounds = train_params.pop("num_boost_round", 1000)
-    train_params["seed"] = seed  # <-- Enforce seed explicitly here
 
-    final_bst = xgb.train(train_params, final_dtrain, num_boost_round=num_rounds, verbose_eval=False)
-    return final_bst
-
+# ---------------------------------------------------------------------------
+# Convenience orchestrator (used by notebooks)
+# ---------------------------------------------------------------------------
 
 def run_pipeline(
-    final_data, features, split_config, eval_group, select_group, loss_type="L1", save_path="model.json", seed=1
+    final_data, features, split_config, eval_group, select_group,
+    loss_type="L1", save_path="model.json", seed=1, device="cpu", n_jobs=1,
 ):
-    # <-- FIX 4: Python's hash seed must be set before any sets/dicts are iterated over
     os.environ["PYTHONHASHSEED"] = str(seed)
-
-    # # <-- FIX 5: Create a local NumPy Generator.
-    # # You aren't currently doing random operations in NumPy here, but if you
-    # # ever add `rng.shuffle(X_train_np)`, this ensures it stays deterministic.
-    # rng = np.random.default_rng(seed)
-
     objective = "reg:absoluteerror" if loss_type == "L1" else "reg:squarederror"
-    print(f"--- Starting Pipeline | Objective: {objective} | Eval: {eval_group} | Seed: {seed} ---")
+    logger.info("Pipeline | objective=%s eval=%s seed=%d", objective, eval_group, seed)
 
-    # <-- FIX 6: Explicitly sort the dataframe before doing anything to prevent row-order shifting
     final_data = final_data.sort_values(by=features).reset_index(drop=True)
+    train_df, val_df, test_df = split_data(final_data, features, split_col=split_config["col"],
+                                           train_val=split_config["train"], val_val=split_config["val"],
+                                           test_val=split_config["test"])
 
-    train_df, val_df, test_df = split_data(
-        final_data,
-        features,
-        split_col=split_config["col"],
-        train_val=split_config["train"],
-        val_val=split_config["val"],
-        test_val=split_config["test"],
-    )
+    X_train, y_train = cp.array(train_df[features].values), cp.array(train_df[INHIBITION].values)
+    X_val, y_val     = cp.array(val_df[features].values),   val_df[INHIBITION].values
+    X_test, y_test   = cp.array(test_df[features].values),  test_df[INHIBITION].values
+    y_train_np       = train_df[INHIBITION].values
 
-    X_train_np, y_train_np = train_df[features].values, train_df[INHIBITION].values
-    X_val_np, y_val_np = val_df[features].values, val_df[INHIBITION].values
-    X_test_np, y_test_np = test_df[features].values, test_df[INHIBITION].values
-
-    X_train_gpu, y_train_gpu = cp.array(X_train_np), cp.array(y_train_np)
-    X_val_gpu, X_test_gpu = cp.array(X_val_np), cp.array(X_test_np)
-
-    train_eval_idx = get_large_cohort_indices(train_df, eval_group)
-    val_eval_idx = get_large_cohort_indices(val_df, eval_group)
-    test_eval_idx = get_large_cohort_indices(test_df, eval_group)
-    val_select_idx = get_large_cohort_indices(val_df, select_group)
+    train_eval_idx  = get_large_cohort_indices(train_df, eval_group)
+    val_eval_idx    = get_large_cohort_indices(val_df, eval_group)
+    test_eval_idx   = get_large_cohort_indices(test_df, eval_group)
+    val_select_idx  = get_large_cohort_indices(val_df, select_group)
     test_select_idx = get_large_cohort_indices(test_df, select_group)
 
-    val_eval_groups_optuna = []
-    for _, group in val_df.reset_index(drop=True).groupby(eval_group):
-        if len(group) >= 20:
-            val_eval_groups_optuna.append((group.index.values, y_val_np[group.index.values]))
+    val_eval_groups_optuna = [
+        (g.index.values, y_val[g.index.values])
+        for _, g in val_df.reset_index(drop=True).groupby(eval_group)
+        if len(g) >= 20
+    ]
 
-    print("\n[1/3] Running Optuna Hyperparameter Tuning...")
-    # <-- Pass seed here
+    logger.info("[1/3] Hyperparameter tuning...")
     best_params = tune_hyperparameters(
-        train_data=(X_train_np, y_train_np),
-        val_data=(X_val_np, y_val_np),
-        objective=objective,
-        val_eval_groups_optuna=val_eval_groups_optuna,
-        seed=seed,
-    )
-    print(f"Tuning Complete. Best Params: {best_params}")
-
-    print("\n[2/3] Running Backward Feature Selection...")
-    # <-- Pass seed here
-    optimal_features, selection_history_df = run_backward_selection(
-        train_data=(X_train_gpu, y_train_gpu, y_train_np),
-        val_data=(X_val_gpu, y_val_np),
-        test_data=(X_test_gpu, y_test_np),
-        features=features,
-        best_params=best_params,
-        val_eval_idx=val_eval_idx,
-        val_select_idx=val_select_idx,
-        test_select_idx=test_select_idx,
-        seed=seed,
-    )
-    print(f"\nOptimal Parsimonious Features Selected: {len(optimal_features)}")
-
-    print("\n[3/3] Training Final Parsimonious Models...")
-
-    X_train_val_gpu = cp.vstack((X_train_gpu, X_val_gpu))
-    y_train_val_gpu = cp.concatenate((y_train_gpu, cp.array(y_val_np)))
-
-    print("  -> Training Model 1: Train + Val Data")
-    # <-- Pass seed here
-    model_train_val = train_final_model(
-        optimal_features, features, train_data=(X_train_val_gpu, y_train_val_gpu), best_params=best_params, seed=seed
+        (train_df[features].values, y_train_np), (val_df[features].values, y_val),
+        objective, val_eval_groups_optuna, seed, device=device, n_jobs=n_jobs,
     )
 
-    X_all_gpu = cp.vstack((X_train_val_gpu, X_test_gpu))
-    y_all_gpu = cp.concatenate((y_train_val_gpu, cp.array(y_test_np)))
-
-    print("  -> Training Model 2: Entire Dataset (Train + Val + Test)")
-    # <-- Pass seed here
-    model_all = train_final_model(
-        optimal_features, features, train_data=(X_all_gpu, y_all_gpu), best_params=best_params, seed=seed
+    logger.info("[2/3] Backward feature selection...")
+    optimal_features, history_df = run_backward_selection(
+        (X_train, y_train, y_train_np), (X_val, y_val), (X_test, y_test),
+        features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed,
     )
 
-    # Evaluate & Save logic...
+    logger.info("[3/3] Training final models...")
+    X_tv = cp.vstack((X_train, X_val))
+    y_tv = cp.concatenate((y_train, cp.array(y_val)))
+    X_all = cp.vstack((X_tv, X_test))
+    y_all = cp.concatenate((y_tv, cp.array(y_test)))
+
+    model_tv  = train_final_model(optimal_features, features, (X_tv, y_tv), best_params, seed)
+    model_all = train_final_model(optimal_features, features, (X_all, y_all), best_params, seed)
+
     feat_to_idx = {f: i for i, f in enumerate(features)}
     opt_idxs = [feat_to_idx[f] for f in optimal_features]
-    X_train_opt = X_train_np[:, opt_idxs]
-    X_val_opt = X_val_np[:, opt_idxs]
+    X_tr_opt, X_vl_opt = train_df[features].values[:, opt_idxs], val_df[features].values[:, opt_idxs]
 
-    # 2. Calculate Metrics for Model 1 (Train + Val)
-    metrics_train_val = {
-        "Train": evaluate_final_performance(model_train_val, X_train_opt, y_train_np, train_eval_idx, optimal_features),
-        "Validation": evaluate_final_performance(model_train_val, X_val_opt, y_val_np, val_eval_idx, optimal_features),
+    metrics_tv = {
+        "Train":      evaluate_final_performance(model_tv, X_tr_opt, y_train_np, train_eval_idx, optimal_features),
+        "Validation": evaluate_final_performance(model_tv, X_vl_opt, y_val,      val_eval_idx,   optimal_features),
     }
-
-    # 3. Calculate Metrics for Model 2 (All Data)
     metrics_all = {
-        "Train": evaluate_final_performance(model_all, X_train_opt, y_train_np, train_eval_idx, optimal_features),
-        "Validation": evaluate_final_performance(model_all, X_val_opt, y_val_np, val_eval_idx, optimal_features),
+        "Train":      evaluate_final_performance(model_all, X_tr_opt, y_train_np, train_eval_idx, optimal_features),
+        "Validation": evaluate_final_performance(model_all, X_vl_opt, y_val,      val_eval_idx,   optimal_features),
     }
 
-    # 4. Define Output Paths
-    path_train_val = save_path.replace(".json", "_TrainVal.json")
-    path_all = save_path.replace(".json", "_AllData.json")
-    path_history = save_path.replace(".json", "_RFE_History.csv")
-
-    # 5. Save XGBoost Models
-    model_train_val.save_model(path_train_val)
-    model_all.save_model(path_all)
-
-    # 6. Save Metrics to JSON
-    with open(path_train_val.replace(".json", "_metrics.json"), "w") as f:
-        json.dump(metrics_train_val, f, indent=4)
-
-    with open(path_all.replace(".json", "_metrics.json"), "w") as f:
-        json.dump(metrics_all, f, indent=4)
-
-    # 7. Save RFE Selection History to CSV
-    selection_history_df.to_csv(path_history, index=False)
-
-    print(f"\nPipeline Complete.")
-    print(f"  - Model (Train+Val) saved to : {path_train_val}")
-    print(f"  - Metrics saved to           : {path_train_val.replace('.json', '_metrics.json')}")
-    print(f"  - Model (All Data) saved to  : {path_all}")
-    print(f"  - RFE History saved to       : {path_history}")
-
-    return {'model_train_val': model_train_val, 'model_all': model_all}, optimal_features, selection_history_df
+    _save_outputs(save_path, model_tv, model_all, metrics_tv, metrics_all, history_df)
+    logger.info("Pipeline complete.")
+    return {"model_train_val": model_tv, "model_all": model_all}, optimal_features, history_df
