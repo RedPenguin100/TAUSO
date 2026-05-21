@@ -6,10 +6,15 @@ re-run, already-written features are skipped automatically.
 
 Usage:
     python notebooks/features/calculate_features.py --dataset oligo --cpus 48
+    python notebooks/features/calculate_features.py --dataset oligo --step hybridization
     python notebooks/features/calculate_features.py --dataset oligo --input /path/to/data.csv.gz
     python notebooks/features/calculate_features.py --dataset oligo --overwrite
+
+SLURM note: run with `python -u` or set PYTHONUNBUFFERED=1 for live log output.
 """
 import argparse
+import logging
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -17,6 +22,8 @@ import pandas as pd
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
 from tauso.populate.calculators.calculator import Calculator
+
+logger = logging.getLogger(__name__)
 
 
 def _load_oligo(csv_path: Path) -> pd.DataFrame:
@@ -59,14 +66,36 @@ def main():
                         help='CPUs for parallel steps (default: 32)')
     parser.add_argument('--overwrite', action='store_true',
                         help='Overwrite existing feature files')
+    parser.add_argument('--step', default=None,
+                        help='Run only one step (e.g. hybridization or calculate_hybridization). '
+                             'Runs all steps if omitted.')
+    parser.add_argument('--log-level', default='INFO',
+                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                        help='Logging verbosity (default: INFO). Use DEBUG for full output.')
     args = parser.parse_args()
 
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format='%(asctime)s %(levelname)s %(message)s',
+        stream=sys.stdout,
+        force=True,
+    )
+
     config = DATASETS[args.dataset]
+    steps = config['steps']
+
+    if args.step:
+        canonical = args.step if args.step.startswith('calculate_') else f'calculate_{args.step}'
+        if canonical not in steps:
+            valid = ', '.join(s.removeprefix('calculate_') for s in steps)
+            parser.error(f"Unknown step '{args.step}'. Valid steps for '{args.dataset}': {valid}")
+        steps = [canonical]
+
     csv_path = args.input or config['default_input']
 
-    print(f"Loading {args.dataset} data from {csv_path} ...")
+    logger.info("Loading %s data from %s ...", args.dataset, csv_path)
     data = config['loader'](csv_path)
-    print(f"Loaded {len(data)} rows.")
+    logger.info("Loaded %d rows.", len(data))
 
     calculator = Calculator(
         data=data,
@@ -75,11 +104,12 @@ def main():
         cpus=args.cpus,
     )
 
-    for step in config['steps']:
-        print(f"\n[{step}]")
+    for step in steps:
+        logger.info("Running %s ...", step)
         getattr(calculator, step)()
+        logger.debug("Finished %s.", step)
 
-    print("\nDone.")
+    logger.info("Done.")
 
 
 if __name__ == '__main__':
