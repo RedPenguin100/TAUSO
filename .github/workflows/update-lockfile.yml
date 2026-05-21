@@ -28,22 +28,22 @@ jobs:
             micromamba
           cache-downloads: true
 
-      - name: Regenerate lockfile
+      - name: Regenerate lockfiles
         run: |
           conda-lock lock \
             --file environment.yml \
             --platform linux-64 \
-            --lockfile conda-lock.yml \
+            --kind explicit \
             --micromamba
 
       - name: Commit updated lockfile if changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet conda-lock.yml; then
+          if git diff --quiet conda-linux-64.lock; then
             echo "Lockfile unchanged, nothing to commit."
           else
-            git add conda-lock.yml
-            git commit -m "chore: update conda-lock.yml [skip ci]"
+            git add conda-linux-64.lock
+            git commit -m "chore: update conda-linux-64.lock [skip ci]"
             git push
           fi
