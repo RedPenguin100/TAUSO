@@ -48,7 +48,7 @@ def test_on_target_hybridization_regression(mini_structure_data, gene_to_data, d
     data = mini_structure_data.copy()
     feature_names = []
     for cutoff in CUTOFFS:
-        data, feature_name = on_target_total_hybridization(data, gene_to_data, cutoff=cutoff)
+        data, feature_name = on_target_total_hybridization(data, gene_to_data, cutoff=cutoff, n_jobs=4)
         feature_names.append(feature_name)
     dataframe_regression.check(data[["index_oligo"] + feature_names])
 
@@ -60,7 +60,7 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_full, da
     for target_gene in SINGLE_TARGET_GENES:
         for cutoff in CUTOFFS:
             data, feature_name = off_target_specific_seq_pandarallel(
-                data, target_gene, gene_to_data_full, cutoff=cutoff
+                data, target_gene, gene_to_data_full, cutoff=cutoff, n_jobs=4
             )
             feature_names.append(feature_name)
     dataframe_regression.check(data[["index_oligo"] + feature_names])
@@ -76,7 +76,7 @@ def test_off_target_specific_regression(mini_structure_data, gene_to_data, trans
         top_n_list=[50],
         cutoff_list=[800],
         method=AggregationMethod.ARTM,
-        n_jobs=8,
+        n_jobs=4,
     )
     dataframe_regression.check(data[["index_oligo"] + feature_names])
 
@@ -93,6 +93,6 @@ def test_off_target_general_regression(
         top_n_list=[25],
         cutoff_list=[800],
         method=AggregationMethod.ARTM,
-        n_jobs=8,
+        n_jobs=4,
     )
     dataframe_regression.check(data[["index_oligo"] + feature_names])

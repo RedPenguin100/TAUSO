@@ -20,20 +20,69 @@ def serialize_feature_name(method, top_n, cutoff, is_specific):
     return f"off_target_score_general_{method}_n{top_n}_c{cutoff}"
 
 
-def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_jobs=1):
+def _chunk_df(df, chunk_size):
+    """Split df into a list of sub-DataFrames of at most chunk_size rows."""
+    return [df.iloc[i : i + chunk_size] for i in range(0, len(df), chunk_size)]
+
+
+def _score_chunk(chunk_df, seq_map, exp_map, cutoff, method, target_path):
+    """Single atomic RIsearch scoring unit. Thread-safe: uses a unique query FASTA per call."""
+    return compute_group_batch(chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path)
+
+
+def _score_chunk_or_fallback(chunk_df, info, is_known_cell_line, cutoff, method):
+    """Like _score_chunk but handles missing/empty cell-line info."""
+    if not is_known_cell_line:
+        return pd.Series(np.nan, index=chunk_df.index)
+    if info is None or info[0] is None:
+        return pd.Series(0.0, index=chunk_df.index)
+    target_path, seq_map, exp_map = info
+    return compute_group_batch(chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path)
+
+
+def _run_tasks_parallel(tasks, fn, n_jobs):
+    """
+    Run a list of (key, *args) tasks using fn(*args).
+    Returns {key: result} in submission order.
+    When n_jobs == 1, runs serially.
+    """
+    results = {}
+    if n_jobs > 1 and len(tasks) > 1:
+        with ThreadPoolExecutor(max_workers=min(n_jobs, len(tasks))) as pool:
+            future_to_key = {pool.submit(fn, *args): key for key, *args in tasks}
+            for fut, key in future_to_key.items():
+                results[key] = fut.result()
+    else:
+        for key, *args in tasks:
+            results[key] = fn(*args)
+    return results
+
+
+def populate_off_target_specific(
+    ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_jobs=1, chunk_size=250
+):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
-    Uses CELL_LINE_DEPMAP column to map rows to cell_line2data keys.
 
-    Target FASTA files are built once per (top_n, cell_line) and reused across all cutoffs.
-    When n_jobs > 1, cell lines are scored concurrently within each (top_n, cutoff).
+    Target FASCTAs are built once per (top_n, cell_line) and reused across all cutoffs.
+    Parallelism: all (cutoff, cell_line, aso_chunk) combinations run concurrently up to
+    n_jobs threads, with each chunk capped at chunk_size ASOs to bound peak RIsearch memory.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
     groups = list(ASO_df.groupby(CELL_LINE_DEPMAP, observed=True))
 
+    logger.info(
+        "populate_off_target_specific: top_n=%s cutoffs=%s n_aso=%d n_cell_lines=%d n_jobs=%d",
+        top_n_list,
+        cutoff_list,
+        len(ASO_df),
+        len(groups),
+        n_jobs,
+    )
+
     for top_n in top_n_list:
-        cell_line_info = {}  # {cell_line: (target_path, seq_map, exp_map)}
+        cell_line_info = {}
         TMP_PATH.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -65,37 +114,48 @@ def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_lis
                 target_path = dump_target_file(f"target-spec-{cell_line}-{uuid.uuid4().hex}.fa", spec_seq_map)
                 cell_line_info[cell_line] = (target_path, spec_seq_map, spec_exp_map)
 
-            def _score_cell_line(cell_line, group_df, cutoff, _info_map):
-                if cell_line not in cell_line2data:
-                    return pd.Series(np.nan, index=group_df.index)
-                info = _info_map.get(cell_line)
-                if info is None or info[0] is None:
-                    return pd.Series(0.0, index=group_df.index)
-                target_path, seq_map, exp_map = info
-                return compute_group_batch(
-                    group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path
+            # Pre-chunk every cell line's group so chunks are shared across cutoffs
+            cell_line_chunks = {cl: _chunk_df(gdf, chunk_size) for cl, gdf in groups}
+
+            # Tasks: (key, chunk_df, info, is_known, cutoff, method)
+            # key = (cutoff, cell_line, chunk_idx) for ordered reassembly
+            tasks = [
+                (
+                    (cutoff, cell_line, chunk_idx),
+                    chunk_df,
+                    cell_line_info.get(cell_line),
+                    cell_line in cell_line2data,
+                    cutoff,
+                    method,
                 )
+                for cutoff in cutoff_list
+                for cell_line, _ in groups
+                for chunk_idx, chunk_df in enumerate(cell_line_chunks[cell_line])
+            ]
+
+            n_threads = min(n_jobs, len(tasks))
+            logger.debug(
+                "populate_off_target_specific(top_n=%d): %d tasks "
+                "(%d cutoffs × %d cell_lines × chunks≤%d), using %d thread(s)",
+                top_n,
+                len(tasks),
+                len(cutoff_list),
+                len(groups),
+                chunk_size,
+                n_threads,
+            )
+            results = _run_tasks_parallel(tasks, _score_chunk_or_fallback, n_jobs)
 
             for cutoff in cutoff_list:
-                logger.debug("Running Specific Config: TopN=%d, Cutoff=%d", top_n, cutoff)
                 col = serialize_feature_name(method, top_n, cutoff, is_specific=True)
 
-                if n_jobs > 1 and len(groups) > 1:
-                    with ThreadPoolExecutor(max_workers=min(n_jobs, len(groups))) as pool:
-                        future_to_idx = {
-                            pool.submit(_score_cell_line, cl, gdf, cutoff, cell_line_info): i
-                            for i, (cl, gdf) in enumerate(groups)
-                        }
-                        ordered = [None] * len(groups)
-                        for fut, idx in future_to_idx.items():
-                            ordered[idx] = fut.result()
-                    full_series = pd.concat(ordered)
-                else:
-                    full_series = pd.concat(
-                        [_score_cell_line(cl, gdf, cutoff, cell_line_info) for cl, gdf in groups]
-                    )
+                series_list = []
+                for cell_line, _ in groups:
+                    n_chunks = len(cell_line_chunks[cell_line])
+                    cell_series = pd.concat([results[(cutoff, cell_line, i)] for i in range(n_chunks)])
+                    series_list.append(cell_series)
 
-                ASO_df[col] = full_series.reindex(ASO_df.index)
+                ASO_df[col] = pd.concat(series_list).reindex(ASO_df.index)
                 feature_names.append(col)
 
         finally:
@@ -115,13 +175,15 @@ def populate_off_target_general(
     cutoff_list,
     method,
     n_jobs=1,
+    chunk_size=250,
 ):
     """
-    Enriches ASO_df with off-target scores using a single batched RIsearch call per
-    (top_n, cutoff) combination.
+    Enriches ASO_df with off-target scores using a batched RIsearch call per chunk.
 
-    Target FASCTAs are built once per top_n, then all (top_n, cutoff) combinations
-    are run — concurrently when n_jobs > 1. Results are applied in original order.
+    Target FASCTAs are built once per top_n, then all (top_n, cutoff, aso_chunk)
+    combinations are run — concurrently when n_jobs > 1. Each chunk is at most
+    chunk_size ASOs to bound peak RIsearch memory. Results are assembled in
+    original (top_n, cutoff) order.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -129,6 +191,16 @@ def populate_off_target_general(
     if "general" not in cell_line2data:
         raise ValueError("Key 'general' not found in cell_line2data dictionary.")
     general_df_all = cell_line2data["general"]
+
+    logger.info(
+        "populate_off_target_general: top_n=%s cutoffs=%s n_aso=%d n_jobs=%d",
+        top_n_list,
+        cutoff_list,
+        len(ASO_df),
+        n_jobs,
+    )
+
+    aso_chunks = _chunk_df(ASO_df, chunk_size)
 
     # Phase 1: build all target FASCTAs (one per top_n) — serial, disk I/O
     TMP_PATH.mkdir(parents=True, exist_ok=True)
@@ -151,32 +223,32 @@ def populate_off_target_general(
             target_path = dump_target_file(f"target-general-{uuid.uuid4().hex}.fa", seq_map)
             top_n_data[top_n] = (seq_map, exp_map, target_path)
 
-        # Phase 2: run all (top_n, cutoff) combinations, optionally in parallel
-        combos = [(top_n, cutoff) for top_n in top_n_list for cutoff in cutoff_list]
-
-        def _run_combo(top_n, cutoff):
-            seq_map, exp_map, target_path = top_n_data[top_n]
-            col = serialize_feature_name(method, top_n, cutoff, is_specific=False)
-            logger.debug("Running config: TopN=%d, Cutoff=%d", top_n, cutoff)
-            scores = compute_group_batch(
-                ASO_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path
+        # Phase 2: tasks = all (top_n, cutoff, chunk_idx) combinations
+        tasks = [
+            (
+                (top_n, cutoff, chunk_idx),
+                chunk_df,
+                top_n_data[top_n][0],
+                top_n_data[top_n][1],
+                cutoff,
+                method,
+                top_n_data[top_n][2],
             )
-            return col, scores
+            for top_n in top_n_list
+            for cutoff in cutoff_list
+            for chunk_idx, chunk_df in enumerate(aso_chunks)
+        ]
 
-        if n_jobs > 1 and len(combos) > 1:
-            results = {}
-            with ThreadPoolExecutor(max_workers=min(n_jobs, len(combos))) as pool:
-                future_to_combo = {pool.submit(_run_combo, tn, c): (tn, c) for tn, c in combos}
-                for fut, combo in future_to_combo.items():
-                    results[combo] = fut.result()
-            for combo in combos:
-                col, scores = results[combo]
-                ASO_df[col] = scores
-                feature_names.append(col)
-        else:
-            for top_n, cutoff in combos:
-                col, scores = _run_combo(top_n, cutoff)
-                ASO_df[col] = scores
+        if n_jobs > 1:
+            logger.debug("Dispatching %d tasks across %d threads", len(tasks), min(n_jobs, len(tasks)))
+
+        results = _run_tasks_parallel(tasks, _score_chunk, n_jobs)
+
+        for top_n in top_n_list:
+            for cutoff in cutoff_list:
+                col = serialize_feature_name(method, top_n, cutoff, is_specific=False)
+                full_series = pd.concat([results[(top_n, cutoff, i)] for i in range(len(aso_chunks))])
+                ASO_df[col] = full_series.reindex(ASO_df.index)
                 feature_names.append(col)
 
     finally:
@@ -258,9 +330,7 @@ def populate_off_target_specific_per_rank(
 
                 scores = compute_group_batch(group_df, single_seq_map, single_exp_map, cutoff, method)
                 partial.setdefault(col_score, []).append(scores)
-                partial.setdefault(col_gene, []).append(
-                    pd.Series([gene_name] * len(group_df), index=group_df.index)
-                )
+                partial.setdefault(col_gene, []).append(pd.Series([gene_name] * len(group_df), index=group_df.index))
                 partial.setdefault(col_exp, []).append(
                     pd.Series([exp_val_scalar] * len(group_df), index=group_df.index)
                 )
