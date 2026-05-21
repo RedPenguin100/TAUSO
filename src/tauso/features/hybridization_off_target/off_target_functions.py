@@ -35,7 +35,7 @@ def parse_risearch_output(output_str: str) -> pd.DataFrame:
 
 def aggregate_off_targets(df: pd.DataFrame) -> pd.DataFrame:
     # Aggregate: sum score (if it's hybridization hits) and take minimum (strongest) energy
-    grouped = df.groupby("target").agg({"score": "sum", "energy": "min"}).reset_index()
+    grouped = df.groupby("target", observed=True).agg({"score": "sum", "energy": "min"}).reset_index()
     return grouped
 
 

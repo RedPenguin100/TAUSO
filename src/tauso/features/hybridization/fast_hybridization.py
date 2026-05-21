@@ -8,17 +8,13 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from Bio.Seq import Seq
-
+from ...util import get_antisense_rna
 from .Interaction import Interaction
 
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
 else:
     TMP_PATH = Path(tempfile.gettempdir()) / "tauso_risearch_tmp"
-
-# reverse-then-translate: equivalent to Seq(trigger).reverse_complement_rna() without Bio.Seq overhead
-_RC_RNA_TABLE = str.maketrans("ACGT", "UGCA")
 
 
 def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
@@ -113,7 +109,7 @@ def get_trigger_mfe_scores_by_risearch(
 
     query_path = (TMP_PATH / f"query-{unique_id}.fa").resolve()
     with open(query_path, "w") as f:
-        f.write(f">trigger\n{Seq(trigger).reverse_complement_rna()}\n")
+        f.write(f">trigger\n{get_antisense_rna(trigger)}\n")
 
     for p, name in [(target_path, "Target"), (query_path, "Query")]:
         if not p.exists():
@@ -156,7 +152,7 @@ def get_triggers_mfe_scores_batch(
     lines: List[str] = []
     for query_id, trigger in trigger_id_seq_pairs:
         lines.append(f">{query_id}")
-        lines.append(trigger[::-1].translate(_RC_RNA_TABLE))
+        lines.append(get_antisense_rna(trigger))
     query_path.write_text("\n".join(lines) + "\n")
 
     mode = _interaction_mode(interaction_type)

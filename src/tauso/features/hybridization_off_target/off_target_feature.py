@@ -28,7 +28,7 @@ def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_lis
     """
     ASO_df = ASO_df.copy()
     feature_names = []
-    grouped = ASO_df.groupby(CELL_LINE_DEPMAP)
+    grouped = ASO_df.groupby(CELL_LINE_DEPMAP, observed=True)
 
     for top_n in top_n_list:
         # Build maps + target files for every cell line once (reused across all cutoffs)
@@ -196,7 +196,7 @@ def populate_off_target_specific_per_rank(
     accumulator = {}
 
     logger.info("Grouping by cell line to calculate specific ranks 1 to %d...", max_rank)
-    grouped = ASO_df.groupby(CELL_LINE_DEPMAP)
+    grouped = ASO_df.groupby(CELL_LINE_DEPMAP, observed=True)
 
     for cell_line, group_df in grouped:
         if verbose:
