@@ -121,7 +121,7 @@ class AssetCache:
 
             # 3. Load the general mean expression
             mean_exp_data = get_general_expression_of_genes(
-                Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv", valid_genes
+                Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet", valid_genes
             )
             self._transcriptomes["general"] = mean_exp_data
 

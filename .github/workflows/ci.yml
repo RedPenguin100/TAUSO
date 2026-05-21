@@ -23,13 +23,22 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          sudo rm -rf /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" &
+          wait
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: true
 
       - name: Create Data Directory
-        run: mkdir -p ${{ env.TAUSO_DATA_DIR }}
+        run: mkdir -p "${{ env.TAUSO_DATA_DIR }}"
 
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
@@ -91,12 +100,15 @@ jobs:
         with:
           path: |
             ${{ env.TAUSO_DATA_DIR }}/Model.csv
+            ${{ env.TAUSO_DATA_DIR }}/Model.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv
-            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.csv
+            ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv.sha256
+            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet
+            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
             ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
             ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.csv.gz
-          key: depmap-25Q3-v1
+          key: depmap-25Q3-v2
 
       - name: Setup DepMap
         run: tauso setup-depmap
