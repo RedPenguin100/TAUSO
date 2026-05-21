@@ -1,6 +1,7 @@
 import logging
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -19,25 +20,24 @@ def serialize_feature_name(method, top_n, cutoff, is_specific):
     return f"off_target_score_general_{method}_n{top_n}_c{cutoff}"
 
 
-def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_cores=1):
+def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_jobs=1):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
     Uses CELL_LINE_DEPMAP column to map rows to cell_line2data keys.
 
-    Target FASTA files are built once per (top_n, cell_line) and reused across all cutoffs,
-    eliminating redundant disk writes on /dev/shm.
+    Target FASTA files are built once per (top_n, cell_line) and reused across all cutoffs.
+    When n_jobs > 1, cell lines are scored concurrently within each (top_n, cutoff).
     """
     ASO_df = ASO_df.copy()
     feature_names = []
-    grouped = ASO_df.groupby(CELL_LINE_DEPMAP, observed=True)
+    groups = list(ASO_df.groupby(CELL_LINE_DEPMAP, observed=True))
 
     for top_n in top_n_list:
-        # Build maps + target files for every cell line once (reused across all cutoffs)
         cell_line_info = {}  # {cell_line: (target_path, seq_map, exp_map)}
         TMP_PATH.mkdir(parents=True, exist_ok=True)
 
         try:
-            for cell_line, _group_df in grouped:
+            for cell_line, _group_df in groups:
                 if cell_line not in cell_line2data:
                     continue
 
@@ -65,39 +65,38 @@ def populate_off_target_specific(ASO_df, gene_to_data, cell_line2data, top_n_lis
                 target_path = dump_target_file(f"target-spec-{cell_line}-{uuid.uuid4().hex}.fa", spec_seq_map)
                 cell_line_info[cell_line] = (target_path, spec_seq_map, spec_exp_map)
 
+            def _score_cell_line(cell_line, group_df, cutoff, _info_map):
+                if cell_line not in cell_line2data:
+                    return pd.Series(np.nan, index=group_df.index)
+                info = _info_map.get(cell_line)
+                if info is None or info[0] is None:
+                    return pd.Series(0.0, index=group_df.index)
+                target_path, seq_map, exp_map = info
+                return compute_group_batch(
+                    group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path
+                )
+
             for cutoff in cutoff_list:
                 logger.debug("Running Specific Config: TopN=%d, Cutoff=%d", top_n, cutoff)
-                spec_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=True)
-                calculated_scores = []
+                col = serialize_feature_name(method, top_n, cutoff, is_specific=True)
 
-                for cell_line, group_df in grouped:
-                    if cell_line not in cell_line2data:
-                        calculated_scores.append(pd.Series(np.nan, index=group_df.index))
-                        continue
-
-                    info = cell_line_info.get(cell_line)
-                    if info is None or info[0] is None:
-                        calculated_scores.append(pd.Series(0.0, index=group_df.index))
-                        continue
-
-                    target_path, spec_seq_map, spec_exp_map = info
-                    group_scores = compute_group_batch(
-                        group_df,
-                        spec_seq_map,
-                        spec_exp_map,
-                        cutoff,
-                        method,
-                        prebuilt_target_path=target_path,
-                    )
-                    calculated_scores.append(group_scores)
-
-                if calculated_scores:
-                    full_series = pd.concat(calculated_scores)
-                    ASO_df[spec_col_name] = full_series.reindex(ASO_df.index)
+                if n_jobs > 1 and len(groups) > 1:
+                    with ThreadPoolExecutor(max_workers=min(n_jobs, len(groups))) as pool:
+                        future_to_idx = {
+                            pool.submit(_score_cell_line, cl, gdf, cutoff, cell_line_info): i
+                            for i, (cl, gdf) in enumerate(groups)
+                        }
+                        ordered = [None] * len(groups)
+                        for fut, idx in future_to_idx.items():
+                            ordered[idx] = fut.result()
+                    full_series = pd.concat(ordered)
                 else:
-                    ASO_df[spec_col_name] = np.nan
+                    full_series = pd.concat(
+                        [_score_cell_line(cl, gdf, cutoff, cell_line_info) for cl, gdf in groups]
+                    )
 
-                feature_names.append(spec_col_name)
+                ASO_df[col] = full_series.reindex(ASO_df.index)
+                feature_names.append(col)
 
         finally:
             for info in cell_line_info.values():
@@ -115,11 +114,14 @@ def populate_off_target_general(
     top_n_list,
     cutoff_list,
     method,
-    n_cores=1,
+    n_jobs=1,
 ):
     """
     Enriches ASO_df with off-target scores using a single batched RIsearch call per
-    (top_n, cutoff) combination instead of one call per row.
+    (top_n, cutoff) combination.
+
+    Target FASCTAs are built once per top_n, then all (top_n, cutoff) combinations
+    are run — concurrently when n_jobs > 1. Results are applied in original order.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -128,45 +130,59 @@ def populate_off_target_general(
         raise ValueError("Key 'general' not found in cell_line2data dictionary.")
     general_df_all = cell_line2data["general"]
 
-    for top_n in top_n_list:
-        general_df = general_df_all.head(top_n)
-
-        # Build seq/exp maps once per top_n
-        general_seq_map = {}
-        general_exp_map = {}
-
-        norm_col = next((c for c in general_df.columns if "expression_norm" in c), "expression_norm")
-        for _, row in general_df.iterrows():
-            gene = row["Gene"].split()[0]
-            if gene not in gene_to_data:
-                raise KeyError(f"CRITICAL: Gene '{gene}' not found in gene_to_data mapping.")
-            general_seq_map[gene] = gene_to_data[gene].full_mrna
-            general_exp_map[gene] = (
-                row.get("expression_TPM", 0),
-                row.get(norm_col, row.get("expression_norm", 0)),
-            )
-
-        # Build target FASTA once per top_n; reuse it across all cutoffs
-        TMP_PATH.mkdir(parents=True, exist_ok=True)
-        general_target_path = dump_target_file(f"target-general-{uuid.uuid4().hex}.fa", general_seq_map)
-        try:
-            for cutoff in cutoff_list:
-                logger.debug("Running config: TopN=%d, Cutoff=%d", top_n, cutoff)
-                gen_col_name = serialize_feature_name(method, top_n, cutoff, is_specific=False)
-
-                scores = compute_group_batch(
-                    ASO_df,
-                    general_seq_map,
-                    general_exp_map,
-                    cutoff,
-                    method,
-                    prebuilt_target_path=general_target_path,
+    # Phase 1: build all target FASCTAs (one per top_n) — serial, disk I/O
+    TMP_PATH.mkdir(parents=True, exist_ok=True)
+    top_n_data = {}  # {top_n: (seq_map, exp_map, target_path)}
+    try:
+        for top_n in top_n_list:
+            general_df = general_df_all.head(top_n)
+            seq_map: dict = {}
+            exp_map: dict = {}
+            norm_col = next((c for c in general_df.columns if "expression_norm" in c), "expression_norm")
+            for _, row in general_df.iterrows():
+                gene = row["Gene"].split()[0]
+                if gene not in gene_to_data:
+                    raise KeyError(f"CRITICAL: Gene '{gene}' not found in gene_to_data mapping.")
+                seq_map[gene] = gene_to_data[gene].full_mrna
+                exp_map[gene] = (
+                    row.get("expression_TPM", 0),
+                    row.get(norm_col, row.get("expression_norm", 0)),
                 )
-                ASO_df[gen_col_name] = scores
-                feature_names.append(gen_col_name)
-        finally:
-            if os.path.exists(general_target_path):
-                os.remove(general_target_path)
+            target_path = dump_target_file(f"target-general-{uuid.uuid4().hex}.fa", seq_map)
+            top_n_data[top_n] = (seq_map, exp_map, target_path)
+
+        # Phase 2: run all (top_n, cutoff) combinations, optionally in parallel
+        combos = [(top_n, cutoff) for top_n in top_n_list for cutoff in cutoff_list]
+
+        def _run_combo(top_n, cutoff):
+            seq_map, exp_map, target_path = top_n_data[top_n]
+            col = serialize_feature_name(method, top_n, cutoff, is_specific=False)
+            logger.debug("Running config: TopN=%d, Cutoff=%d", top_n, cutoff)
+            scores = compute_group_batch(
+                ASO_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path
+            )
+            return col, scores
+
+        if n_jobs > 1 and len(combos) > 1:
+            results = {}
+            with ThreadPoolExecutor(max_workers=min(n_jobs, len(combos))) as pool:
+                future_to_combo = {pool.submit(_run_combo, tn, c): (tn, c) for tn, c in combos}
+                for fut, combo in future_to_combo.items():
+                    results[combo] = fut.result()
+            for combo in combos:
+                col, scores = results[combo]
+                ASO_df[col] = scores
+                feature_names.append(col)
+        else:
+            for top_n, cutoff in combos:
+                col, scores = _run_combo(top_n, cutoff)
+                ASO_df[col] = scores
+                feature_names.append(col)
+
+    finally:
+        for _, _, target_path in top_n_data.values():
+            if os.path.exists(target_path):
+                os.remove(target_path)
 
     return ASO_df, feature_names
 
@@ -178,7 +194,7 @@ def populate_off_target_specific_per_rank(
     max_rank,
     cutoff_list,
     method,
-    n_cores=1,
+    n_jobs=1,
 ):
     """
     Enriches ASO_df with rank-specific off-target details relative to the specific cell line.
@@ -190,103 +206,93 @@ def populate_off_target_specific_per_rank(
       1. Score
       2. Gene Name (String)
       3. Expression Value (Float)
+
+    When n_jobs > 1, cell lines are processed concurrently.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
-    accumulator = {}
+    accumulator: dict = {}
 
     logger.info("Grouping by cell line to calculate specific ranks 1 to %d...", max_rank)
-    grouped = ASO_df.groupby(CELL_LINE_DEPMAP, observed=True)
+    groups = list(ASO_df.groupby(CELL_LINE_DEPMAP, observed=True))
 
-    for cell_line, group_df in grouped:
-        logger.debug(f"Analyzing cell line: {cell_line}")
-        # 1. Validation: Check if we have data for this cell line
+    def _process_cell_line(cell_line, group_df):
+        """Returns partial {col_name: series} for one cell line."""
+        partial: dict = {}
         if cell_line not in cell_line2data:
-            logger.warning(f"Warning! missing cell line: {cell_line}")
-            # Missing context: fill this group with NaNs later
-            continue
+            logger.warning("Warning! missing cell line: %s", cell_line)
+            return partial
 
-        # 2. Get the specific transcriptome (only up to the max rank needed)
         specific_df = cell_line2data[cell_line].head(max_rank)
-
-        # 3. Identify Normalization Column (Robustness)
         norm_col = next(
             (c for c in specific_df.columns if "expression_norm" in c),
             "expression_norm",
         )
 
-        # Iterate 0 to max_rank-1 (i.e., Rank 1 to Rank N)
         for rank_idx in range(max_rank):
             logger.debug("Rank: %d", rank_idx)
-            current_rank = rank_idx + 1  # 1-based index for naming
-
-            # If the cell line has fewer genes than the requested rank, skip or fill 0
             if rank_idx >= len(specific_df):
-                # You might want to log this or handle it.
-                # For now, we just won't compute, leaving it as default (0/NaN) initialization.
                 continue
 
-            # Get the gene data for this specific rank
             gene_row = specific_df.iloc[rank_idx]
             gene_name = gene_row["Gene"].split()[0]
             logger.debug("Analyzing gene: %s", gene_name)
-            # Expression value tuple: (TPM, Norm)
+
+            if gene_name not in gene_to_data:
+                continue
+
             exp_val_tuple = (
                 gene_row.get("expression_TPM", 0),
                 gene_row.get(norm_col, gene_row.get("expression_norm", 0)),
             )
-            # We usually save the normalized value in the dataframe column
             exp_val_scalar = exp_val_tuple[1]
-
-            # Validation: Do we have the sequence?
-            if gene_name not in gene_to_data:
-                continue
-
-            # Construct Single-Gene Maps for the worker
             single_seq_map = {gene_name: gene_to_data[gene_name].full_mrna}
             single_exp_map = {gene_name: exp_val_tuple}
+            current_rank = rank_idx + 1
 
             for cutoff in cutoff_list:
-                # define column names
                 base_col = f"OT_Spec_Rank{current_rank}_c{cutoff}"
                 col_score = f"{base_col}_Score"
                 col_gene = f"{base_col}_Gene"
                 col_exp = f"{base_col}_Exp"
 
-                # Ensure lists exist in accumulator
-                if col_score not in accumulator:
-                    accumulator[col_score] = []
-                if col_gene not in accumulator:
-                    accumulator[col_gene] = []
-                if col_exp not in accumulator:
-                    accumulator[col_exp] = []
-
                 scores = compute_group_batch(group_df, single_seq_map, single_exp_map, cutoff, method)
+                partial.setdefault(col_score, []).append(scores)
+                partial.setdefault(col_gene, []).append(
+                    pd.Series([gene_name] * len(group_df), index=group_df.index)
+                )
+                partial.setdefault(col_exp, []).append(
+                    pd.Series([exp_val_scalar] * len(group_df), index=group_df.index)
+                )
 
-                # Store Results
-                accumulator[col_score].append(scores)
+        return partial
 
-                # Create Series for Metadata (Gene Name and Expression)
-                # These are constant for the whole group, but must align with index
-                gene_series = pd.Series([gene_name] * len(group_df), index=group_df.index)
-                exp_series = pd.Series([exp_val_scalar] * len(group_df), index=group_df.index)
+    if n_jobs > 1 and len(groups) > 1:
+        with ThreadPoolExecutor(max_workers=min(n_jobs, len(groups))) as pool:
+            futures = [pool.submit(_process_cell_line, cl, gdf) for cl, gdf in groups]
+            for fut in futures:
+                for col, series_list in fut.result().items():
+                    accumulator.setdefault(col, []).extend(series_list)
+    else:
+        for cell_line, group_df in groups:
+            for col, series_list in _process_cell_line(cell_line, group_df).items():
+                accumulator.setdefault(col, []).extend(series_list)
 
-                accumulator[col_gene].append(gene_series)
-                accumulator[col_exp].append(exp_series)
+    # Track feature names in rank/cutoff order (not cell_line order)
+    for rank_idx in range(max_rank):
+        current_rank = rank_idx + 1
+        for cutoff in cutoff_list:
+            base_col = f"OT_Spec_Rank{current_rank}_c{cutoff}"
+            for suffix in ("_Score", "_Gene", "_Exp"):
+                col = base_col + suffix
+                if col in accumulator:
+                    feature_names.append(col)
 
-                # Track feature names (only add unique ones)
-                if col_score not in feature_names:
-                    feature_names.extend([col_score, col_gene, col_exp])
-
-    # 4. Reassemble Dataframe
     logger.debug("Reassembling chunks...")
     for col_name, chunks in accumulator.items():
         if chunks:
-            full_series = pd.concat(chunks)
-            # Reindex ensures that rows not processed (e.g. missing cell line data) get NaN/None
-            ASO_df[col_name] = full_series.reindex(ASO_df.index)
+            ASO_df[col_name] = pd.concat(chunks).reindex(ASO_df.index)
         else:
-            # If no data was computed (empty inputs?), initialize empty
             ASO_df[col_name] = np.nan
 
     return ASO_df, feature_names

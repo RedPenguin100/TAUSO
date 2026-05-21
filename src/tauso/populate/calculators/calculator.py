@@ -680,7 +680,7 @@ class Calculator:
                         top_n_list=[top_n],
                         cutoff_list=[cutoff],
                         method=method,
-                        n_cores=self.cpus,
+                        n_jobs=self.cpus,
                     )
 
                     for feature in generated_features:
@@ -726,7 +726,7 @@ class Calculator:
                             top_n_list=[top_n],
                             cutoff_list=[cutoff],
                             method=method,
-                            n_cores=self.cpus,
+                            n_jobs=self.cpus,
                         )
 
                         for feature in generated_features:

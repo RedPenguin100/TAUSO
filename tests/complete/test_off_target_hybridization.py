@@ -9,6 +9,7 @@ from tauso.features.hybridization_off_target.off_target_specific_gene import (
     off_target_specific_seq_pandarallel,
     on_target_total_hybridization,
 )
+
 SINGLE_TARGET_GENES = ["RNASEH1", "ACTB"]
 CUTOFFS = [0, 1200]
 
@@ -75,6 +76,7 @@ def test_off_target_specific_regression(mini_structure_data, gene_to_data, trans
         top_n_list=[50],
         cutoff_list=[800],
         method=AggregationMethod.ARTM,
+        n_jobs=8,
     )
     dataframe_regression.check(data[["index_oligo"] + feature_names])
 
@@ -91,5 +93,6 @@ def test_off_target_general_regression(
         top_n_list=[25],
         cutoff_list=[800],
         method=AggregationMethod.ARTM,
+        n_jobs=8,
     )
     dataframe_regression.check(data[["index_oligo"] + feature_names])
