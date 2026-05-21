@@ -63,6 +63,21 @@ def _save_json(obj, path):
         json.dump(obj, f, indent=4)
 
 
+def _resolve_features(final_data, all_features, paths):
+    """Return filtered feature list, saving to disk on first call and loading on subsequent ones."""
+    if paths["input_features"].exists():
+        features = _load_json(paths["input_features"], "tune")
+        logger.info("Loaded %d input features from %s", len(features), paths["input_features"])
+        return features
+    zero_var = [f for f in all_features if final_data[f].nunique() <= 1]
+    features = [f for f in all_features if f not in zero_var]
+    if zero_var:
+        logger.info("Dropped %d constant features: %s", len(zero_var), zero_var)
+    _save_json(features, paths["input_features"])
+    logger.info("%d input features saved -> %s", len(features), paths["input_features"])
+    return features
+
+
 def _save_model_and_metrics(model, path, metrics):
     model.save_model(path)
     _save_json(metrics, path.replace(".json", "_metrics.json"))
@@ -75,6 +90,7 @@ def _intermediate_paths(args):
     return {
         "name":             name,
         "model_base":       str(args.output / f"Model_Oligo_{name}.json"),
+        "input_features":   args.output / f"input_features_{name}.json",
         "best_params":      args.output / f"best_params_{name}.json",
         "optimal_features": args.output / f"optimal_features_{name}.json",
         "rfe_history":      args.output / f"Model_Oligo_{name}_RFE_History.csv",
@@ -143,6 +159,7 @@ def step_tune(data, args, paths, objective):
 def step_select(data, features, args, paths):
     from notebooks.models.SeenOligoModel.base_model import run_backward_selection
     logger.info("=== STEP: select ===")
+    features = _load_json(paths["input_features"], "tune")
     best_params = _load_json(paths["best_params"], "tune")
 
     optimal, history_df = run_backward_selection(
@@ -164,7 +181,8 @@ def step_train(data, features, args, paths):
     from notebooks.models.SeenOligoModel.base_model import evaluate_final_performance, train_final_model
     logger.info("=== STEP: train ===")
 
-    best_params     = _load_json(paths["best_params"],      "tune")
+    features         = _load_json(paths["input_features"],   "tune")
+    best_params      = _load_json(paths["best_params"],      "tune")
     optimal_features = _load_json(paths["optimal_features"], "select")
     logger.info("Loaded %d features | rounds=%s", len(optimal_features), best_params.get("num_boost_round"))
 
@@ -230,11 +248,8 @@ def main():
     logger.info("loss=%s split=%s step=%s device=%s cpus=%d seed=%d", args.loss, args.split, args.step, args.device, args.cpus, args.seed)
 
     logger.info("Loading data...")
-    final_data, features = load_and_validate_final_data(version="oligo")
-    zero_var = [f for f in features if final_data[f].nunique() <= 1]
-    if zero_var:
-        logger.info("Dropping %d zero-variance features.", len(zero_var))
-        features = [f for f in features if f not in zero_var]
+    final_data, all_features = load_and_validate_final_data(version="oligo")
+    features = _resolve_features(final_data, all_features, paths)
     logger.info("Features: %d", len(features))
 
     data = _prep_data(final_data, features, cfg["eval_group"], cfg["select_group"])
