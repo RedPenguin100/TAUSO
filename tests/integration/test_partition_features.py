@@ -5,6 +5,8 @@ from notebooks.features.calculate_features import get_partition_dir, merge_parti
 from tauso.data.consts import CANONICAL_GENE, PS_PATTERN
 from tauso.populate.calculators.calculator import Calculator
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def small_df():
