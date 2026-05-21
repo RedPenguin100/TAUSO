@@ -55,6 +55,17 @@ class Calculator:
         if missing:
             raise ValueError(f"Missing required dependencies in dataframe: {missing}")
 
+    def _load_features_into_data(self, feature_names: list):
+        """Reads saved feature CSVs back into self.data for columns needed as in-memory dependencies."""
+        feature_dir = self.get_feature_dir_func(self.data_version)
+        for feature in feature_names:
+            if feature in self.data.columns:
+                continue
+            file_path = os.path.join(feature_dir, f"{feature}.csv")
+            feat_df = pd.read_csv(file_path)
+            self.data = self.data.merge(feat_df[[self.index, feature]], on=self.index, how="left")
+            logger.debug("Loaded '%s' from disk into DataFrame.", feature)
+
     def _get_missing_features(self, expected_features: list) -> list:
         if self.overwrite:
             return expected_features
@@ -188,7 +199,8 @@ class Calculator:
             for feature in expected_features:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("All structure features exist. Skipping.")
+            logger.info("All structure features exist. Loading from disk...")
+            self._load_features_into_data(expected_features)
 
     def calculate_expression(self):
         """Calculates mRNA expression features."""
