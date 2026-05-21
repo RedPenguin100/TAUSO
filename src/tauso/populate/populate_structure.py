@@ -46,7 +46,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
 
     all_data["__temp_idx"] = np.arange(n_rows)
 
-    for gene_name, group in all_data.groupby(CANONICAL_GENE):
+    for gene_name, group in all_data.groupby(CANONICAL_GENE, observed=True):
         if gene_name not in pre_mrna_cache:
             continue
 
