@@ -35,11 +35,12 @@ dev = [
     "pytest",
     "pytest-regressions",
     "pytest-xdist",
-    "ruff",
     "shap",
     "matplotlib",
     "seaborn",
     "optuna",
+    "pandas-stubs",
+    "scipy-stubs",
 ]
 
 [tool.setuptools]

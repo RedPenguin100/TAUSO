@@ -3,6 +3,7 @@ from typing import Dict, Iterable, Optional
 import gffutils
 
 from ..util import _to_str_seq
+from .LocusInfo import GeneType
 
 
 class GeneCoordinateMapper:
@@ -148,6 +149,18 @@ def build_gene_sequence_registry(
 
         pre_mrna = _to_str_seq(locus.full_mrna)
         cds = mapper.get_spliced_sequence(gene, pre_mrna)
+
+        # If we don't find a CDS, we need to see is it because we have a non coding RNA, or is
+        # it because it is a custom user RNA?
+        if not cds:
+            # We no longer need .lower(). We can safely fall back to the UNKNOWN enum.
+            gene_type = getattr(locus, "gene_type", GeneType.UNKNOWN)
+
+            # Fast integer comparison instead of string searching
+            if gene_type in (GeneType.LNCRNA, GeneType.NON_CODING):
+                cds = None  # Explicitly keep it empty for lncRNAs
+            else:
+                cds = pre_mrna  # Assume it's a raw CDS
 
         registry[gene] = {"pre_mrna_sequence": pre_mrna, "cds_sequence": cds}
     return registry

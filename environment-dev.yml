@@ -4,8 +4,11 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  - ruff==0.15.12
   - jupyterlab
   - ipykernel
+  - cupy
+  - graphviz
   - uv
   - conda-build
   - conda-lock

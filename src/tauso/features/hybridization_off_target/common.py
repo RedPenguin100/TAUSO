@@ -29,7 +29,7 @@ def get_general_expression_of_genes(EXP_path, valid_genes):
     potential_gene_cols = [c for c in all_cols if "(" in c and c != model_col]
     valid_cols = [c for c in potential_gene_cols if c.split(" (")[0] in valid_genes_set]
 
-    logger.info("Filtering: Kept %d genes out of %d total columns.", len(valid_cols), len(potential_gene_cols))
+    logger.info(f"Filtering: Kept {len(valid_cols)} genes out of {len(potential_gene_cols)} total columns.")
 
     if not valid_cols:
         return pd.DataFrame(columns=["Gene", "expression_norm", "expression_TPM"])
