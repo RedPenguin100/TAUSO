@@ -7,9 +7,40 @@ name = "tauso"
 version = "1.0.0"
 description = "TAUSO: ASO design toolkit"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Michael Kovaliov"}]
+
+dependencies = [
+    "requests",
+    "numpy==2.3.4",
+    "pandas>=2.0,<3",
+    "pyarrow",
+    "scipy",
+    "numba>=0.65,<0.66",
+    "biopython>=1.87,<2",
+    "gffutils>=0.14,<1",
+    "pyranges>=0.1.4,<0.2",
+    "primer3-py",
+    "tqdm",
+    "click",
+    "gdown",
+    "platformdirs",
+    "pandarallel",
+    "xgboost>=3.2,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-regressions",
+    "pytest-xdist",
+    "ruff",
+    "shap",
+    "matplotlib",
+    "seaborn",
+    "optuna",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
