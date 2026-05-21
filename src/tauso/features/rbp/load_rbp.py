@@ -30,7 +30,7 @@ def load_attract_data():
 
     # Map Gene Name -> List of Matrix IDs
     # (No need to filter for Organism here, it was done in setup_attract)
-    rbp_to_matrices = df.groupby("Gene_name")["Matrix_id"].apply(list).to_dict()
+    rbp_to_matrices = df.groupby("Gene_name", observed=True)["Matrix_id"].apply(list).to_dict()
 
     logger.info("Loading PWM matrices from %s...", pwm_path)
     pwms = {}

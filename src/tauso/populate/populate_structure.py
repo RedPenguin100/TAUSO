@@ -5,7 +5,7 @@ import numpy as np
 from ..data.consts import *
 from ..features.names import *
 from ..genome.LocusInfo import StrandType
-from ..util import get_antisense_u
+from ..util import get_antisense_rna
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,6 @@ def _in_intervals(coords: np.ndarray, intervals: list) -> np.ndarray:
         return np.zeros(len(coords), dtype=bool)
 
     arr = np.array(intervals)
-    # Broadcast coordinates to check against all intervals simultaneously
     return ((coords[:, None] >= arr[:, 0]) & (coords[:, None] < arr[:, 1])).any(axis=1)
 
 
@@ -40,7 +39,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
 
     # Encode sequences to bytes outside the loop for speed
     unique_seqs = all_data[SEQUENCE].unique()
-    sense_cache = {seq: get_antisense_u(seq).encode() for seq in unique_seqs}
+    sense_cache = {seq: get_antisense_rna(seq).encode() for seq in unique_seqs}
 
     all_data["__temp_sense"] = all_data[SEQUENCE].map(sense_cache)
     seq_lengths = all_data[SEQUENCE].str.len().values
@@ -67,7 +66,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
 
     all_data["__temp_idx"] = np.arange(n_rows)
 
-    for gene_name, group in all_data.groupby(CANONICAL_GENE):
+    for gene_name, group in all_data.groupby(CANONICAL_GENE, observed=True):
         if gene_name not in pre_mrna_cache:
             continue
 

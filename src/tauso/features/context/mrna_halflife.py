@@ -66,7 +66,7 @@ def load_halflife_mapping():
     # 8. Handle Duplicates using GEOMETRIC MEAN
     # Since we have filtered out the "noisy" experiments, the remaining
     # duplicates are likely valid replicates. Geometric mean is best for rates.
-    df_clean = df.groupby(["gene", "cell_line"])["half_life"].apply(gmean)
+    df_clean = df.groupby(["gene", "cell_line"], observed=True)["half_life"].apply(gmean)
 
     # 9. Convert to Dictionary
     mapping = df_clean.to_dict()
@@ -88,7 +88,7 @@ class HalfLifeProvider:
 
         # We group by gene and aggregate using gmean (and std/count for metadata)
         # Note: We use ddof=1 for std dev to estimate sample standard deviation
-        gene_stats_df = df_map.groupby("gene")["hl"].agg(geom_mean=gmean, count="count", std="std")
+        gene_stats_df = df_map.groupby("gene", observed=True)["hl"].agg(geom_mean=gmean, count="count", std="std")
         # Convert to dict for O(1) lookup: gene -> {stats}
         self.gene_stats = gene_stats_df.to_dict(orient="index")
 
