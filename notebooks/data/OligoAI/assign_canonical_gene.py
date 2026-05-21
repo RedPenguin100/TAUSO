@@ -1,6 +1,7 @@
 import ast
 import logging
 import os
+import tempfile
 import uuid
 from collections import Counter
 
@@ -31,7 +32,7 @@ def process_and_assign_genes_bulk(
     logger.info(f"[process_and_assign_genes_bulk] Extracted {len(all_unique_seqs)} unique ASO sequences.")
 
     run_id = uuid.uuid4().hex
-    temp_fasta = f"bulk_input_{run_id}.fasta"
+    temp_fasta = os.path.join(tempfile.gettempdir(), f"bulk_input_{run_id}.fasta")
 
     with open(temp_fasta, "w") as f:
         for seq in all_unique_seqs:
@@ -40,10 +41,11 @@ def process_and_assign_genes_bulk(
 
     # 2. Run bulk alignment
     logger.info("[process_and_assign_genes_bulk] Running bulk alignment and annotation...")
-    sequence_to_genes_map = find_all_gene_off_targets_BULK(temp_fasta, genome, threads)
-
-    if os.path.exists(temp_fasta):
-        os.remove(temp_fasta)
+    try:
+        sequence_to_genes_map = find_all_gene_off_targets_BULK(temp_fasta, genome, threads)
+    finally:
+        if os.path.exists(temp_fasta):
+            os.remove(temp_fasta)
 
     # 3. Map results and calculate stats
     logger.info("[process_and_assign_genes_bulk] Mapping results back to dataframe and calculating stats...")
