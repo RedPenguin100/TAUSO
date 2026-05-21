@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - ruff
+  - ruff==0.15.12
   - shap
   - jupyterlab
   - matplotlib
