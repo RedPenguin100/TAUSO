@@ -368,7 +368,7 @@ class Calculator:
         # Dynamically generate expected feature names based on the configs
         expected_features = []
         for config in DEFAULT_SENSE_CONFIGURATION:
-            seeds_str = "_".join(map(str, config["seeds"]))
+            seeds_str = "-".join(map(str, config["seeds"]))
             expected_features.append(f"access_{config['flank']}flank_{config['access']}access_{seeds_str}seed_sizes")
 
         missing = self._get_missing_features(expected_features)
