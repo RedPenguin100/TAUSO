@@ -9,7 +9,32 @@ on:
     - cron: '0 3 * * *' # 3:00 AM UTC -> 6:00 AM Israel Daylight Time
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: conda-linux-64-dev.lock
+          environment-name: tauso
+          cache-downloads: true
+          cache-environment: true
+          cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
+
+      - name: Run Ruff Check (Linting)
+        run: micromamba run -n tauso ruff check src/
+
+      - name: Run Ruff Format (Style)
+        run: micromamba run -n tauso ruff format --check src/
+
   build:
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
@@ -48,12 +73,6 @@ jobs:
           cache-downloads: true
           cache-environment: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
-
-      - name: Run Ruff Check (Linting)
-        run: micromamba run -n tauso ruff check src/
-
-      - name: Run Ruff Format (Style)
-        run: micromamba run -n tauso ruff format --check src/
 
       - name: Install tauso
         run: micromamba run -n tauso pip install -e .
@@ -131,6 +150,6 @@ jobs:
       - name: Build cAI weights
         run: tauso build-cai-weights
 
-# Comment so cache genreates and next CI is fast
+# Comment so cache generates and next CI is fast
 #      - name: Run tests
 #        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
