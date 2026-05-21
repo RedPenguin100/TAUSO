@@ -2,6 +2,22 @@ import os
 
 import pandas as pd
 import pytest
+
+# ---------------------------------------------------------------------------
+# Implicit n_jobs helper
+# Tests call get_n_jobs() inline — no fixture parameter needed.
+# Value is set once at session start from the --n-jobs CLI option.
+# ---------------------------------------------------------------------------
+_n_jobs: list[int] = [1]
+
+
+def get_n_jobs() -> int:
+    return _n_jobs[0]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _configure_n_jobs(request):
+    _n_jobs[0] = request.config.getoption("--n-jobs")
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data

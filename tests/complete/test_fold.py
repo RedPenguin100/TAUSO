@@ -1,14 +1,15 @@
 import gc
+import logging
 import time
 import tracemalloc
 
 import pytest
-import logging
 
 from tauso.populate.populate_fold import (
     populate_mfe_features,
     populate_sense_accessibility_batch,
 )
+from tests.complete.conftest import get_n_jobs
 
 
 ACCESS_CONFIGURATIONS = [
@@ -29,15 +30,14 @@ def test_access(mini_sampled_data, gene_to_data, config, dataframe_regression):
         flank_size=config["flank"],
         access_size=config["access"],
         seed_sizes=config["seeds"],
-        n_jobs=4,
+        n_jobs=get_n_jobs(),
     )
     dataframe_regression.check(data[["index_oligo", feature_name]])
 
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
 def test_mfe(mini_sampled_data, gene_to_data, dataframe_regression):
-    # populate_mfe_features mutates its input — copy to protect the session fixture
-    data, feature_names = populate_mfe_features(mini_sampled_data.copy(), gene_to_data)
+    data, feature_names = populate_mfe_features(mini_sampled_data.copy(), gene_to_data, n_jobs=get_n_jobs())
     dataframe_regression.check(data[["index_oligo"] + feature_names])
 
 

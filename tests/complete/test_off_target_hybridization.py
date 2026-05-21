@@ -1,5 +1,6 @@
 import pytest
 
+from tests.complete.conftest import get_n_jobs
 from tauso.features.hybridization_off_target.add_off_target_feat import AggregationMethod
 from tauso.features.hybridization_off_target.off_target_feature import (
     populate_off_target_general,
@@ -48,7 +49,7 @@ def test_on_target_hybridization_regression(mini_structure_data, gene_to_data, d
     data = mini_structure_data.copy()
     feature_names = []
     for cutoff in CUTOFFS:
-        data, feature_name = on_target_total_hybridization(data, gene_to_data, cutoff=cutoff, n_jobs=4)
+        data, feature_name = on_target_total_hybridization(data, gene_to_data, cutoff=cutoff, n_jobs=get_n_jobs())
         feature_names.append(feature_name)
     dataframe_regression.check(data[["index_oligo"] + feature_names])
 
@@ -60,7 +61,7 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_full, da
     for target_gene in SINGLE_TARGET_GENES:
         for cutoff in CUTOFFS:
             data, feature_name = off_target_specific_seq_pandarallel(
-                data, target_gene, gene_to_data_full, cutoff=cutoff, n_jobs=4
+                data, target_gene, gene_to_data_full, cutoff=cutoff, n_jobs=get_n_jobs()
             )
             feature_names.append(feature_name)
     dataframe_regression.check(data[["index_oligo"] + feature_names])
@@ -76,7 +77,7 @@ def test_off_target_specific_regression(mini_structure_data, gene_to_data, trans
         top_n_list=[50],
         cutoff_list=[800],
         method=AggregationMethod.ARTM,
-        n_jobs=4,
+        n_jobs=get_n_jobs(),
     )
     dataframe_regression.check(data[["index_oligo"] + feature_names])
 
@@ -93,6 +94,6 @@ def test_off_target_general_regression(
         top_n_list=[25],
         cutoff_list=[800],
         method=AggregationMethod.ARTM,
-        n_jobs=4,
+        n_jobs=get_n_jobs(),
     )
     dataframe_regression.check(data[["index_oligo"] + feature_names])

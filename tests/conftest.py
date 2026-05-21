@@ -39,6 +39,12 @@ def pytest_addoption(parser):
         default=False,
         help="Run integration tests",
     )
+    parser.addoption(
+        "--n-jobs",
+        type=int,
+        default=1,
+        help="Number of parallel workers passed to populate functions (default: 1)",
+    )
 
 
 def pytest_runtest_setup(item):

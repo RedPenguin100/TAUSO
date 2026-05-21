@@ -1,6 +1,7 @@
 import pytest
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 
+from tests.complete.conftest import get_n_jobs
 from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_specific
 from tauso.genome.transcriptome import load_transcriptomes
 from tauso.data.consts import CELL_LINE_DEPMAP
@@ -27,7 +28,7 @@ def test_off_target_hybridization(request, mini_sampled_data, dataframe_regressi
     transcriptomes = load_transcriptomes(cell_lines_depmap)
 
     mini_sampled_data, feature_names = populate_off_target_specific(
-        mini_sampled_data, gene_to_data_full, transcriptomes, [50], [1200], method="ARTM"
+        mini_sampled_data, gene_to_data_full, transcriptomes, [50], [1200], method="ARTM", n_jobs=get_n_jobs()
     )
 
     dataframe_regression.check(mini_sampled_data[["index_oligo"] + feature_names])
