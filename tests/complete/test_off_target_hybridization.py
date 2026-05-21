@@ -34,10 +34,10 @@ def transcriptomes_with_general(transcriptomes):
     from pathlib import Path
 
     from tauso.common.gtf import filter_gtf_genes
-    from tauso.data.data import get_data_dir, load_db
+    from tauso.data.data import get_data_dir, load_gtf_db
     from tauso.features.hybridization_off_target.common import get_general_expression_of_genes
 
-    db = load_db()
+    db = load_gtf_db()
     valid_genes = filter_gtf_genes(db, filter_mode="non_mt")
 
     data_dir = get_data_dir()
@@ -74,7 +74,7 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_with_off
     for target_gene in SINGLE_TARGET_GENES:
         for cutoff in CUTOFFS:
             data, feature_name = off_target_specific_seq_pandarallel(
-                data, target_gene, gene_to_data_with_off_targets, cutoff=cutoff
+                data, target_gene, gene_to_data_with_off_targets, cutoff=cutoff, n_jobs=4
             )
             feature_names.append(feature_name)
     dataframe_regression.check(data[["index_oligo"] + feature_names])
