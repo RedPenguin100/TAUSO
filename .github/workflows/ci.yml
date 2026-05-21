@@ -150,6 +150,5 @@ jobs:
       - name: Build cAI weights
         run: tauso build-cai-weights
 
-# Comment so cache generates and next CI is fast
-#      - name: Run tests
-#        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
+      - name: Run tests
+        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
