@@ -760,8 +760,16 @@ def setup_genome(genome, force, remove_gz):
                 if file_type == "gff" and genome != "GRCh38":  # TODO: support GFF for all
                     continue
                 if not os.path.exists(paths[file_type]):
-                    click.echo(f"Downloading {file_type} from GENCODE...")
-                    download_and_gunzip(download_url, paths[file_type], remove_gz=remove_gz)
+                    # Check for a cached compressed copy before hitting the network
+                    gz_key = f"{file_type}_gz"
+                    gz_path = paths.get(gz_key, paths[file_type] + ".gz")
+                    if os.path.exists(gz_path):
+                        click.echo(f"  Found cached {os.path.basename(gz_path)}, decompressing...")
+                        with gzip.open(gz_path, "rb") as f_in, open(paths[file_type], "wb") as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                    else:
+                        click.echo(f"Downloading {file_type} from GENCODE...")
+                        download_and_gunzip(download_url, paths[file_type], remove_gz=remove_gz)
         else:
             # Fallback for unsupported genomes
             if not os.path.exists(fasta_path) or not os.path.exists(gtf_path):
