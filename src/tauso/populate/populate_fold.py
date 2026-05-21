@@ -3,7 +3,6 @@ import uuid
 
 import numpy as np
 import pandas as pd
-from pandarallel import pandarallel
 
 logger = logging.getLogger(__name__)
 
@@ -47,59 +46,42 @@ DEFAULT_SETTINGS = [
 ]
 
 
-def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):  # 2. Add n_jobs param
+def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):
     if settings is None:
         settings = DEFAULT_SETTINGS
 
     if n_jobs > 1 or n_jobs == -1:
-        if verbose:
-            progress_bar = True
-            verbose = 2
-        else:
-            progress_bar = False
-            verbose = 0
-        pandarallel.initialize(nb_workers=n_jobs, progress_bar=progress_bar, verbose=verbose)
+        from pandarallel import pandarallel
+
+        pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
 
     required_cols = [CANONICAL_GENE, SENSE_START, SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
-    # NOTE: This is important, otherwise can be very slow for big gene_to_data
     unique_genes = df[CANONICAL_GENE].dropna().unique()
     lightweight_gene_to_data = {
         gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data
     }
-    # ----------------------------------------------------------------
 
     feature_names = []
     for setting in settings:
         flank_size, window_size, step = setting
         logger.debug("Starting MFE population with Flank=%d, Window=%d, Step=%d", flank_size, window_size, step)
-
         feature_name = f"mfe_win{window_size}_flank{flank_size}_step{step}"
         feature_names.append(feature_name)
 
-        # TODO: extract outside
         def _process_row(row, flank_size=flank_size, window_size=window_size, step=step):
             gene_name = row[CANONICAL_GENE]
             global_start = row[SENSE_START]
             sense_len = row[SENSE_LENGTH]
-
-            # --- MINIMAL CHANGE 2: Check against seq_dict ---
             if gene_name not in lightweight_gene_to_data or global_start == -1:
                 return np.nan
-
-            # --- MINIMAL CHANGE 3: Pull directly from seq_dict ---
             full_mrna = lightweight_gene_to_data[gene_name]
-            # -----------------------------------------------------
-
             cut_start = max(0, global_start - flank_size)
             cut_end = min(len(full_mrna), global_start + sense_len + flank_size)
             sub_sequence = full_mrna[cut_start:cut_end]
-
             if len(sub_sequence) < window_size:
                 return np.nan
-
-            # Return the score directly
             return calculate_avg_mfe_over_sense_region(
                 sequence=sub_sequence,
                 sense_start_in_flank=(global_start - cut_start),

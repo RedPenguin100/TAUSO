@@ -1,6 +1,7 @@
 name: tauso
 channels:
   - conda-forge
+  - bioconda
 dependencies:
   - ruff
   - shap
@@ -19,5 +20,6 @@ dependencies:
   - pytest-regressions
   - pytest-xdist
   - conda-build
+  - conda-lock
   - pandas-stubs
   - scipy-stubs
