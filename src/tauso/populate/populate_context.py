@@ -4,9 +4,9 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import pyBigWig
+
 from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import calculate_ribo_seq_row, get_ribo_40s_human_data
-
 
 logger = logging.getLogger(__name__)
 
