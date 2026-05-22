@@ -1,8 +1,6 @@
 import logging
 import multiprocessing
 
-from pandarallel import pandarallel
-
 logger = logging.getLogger(__name__)
 
 from ..data.consts import CHEMICAL_PATTERN
@@ -28,6 +26,7 @@ from ..features.sequence_modification.mod_features import (
     compute_mod_symmetry_score,
     compute_mod_type_count,
 )
+from ..parallel_utils import make_apply_fn
 
 MODIFICATION_FEATURE_TO_CALCULATION = {
     "Modification_fraction": lambda row: compute_mod_fraction(row[CHEMICAL_PATTERN]),
@@ -63,18 +62,8 @@ def populate_modifications(df, n_cores=None, features_to_run=None):  # Added fea
     """
     all_data = df.copy()
 
-    if n_cores is None:
-        nb_workers = multiprocessing.cpu_count()
-    else:
-        nb_workers = n_cores
-
-    # Initialize parallel logic or fallback to standard pandas
-    if nb_workers > 1:
-        # initialize is called once; it won't re-init if already active in most environments
-        pandarallel.initialize(nb_workers=nb_workers)
-        apply_func = all_data.parallel_apply
-    else:
-        apply_func = all_data.apply
+    nb_workers = multiprocessing.cpu_count() if n_cores is None else n_cores
+    apply_func = make_apply_fn(all_data, n_jobs=nb_workers)
 
     if features_to_run is None:
         features_to_run = list(MODIFICATION_FEATURE_TO_CALCULATION.keys())
