@@ -27,6 +27,7 @@ dependencies = [
     "gdown",
     "platformdirs",
     "pandarallel",
+    "pympler",
     "xgboost>=3.2,<4",
 ]
 
