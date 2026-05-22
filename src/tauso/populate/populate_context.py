@@ -73,7 +73,10 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
 
     logger.info(
         "populate_ribo_seq: %d valid rows across %d genes × %d features (n_jobs=%d)",
-        n_valid, n_genes, len(feat_cols), n_jobs,
+        n_valid,
+        n_genes,
+        len(feat_cols),
+        n_jobs,
     )
 
     gene_groups = list(valid_df.groupby(CANONICAL_GENE))
