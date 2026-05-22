@@ -120,9 +120,6 @@ jobs:
       - name: Index Oligo Data
         run: python -m notebooks.utils.data
 
-      - name: Process and Average Oligo Data
-        run: python -u -m notebooks.data.OligoAI.process_data --cpus 4
-
       - name: Cache mRNA Half Life
         uses: actions/cache@v4
         with:
