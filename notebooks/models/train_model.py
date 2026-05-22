@@ -64,28 +64,27 @@ def _save_json(obj, path):
 
 
 def _resolve_features(final_data, all_features, paths):
-    """Return filtered feature list, saving to disk on first call and loading on subsequent ones."""
+    """Return filtered feature list, saving to disk on first call and loading on subsequent ones.
+
+    If the cache exists but is stale (columns missing from data, or new columns in data
+    that weren't there when the cache was written), the cache is automatically regenerated.
+    """
     if paths["input_features"].exists():
-        features = _load_json(paths["input_features"], "tune")
-        # Validate: warn if cached features reference columns no longer in the dataset,
-        # or if the dataset has grown significantly (new features added since cache was written).
-        missing_from_data = [f for f in features if f not in all_features]
-        new_in_data = [f for f in all_features if f not in features]
-        if missing_from_data:
+        cached = _load_json(paths["input_features"], "tune")
+        missing_from_data = [f for f in cached if f not in all_features]
+        new_in_data = [f for f in all_features if f not in cached]
+
+        if missing_from_data or new_in_data:
             logger.warning(
-                "Cached input_features references %d columns not in current data — "
-                "delete %s and rerun to regenerate: %s",
-                len(missing_from_data), paths["input_features"], missing_from_data[:5],
+                "Cached input_features is stale: %d columns gone from data, "
+                "%d new columns in data. Regenerating %s.",
+                len(missing_from_data), len(new_in_data), paths["input_features"],
             )
-        if new_in_data:
-            logger.warning(
-                "%d features in current data are NOT in cached input_features "
-                "(new features added since cache was written). "
-                "Delete %s to include them.",
-                len(new_in_data), paths["input_features"],
-            )
-        logger.info("Loaded %d input features from %s", len(features), paths["input_features"])
-        return features
+            paths["input_features"].unlink()
+        else:
+            logger.info("Loaded %d input features from %s", len(cached), paths["input_features"])
+            return cached
+
     zero_var = [f for f in all_features if final_data[f].nunique() <= 1]
     features = [f for f in all_features if f not in zero_var]
     if zero_var:
