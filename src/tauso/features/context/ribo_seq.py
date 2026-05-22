@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import pyBigWig
 
 from ...data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 
@@ -13,26 +14,26 @@ parent = Path(__file__).parent
 
 def get_ribo_40s_human_data():
     """Safely resolves the path to the bundled .bw file."""
-    # __file__ points to the current python script.
-    # We navigate up to the 'tauso' root, then down into features/context
-
-    # NOTE: Adjust the '.parent' chain depending on how deep
-    # THIS specific python script is nested inside your project.
-    base_dir = Path(__file__).resolve().parent
-
-    # Example assuming this code lives right inside src/tauso/features/context/
-    bw_path = base_dir / "human_unselected_40S.RiboProElong.bw"
-
+    bw_path = Path(__file__).resolve().parent / "human_unselected_40S.RiboProElong.bw"
     if not bw_path.exists():
         raise FileNotFoundError(f"Missing packaged data file at {bw_path}")
-
     return str(bw_path)
+
+
+def feature_names(flanks, how):
+    """Return the ordered list of ribo-seq feature column names for given flanks and reduction."""
+    names = [f"ribo_gene_{how}"]
+    for f in flanks:
+        names.append(f"ribo_f{f}_{how}")
+        if f > 0:
+            names.append(f"ribo_upstream_{f}_{how}")
+            names.append(f"ribo_downstream_{f}_{how}")
+    return names
 
 
 def reduce_values(values, how):
     if values.size == 0:
         return 0.0
-
     if how == "sum":
         return values.sum()
     elif how == "mean":
@@ -45,125 +46,115 @@ def reduce_values(values, how):
     raise ValueError(f"No reducing logic for value: {how}")
 
 
-def calculate_ribo_seq_row(row, bw, flanks, how):
-    chrom = row["chrom"]
-    strand = row["strand"]
-    chrom_len = bw.chroms()[chrom]
+def _query_bw(bw, chrom, start, end, chrom_len):
+    """Query a clamped BigWig region. Returns float array or None for empty/invalid regions."""
+    s = max(0, start)
+    e = min(end, chrom_len)
+    if e <= s:
+        return None
+    return np.nan_to_num(np.array(bw.values(chrom, s, e), dtype=float), nan=0.0)
 
-    ts, te = int(row["target_start"]), int(row["target_end"])
-    gs, ge = int(row["gene_start"]), int(row["gene_end"])
 
+def _row_target_features(ts, te, strand, bw, chrom, chrom_len, flanks, how):
+    """Compute all flank-based features for a single target position (ts, te)."""
     feat = {}
-
-    # Global Context
-    gs = max(0, gs)
-    ge = min(ge, chrom_len)
-
-    if ge > gs:
-        values = np.nan_to_num(np.array(bw.values(chrom, gs, ge), dtype=float), nan=0.0)
-        feat[f"ribo_gene_{how}"] = reduce_values(values, how)
-    else:
-        feat[f"ribo_gene_{how}"] = 0.0
-
-    # Local Context
     for f in flanks:
-        s_comb = max(0, ts - f)
-        e_comb = min(te + f, chrom_len)
-
-        if e_comb > s_comb:
-            vals_comb = np.nan_to_num(np.array(bw.values(chrom, s_comb, e_comb), dtype=float), nan=0.0)
-            feat[f"ribo_f{f}_{how}"] = reduce_values(vals_comb, how)
-        else:
-            feat[f"ribo_f{f}_{how}"] = 0.0
-
+        arr = _query_bw(bw, chrom, ts - f, te + f, chrom_len)
+        feat[f"ribo_f{f}_{how}"] = reduce_values(arr, how) if arr is not None else 0.0
         if f > 0:
-            s_left = max(0, ts - f)
-            e_left = ts
-            val_left = 0.0
-            if e_left > s_left:
-                arr = np.nan_to_num(np.array(bw.values(chrom, s_left, e_left), dtype=float), nan=0.0)
-                val_left = reduce_values(arr, how)
-
-            s_right = te
-            e_right = min(te + f, chrom_len)
-            val_right = 0.0
-            if e_right > s_right:
-                arr = np.nan_to_num(np.array(bw.values(chrom, s_right, e_right), dtype=float), nan=0.0)
-                val_right = reduce_values(arr, how)
-
+            arr_left = _query_bw(bw, chrom, ts - f, ts, chrom_len)
+            arr_right = _query_bw(bw, chrom, te, te + f, chrom_len)
+            val_left = reduce_values(arr_left, how) if arr_left is not None else 0.0
+            val_right = reduce_values(arr_right, how) if arr_right is not None else 0.0
             if strand == "+":
                 feat[f"ribo_upstream_{f}_{how}"] = val_left
                 feat[f"ribo_downstream_{f}_{how}"] = val_right
             else:
                 feat[f"ribo_upstream_{f}_{how}"] = val_right
                 feat[f"ribo_downstream_{f}_{how}"] = val_left
-
     return feat
 
 
-def add_genomic_coordinates(aso_df, mapper):
-    out = aso_df.copy()
-    n_rows = len(out)
+def process_gene_group(bw_path, gene_rows, flanks, how):
+    """
+    Process all rows for one gene using a private BigWig handle (thread-safe).
 
-    chroms, gene_starts, gene_ends, target_starts, target_ends, strands = (
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
+    The gene-level BigWig query is made once and shared across all rows.
+    Returns {original_df_index: feature_dict}.
+    Raises KeyError(chrom) when the contig is absent from the BigWig file.
+    """
+    bw = pyBigWig.open(bw_path)
+    try:
+        first = gene_rows.iloc[0]
+        chrom = first["chrom"]
+        chroms = bw.chroms()
+        if not isinstance(chrom, str) or chrom not in chroms:
+            raise KeyError(chrom)
+
+        chrom_len = chroms[chrom]
+        gene_start = int(first["gene_start"])
+        gene_end = int(first["gene_end"])
+
+        # Compute gene-level value once for the whole group
+        gene_arr = _query_bw(bw, chrom, gene_start, gene_end, chrom_len)
+        gene_val = reduce_values(gene_arr, how) if gene_arr is not None else 0.0
+        gene_key = f"ribo_gene_{how}"
+
+        results = {}
+        for idx, row in gene_rows.iterrows():
+            ts, te = int(row["target_start"]), int(row["target_end"])
+            feat = {gene_key: gene_val}
+            feat.update(_row_target_features(ts, te, row["strand"], bw, chrom, chrom_len, flanks, how))
+            results[idx] = feat
+        return results
+    finally:
+        bw.close()
+
+
+def add_genomic_coordinates(aso_df, mapper):
+    """
+    Map each ASO row to genomic coordinates.
+
+    Calls the mapper once per unique gene (not once per row), then broadcasts
+    the gene-level info and computes target positions with vectorized arithmetic.
+    """
+    out = aso_df.copy()
+
+    # One mapper call per unique gene
+    unique_genes = out[CANONICAL_GENE].dropna().unique()
+    t0 = time.perf_counter()
+    gene_info = {g: mapper.get_gene_coords(g) for g in unique_genes}
+    logger.info(
+        "add_genomic_coordinates: %d unique genes looked up in %.2fs",
+        len(unique_genes),
+        time.perf_counter() - t0,
     )
 
-    t0 = time.perf_counter()
-    for _, row in out.iterrows():
-        gene_name = row.get(CANONICAL_GENE)
+    def _field(gene, key):
+        info = gene_info.get(gene)
+        return info[key] if info else np.nan
 
-        # --- CHANGE IS HERE ---
-        # We ask for the GENE coordinates, not a specific transcript
-        info = mapper.get_gene_coords(gene_name)
+    out["chrom"] = out[CANONICAL_GENE].map(lambda g: _field(g, "chrom"))
+    out["gene_start"] = out[CANONICAL_GENE].map(lambda g: _field(g, "gene_start"))
+    out["gene_end"] = out[CANONICAL_GENE].map(lambda g: _field(g, "gene_end"))
+    out["strand"] = out[CANONICAL_GENE].map(lambda g: _field(g, "strand"))
 
-        if not info:
-            chroms.append(np.nan)
-            gene_starts.append(np.nan)
-            gene_ends.append(np.nan)
-            target_starts.append(np.nan)
-            target_ends.append(np.nan)
-            strands.append(np.nan)
-            continue
+    # Vectorized target-position arithmetic (preserves NaN for unmapped genes)
+    valid = out["chrom"].notna()
+    gene_len = out["gene_end"] - out["gene_start"]
+    L = out[SENSE_START].astype(float)
+    k = out[SENSE_LENGTH].astype(float)
 
-        chrom = info["chrom"]
-        g_start = info["gene_start"]
-        g_end = info["gene_end"]
-        strand = info["strand"]
+    t_start_plus = out["gene_start"] + (L - 1)
+    t_start_minus = out["gene_start"] + (gene_len - L - k + 1)
+    t_start = np.where(out["strand"] == "+", t_start_plus, t_start_minus)
 
-        # ... The math below is unchanged ...
-        L = int(row[SENSE_START])
-        k = int(row[SENSE_LENGTH])
-        gene_len = g_end - g_start
+    out["target_start"] = np.where(valid, t_start, np.nan)
+    out["target_end"] = np.where(valid, t_start + k, np.nan)
 
-        if strand == "+":
-            t_start = g_start + (L - 1)
-        else:
-            t_start = g_start + (gene_len - L - k + 1)
-
-        t_end = t_start + k
-
-        chroms.append(chrom)
-        gene_starts.append(g_start)
-        gene_ends.append(g_end)
-        target_starts.append(t_start)
-        target_ends.append(t_end)
-        strands.append(strand)
-    out["chrom"] = chroms
-    out["gene_start"] = gene_starts
-    out["gene_end"] = gene_ends
-    out["target_start"] = target_starts
-    out["target_end"] = target_ends
-    out["strand"] = strands
-
-    elapsed = time.perf_counter() - t0
     logger.info(
-        "add_genomic_coordinates: %d rows in %.2fs (%.0f rows/s)",
-        n_rows, elapsed, n_rows / elapsed if elapsed > 0 else 0,
+        "add_genomic_coordinates: %d rows total, %d mapped",
+        len(out),
+        int(valid.sum()),
     )
     return out
