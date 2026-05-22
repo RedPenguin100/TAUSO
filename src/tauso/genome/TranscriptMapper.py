@@ -134,14 +134,24 @@ class GeneCoordinateMapper:
         return coords
 
 
+class GeneSequenceRegistry(dict):
+    """dict subclass whose repr omits sequence data so pytest failure output stays readable."""
+
+    def __repr__(self) -> str:
+        genes = list(self.keys())
+        preview = genes[:5]
+        suffix = f", ...+{len(genes) - 5} more" if len(genes) > 5 else ""
+        return f"GeneSequenceRegistry({len(self)} genes: {preview}{suffix})"
+
+
 def build_gene_sequence_registry(
     genes: Iterable[str], gene_to_data: Dict, mapper: GeneCoordinateMapper
-) -> Dict[str, Dict[str, str]]:
+) -> GeneSequenceRegistry:
     """
     Creates a dictionary of {gene_name: {'pre_mrna': ..., 'cds': ...}}
     for fast O(1) lookup during processing.
     """
-    registry = {}
+    registry = GeneSequenceRegistry()
     for gene in genes:
         locus = gene_to_data.get(gene)
         if not locus:

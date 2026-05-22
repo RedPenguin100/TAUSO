@@ -40,6 +40,12 @@ def pytest_addoption(parser):
         help="Run integration tests",
     )
     parser.addoption(
+        "--run-benchmarks",
+        action="store_true",
+        default=False,
+        help="Run benchmark tests",
+    )
+    parser.addoption(
         "--n-jobs",
         type=int,
         default=1,
@@ -50,3 +56,5 @@ def pytest_addoption(parser):
 def pytest_runtest_setup(item):
     if "integration" in item.keywords and not item.config.getoption("--run-integration"):
         pytest.skip("Skipping integration tests (use --run-integration to run)")
+    if "benchmark" in item.keywords and not item.config.getoption("--run-benchmarks"):
+        pytest.skip("Skipping benchmark tests (use --run-benchmarks to run)")
