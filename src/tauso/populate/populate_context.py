@@ -105,71 +105,84 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     return aso_df, feat_cols
 
 
-def populate_mrna_expression(
+_RNASE_GENE = "RNASEH1"
+
+# Scavenger receptors that govern gymnotic (naked ASO) uptake — STAB2, MRC1, and MSR1 (SR-A1)
+# are the primary endocytic receptors responsible for gymnosis efficiency across cell lines.
+_SCAVENGER_RECEPTOR_GENES = {
+    "stab2_expression": "STAB2",
+    "mrc1_expression": "MRC1",
+    "msr1_expression": "MSR1",  # SR-A1
+}
+
+_SPECIAL_GENES: Dict[str, str] = {"rnase_expression": _RNASE_GENE, **_SCAVENGER_RECEPTOR_GENES}
+
+TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["target_expression"]
+SPECIAL_GENE_EXPRESSION_FEATURE_NAMES: List[str] = list(_SPECIAL_GENES.keys())
+EXPRESSION_FEATURE_NAMES: List[str] = TARGET_EXPRESSION_FEATURE_NAMES + SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
+
+
+def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+    dfs = []
+    for depmap_id, t_df in expression_dict.items():
+        temp = t_df[["Gene", "expression_norm"]].copy()
+        temp[CELL_LINE_DEPMAP] = depmap_id
+        dfs.append(temp)
+    master = pd.concat(dfs, ignore_index=True)
+    return master.drop_duplicates(subset=[CELL_LINE_DEPMAP, "Gene"])
+
+
+def _merge_fixed_gene(
+    df: pd.DataFrame, expression_master: pd.DataFrame, gene_symbol: str, feat_name: str
+) -> pd.DataFrame:
+    gene_vals = expression_master[expression_master["Gene"] == gene_symbol]
+    merged = df.merge(
+        gene_vals[[CELL_LINE_DEPMAP, "expression_norm"]],
+        on=CELL_LINE_DEPMAP,
+        how="left",
+        suffixes=("", f"_{feat_name}"),
+    )
+    return merged.rename(columns={"expression_norm": feat_name})
+
+
+def populate_target_expression(
     df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """
-    Enriches the main dataframe with mRNA expression data for the target gene
-    and the specific RNASEH1 gene.
-    """
-
-    # --- MINIMAL FIX 1: Warn and drop to prevent column duplication ---
-    existing_cols = [c for c in ["target_expression", "rnase_expression"] if c in df.columns]
+    """Merges the ASO's target gene expression (per cell line × gene) into df."""
+    existing_cols = [c for c in TARGET_EXPRESSION_FEATURE_NAMES if c in df.columns]
     if existing_cols:
         logger.warning("Dropping existing columns to prevent alignment breaks: %s", existing_cols)
         df = df.drop(columns=existing_cols)
-    # ------------------------------------------------------------------
 
-    # 1. Flatten the dictionary into one Master DataFrame
-    # ---------------------------------------------------------
-    dfs_to_concat = []
+    expression_master = _build_expression_master(expression_dict)
 
-    # We iterate through the dictionary to add the cell line key as a column
-    for depmap_id, t_df in expression_dict.items():
-        # Defensive copy to avoid SettingWithCopy warnings on the source DFs
-        temp = t_df[["Gene", "expression_norm"]].copy()
-        temp[CELL_LINE_DEPMAP] = depmap_id
-        dfs_to_concat.append(temp)
-
-    expression_master = pd.concat(dfs_to_concat, ignore_index=True)
-
-    # --- MINIMAL FIX 2: Prevent row multiplication during merge ---
-    expression_master = expression_master.drop_duplicates(subset=[CELL_LINE_DEPMAP, "Gene"])
-    # --------------------------------------------------------------
-
-    # 2. Get 'target_expression' (General Merge)
-    # ---------------------------------------------------------
     enhanced_df = df.merge(
         expression_master,
         left_on=[CELL_LINE_DEPMAP, CANONICAL_GENE],
         right_on=[CELL_LINE_DEPMAP, "Gene"],
         how="left",
     )
-
-    # Rename and clean up
     enhanced_df = enhanced_df.rename(columns={"expression_norm": "target_expression"})
     enhanced_df = enhanced_df.drop(columns=["Gene"])
 
-    # 3. Get 'rnase_expression' (Specific 'RNASEH1' Merge)
-    # ---------------------------------------------------------
-    # Filter master list for RNASEH1
-    rnase_vals = expression_master[expression_master["Gene"] == "RNASEH1"]
+    return enhanced_df, TARGET_EXPRESSION_FEATURE_NAMES
 
-    # Merge only on cell line ID
-    enhanced_df = enhanced_df.merge(
-        rnase_vals[[CELL_LINE_DEPMAP, "expression_norm"]],
-        on=CELL_LINE_DEPMAP,
-        how="left",
-        suffixes=("", "_rnase"),  # Safety against collisions
-    )
 
-    # Rename
-    enhanced_df = enhanced_df.rename(columns={"expression_norm": "rnase_expression"})
+def populate_special_gene_expression(
+    df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
+) -> Tuple[pd.DataFrame, List[str]]:
+    """Merges per-cell-line expression for fixed special genes (RNASEH1 + gymnosis scavenger receptors)."""
+    existing_cols = [c for c in SPECIAL_GENE_EXPRESSION_FEATURE_NAMES if c in df.columns]
+    if existing_cols:
+        logger.warning("Dropping existing columns to prevent alignment breaks: %s", existing_cols)
+        df = df.drop(columns=existing_cols)
 
-    # Define the list of features added
-    new_features = ["target_expression", "rnase_expression"]
+    expression_master = _build_expression_master(expression_dict)
 
-    return enhanced_df, new_features
+    for feat_name, gene_symbol in _SPECIAL_GENES.items():
+        df = _merge_fixed_gene(df, expression_master, gene_symbol, feat_name)
+
+    return df, SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
 
 
 def populate_transfection(data):
