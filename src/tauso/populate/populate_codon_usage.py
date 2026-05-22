@@ -168,9 +168,7 @@ def populate_cai(
     # pandarallel pickles the closure into worker processes, so per-row
     # deduplication sets would fire once per worker instead of once total.
     _DEPMAP_NO_EXPRESSION = {"SW872", "HK2"}
-    unknown_cell_lines = (
-        set(df[CELL_LINE].map(standardize_cell_line_name).dropna()) - set(weight_map.keys())
-    )
+    unknown_cell_lines = set(df[CELL_LINE].map(standardize_cell_line_name).dropna()) - set(weight_map.keys())
     for _cl in sorted(unknown_cell_lines):
         if _cl in _DEPMAP_NO_EXPRESSION:
             logger.warning(
