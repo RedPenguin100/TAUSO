@@ -200,8 +200,7 @@ def test_exon_order_is_biological(locus_data_non_canonical):
 def test_sequence_validity(locus_data_non_canonical):
     valid = set("ACGTU")
     for gene, info in locus_data_non_canonical.items():
-        if info.full_mrna != info.full_mrna.upper():
-            pytest.fail(f"{gene}: sequence contains lowercase (len={len(info.full_mrna)})")
+        assert info.full_mrna == info.full_mrna.upper(), f"{gene}: sequence contains lowercase"
         bad = set(info.full_mrna) - valid
         assert not bad, f"{gene}: unexpected bases {bad}"
 
@@ -217,11 +216,7 @@ def test_gene_boundaries_independent_of_canonical(locus_data_non_canonical, locu
         info_all, info_can = locus_data_non_canonical[gene], locus_data_canonical[gene]
         assert info_all.gene_start == info_can.gene_start
         assert info_all.gene_end == info_can.gene_end
-        if info_all.full_mrna != info_can.full_mrna:
-            pytest.fail(
-                f"{gene}: full_mrna differs between canonical and non-canonical "
-                f"(len {len(info_all.full_mrna)} vs {len(info_can.full_mrna)})"
-            )
+        assert info_all.full_mrna == info_can.full_mrna
         assert info_all.strand == info_can.strand
 
 
