@@ -3,7 +3,12 @@ import json
 import logging
 import os
 
-import numpy as cp  # swap for cupy on GPU: import cupy as cp
+try:
+    import cupy as cp
+    _CUPY_AVAILABLE = True
+except ImportError:
+    import numpy as cp
+    _CUPY_AVAILABLE = False
 import numpy as np
 import optuna
 import pandas as pd
@@ -91,7 +96,10 @@ def _permutation_importance(bst, X_val, y_val, val_select_idx, current_features,
         drops = []
         for _ in range(n_repeats):
             X_perturbed = X_val.copy()
-            X_perturbed[:, i] = rng.permutation(X_perturbed[:, i])
+            col = X_perturbed[:, i]
+            col_np = col.get() if hasattr(col, "get") else col
+            permuted = rng.permutation(col_np)
+            X_perturbed[:, i] = cp.asarray(permuted) if hasattr(X_perturbed, "get") else permuted
             preds = bst.inplace_predict(X_perturbed)
             if hasattr(preds, "get"):
                 preds = preds.get()
@@ -174,11 +182,13 @@ def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna
 
 def run_backward_selection(
     train_data, val_data, test_data, features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed,
-    importance_type="gain", parsimony_tolerance=PARSIMONY_TOLERANCE,
+    importance_type="gain", parsimony_tolerance=PARSIMONY_TOLERANCE, device="cpu",
 ):
     X_train, y_train, y_train_np = train_data
     X_val, y_val = val_data
     X_test, y_test = test_data
+
+    to_dev = (lambda x: cp.asarray(x)) if (device == "cuda" and _CUPY_AVAILABLE) else np.asarray
 
     feat_to_idx = {f: i for i, f in enumerate(features)}
     current_features = list(features)
@@ -196,7 +206,9 @@ def run_backward_selection(
 
     for step in range(len(current_features)):
         idxs = [feat_to_idx[f] for f in current_features]
-        Xtr, Xvl, Xte = X_train[:, idxs], X_val[:, idxs], X_test[:, idxs]
+        Xtr = to_dev(X_train[:, idxs])
+        Xvl = to_dev(X_val[:, idxs])
+        Xte = to_dev(X_test[:, idxs])
 
         dtrain = xgb.QuantileDMatrix(Xtr, label=y_train, feature_names=current_features)
         bst = xgb.train(params, dtrain, num_boost_round=num_rounds, verbose_eval=False)
