@@ -2,8 +2,8 @@ import concurrent.futures
 import os
 
 import pandas as pd
-from notebooks.consts import SAVED_FEATURES
 
+from notebooks.consts import SAVED_FEATURES
 from tauso.features.feature_extraction import save_feature_internal
 
 
@@ -83,11 +83,22 @@ def get_dtype_for_feature(filename, index_col_name):
         "sense_utr.csv",
         "sense_3utr.csv",
         "sense_5utr.csv",
+        "n_sense_exon.csv",
+        "n_sense_intron.csv",
+        "n_sense_utr.csv",
+        "n_sense_3utr.csv",
+        "n_sense_5utr.csv",
     ]:
         feat_type = "int"
     elif filename in ["on_target_total_hybridization_0.csv", "on_target_total_hybridization_1200.csv"]:
         feat_type = "float64"
-    elif filename in ["target_expression.csv", "rnase_expression.csv"]:
+    elif filename in [
+        "target_expression.csv",
+        "rnase_expression.csv",
+        "stab2_expression.csv",
+        "mrc1_expression.csv",
+        "msr1_expression.csv",
+    ]:
         feat_type = "float64"
     elif filename in ["max_consecutive_PO.csv", "ps_end_score.csv"]:
         feat_type = "int"
