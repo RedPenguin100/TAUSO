@@ -12,6 +12,7 @@ from ..data.data import get_data_dir
 from ..features.codon_usage.cai import calc_CAI
 from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import calc_tAI, tai_weights
+from ..parallel_utils import init_pandarallel
 
 logger = logging.getLogger(__name__)
 
@@ -74,16 +75,7 @@ def populate_enc(
     feature_names = []
 
     # 1. Setup Parallelization
-    use_parallel = n_jobs > 1
-    if use_parallel:
-        try:
-            from pandarallel import pandarallel
-
-            # Initialize strictly if using parallelism
-            pandarallel.initialize(nb_workers=n_jobs)
-        except ImportError:
-            logger.warning("'pandarallel' not found. Falling back to single core.")
-            use_parallel = False
+    use_parallel = init_pandarallel(n_jobs)
 
     # 2. Local ENC Scores
     logger.info("Calculating local ENC scores for CDS windows...")
@@ -154,15 +146,7 @@ def populate_cai(
     logger.info("Loaded CAI profiles for: %s", list(weight_map.keys()))
 
     # 2. Setup Parallelization
-    use_parallel = n_jobs > 1
-    if use_parallel:
-        try:
-            from pandarallel import pandarallel
-
-            pandarallel.initialize(nb_workers=n_jobs)
-        except ImportError:
-            logger.warning("'pandarallel' not found. Falling back to single core.")
-            use_parallel = False
+    use_parallel = init_pandarallel(n_jobs)
 
     # 3. Define Row-Wise Helper
     # We use a mutable set in the closure to track reported warnings
