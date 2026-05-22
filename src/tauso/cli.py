@@ -90,13 +90,6 @@ def batch_iterator(iterator, batch_size=1000):
         yield batch
 
 
-def _sha256_file(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
 
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
@@ -152,12 +145,8 @@ def setup_depmap(force):
         click.echo(f"Available releases: {index_df['release'].unique()[:5]}...")
         sys.exit(1)
 
-    # Check if the API provides checksums (column may be named 'md5', 'sha256', etc.)
-    checksum_col = next((c for c in release_df.columns if c.lower() in ("md5", "sha256", "checksum")), None)
-
     for remote_name, local_name in TARGET_FILES.items():
         dest = os.path.join(data_dir, local_name)
-        sha256_dest = dest + ".sha256"
 
         if local_name in CONVERT_TO_PARQUET:
             parquet_dest = dest.replace(".csv", ".parquet")
@@ -172,18 +161,8 @@ def setup_depmap(force):
                 continue
         else:
             if os.path.exists(dest) and not force:
-                # Verify stored SHA256 if available
-                if os.path.exists(sha256_dest):
-                    with open(sha256_dest) as fh:
-                        stored = fh.read().strip()
-                    if _sha256_file(dest) != stored:
-                        click.echo(click.style(f"⚠ SHA256 mismatch for {local_name} — re-downloading.", fg="yellow"))
-                    else:
-                        click.echo(f"✓ {local_name} exists (SHA256 verified).")
-                        continue
-                else:
-                    click.echo(f"✓ {local_name} exists.")
-                    continue
+                click.echo(f"✓ {local_name} exists.")
+                continue
 
         file_row = release_df[release_df["filename"] == remote_name]
         if file_row.empty:
@@ -191,7 +170,6 @@ def setup_depmap(force):
             continue
 
         download_url = file_row.iloc[0]["url"]
-        expected_checksum = file_row.iloc[0].get(checksum_col) if checksum_col else None
 
         click.echo(f"Downloading {local_name}...")
         try:
@@ -205,15 +183,7 @@ def setup_depmap(force):
                 os.remove(dest)
             continue
 
-        # SHA256 verification
-        actual_sha256 = _sha256_file(dest)
-        if expected_checksum and expected_checksum.lower() != actual_sha256:
-            click.echo(click.style(f"❌ Checksum mismatch for {local_name}! Deleting.", fg="red"))
-            os.remove(dest)
-            continue
-        with open(sha256_dest, "w") as fh:
-            fh.write(actual_sha256)
-        click.echo(click.style(f"✓ Downloaded {local_name} (SHA256 saved).", fg="green"))
+        click.echo(click.style(f"✓ Downloaded {local_name}.", fg="green"))
 
         if local_name in CONVERT_TO_PARQUET:
             click.echo(f"  Converting {local_name} to Parquet...")
