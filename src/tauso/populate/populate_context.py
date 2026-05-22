@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -33,8 +34,16 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     for col in new_features_list:
         aso_df[col] = np.nan
 
+    n_rows = len(aso_df)
+    n_features = len(new_features_list)
+    logger.info(
+        "populate_ribo_seq: processing %d rows × %d features (flanks=%s, how=%s)",
+        n_rows, n_features, flanks, how,
+    )
+
     # Iterate by index to assign directly in place
     skipped = {}  # contig -> list of genes
+    t0 = time.perf_counter()
     for idx, row in aso_df.iterrows():
         try:
             feat_dict = calculate_ribo_seq_row(row, bw, flanks, how)
@@ -46,12 +55,18 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
             skipped.setdefault(contig, set()).add(gene)
             continue
 
+    elapsed = time.perf_counter() - t0
+    logger.info(
+        "populate_ribo_seq: row loop done in %.2fs (%.0f rows/s, ~%d BigWig calls/row)",
+        elapsed, n_rows / elapsed if elapsed > 0 else 0, n_features,
+    )
+
     for contig, genes in skipped.items():
-        n_rows = (aso_df.get("chrom", pd.Series()) == contig).sum() if "chrom" in aso_df.columns else "?"
+        n_skipped = (aso_df.get("chrom", pd.Series()) == contig).sum() if "chrom" in aso_df.columns else "?"
         logger.warning(
             "Skipped ribo-seq for %s rows on non-canonical contig '%s' (genes: %s). "
             "These rows will have NaN ribo-seq features.",
-            n_rows,
+            n_skipped,
             contig,
             ", ".join(sorted(genes)),
         )

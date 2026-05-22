@@ -1,8 +1,12 @@
+import logging
+import time
 from pathlib import Path
 
 import numpy as np
 
 from ...data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
+
+logger = logging.getLogger(__name__)
 
 parent = Path(__file__).parent
 
@@ -99,6 +103,7 @@ def calculate_ribo_seq_row(row, bw, flanks, how):
 
 def add_genomic_coordinates(aso_df, mapper):
     out = aso_df.copy()
+    n_rows = len(out)
 
     chroms, gene_starts, gene_ends, target_starts, target_ends, strands = (
         [],
@@ -109,6 +114,7 @@ def add_genomic_coordinates(aso_df, mapper):
         [],
     )
 
+    t0 = time.perf_counter()
     for _, row in out.iterrows():
         gene_name = row.get(CANONICAL_GENE)
 
@@ -155,4 +161,9 @@ def add_genomic_coordinates(aso_df, mapper):
     out["target_end"] = target_ends
     out["strand"] = strands
 
+    elapsed = time.perf_counter() - t0
+    logger.info(
+        "add_genomic_coordinates: %d rows in %.2fs (%.0f rows/s)",
+        n_rows, elapsed, n_rows / elapsed if elapsed > 0 else 0,
+    )
     return out
