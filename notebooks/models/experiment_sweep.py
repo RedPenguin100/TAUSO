@@ -82,9 +82,18 @@ EXPERIMENTS = [
     # ---------- feature selection strategy ----------
     ExperimentConfig("threshold_6k",   6000, "L2",    "gain",        "uniform",    GC, "threshold"),
     # ---------- combinations ----------
-    ExperimentConfig("huber_inv_6k",   6000, "huber", "gain",        "inv_cohort", GC, "backward"),
-    ExperimentConfig("perm_inv_4k",    4000, "L2",    "permutation", "inv_cohort", GC, "backward"),
-    ExperimentConfig("huber_perm_4k",  4000, "huber", "permutation", "uniform",    GC, "backward"),
+    ExperimentConfig("huber_inv_6k",   6000, "huber", "gain",        "inv_cohort",  GC, "backward"),
+    ExperimentConfig("perm_inv_4k",    4000, "L2",    "permutation", "inv_cohort",  GC, "backward"),
+    ExperimentConfig("huber_perm_4k",  4000, "huber", "permutation", "uniform",     GC, "backward"),
+    # --- inhibition-floor experiments ---
+    # weighting="inh_lin_N":  linear ramp, weight=0.05 at y=0, weight=1.0 at y=N, 1.0 above
+    # weighting="inh_step_N": step, weight=0.05 below N, 1.0 above
+    # weighting="inh_clip_N": clip training target to max(y, N); no sample weights
+    ExperimentConfig("inh_lin_10_4k",  4000, "L2",    "gain",        "inh_lin_10",  GC, "backward"),
+    ExperimentConfig("inh_lin_20_4k",  4000, "L2",    "gain",        "inh_lin_20",  GC, "backward"),
+    ExperimentConfig("inh_lin_30_4k",  4000, "L2",    "gain",        "inh_lin_30",  GC, "backward"),
+    ExperimentConfig("inh_step_20_4k", 4000, "L2",    "gain",        "inh_step_20", GC, "backward"),
+    ExperimentConfig("inh_clip_20_4k", 4000, "L2",    "gain",        "inh_clip_20", GC, "backward"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -114,6 +123,52 @@ def _cohort_weights(df, eval_cols):
     sizes = df.groupby(eval_cols)[eval_cols[0]].transform("count")
     w = 1.0 / sizes.values.astype(np.float32)
     return w / w.mean()
+
+
+def _inhibition_weights(y, floor, min_weight=0.05, mode="linear"):
+    """
+    Downweight low-inhibition training examples.
+
+    Values near 0 are censored noise (true value may be negative but was floored),
+    so they shouldn't contribute equally to the loss.
+
+    mode="linear": weight ramps from min_weight at y=0 to 1.0 at y=floor.
+    mode="step":   weight=min_weight below floor, 1.0 above.
+    """
+    y = np.asarray(y, dtype=np.float32)
+    if mode == "linear":
+        w = np.where(y < floor,
+                     min_weight + (1.0 - min_weight) * (y / floor),
+                     1.0)
+    else:  # step
+        w = np.where(y < floor, min_weight, 1.0)
+    w = w.astype(np.float32)
+    return w / w.mean()
+
+
+def _parse_weighting(strategy, train_df, y_tr):
+    """
+    Returns (weights_tr, y_tr_for_training).
+    weights_tr:       None or float32 array of sample weights
+    y_tr_for_training: y array to pass to XGBoost (may be clipped)
+    """
+    if strategy == "uniform":
+        return None, y_tr
+    if strategy == "inv_cohort":
+        return _cohort_weights(train_df, GC), y_tr
+    if strategy.startswith("inh_lin_"):
+        floor = float(strategy.split("inh_lin_")[1])
+        return _inhibition_weights(y_tr, floor, mode="linear"), y_tr
+    if strategy.startswith("inh_step_"):
+        floor = float(strategy.split("inh_step_")[1])
+        return _inhibition_weights(y_tr, floor, mode="step"), y_tr
+    if strategy.startswith("inh_clip_"):
+        floor = float(strategy.split("inh_clip_")[1])
+        # No sample weights; instead clip the training target so the model
+        # treats all "bad" ASOs (y < floor) as identically uninformative.
+        y_clipped = np.maximum(y_tr, floor).astype(np.float32)
+        return None, y_clipped
+    raise ValueError(f"Unknown weighting strategy: {strategy!r}")
 
 
 def _sample_train(final_data, n_rows, seed=1):
@@ -357,8 +412,17 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     val_eval_idx = _cohort_indices(val_df, cfg.eval_cols, min_size=min_size)
     logger.info("  val eval cohorts (>=%d rows): %d", min_size, len(val_eval_idx))
 
-    # --- sample weights ---
-    weights_tr = _cohort_weights(train_df, cfg.eval_cols) if cfg.weighting == "inv_cohort" else None
+    # --- sample weights / target clipping ---
+    weights_tr, y_tr_train = _parse_weighting(cfg.weighting, train_df, y_tr)
+    if cfg.weighting.startswith("inh_clip_"):
+        floor = float(cfg.weighting.split("inh_clip_")[1])
+        logger.info("  Clipping training target to max(y, %.0f) — %d rows affected (%.1f%%)",
+                    floor, (y_tr < floor).sum(), 100 * (y_tr < floor).mean())
+    elif cfg.weighting.startswith("inh_"):
+        floor = float(cfg.weighting.split("_")[-1])
+        low_frac = (y_tr < floor).mean()
+        logger.info("  Inhibition weights | floor=%.0f | %.1f%% of rows downweighted",
+                    floor, 100 * low_frac)
 
     # --- Optuna val groups ---
     val_optuna_groups = [
@@ -371,7 +435,7 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     objective = OBJECTIVES[cfg.loss]
 
     best_params = _tune(
-        X_tr, y_tr, X_vl, y_vl,
+        X_tr, y_tr_train, X_vl, y_vl,
         val_optuna_groups, objective,
         n_trials=cfg.n_optuna, nthread=nthread, seed=seed,
         weights_tr=weights_tr,
@@ -380,13 +444,13 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     # --- feature selection ---
     if cfg.selection == "backward":
         n_selected, best_spear, history = _backward_rfe(
-            X_tr, y_tr, X_vl, y_vl, features, best_params, val_eval_idx,
+            X_tr, y_tr_train, X_vl, y_vl, features, best_params, val_eval_idx,
             val_eval_idx, cfg.importance, weights_tr, seed=seed,
         )
         extra = {"rfe_history_len": len(history)}
     else:
         n_selected, best_spear, sweep_results = _threshold_sweep(
-            X_tr, y_tr, X_vl, y_vl, features, best_params, val_eval_idx,
+            X_tr, y_tr_train, X_vl, y_vl, features, best_params, val_eval_idx,
             weights_tr, seed=seed,
         )
         extra = {"threshold_curve": sweep_results}
