@@ -106,7 +106,7 @@ def mapper():
     """Initializes and returns the GeneCoordinateMapper."""
     with Timer("Path & Mapper Initialization"):
         paths = get_paths("GRCh38")
-        return GeneCoordinateMapper(paths["gtf_db"])
+        return GeneCoordinateMapper(paths["gff_db"])
 
 
 @pytest.fixture(scope="session")
