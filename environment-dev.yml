@@ -4,24 +4,10 @@ channels:
   - bioconda
 dependencies:
   - ruff==0.15.12
-  - shap
   - jupyterlab
-  - matplotlib
-  - seaborn
   - ipykernel
-  - optuna
   - cupy
   - graphviz
-  - pip
-  - pip:
-    - -e ".[dev]"
   - uv
-  # tooling
-  - pytest
-  - pytest-regressions
-  - pytest-xdist
-  - conda-build
-  - conda-lock
-  - pandas-stubs
-  - scipy-stubs
-
+  - pip:
+    - -e ".[dev]"  # installs tauso + all runtime + dev extras
