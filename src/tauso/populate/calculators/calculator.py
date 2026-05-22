@@ -565,30 +565,22 @@ class Calculator:
 
     def calculate_ribo_seq(self):
         """Calculates ribosome profiling (Ribo-seq) features."""
-        # Dynamically predict expected feature names
         flanks = (0, 10, 20, 50, 100, 125, 150)
         how = "mean"
 
-        expected_features = [f"ribo_gene_{how}"]
-        for f in flanks:
-            expected_features.append(f"ribo_f{f}_{how}")
-            if f > 0:
-                expected_features.append(f"ribo_upstream_{f}_{how}")
-                expected_features.append(f"ribo_downstream_{f}_{how}")
+        from ...features.context.ribo_seq import add_genomic_coordinates, feature_names
+        from ..populate_context import populate_ribo_seq
 
+        expected_features = feature_names(flanks, how)
         missing = self._get_missing_features(expected_features)
 
         if missing:
             logger.info("Computing %d Ribo-seq features...", len(missing))
-            from tauso.features.context.ribo_seq import add_genomic_coordinates
-            from tauso.populate.populate_context import populate_ribo_seq
-
             mapper = self.cache.get_gene_mapper()
             self.data = add_genomic_coordinates(self.data, mapper)
-
-            # Pass the arguments to match our expected names
-            self.data, generated_features = populate_ribo_seq("human", self.data, flanks=flanks, how=how)
-
+            self.data, generated_features = populate_ribo_seq(
+                "human", self.data, flanks=flanks, how=how, n_jobs=self.cpus
+            )
             for feature in generated_features:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)

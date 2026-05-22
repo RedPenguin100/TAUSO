@@ -64,6 +64,25 @@ def _score_one_gene(gene, row_triggers, target_path, cutoff, chunk_size=100):
     return combined
 
 
+def _build_tasks(gene_to_row_triggers, gene_to_target_info, n_jobs):
+    """
+    Split each gene's row-triggers into sub-lists so that all n_jobs workers are used.
+
+    When n_jobs exceeds the number of genes, each gene's rows are divided into
+    ceil(n_jobs / n_genes) sub-tasks so the spare workers aren't wasted.
+    Returns a list of (gene, sub_triggers, target_path) tuples.
+    """
+    n_genes = max(1, len(gene_to_row_triggers))
+    tasks_per_gene = max(1, (n_jobs + n_genes - 1) // n_genes)
+    tasks = []
+    for gene, row_triggers in gene_to_row_triggers.items():
+        sub_size = max(1, (len(row_triggers) + tasks_per_gene - 1) // tasks_per_gene)
+        target_path = gene_to_target_info[gene]
+        for i in range(0, len(row_triggers), sub_size):
+            tasks.append((gene, row_triggers[i : i + sub_size], target_path))
+    return tasks
+
+
 def _apply_risearch_scoring(
     aso_df,
     gene_to_data,
@@ -95,34 +114,38 @@ def _apply_risearch_scoring(
                 continue
             gene_to_row_triggers[gene].append((idx, get_antisense(seq)))
 
-        scores = pd.Series(0.0, index=aso_df.index)
-        effective_workers = min(n_jobs, len(gene_to_row_triggers)) if n_jobs > 1 else 1
+        tasks = _build_tasks(gene_to_row_triggers, gene_to_target_info, n_jobs)
+        effective_workers = min(n_jobs, len(tasks)) if n_jobs > 1 else 1
+        logger.info(
+            "RIsearch scoring: %d genes × %d rows → %d tasks across %d workers",
+            len(gene_to_row_triggers),
+            sum(len(v) for v in gene_to_row_triggers.values()),
+            len(tasks),
+            effective_workers,
+        )
+
+        # Accumulate partial results per gene before building the score series
+        gene_scores: dict[str, dict] = defaultdict(dict)
 
         if effective_workers > 1:
             with ThreadPoolExecutor(max_workers=effective_workers) as pool:
-                futures = {
-                    gene: pool.submit(
-                        _score_one_gene,
-                        gene,
-                        row_triggers,
-                        gene_to_target_info[gene],
-                        cutoff,
-                    )
-                    for gene, row_triggers in gene_to_row_triggers.items()
-                }
-                for gene, fut in futures.items():
-                    score_dict = fut.result()
-                    for idx, _ in gene_to_row_triggers[gene]:
-                        val = score_dict.get(str(idx))
-                        if val is not None:
-                            scores[idx] = val
+                futures = [
+                    (pool.submit(_score_one_gene, gene, sub_triggers, target_path, cutoff), gene)
+                    for gene, sub_triggers, target_path in tasks
+                ]
+                for fut, gene in futures:
+                    gene_scores[gene].update(fut.result())
         else:
-            for gene, row_triggers in gene_to_row_triggers.items():
-                score_dict = _score_one_gene(gene, row_triggers, gene_to_target_info[gene], cutoff)
-                for idx, _ in row_triggers:
-                    val = score_dict.get(str(idx))
-                    if val is not None:
-                        scores[idx] = val
+            for gene, sub_triggers, target_path in tasks:
+                gene_scores[gene].update(_score_one_gene(gene, sub_triggers, target_path, cutoff))
+
+        scores = pd.Series(0.0, index=aso_df.index)
+        for gene, row_triggers in gene_to_row_triggers.items():
+            score_dict = gene_scores[gene]
+            for idx, _ in row_triggers:
+                val = score_dict.get(str(idx))
+                if val is not None:
+                    scores[idx] = val
 
     finally:
         for path in gene_to_target_info.values():
