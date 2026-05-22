@@ -64,11 +64,27 @@ def _save_json(obj, path):
 
 
 def _resolve_features(final_data, all_features, paths):
-    """Return filtered feature list, saving to disk on first call and loading on subsequent ones."""
+    """Return filtered feature list, saving to disk on first call and loading on subsequent ones.
+
+    If the cache exists but is stale (columns missing from data, or new columns in data
+    that weren't there when the cache was written), the cache is automatically regenerated.
+    """
     if paths["input_features"].exists():
-        features = _load_json(paths["input_features"], "tune")
-        logger.info("Loaded %d input features from %s", len(features), paths["input_features"])
-        return features
+        cached = _load_json(paths["input_features"], "tune")
+        missing_from_data = [f for f in cached if f not in all_features]
+        new_in_data = [f for f in all_features if f not in cached]
+
+        if missing_from_data or new_in_data:
+            logger.warning(
+                "Cached input_features is stale: %d columns gone from data, "
+                "%d new columns in data. Regenerating %s.",
+                len(missing_from_data), len(new_in_data), paths["input_features"],
+            )
+            paths["input_features"].unlink()
+        else:
+            logger.info("Loaded %d input features from %s", len(cached), paths["input_features"])
+            return cached
+
     zero_var = [f for f in all_features if final_data[f].nunique() <= 1]
     features = [f for f in all_features if f not in zero_var]
     if zero_var:
@@ -238,6 +254,9 @@ def main():
     parser.add_argument("--parsimony-tolerance", type=float, default=0.005,
                         help="Max Spearman drop from peak allowed when picking parsimonious feature set "
                              "(default: 0.005).")
+    parser.add_argument("--split-source", default="oligoai", choices=["oligoai", "tauso"],
+                        help="'oligoai' uses the existing split column (default); "
+                             "'tauso' creates a stratified temporal split per gene×cell-line.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
 
@@ -257,7 +276,7 @@ def main():
     logger.info("loss=%s split=%s step=%s device=%s cpus=%d seed=%d", args.loss, args.split, args.step, args.device, args.cpus, args.seed)
 
     logger.info("Loading data...")
-    final_data, all_features = load_and_validate_final_data(version="oligo")
+    final_data, all_features = load_and_validate_final_data(version="oligo", split_source=args.split_source)
     features = _resolve_features(final_data, all_features, paths)
     logger.info("Features: %d", len(features))
 
