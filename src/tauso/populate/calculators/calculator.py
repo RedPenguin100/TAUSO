@@ -3,7 +3,6 @@ import os
 
 import pandas as pd
 import psutil
-from pympler import asizeof
 
 from ...data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ...features.feature_extraction import save_feature_internal
@@ -978,7 +977,8 @@ class Calculator:
 
         # 2. Inspect self.cache (The AssetCache)
         if hasattr(self, "cache"):
-            # asizeof is recursive; it's better for complex objects like caches
+            from pympler import asizeof  # optional dev dependency, not required at runtime
+
             cache_size = asizeof.asizeof(self.cache) / (1024**2)
             logger.debug(f"  [CACHE] self.cache: {cache_size:.2f} MB")
 
