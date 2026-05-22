@@ -87,7 +87,7 @@ jobs:
           restore-keys: ${{ runner.os }}-uv-
 
       - name: Install tauso
-        run: micromamba run -n tauso uv pip install -e .
+        run: micromamba run -n tauso uv pip install -e ".[dev]"
 
       - name: Install raccess
         run: tauso setup-raccess
