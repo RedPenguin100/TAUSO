@@ -133,6 +133,7 @@ def main():
         stream=sys.stdout,
         force=True,
     )
+    logging.getLogger("numba").setLevel(logging.WARNING)
 
     config = DATASETS[args.dataset]
     main_feature_dir = _get_saved_features_dir(config['version'])
