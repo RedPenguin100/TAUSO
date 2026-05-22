@@ -157,7 +157,7 @@ def step_tune(data, args, paths, objective):
 
 
 def step_select(data, features, args, paths):
-    from notebooks.models.SeenOligoModel.base_model import run_backward_selection
+    from notebooks.models.SeenOligoModel.base_model import PARSIMONY_TOLERANCE, run_backward_selection
     logger.info("=== STEP: select ===")
     features = _load_json(paths["input_features"], "tune")
     best_params = _load_json(paths["best_params"], "tune")
@@ -169,6 +169,8 @@ def step_select(data, features, args, paths):
         features, best_params,
         data["val_eval_idx"], data["val_select_idx"], data["test_select_idx"],
         seed=args.seed,
+        importance_type=args.importance,
+        parsimony_tolerance=args.parsimony_tolerance,
     )
     _save_json(optimal, paths["optimal_features"])
     history_df.to_csv(paths["rfe_history"], index=False)
@@ -223,13 +225,19 @@ def step_train(data, features, args, paths):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--loss",      required=True, choices=["L1", "L2"])
+    parser.add_argument("--loss",      required=True, choices=["L1", "L2", "huber"])
     parser.add_argument("--split",     required=True, choices=list(SPLIT_CONFIGS))
     parser.add_argument("--step",      default="all", choices=["all", "tune", "select", "train"])
     parser.add_argument("--cpus",      type=int,  default=1)
     parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"])
     parser.add_argument("--seed",      type=int,  default=1)
     parser.add_argument("--output",    type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--importance", default="gain", choices=["gain", "permutation"],
+                        help="Feature importance metric for RFE (default: gain). "
+                             "permutation is slower but more reliable.")
+    parser.add_argument("--parsimony-tolerance", type=float, default=0.005,
+                        help="Max Spearman drop from peak allowed when picking parsimonious feature set "
+                             "(default: 0.005).")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
 
@@ -243,7 +251,8 @@ def main():
 
     paths    = _intermediate_paths(args)
     cfg      = SPLIT_CONFIGS[args.split]
-    objective = "reg:absoluteerror" if args.loss == "L1" else "reg:squarederror"
+    _OBJECTIVES = {"L1": "reg:absoluteerror", "L2": "reg:squarederror", "huber": "reg:pseudohubererror"}
+    objective = _OBJECTIVES[args.loss]
 
     logger.info("loss=%s split=%s step=%s device=%s cpus=%d seed=%d", args.loss, args.split, args.step, args.device, args.cpus, args.seed)
 

@@ -16,7 +16,7 @@ from tauso.data.consts import INHIBITION
 
 logger = logging.getLogger(__name__)
 
-PARSIMONY_TOLERANCE = 0.03
+PARSIMONY_TOLERANCE = 0.005
 EARLY_STOP_DROP = 0.15
 
 
@@ -79,6 +79,28 @@ def _group_spearman(preds, eval_groups):
     return np.nanmean(scores) if scores else 0.0
 
 
+def _permutation_importance(bst, X_val, y_val, val_select_idx, current_features, n_repeats=3, seed=0):
+    """
+    Computes importance as mean Spearman drop on val when each feature is shuffled.
+    Higher = more important. Used as a drop-in replacement for gain importance in RFE.
+    """
+    rng = np.random.default_rng(seed)
+    baseline = calculate_metrics(bst.inplace_predict(X_val), y_val, val_select_idx)["spearman"]
+    importances = {}
+    for i, feat in enumerate(current_features):
+        drops = []
+        for _ in range(n_repeats):
+            X_perturbed = X_val.copy()
+            X_perturbed[:, i] = rng.permutation(X_perturbed[:, i])
+            preds = bst.inplace_predict(X_perturbed)
+            if hasattr(preds, "get"):
+                preds = preds.get()
+            perturbed_spear = calculate_metrics(preds, y_val, val_select_idx)["spearman"]
+            drops.append(baseline - perturbed_spear)
+        importances[feat] = float(np.mean(drops))
+    return importances
+
+
 def _log_trial(study, trial):
     logger.info(
         "Optuna trial %d | spearman=%.4f | best=%.4f | rounds=%s depth=%s lr=%.4f",
@@ -127,6 +149,8 @@ def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna
             "reg_alpha": trial.suggest_float("reg_alpha", 0.1, 100.0, log=True),
             "reg_lambda": trial.suggest_float("reg_lambda", 0.1, 100.0, log=True),
         }
+        if objective == "reg:pseudohubererror":
+            params["huber_slope"] = trial.suggest_float("huber_slope", 0.5, 10.0, log=True)
         bst = xgb.train(
             params, dtrain,
             num_boost_round=trial.suggest_int("num_boost_round", 200, 1500, step=100),
@@ -149,7 +173,8 @@ def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna
 
 
 def run_backward_selection(
-    train_data, val_data, test_data, features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed
+    train_data, val_data, test_data, features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed,
+    importance_type="gain", parsimony_tolerance=PARSIMONY_TOLERANCE,
 ):
     X_train, y_train, y_train_np = train_data
     X_val, y_val = val_data
@@ -164,7 +189,8 @@ def run_backward_selection(
         raise ValueError(f"Seed mismatch: best_params={params.get('seed')} vs argument={seed}")
     num_rounds = params.pop("num_boost_round", 1000)
 
-    logger.info("RFE start | features=%d rounds=%d", len(current_features), num_rounds)
+    logger.info("RFE start | features=%d rounds=%d importance=%s parsimony=%.4f",
+                len(current_features), num_rounds, importance_type, parsimony_tolerance)
     total = ((len(current_features) - 100) // 5) + 100 if len(current_features) > 100 else len(current_features)
     pbar = tqdm(total=total, desc="Dropping Features")
 
@@ -208,8 +234,12 @@ def run_backward_selection(
             pbar.update(1)
             break
 
-        imp = bst.get_score(importance_type="gain")
-        ranked = sorted({f: imp.get(f, 0.0) for f in current_features}.items(), key=lambda x: x[1])
+        if importance_type == "permutation":
+            imp = _permutation_importance(bst, Xvl, y_val, val_select_idx, current_features, seed=seed)
+        else:
+            raw = bst.get_score(importance_type="gain")
+            imp = {f: raw.get(f, 0.0) for f in current_features}
+        ranked = sorted(imp.items(), key=lambda x: x[1])
         drop_n = min(5 if len(current_features) > 100 else 1, len(current_features) - 1)
         to_drop = [f for f, _ in ranked[:drop_n]]
         logger.debug("Dropping %d: %s", drop_n, to_drop)
@@ -227,7 +257,7 @@ def run_backward_selection(
     pbar.close()
 
     df_hist = pd.DataFrame(history)
-    threshold = df_hist["val_spearman_select"].max() - PARSIMONY_TOLERANCE
+    threshold = df_hist["val_spearman_select"].max() - parsimony_tolerance
     optimal = df_hist[df_hist["val_spearman_select"] >= threshold].iloc[-1]["features_list"]
 
     logger.info("RFE complete | selected=%d / %d | best_val=%.4f", len(optimal), len(features), df_hist["val_spearman_select"].max())
@@ -253,9 +283,13 @@ def train_final_model(optimal_features, features, train_data, best_params, seed)
 def run_pipeline(
     final_data, features, split_config, eval_group, select_group,
     loss_type="L1", save_path="model.json", seed=1, device="cpu", n_jobs=1,
+    importance_type="gain", parsimony_tolerance=PARSIMONY_TOLERANCE,
 ):
     os.environ["PYTHONHASHSEED"] = str(seed)
-    objective = "reg:absoluteerror" if loss_type == "L1" else "reg:squarederror"
+    _OBJECTIVES = {"L1": "reg:absoluteerror", "L2": "reg:squarederror", "huber": "reg:pseudohubererror"}
+    if loss_type not in _OBJECTIVES:
+        raise ValueError(f"loss_type must be one of {list(_OBJECTIVES)}. Got: {loss_type!r}")
+    objective = _OBJECTIVES[loss_type]
     logger.info("Pipeline | objective=%s eval=%s seed=%d", objective, eval_group, seed)
 
     final_data = final_data.sort_values(by=features).reset_index(drop=True)
@@ -290,6 +324,7 @@ def run_pipeline(
     optimal_features, history_df = run_backward_selection(
         (X_train, y_train, y_train_np), (X_val, y_val), (X_test, y_test),
         features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed,
+        importance_type=importance_type, parsimony_tolerance=parsimony_tolerance,
     )
 
     logger.info("[3/3] Training final models...")
