@@ -114,13 +114,17 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     # --- Experimental Contexts (User Defined) ---
     "Angptl2/Actin": "SK-N-AS",
     "SK cells asyn": "SK-N-AS",
-    "PAC neurons asyn": "SH-SY5Y",
-    "Human Neuronal Cell": "SH-SY5Y",
-    "iCell GABANeurons": "SH-SY5Y",  # Neuronal proxy
-    "ReproNeuro": "SH-SY5Y",  # Neuronal proxy
-    "ReproNeuro Neurons": "SH-SY5Y",
-    "ReproNeuro neurons (ReproCELL)": "SH-SY5Y",
-    "ReproNeuro Neurons (ReproCELL)": "SH-SY5Y",
+    # iPSC-derived and primary neuronal models — no valid DepMap cancer-line proxy.
+    # iCell GABANeurons and all ReproNeuro variants target UBE3A via gymnosis only;
+    # assigning SH-SY5Y expression would import a wrong transcriptome.
+    # ReproNeuro appears under 4 name spellings for the same 78 ASOs (duplication).
+    "PAC neurons asyn": None,
+    "Human Neuronal Cell": None,
+    "iCell GABANeurons": None,
+    "ReproNeuro": None,
+    "ReproNeuro Neurons": None,
+    "ReproNeuro neurons (ReproCELL)": None,
+    "ReproNeuro Neurons (ReproCELL)": None,
     "54-2": None,  # Keep as None unless you confirm lineage
     # --- No Valid Proxy (Primary Cells / Distinct Lineages) ---
     "HepaRG": None,
@@ -196,8 +200,7 @@ CELL_LINE_MAPPING = {
     # Neuronal / Experimental Contexts
     "Angptl2/Actin": SK_N_AS,
     "SK cells asyn": SK_N_AS,  # "SK cells" usually refers to SK-N-AS in this context
-    "PAC neurons asyn": SH_SY5Y,  # SH-SY5Y is the standard neuronal proxy here
-    "Human Neuronal Cell": SH_SY5Y,  # Generic neuronal -> SH-SY5Y proxy
+    # iPSC/primary neurons: no DepMap proxy — removed to avoid wrong expression features
     # Blood / Immune Proxies
     "MM.1R": H929,  # Myeloma -> H929 (Myeloma) proxy
 }
