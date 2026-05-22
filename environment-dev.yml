@@ -1,25 +1,14 @@
 name: tauso
+
 channels:
   - conda-forge
   - bioconda
 dependencies:
   - ruff==0.15.12
-  - shap
   - jupyterlab
-  - matplotlib
-  - seaborn
   - ipykernel
-  - optuna
   - cupy
   - graphviz
-  - pip
+  - uv
   - pip:
-    - -e .
-  # tooling
-  - pytest
-  - pytest-regressions
-  - pytest-xdist
-  - conda-build
-  - conda-lock
-  - pandas-stubs
-  - scipy-stubs
+    - -e ".[dev]"  # installs tauso + all runtime + dev extras

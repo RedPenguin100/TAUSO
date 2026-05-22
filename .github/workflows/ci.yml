@@ -49,13 +49,18 @@ jobs:
         shell: bash -el {0}
     steps:
       - name: Free Disk Space
+        # Intentionally no `wait` — deletions run in the background while
+        # checkout and micromamba proceed. This is safe in practice because
+        # by the time Bowtie cache restore needs the space, the rms are done.
         run: |
+          df -h /
           sudo rm -rf /usr/share/dotnet &
           sudo rm -rf /usr/local/lib/android &
           sudo rm -rf /opt/ghc &
           sudo rm -rf /opt/hostedtoolcache/CodeQL &
           sudo rm -rf /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" &
-          wait
+          echo "Deletions running in background. Current disk:"
+          df -h /
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -74,8 +79,15 @@ jobs:
           cache-environment: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
 
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: ${{ runner.os }}-uv-
+
       - name: Install tauso
-        run: micromamba run -n tauso pip install -e .
+        run: micromamba run -n tauso uv pip install -e .
 
       - name: Install raccess
         run: tauso setup-raccess
@@ -150,6 +162,5 @@ jobs:
       - name: Build cAI weights
         run: tauso build-cai-weights
 
-# Comment so cache generates and next CI is fast
-#      - name: Run tests
-#        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
+      - name: Run tests
+        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
