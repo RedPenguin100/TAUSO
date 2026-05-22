@@ -9,7 +9,12 @@ from ...data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ...features.feature_extraction import save_feature_internal
 from ...features.names import *
 from ...timer import Timer
-from ..populate_context import EXPRESSION_FEATURE_NAMES, populate_transfection, populate_target_expression, populate_special_gene_expression
+from ..populate_context import (
+    EXPRESSION_FEATURE_NAMES,
+    populate_special_gene_expression,
+    populate_target_expression,
+    populate_transfection,
+)
 from ..populate_sequence import FEATURE_SPECS, populate_sequence_features
 from ..populate_structure import get_populated_df_with_structure_features
 from .cache import AssetCache

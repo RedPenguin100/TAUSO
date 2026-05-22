@@ -54,6 +54,7 @@ DATASETS = {
             'calculate_hybridization',
             'calculate_backbone_features',
             'calculate_ribo_seq',
+            'calculate_expression',
             'calculate_off_target_general',
             'calculate_off_target_single',
             'calculate_mrna_halflife',
