@@ -90,7 +90,6 @@ def batch_iterator(iterator, batch_size=1000):
         yield batch
 
 
-
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
 def setup_depmap(force):
