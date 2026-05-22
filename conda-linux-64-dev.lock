@@ -150,7 +150,7 @@ https://conda.anaconda.org/conda-forge/linux-64/aws-c-http-0.10.13-h4bacb7b_0.co
 https://conda.anaconda.org/conda-forge/linux-64/brotli-1.2.0-hed03a55_1.conda#8ccf913aaba749a5496c17629d859ed1
 https://conda.anaconda.org/conda-forge/linux-64/cyrus-sasl-2.1.28-hac629b4_1.conda#af491aae930edc096b58466c51c4126c
 https://conda.anaconda.org/conda-forge/linux-64/dbus-1.16.2-h24cb091_1.conda#ce96f2f470d39bd96ce03945af92e280
-https://conda.anaconda.org/conda-forge/linux-64/fontconfig-2.17.1-h27c8c51_0.conda#867127763fbe935bab59815b6e0b7b5c
+https://conda.anaconda.org/conda-forge/linux-64/fontconfig-2.18.0-h27c8c51_0.conda#06965b2f9854d0b15e0443ee81fe83dc
 https://conda.anaconda.org/conda-forge/linux-64/freetype-2.14.3-ha770c72_0.conda#8462b5322567212beeb025f3519fb3e2
 https://conda.anaconda.org/conda-forge/linux-64/gdk-pixbuf-2.44.6-h2b0a6b4_0.conda#7892f39a39ed39591a89a28eba03e987
 https://conda.anaconda.org/conda-forge/linux-64/glib-tools-2.88.1-hee1de02_2.conda#e5a459d2bb98edb88de5a44bfad66b9d
@@ -424,7 +424,7 @@ https://conda.anaconda.org/conda-forge/noarch/isoduration-20.11.0-pyhd8ed1ab_1.c
 https://conda.anaconda.org/conda-forge/noarch/jsonschema-4.26.0-pyhcf101f3_0.conda#ada41c863af263cc4c5fcbaff7c3e4dc
 https://conda.anaconda.org/conda-forge/linux-64/libgoogle-cloud-storage-3.3.0-hdbdcf42_1.conda#da94b149c8eea6ceef10d9e408dcfeb3
 https://conda.anaconda.org/conda-forge/linux-64/libmambapy-2.6.2-py311h042836d_0.conda#a4da3007728df22901e250dafde1f0f8
-https://conda.anaconda.org/conda-forge/linux-64/librsvg-2.62.1-h4c96295_0.conda#a4b87f1fbcdbb8ad32e99c2611120f2e
+https://conda.anaconda.org/conda-forge/linux-64/librsvg-2.62.2-h4c96295_0.conda#e318357f3d948cc16936d9f3b36cc7d9
 https://conda.anaconda.org/conda-forge/linux-64/matplotlib-base-3.10.9-py311h0f3be63_0.conda#cc259645be458c9222ffcf321ff5fc1e
 https://conda.anaconda.org/conda-forge/noarch/optype-numpy-0.15.0-pyh272cbef_0.conda#da88d4aa2f103a546aea6c758d866a3e
 https://conda.anaconda.org/conda-forge/noarch/pandarallel-1.6.5-pyhd8ed1ab_1.conda#f2d8bf11ab8aabb58ae9d633d8384d5a
