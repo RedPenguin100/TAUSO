@@ -759,6 +759,12 @@ def setup_genome(genome, force, remove_gz):
             for file_type, download_url in url_dict.items():
                 if file_type == "gff" and genome != "GRCh38":  # TODO: support GFF for all
                     continue
+                db_key = f"{file_type}_db"
+                if db_key in paths:
+                    db_success = paths[db_key] + ".success"
+                    if os.path.exists(paths[db_key]) and os.path.exists(db_success):
+                        click.echo(f"✓ {file_type} database already built, skipping download.")
+                        continue
                 if not os.path.exists(paths[file_type]):
                     # Check for a cached compressed copy before hitting the network
                     gz_key = f"{file_type}_gz"

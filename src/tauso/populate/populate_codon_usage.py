@@ -148,9 +148,20 @@ def populate_cai(
     # 2. Setup Parallelization
     use_parallel = init_pandarallel(n_jobs)
 
-    # 3. Define Row-Wise Helper
-    # We use a mutable set in the closure to track reported warnings
-    reported_fallbacks = set()
+    # 3. Warn once per unknown cell line before any parallel work.
+    # pandarallel pickles the closure into worker processes, so per-row
+    # deduplication sets would fire once per worker instead of once total.
+    _DEPMAP_NO_EXPRESSION = {"SW872", "HK2"}
+    unknown_cell_lines = set(df[CELL_LINE].map(standardize_cell_line_name).dropna()) - set(weight_map.keys())
+    for _cl in sorted(unknown_cell_lines):
+        if _cl in _DEPMAP_NO_EXPRESSION:
+            logger.warning(
+                "Cell line '%s' not found in weights (found in DepMap but lacks expression data). "
+                "Using 'Generic' profile.",
+                _cl,
+            )
+        else:
+            logger.warning("Cell line '%s' not found in weights. Using 'Generic' profile.", _cl)
 
     def _get_row_cai(row, sequence):
         """Internal helper to calculate CAI for a single row."""
@@ -160,14 +171,7 @@ def populate_cai(
         cell_line_raw = row.get(CELL_LINE)
         cell_line_name = standardize_cell_line_name(cell_line_raw)
 
-        # Select weights
-        if cell_line_name in weight_map:
-            weights = weight_map[cell_line_name]
-        else:
-            if cell_line_name not in reported_fallbacks:
-                logger.warning("Cell line '%s' not found in weights. Using 'Generic' profile.", cell_line_name)
-                reported_fallbacks.add(cell_line_name)
-            weights = weight_map.get("Generic")
+        weights = weight_map.get(cell_line_name) or weight_map.get("Generic")
 
         if not weights:
             return np.nan

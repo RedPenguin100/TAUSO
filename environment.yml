@@ -5,28 +5,7 @@ channels:
   - bioconda
 dependencies:
   - python==3.11
- # core python deps (no build pins)
-  - requests
-  - numpy==2.3.4
-  - pandas>=2.0,<3
-  - pyarrow
-  - scipy
-  - numba
-  - biopython>=1.87,<2
-  - gffutils>=0.14,<1
-  - pyranges>=0.1.4,<0.2
-  - primer3-py
-  - tqdm
-  - click
-  - gdown
-  - platformdirs
-  - psutil
-
-  - pybigwig # For ribo-seq
+  - pybigwig
   - bowtie
-
   - viennarna==2.7.2
-  - xgboost>=3.2,<4
-  - numba>=0.65,<0.66
-
-  - pandarallel
+  - pip

@@ -132,7 +132,7 @@ class AssetCache:
             from tauso.genome.TranscriptMapper import GeneCoordinateMapper
 
             paths = get_paths(self.genome)
-            self._gene_coordinate_mapper = GeneCoordinateMapper(paths["gtf_db"])
+            self._gene_coordinate_mapper = GeneCoordinateMapper(paths["gff_db"])
 
         return self._gene_coordinate_mapper
 

@@ -1,62 +1,108 @@
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-import pyBigWig
 
 from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
-from ..features.context.ribo_seq import calculate_ribo_seq_row, get_ribo_40s_human_data
+from ..features.context.ribo_seq import (
+    feature_names,
+    get_ribo_40s_human_data,
+    process_gene_group,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean"):
+def _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs):
+    """
+    Dispatch process_gene_group over all (gene, gene_rows) pairs.
+
+    Each worker opens its own BigWig handle so threads don't share state.
+    Returns (results, skipped) where results is {df_index: feat_dict} and
+    skipped is {contig_str: set_of_gene_names}.
+    """
+    results = {}
+    skipped = {}
+
+    def _collect(gene, gene_rows):
+        try:
+            return gene, process_gene_group(bw_path, gene_rows, flanks, how), None
+        except KeyError as exc:
+            return gene, {}, str(exc).strip("'\"")
+
+    if n_jobs > 1 and len(gene_groups) > 1:
+        with ThreadPoolExecutor(max_workers=min(n_jobs, len(gene_groups))) as pool:
+            futures = {pool.submit(_collect, gene, rows): gene for gene, rows in gene_groups}
+            for fut in futures:
+                _, group_results, contig_err = fut.result()
+                gene = futures[fut]
+                if contig_err is not None:
+                    skipped.setdefault(contig_err, set()).add(gene)
+                else:
+                    results.update(group_results)
+    else:
+        for gene, gene_rows in gene_groups:
+            _, group_results, contig_err = _collect(gene, gene_rows)
+            if contig_err is not None:
+                skipped.setdefault(contig_err, set()).add(gene)
+            else:
+                results.update(group_results)
+
+    return results, skipped
+
+
+def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean", n_jobs=1):
     if organism != "human":
         raise ValueError("Unsupported organism for ribo_seq feature")
-
     if how not in {"sum", "mean", "max", "nz_mean"}:
         raise ValueError(how)
 
-    bw = pyBigWig.open(str(get_ribo_40s_human_data()))
+    bw_path = str(get_ribo_40s_human_data())
+    feat_cols = feature_names(flanks, how)
 
-    # Pre-initialize columns with NaN to ensure structure exists even if rows fail
-    # We define the column names first based on flanks and 'how'
-    new_features_list = [f"ribo_gene_{how}"]
-    for f in flanks:
-        new_features_list.append(f"ribo_f{f}_{how}")
-        if f > 0:
-            new_features_list.append(f"ribo_upstream_{f}_{how}")
-            new_features_list.append(f"ribo_downstream_{f}_{how}")
-
-    # Initialize new columns in the original dataframe
-    for col in new_features_list:
+    for col in feat_cols:
         aso_df[col] = np.nan
 
-    # Iterate by index to assign directly in place
-    skipped = {}  # contig -> list of genes
-    for idx, row in aso_df.iterrows():
-        try:
-            feat_dict = calculate_ribo_seq_row(row, bw, flanks, how)
-            for key, val in feat_dict.items():
-                aso_df.at[idx, key] = val
-        except Exception as e:
-            contig = str(e)
-            gene = row.get(CANONICAL_GENE, "unknown")
-            skipped.setdefault(contig, set()).add(gene)
-            continue
+    valid_mask = aso_df["chrom"].notna() & aso_df["target_start"].notna()
+    valid_df = aso_df[valid_mask]
+    n_valid = len(valid_df)
+    n_genes = valid_df[CANONICAL_GENE].nunique()
+
+    logger.info(
+        "populate_ribo_seq: %d valid rows across %d genes × %d features (n_jobs=%d)",
+        n_valid,
+        n_genes,
+        len(feat_cols),
+        n_jobs,
+    )
+
+    gene_groups = list(valid_df.groupby(CANONICAL_GENE))
+
+    t0 = time.perf_counter()
+    results, skipped = _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs)
+    elapsed = time.perf_counter() - t0
+
+    logger.info(
+        "populate_ribo_seq: done in %.2fs (%.0f rows/s)",
+        elapsed,
+        n_valid / elapsed if elapsed > 0 else 0,
+    )
+
+    if results:
+        result_df = pd.DataFrame.from_dict(results, orient="index")
+        aso_df.update(result_df)
 
     for contig, genes in skipped.items():
-        n_rows = (aso_df.get("chrom", pd.Series()) == contig).sum() if "chrom" in aso_df.columns else "?"
         logger.warning(
-            "Skipped ribo-seq for %s rows on non-canonical contig '%s' (genes: %s). "
-            "These rows will have NaN ribo-seq features.",
-            n_rows,
+            "Skipped ribo-seq for contig '%s' (genes: %s). Rows will have NaN features.",
             contig,
             ", ".join(sorted(genes)),
         )
 
-    return aso_df, new_features_list
+    return aso_df, feat_cols
 
 
 def populate_mrna_expression(
