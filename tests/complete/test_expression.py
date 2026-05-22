@@ -1,27 +1,29 @@
-import os
+from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from tauso.data.consts import CELL_LINE_DEPMAP
-from tauso.data.data import get_data_dir
-from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
 from tauso.populate.populate_context import (
-    _SPECIAL_GENES,
     populate_special_gene_expression,
     populate_target_expression,
 )
-from tauso.timer import Timer
+
+_FIXTURE = Path(__file__).parent / "test_expression" / "expression_fixture.parquet"
 
 
 @pytest.fixture(scope="session")
-def expression_transcriptomes(base_data, target_genes):
-    """Expression data for target genes plus the fixed special genes (RNASEH1, STAB2, MRC1, MSR1)."""
-    data_dir = get_data_dir()
-    expression_dir = os.path.join(data_dir, "processed_expression")
-    depmap_ids = list(set(base_data[CELL_LINE_DEPMAP]))
-    valid_genes = list(set(target_genes) | set(_SPECIAL_GENES.values()))
-    with Timer("Load Expression Transcriptomes"):
-        return load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir=expression_dir)
+def expression_transcriptomes():
+    """
+    Committed fixture of expression values for the test cell lines and genes.
+    Decouples regression tests from live DepMap data so they are deterministic
+    regardless of DepMap cache state or data updates.
+    """
+    df = pd.read_parquet(_FIXTURE)
+    transcriptomes = {}
+    for ach_id, group in df.groupby("ModelID"):
+        transcriptomes[ach_id] = group[["Gene", "expression_norm"]].reset_index(drop=True)
+    return transcriptomes
 
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
