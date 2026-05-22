@@ -407,10 +407,15 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     X_vl = val_df[features].values.astype(np.float32)
     y_vl = val_df[INHIBITION].values.astype(np.float32)
 
-    # --- cohort indices for evaluation ---
+    # --- cohort indices for evaluation and RFE selection ---
     min_size = 10 if cfg.eval_cols == ["custom_id"] else 20
-    val_eval_idx = _cohort_indices(val_df, cfg.eval_cols, min_size=min_size)
-    logger.info("  val eval cohorts (>=%d rows): %d", min_size, len(val_eval_idx))
+    val_eval_idx   = _cohort_indices(val_df, cfg.eval_cols, min_size=min_size)
+    # RFE always selects on gene×cell-line — the biologically meaningful unit.
+    # Using eval_cols here was the bug: custom_id or gene-only groupings produce
+    # noisier importance signals than the full gene×cell-line cohort.
+    val_select_idx = _cohort_indices(val_df, GC, min_size=20)
+    logger.info("  val eval cohorts (>=%d rows): %d  |  RFE select cohorts: %d",
+                min_size, len(val_eval_idx), len(val_select_idx))
 
     # --- sample weights / target clipping ---
     weights_tr, y_tr_train = _parse_weighting(cfg.weighting, train_df, y_tr)
@@ -445,7 +450,7 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     if cfg.selection == "backward":
         n_selected, best_spear, history = _backward_rfe(
             X_tr, y_tr_train, X_vl, y_vl, features, best_params, val_eval_idx,
-            val_eval_idx, cfg.importance, weights_tr, seed=seed,
+            val_select_idx, cfg.importance, weights_tr, seed=seed,
         )
         extra = {"rfe_history_len": len(history)}
     else:
@@ -490,6 +495,9 @@ def main():
                         help="Skip experiments whose name is already in the output file.")
     parser.add_argument("--only",   nargs="*", default=None,
                         help="Run only these experiment names.")
+    parser.add_argument("--split-source", default="oligoai", choices=["oligoai", "tauso"],
+                        help="'oligoai' uses the existing split column; "
+                             "'tauso' creates a stratified temporal split per gene×cell-line.")
     parser.add_argument("--log-level", default="INFO",
                         choices=["DEBUG", "INFO", "WARNING"])
     args = parser.parse_args()
@@ -519,7 +527,7 @@ def main():
 
     # Load data once
     logger.info("Loading data...")
-    final_data, features = load_and_validate_final_data(version="oligo")
+    final_data, features = load_and_validate_final_data(version="oligo", split_source=args.split_source)
     all_val_df = final_data[final_data["split"] == "val"].reset_index(drop=True)
     logger.info("Data loaded | %d train rows | %d val rows | %d features",
                 (final_data["split"] == "train").sum(), len(all_val_df), len(features))

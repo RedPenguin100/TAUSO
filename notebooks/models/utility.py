@@ -1,11 +1,14 @@
+import logging
+
+import numpy as np
 import pandas as pd
 from notebooks.consts import OLIGO_CSV_PROCESSED_AVERAGED
-from notebooks.features.feature_extraction import (
-    load_all_features,
-)
+from notebooks.features.feature_extraction import load_all_features
 
-from tauso.data.consts import INHIBITION, VOLUME
+from tauso.data.consts import CANONICAL_GENE, CELL_LINE, INHIBITION, VOLUME
 from tauso.timer import Timer
+
+logger = logging.getLogger(__name__)
 
 
 def get_data_path(version):
@@ -14,7 +17,46 @@ def get_data_path(version):
     raise ValueError(f"Invalid version: {version}")
 
 
-def load_and_validate_final_data(version="oligo", load_competition=False):
+def create_tauso_split(data: pd.DataFrame, val_frac: float = 0.15, test_frac: float = 0.15,
+                       seed: int = 42) -> pd.DataFrame:
+    """
+    Create a stratified temporal split as an alternative to the OligoAI "split" column.
+
+    Strategy: within each gene × cell-line cohort, sort by index_oligo (proxy for temporal
+    order) and assign the first (1 - val_frac - test_frac) fraction to train, next val_frac
+    to val, and final test_frac to test. Cohorts with < 3 rows go entirely to train.
+
+    Returns the dataframe with a new "split" column (overwrites existing).
+    """
+    rng = np.random.default_rng(seed)
+    train_frac = 1.0 - val_frac - test_frac
+    split = pd.Series("train", index=data.index)
+
+    for _, group in data.groupby([CANONICAL_GENE, CELL_LINE]):
+        idx = group.sort_values("index_oligo").index
+        n = len(idx)
+        if n < 3:
+            continue  # all train
+        n_val  = max(1, round(n * val_frac))
+        n_test = max(1, round(n * test_frac))
+        n_train = n - n_val - n_test
+        if n_train < 1:
+            continue
+        split.loc[idx[:n_train]]              = "train"
+        split.loc[idx[n_train:n_train+n_val]] = "val"
+        split.loc[idx[n_train+n_val:]]        = "test"
+
+    data = data.copy()
+    data["split"] = split
+
+    counts = data["split"].value_counts()
+    logger.info("Tauso split | train=%d val=%d test=%d",
+                counts.get("train", 0), counts.get("val", 0), counts.get("test", 0))
+    _ = rng  # seed kept for reproducibility but stratified split is deterministic
+    return data
+
+
+def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai"):
     """
     Loads features and metadata, ensures shared columns are identical,
     and returns the merged DataFrame along with the final feature list.
@@ -56,7 +98,14 @@ def load_and_validate_final_data(version="oligo", load_competition=False):
 
     final_data = pd.merge(loaded_features, data_to_merge, on=index)
 
-    # 5. Define Final Feature List
+    # 5. Apply split
+    if split_source == "tauso":
+        logger.info("Creating tauso split (stratified temporal per gene×cell-line cohort)...")
+        final_data = create_tauso_split(final_data)
+    elif split_source != "oligoai":
+        raise ValueError(f"Unknown split_source '{split_source}'. Use 'oligoai' or 'tauso'.")
+
+    # 6. Define Final Feature List
     features_to_ignore = [index, INHIBITION, "inhibition_percent", "dosage", "split"]
 
     features = [

@@ -238,6 +238,9 @@ def main():
     parser.add_argument("--parsimony-tolerance", type=float, default=0.005,
                         help="Max Spearman drop from peak allowed when picking parsimonious feature set "
                              "(default: 0.005).")
+    parser.add_argument("--split-source", default="oligoai", choices=["oligoai", "tauso"],
+                        help="'oligoai' uses the existing split column (default); "
+                             "'tauso' creates a stratified temporal split per gene×cell-line.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
 
@@ -257,7 +260,7 @@ def main():
     logger.info("loss=%s split=%s step=%s device=%s cpus=%d seed=%d", args.loss, args.split, args.step, args.device, args.cpus, args.seed)
 
     logger.info("Loading data...")
-    final_data, all_features = load_and_validate_final_data(version="oligo")
+    final_data, all_features = load_and_validate_final_data(version="oligo", split_source=args.split_source)
     features = _resolve_features(final_data, all_features, paths)
     logger.info("Features: %d", len(features))
 
