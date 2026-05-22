@@ -80,8 +80,11 @@ def calculate_score_helper(energy_dict, expression_dict, method):
     if not valid_targets:
         return 0.0
 
+    # Sort by gene name so summation order is identical regardless of dict/thread ordering.
+    valid_targets.sort(key=lambda x: x[0])
+
     if method == AggregationMethod.ARTM_log:
-        for gene, energy in energy_dict.items():
+        for gene, energy in sorted(energy_dict.items()):
             expr_log = expression_dict.get(gene, 0)[1]
             if energy < 0 and expr_log > 0:
                 score += energy * expr_log

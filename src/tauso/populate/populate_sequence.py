@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 from ..data.consts import SEQUENCE
 from ..features.sequence.seq_features import *
+from ..parallel_utils import make_apply_fn
 from ..timer import Timer
 
 logger = logging.getLogger(__name__)
@@ -68,20 +69,8 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     Computes a feature with timing logs. Uses parallel_apply if available.
     """
     start_time = time.time()
-
     logger.debug("Starting %s...", col_name)
-
-    series = df[SEQUENCE]
-
-    # MINIMAL CHANGE 1: Bypass pandarallel completely if cpus=1 for clean debugging
-    if cpus <= 1:
-        df[col_name] = series.apply(func)
-    else:
-        try:
-            df[col_name] = series.parallel_apply(func)
-        except Exception:
-            df[col_name] = series.apply(func)
-
+    df[col_name] = make_apply_fn(df[SEQUENCE], n_jobs=cpus)(func)
     duration = time.time() - start_time
     logger.debug("Finished %s | Time: %.2fs", col_name, duration)
 
@@ -93,14 +82,6 @@ def populate_sequence_features(
 ) -> Tuple:
     available = {name: fn for name, fn in FEATURE_SPECS}
     feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
-
-    if cpus > 1:
-        try:
-            from pandarallel import pandarallel
-
-            pandarallel.initialize(progress_bar=False, verbose=0, nb_workers=cpus)
-        except ImportError:
-            pass
 
     for name in feature_names:
         # Wrap each feature calculation in the Timer context manager
@@ -162,19 +143,8 @@ def populate_sequence_one_hot_encoded(
 
         return encoded
 
-    # 3. Apply function (mirroring your pandarallel structure)
-    if cpus > 1:
-        try:
-            from pandarallel import pandarallel
-
-            # Only initialize if not already done, though harmless if repeated
-            pandarallel.initialize(nb_workers=cpus)
-            encoded_series = df[SEQUENCE].parallel_apply(encode_and_pad)
-        except Exception:
-            encoded_series = df[SEQUENCE].apply(encode_and_pad)
-    else:
-        # ABSOLUTE MINIMAL CHANGE: Added this else block for cpus == 1
-        encoded_series = df[SEQUENCE].apply(encode_and_pad)
+    # 3. Apply function
+    encoded_series = make_apply_fn(df[SEQUENCE], n_jobs=cpus)(encode_and_pad)
 
     # 4. Generate the new feature names
     feature_names = []

@@ -79,7 +79,8 @@ def test_off_target_specific_regression(mini_structure_data, gene_to_data, trans
         method=AggregationMethod.ARTM,
         n_jobs=get_n_jobs(),
     )
-    dataframe_regression.check(data[["index_oligo"] + feature_names])
+    # Parallel thread aggregation can produce floating-point differences ~1e-5
+    dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
 
 
 @pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)

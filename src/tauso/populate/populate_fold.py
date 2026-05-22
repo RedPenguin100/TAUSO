@@ -1,5 +1,6 @@
 import logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ from ..features.rna_access.access_calculator import (
     get_sense_with_flanks,
 )
 from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
+from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +52,6 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     if settings is None:
         settings = DEFAULT_SETTINGS
 
-    if n_jobs > 1 or n_jobs == -1:
-        from pandarallel import pandarallel
-
-        pandarallel.initialize(nb_workers=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
-
     required_cols = [CANONICAL_GENE, SENSE_START, SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
@@ -62,6 +59,8 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     lightweight_gene_to_data = {
         gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data
     }
+
+    apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
 
     feature_names = []
     for setting in settings:
@@ -90,10 +89,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
                 step=step,
             )
 
-        if n_jobs > 1:
-            df[feature_name] = df.parallel_apply(_process_row, axis=1)
-        else:
-            df[feature_name] = df.apply(_process_row, axis=1)
+        df[feature_name] = apply_fn(_process_row, axis=1)
 
     return df, feature_names
 
@@ -247,24 +243,16 @@ def populate_sense_accessibility_batch(
 
         return batch_result
 
-    # 3. Execution
-    valid_df["batch_group"] = np.arange(len(valid_df)) // batch_size
-
-    # Drop the grouping column before apply so neither pandas nor pandarallel
-    # needs include_groups (pandarallel doesn't support that kwarg).
-    batch_groups = valid_df["batch_group"]
-    valid_df_for_apply = valid_df.drop(columns=["batch_group"])
+    # 3. Execution — raccess is a subprocess call, so threading is the right tool here
+    batches = [valid_df.iloc[i : i + batch_size] for i in range(0, len(valid_df), batch_size)]
 
     if n_jobs > 1:
-        from pandarallel import pandarallel
-
-        pandarallel.initialize(nb_workers=n_jobs, verbose=0)
-        results_df = valid_df_for_apply.groupby(batch_groups, observed=True).parallel_apply(_process_batch)
+        with ThreadPoolExecutor(max_workers=min(n_jobs, len(batches))) as pool:
+            batch_results = list(pool.map(_process_batch, batches))
     else:
-        results_df = valid_df_for_apply.groupby(batch_groups, observed=True).apply(_process_batch)
+        batch_results = [_process_batch(b) for b in batches]
 
-    # Clean up structure returned by apply
-    results_df = results_df.reset_index(drop=True)
+    results_df = pd.concat(batch_results, ignore_index=True)
 
     # 4. Safe Assignment (Dictionary Mapping)
     # Convert results to a fast dictionary {temp_id: calculated_value}

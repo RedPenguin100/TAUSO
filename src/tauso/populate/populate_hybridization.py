@@ -2,6 +2,7 @@ import logging
 import multiprocessing
 
 from ..data.consts import *
+from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
 from ..features.hybridization.hybridization_features import (
@@ -53,13 +54,7 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
 
     # 1. Setup Parallel Engine
     nb_workers = n_cores if n_cores is not None else multiprocessing.cpu_count()
-    if nb_workers > 1:
-        from pandarallel import pandarallel
-
-        pandarallel.initialize(nb_workers=nb_workers, progress_bar=False)
-        apply_func = all_data.parallel_apply
-    else:
-        apply_func = all_data.apply
+    apply_func = make_apply_fn(all_data, n_jobs=nb_workers)
 
     # 2. Run Row-wise Calculations (Parallelized)
     for feature in features_to_run:

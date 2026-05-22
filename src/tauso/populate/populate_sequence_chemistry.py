@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 from ..data.consts import CHEMICAL_PATTERN, SEQUENCE
 from ..features.sequence.seq_chemistry import gap_gc_content, wing_gap_gc_delta
+from ..parallel_utils import make_apply_fn
 from ..timer import Timer
 
 FEATURE_SPECS: list[tuple[str, callable]] = [
@@ -25,22 +26,9 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
 
     logger.debug("Starting %s...", col_name)
 
-    if cpus <= 1:
-        # Discard pandarallel when using a single CPU
-        df[col_name] = df.apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
-    else:
-        try:
-            from pandarallel import pandarallel
-
-            # use_memory_fs=False prevents silent hangs in containerized/Docker environments
-            # by avoiding the shared memory file system (/dev/shm) limits.
-            pandarallel.initialize(progress_bar=verbose, verbose=0, nb_workers=cpus, use_memory_fs=False)
-
-            # Apply across rows (axis=1) to pass both columns to the function
-            df[col_name] = df.parallel_apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
-        except Exception:
-            # Fallback to standard pandas apply
-            df[col_name] = df.apply(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
+    # use_memory_fs=False prevents silent hangs in containerized/Docker environments
+    apply_fn = make_apply_fn(df, n_jobs=cpus, progress_bar=verbose, verbose=0, use_memory_fs=False)
+    df[col_name] = apply_fn(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
 
     duration = time.time() - start_time
     logger.debug("Finished %s | Time: %.2fs", col_name, duration)
