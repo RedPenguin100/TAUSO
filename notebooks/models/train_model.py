@@ -67,6 +67,23 @@ def _resolve_features(final_data, all_features, paths):
     """Return filtered feature list, saving to disk on first call and loading on subsequent ones."""
     if paths["input_features"].exists():
         features = _load_json(paths["input_features"], "tune")
+        # Validate: warn if cached features reference columns no longer in the dataset,
+        # or if the dataset has grown significantly (new features added since cache was written).
+        missing_from_data = [f for f in features if f not in all_features]
+        new_in_data = [f for f in all_features if f not in features]
+        if missing_from_data:
+            logger.warning(
+                "Cached input_features references %d columns not in current data — "
+                "delete %s and rerun to regenerate: %s",
+                len(missing_from_data), paths["input_features"], missing_from_data[:5],
+            )
+        if new_in_data:
+            logger.warning(
+                "%d features in current data are NOT in cached input_features "
+                "(new features added since cache was written). "
+                "Delete %s to include them.",
+                len(new_in_data), paths["input_features"],
+            )
         logger.info("Loaded %d input features from %s", len(features), paths["input_features"])
         return features
     zero_var = [f for f in all_features if final_data[f].nunique() <= 1]
