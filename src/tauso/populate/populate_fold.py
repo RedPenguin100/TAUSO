@@ -8,7 +8,6 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from ..data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
-from ..parallel_utils import make_apply_fn
 from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
 from ..features.rna_access.access_calculator import (
     AccessCalculator,
@@ -16,6 +15,7 @@ from ..features.rna_access.access_calculator import (
     get_sense_with_flanks,
 )
 from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
+from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
 

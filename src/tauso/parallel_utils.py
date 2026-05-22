@@ -13,7 +13,9 @@ def init_pandarallel(n_jobs, progress_bar=False, verbose=0, use_memory_fs=True):
     try:
         from pandarallel import pandarallel
 
-        pandarallel.initialize(nb_workers=n_jobs, progress_bar=progress_bar, verbose=verbose, use_memory_fs=use_memory_fs)
+        pandarallel.initialize(
+            nb_workers=n_jobs, progress_bar=progress_bar, verbose=verbose, use_memory_fs=use_memory_fs
+        )
         return True
     except ImportError:
         logger.warning("pandarallel not found; falling back to single-core apply")

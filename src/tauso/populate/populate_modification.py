@@ -4,7 +4,6 @@ import multiprocessing
 logger = logging.getLogger(__name__)
 
 from ..data.consts import CHEMICAL_PATTERN
-from ..parallel_utils import make_apply_fn
 from ..features.sequence_modification.mod_features import (
     compute_dominant_mod_fraction,
     compute_mod_3prime_run,
@@ -27,6 +26,7 @@ from ..features.sequence_modification.mod_features import (
     compute_mod_symmetry_score,
     compute_mod_type_count,
 )
+from ..parallel_utils import make_apply_fn
 
 MODIFICATION_FEATURE_TO_CALCULATION = {
     "Modification_fraction": lambda row: compute_mod_fraction(row[CHEMICAL_PATTERN]),
