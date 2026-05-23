@@ -25,9 +25,15 @@ _RT = 0.616
 
 
 def _sum_exp_energy_by_trigger(result_df: pd.DataFrame) -> dict:
-    """Return {trigger_id: sum(exp(-RT * energy))} for every trigger in result_df."""
+    """Return {trigger_id: sum(exp(-RT * energy))} for every trigger in result_df.
+
+    Groups on a raw numpy array (no DataFrame copy). The previous
+    `result_df.assign(_exp=...)` cloned the whole frame; for cutoff=0 result
+    frames in the hundreds of MB that doubled the transient heap peak.
+    """
     exp_vals = np.exp(-_RT * result_df["energy"].to_numpy())
-    return result_df.assign(_exp=exp_vals).groupby("trigger", sort=False)["_exp"].sum().to_dict()
+    trigger_arr = result_df["trigger"].to_numpy()
+    return pd.Series(exp_vals).groupby(trigger_arr, sort=False).sum().to_dict()
 
 
 def _validate_genes_found(target_genes, gene_to_data):
