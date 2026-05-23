@@ -27,6 +27,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -61,6 +62,18 @@ def _load_json(path, missing_step):
 def _save_json(obj, path):
     with open(path, "w") as f:
         json.dump(obj, f, indent=4)
+
+
+def _apply_feature_filter(features, pattern):
+    """Exclude features whose name matches the regex pattern."""
+    if not pattern:
+        return features
+    rx = re.compile(pattern)
+    keep    = [f for f in features if not rx.search(f)]
+    dropped = [f for f in features if     rx.search(f)]
+    if dropped:
+        logger.info(f"Feature filter | excluding {len(dropped)} features matching '{pattern}' (examples: {dropped[:5]})")
+    return keep
 
 
 def _drop_zero_variance(final_data, features, dropped_log_path=None):
@@ -292,6 +305,9 @@ def main():
     parser.add_argument("--min-eval-size", type=int, default=50,
                         help="Minimum cohort size to include in evaluation metrics (default: 50). "
                              "Floored at 20 — smaller cohorts give noisy Spearman estimates.")
+    parser.add_argument("--exclude-feature-pattern", default=None,
+                        help="Regex; features whose name matches are excluded from training. "
+                             "Example: --exclude-feature-pattern '^OHE_pos' drops all positional one-hots.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
 
@@ -318,6 +334,11 @@ def main():
     logger.info("Loading data...")
     final_data, all_features = load_and_validate_final_data(version="oligo", split_source=args.split_source)
     features = _resolve_features(final_data, all_features, paths)
+    if args.exclude_feature_pattern:
+        before = len(features)
+        features = _apply_feature_filter(features, args.exclude_feature_pattern)
+        if len(features) != before:
+            _save_json(features, paths["input_features"])
     logger.info("Features: %d", len(features))
 
     data = _prep_data(final_data, features, cfg["eval_group"], cfg["select_group"],
