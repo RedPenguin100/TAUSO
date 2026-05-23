@@ -109,18 +109,31 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
         loaded_features = load_all_features(version=version, load_competition=load_competition)
     data = pd.read_csv(data_path)
 
-    # 2. Identify all columns that exist in both frames (other than the join key).
-    common_cols = sorted(set(loaded_features.columns) & set(data.columns) - {index})
+    # 2. Identify common columns to validate (excluding the join key)
+    # Based on your data: sense_start, sense_start_from_end, sense_length, etc.
+    common_cols = [
+        "sense_start",
+        "sense_start_from_end",
+        "sense_length",
+        "sense_exon",
+        "sense_intron",
+        "sense_utr",
+        "sense_type",
+    ]
 
-    # 3. Validation: ensure every shared column has identical values across sources
+    # 3. Validation: Ensure both have the columns and they are identical
     for col in common_cols:
+        if col not in loaded_features.columns or col not in data.columns:
+            raise KeyError(f"Column '{col}' missing from one of the dataframes.")
+
+        # Merge temporarily on index to align rows for comparison
         check_df = pd.merge(loaded_features[[index, col]], data[[index, col]], on=index)
+
         if not check_df[f"{col}_x"].equals(check_df[f"{col}_y"]):
             raise ValueError(f"Integrity Check Failed: '{col}' differs between sources.")
         del check_df
 
-    # 4. Drop the shared columns from `data` so the merge produces no _x/_y suffixes
-    logger.info(f"Merge dedup | {len(common_cols)} shared columns dropped from data: {common_cols}")
+    # 4. Merge: Drop redundant columns from 'data' first to avoid _x/_y
     data_to_merge = data.drop(columns=common_cols)
 
     final_data = pd.merge(loaded_features, data_to_merge, on=index)
