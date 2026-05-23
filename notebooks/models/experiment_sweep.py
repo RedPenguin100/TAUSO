@@ -415,7 +415,7 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     # noisier importance signals than the full gene×cell-line cohort.
     val_select_idx = _cohort_indices(val_df, GC, min_size=min_size)
     logger.info("  val eval cohorts (>=%d rows): %d  |  RFE select cohorts: %d",
-                min_size, len(val_eval_idx), len(val_select_idx))
+                min_eval_size, len(val_eval_idx), len(val_select_idx))
 
     # --- sample weights / target clipping ---
     weights_tr, y_tr_train = _parse_weighting(cfg.weighting, train_df, y_tr)
@@ -433,7 +433,7 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     val_optuna_groups = [
         (g.index.values, y_vl[g.index.values])
         for _, g in val_df.reset_index(drop=True).groupby(cfg.eval_cols)
-        if len(g) >= 20
+        if len(g) >= min_eval_size
     ]
     logger.info("  Optuna val groups: %d | running %d trials...", len(val_optuna_groups), cfg.n_optuna)
 
@@ -500,6 +500,9 @@ def main():
                              "'tauso' creates a stratified temporal split per gene×cell-line.")
     parser.add_argument("--min-eval-size", type=int, default=20,
                         help="Minimum cohort size for eval (default: 20). Floored at 20.")
+    parser.add_argument("--other-encoding", default="onehot", choices=["onehot", "nan"],
+                        help="'onehot' keeps Other as 1/0; 'nan' NaNs out the other delivery "
+                             "columns when Other==1 and adds a delivery_unknown flag.")
     parser.add_argument("--log-level", default="INFO",
                         choices=["DEBUG", "INFO", "WARNING"])
     args = parser.parse_args()
@@ -533,7 +536,9 @@ def main():
 
     # Load data once
     logger.info("Loading data...")
-    final_data, features = load_and_validate_final_data(version="oligo", split_source=args.split_source)
+    final_data, features = load_and_validate_final_data(version="oligo",
+                                                        split_source=args.split_source,
+                                                        other_encoding=args.other_encoding)
     all_val_df = final_data[final_data["split"] == "val"].reset_index(drop=True)
     logger.info("Data loaded | %d train rows | %d val rows | %d features",
                 (final_data["split"] == "train").sum(), len(all_val_df), len(features))
