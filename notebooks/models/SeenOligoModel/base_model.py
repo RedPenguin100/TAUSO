@@ -180,9 +180,32 @@ def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna
     return best_params
 
 
+def _pick_optimal(history, parsimony_tolerance):
+    """From an RFE history, return the smallest feature set within tolerance of peak val."""
+    df_hist = pd.DataFrame(history)
+    threshold = df_hist["val_spearman_select"].max() - parsimony_tolerance
+    return df_hist[df_hist["val_spearman_select"] >= threshold].iloc[-1]["features_list"], df_hist
+
+
+def _atomic_json_write(path, obj):
+    """JSON write via temp file + rename so a crash mid-write can't leave a partial file."""
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f, indent=4)
+    os.replace(tmp, path)
+
+
+def _atomic_csv_write(path, df):
+    """CSV write via temp file + rename so a crash mid-write can't leave a partial file."""
+    tmp = f"{path}.tmp"
+    df.to_csv(tmp, index=False)
+    os.replace(tmp, path)
+
+
 def run_backward_selection(
     train_data, val_data, test_data, features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed,
     importance_type="gain", parsimony_tolerance=PARSIMONY_TOLERANCE, device="cpu",
+    history_path=None, optimal_path=None,
 ):
     X_train, y_train, y_train_np = train_data
     X_val, y_val = val_data
@@ -234,31 +257,39 @@ def run_backward_selection(
             "val_spearman_select": val_spear,
         }
 
+        stop_reason = None
         if val_spear < max_spearman - EARLY_STOP_DROP:
             logger.info("Early stop: val %.4f dropped %.2f below peak %.4f", val_spear, EARLY_STOP_DROP, max_spearman)
             row["dropped_features"] = []
-            history.append(row)
-            break
-
-        if len(current_features) == 1:
+            stop_reason = "early_stop_drop"
+        elif len(current_features) == 1:
             row["dropped_features"] = current_features
-            history.append(row)
-            pbar.update(1)
+            stop_reason = "single_feature_remaining"
+        else:
+            if importance_type == "permutation":
+                imp = _permutation_importance(bst, Xvl, y_val, val_select_idx, current_features, seed=seed)
+            else:
+                raw = bst.get_score(importance_type="gain")
+                imp = {f: raw.get(f, 0.0) for f in current_features}
+            ranked = sorted(imp.items(), key=lambda x: x[1])
+            drop_n = min(5 if len(current_features) > 100 else 1, len(current_features) - 1)
+            to_drop = [f for f, _ in ranked[:drop_n]]
+            logger.debug("Dropping %d: %s", drop_n, to_drop)
+            row["dropped_features"] = to_drop
+
+        history.append(row)
+        optimal_so_far, df_hist = _pick_optimal(history, parsimony_tolerance)
+        if history_path is not None:
+            _atomic_csv_write(history_path, df_hist)
+        if optimal_path is not None:
+            _atomic_json_write(optimal_path, optimal_so_far)
+
+        if stop_reason is not None:
+            if stop_reason == "single_feature_remaining":
+                pbar.update(1)
             break
 
-        if importance_type == "permutation":
-            imp = _permutation_importance(bst, Xvl, y_val, val_select_idx, current_features, seed=seed)
-        else:
-            raw = bst.get_score(importance_type="gain")
-            imp = {f: raw.get(f, 0.0) for f in current_features}
-        ranked = sorted(imp.items(), key=lambda x: x[1])
-        drop_n = min(5 if len(current_features) > 100 else 1, len(current_features) - 1)
-        to_drop = [f for f, _ in ranked[:drop_n]]
-        logger.debug("Dropping %d: %s", drop_n, to_drop)
-
-        row["dropped_features"] = to_drop
-        history.append(row)
-        current_features = [f for f in current_features if f not in to_drop]
+        current_features = [f for f in current_features if f not in row["dropped_features"]]
         pbar.update(1)
 
         del dtrain, bst, Xtr, Xvl, Xte
@@ -268,10 +299,7 @@ def run_backward_selection(
 
     pbar.close()
 
-    df_hist = pd.DataFrame(history)
-    threshold = df_hist["val_spearman_select"].max() - parsimony_tolerance
-    optimal = df_hist[df_hist["val_spearman_select"] >= threshold].iloc[-1]["features_list"]
-
+    optimal, df_hist = _pick_optimal(history, parsimony_tolerance)
     logger.info("RFE complete | selected=%d / %d | best_val=%.4f", len(optimal), len(features), df_hist["val_spearman_select"].max())
     return optimal, df_hist
 
