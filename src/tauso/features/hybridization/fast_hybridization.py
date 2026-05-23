@@ -167,6 +167,97 @@ def get_triggers_mfe_scores_batch(
             query_path.unlink()
 
 
+def stream_triggers_mfe_hits(
+    trigger_id_seq_pairs: List[Tuple[str, str]],
+    target_file_path,
+    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
+    minimum_score: int = 900,
+    neighborhood: int = 0,
+    parsing_type="2",
+    transpose=False,
+    batch_id=None,
+    parse_chunk_rows: int = 100_000,
+):
+    """Streaming counterpart to get_triggers_mfe_scores_batch.
+
+    Yields pandas DataFrames (chunks of `parse_chunk_rows` rows each) with
+    columns ['trigger', 'energy'] parsed directly from the RIsearch subprocess
+    stdout via pd.read_csv(chunksize=...). This combines:
+
+      - Bounded memory (one chunk in flight, vs the full TSV materialized
+        by get_triggers_mfe_scores_batch + parse_risearch_output)
+      - C-level parsing speed (pd.read_csv is much faster than pure-Python
+        line iteration on multi-million-line outputs)
+
+    Assumes parsing_type="2" — the standard 8-column TSV emitted by the
+    scoring callers: trigger, t_start, t_end, target, ta_start, ta_end, score, energy.
+    Only `trigger` and `energy` are loaded (`usecols`) to halve parse cost.
+    """
+    if not trigger_id_seq_pairs:
+        return
+
+    TMP_PATH.mkdir(parents=True, exist_ok=True)
+    if batch_id is None:
+        batch_id = uuid.uuid4().hex
+
+    query_path = (TMP_PATH / f"query-stream-{batch_id}.fa").resolve()
+    lines: List[str] = []
+    for query_id, trigger in trigger_id_seq_pairs:
+        lines.append(f">{query_id}")
+        lines.append(get_antisense_rna(trigger))
+    query_path.write_text("\n".join(lines) + "\n")
+
+    mode = _interaction_mode(interaction_type)
+    args = _build_risearch_args(
+        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
+    )
+
+    columns = [
+        "trigger", "trigger_start", "trigger_end",
+        "target", "target_start", "target_end",
+        "score", "energy",
+    ]
+
+    try:
+        import pandas as pd
+
+        with subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            cwd=str(TMP_PATH),
+            bufsize=-1,
+        ) as proc:
+            try:
+                for chunk_df in pd.read_csv(
+                    proc.stdout,
+                    sep="\t",
+                    header=None,
+                    names=columns,
+                    usecols=["trigger", "energy"],
+                    dtype={"trigger": "string", "energy": "float64"},
+                    chunksize=parse_chunk_rows,
+                ):
+                    yield chunk_df
+            except pd.errors.EmptyDataError:
+                # No hits at all — RIsearch produced empty stdout.
+                pass
+            finally:
+                # Drain any remaining bytes pandas didn't read so RIsearch can exit
+                if proc.stdout is not None and not proc.stdout.closed:
+                    try:
+                        proc.stdout.read()
+                    except Exception:
+                        pass
+            rc = proc.wait()
+            if rc != 0:
+                raise subprocess.CalledProcessError(rc, args)
+    finally:
+        if query_path.exists():
+            query_path.unlink()
+
+
 def _parse_mfe_scores_2(result):
     if not result:
         return [[]]
