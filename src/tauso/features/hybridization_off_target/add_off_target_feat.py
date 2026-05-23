@@ -232,9 +232,7 @@ def _compute_group_batch_streaming(group_df, seq_map, exp_map, cutoff, method, p
         ):
             if hit_df.empty:
                 continue
-            chunk_min = (
-                hit_df.groupby(["trigger", "target"], sort=False)["energy"].min()
-            )
+            chunk_min = hit_df.groupby(["trigger", "target"], sort=False)["energy"].min()
             for key, e in chunk_min.items():  # key is (trigger, target) tuple
                 v = float(e)
                 existing = min_energy.get(key)

@@ -100,11 +100,7 @@ def _score_one_gene_streaming(gene, row_triggers, target_path, cutoff, chunk_siz
             if hit_df.empty:
                 continue
             exp_vals = np.exp(-_RT * hit_df["energy"].to_numpy())
-            partial = (
-                pd.Series(exp_vals)
-                .groupby(hit_df["trigger"].to_numpy(), sort=False)
-                .sum()
-            )
+            partial = pd.Series(exp_vals).groupby(hit_df["trigger"].to_numpy(), sort=False).sum()
             # Sum across chunks for the same trigger (rare but possible if a
             # trigger straddles the chunksize boundary).
             for k, v in partial.items():
@@ -183,9 +179,7 @@ def _apply_risearch_scoring(
             with ThreadPoolExecutor(max_workers=effective_workers) as pool:
                 futures = [
                     (
-                        pool.submit(
-                            _score_one_gene, gene, sub_triggers, target_path, cutoff, stream=stream
-                        ),
+                        pool.submit(_score_one_gene, gene, sub_triggers, target_path, cutoff, stream=stream),
                         gene,
                     )
                     for gene, sub_triggers, target_path in tasks
@@ -194,9 +188,7 @@ def _apply_risearch_scoring(
                     gene_scores[gene].update(fut.result())
         else:
             for gene, sub_triggers, target_path in tasks:
-                gene_scores[gene].update(
-                    _score_one_gene(gene, sub_triggers, target_path, cutoff, stream=stream)
-                )
+                gene_scores[gene].update(_score_one_gene(gene, sub_triggers, target_path, cutoff, stream=stream))
 
         scores = pd.Series(0.0, index=aso_df.index)
         for gene, row_triggers in gene_to_row_triggers.items():
@@ -239,9 +231,7 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbos
     )
 
 
-def off_target_specific_seq_pandarallel(
-    aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=True
-):
+def off_target_specific_seq_pandarallel(aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=True):
     """Scores each oligo against a single statically provided gene.
 
     stream=True (the default) uses the line-streaming RIsearch parser:

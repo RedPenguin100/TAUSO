@@ -1,5 +1,6 @@
 import logging
 import uuid
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -8,7 +9,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from ..data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
-from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
+from ..features.fold.vienna_fold import calculate_avg_mfe_per_step
 from ..features.rna_access.access_calculator import (
     AccessCalculator,
     get_cache,
@@ -60,37 +61,49 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
         gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data
     }
 
-    apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
+    # Group settings by (flank, window). Every entry in a group reuses the same
+    # sub-sequence cut and the same set of folded windows; only the `step` grid
+    # differs. Doing the apply once across all settings (rather than once per
+    # setting) lets us share that work and pays the parallel-dispatch overhead
+    # exactly once.
+    steps_by_window = defaultdict(list)
+    for flank_size, window_size, step in settings:
+        steps_by_window[(flank_size, window_size)].append(step)
 
-    feature_names = []
-    for setting in settings:
-        flank_size, window_size, step = setting
-        logger.debug("Starting MFE population with Flank=%d, Window=%d, Step=%d", flank_size, window_size, step)
-        feature_name = f"mfe_win{window_size}_flank{flank_size}_step{step}"
-        feature_names.append(feature_name)
+    feature_names = [f"mfe_win{w}_flank{f}_step{s}" for f, w, s in settings]
 
-        def _process_row(row, flank_size=flank_size, window_size=window_size, step=step):
-            gene_name = row[CANONICAL_GENE]
-            global_start = row[SENSE_START]
-            sense_len = row[SENSE_LENGTH]
-            if gene_name not in lightweight_gene_to_data or global_start == -1:
-                return np.nan
-            full_mrna = lightweight_gene_to_data[gene_name]
+    def _process_row(row):
+        gene_name = row[CANONICAL_GENE]
+        global_start = row[SENSE_START]
+        sense_len = row[SENSE_LENGTH]
+
+        out = {name: np.nan for name in feature_names}
+        if gene_name not in lightweight_gene_to_data or global_start == -1:
+            return out
+        full_mrna = lightweight_gene_to_data[gene_name]
+
+        for (flank_size, window_size), steps in steps_by_window.items():
             cut_start = max(0, global_start - flank_size)
             cut_end = min(len(full_mrna), global_start + sense_len + flank_size)
             sub_sequence = full_mrna[cut_start:cut_end]
             if len(sub_sequence) < window_size:
-                return np.nan
-            return calculate_avg_mfe_over_sense_region(
+                continue
+            step_to_value = calculate_avg_mfe_per_step(
                 sequence=sub_sequence,
                 sense_start_in_flank=(global_start - cut_start),
                 sense_length=sense_len,
                 window_size=window_size,
-                step=step,
+                steps=steps,
             )
+            for step, value in step_to_value.items():
+                out[f"mfe_win{window_size}_flank{flank_size}_step{step}"] = value
+        return out
 
-        df[feature_name] = apply_fn(_process_row, axis=1)
-
+    apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
+    results = apply_fn(_process_row, axis=1)
+    results_df = pd.DataFrame(list(results), index=df.index)
+    for name in feature_names:
+        df[name] = results_df[name]
     return df, feature_names
 
 
