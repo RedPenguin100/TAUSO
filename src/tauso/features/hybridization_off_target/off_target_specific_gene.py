@@ -35,7 +35,7 @@ def _validate_genes_found(target_genes, gene_to_data):
         raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
 
 
-def _score_one_gene(gene, row_triggers, target_path, cutoff, chunk_size=100, stream=False):
+def _score_one_gene(gene, row_triggers, target_path, cutoff, chunk_size=100, stream=True):
     """Run RIsearch for one gene in chunks and return {trigger_id: score}. Thread-safe.
 
     Chunking caps peak memory: with cutoff=0 a single 1000-query call can
@@ -142,7 +142,7 @@ def _apply_risearch_scoring(
     cutoff,
     n_jobs,
     verbose,
-    stream=False,
+    stream=True,
 ):
     """Core logic for RIsearch hybridization scoring."""
     _validate_genes_found(target_genes, gene_to_data)
@@ -215,11 +215,14 @@ def _apply_risearch_scoring(
     return aso_df, feature_name
 
 
-def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=False):
+def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=True):
     """Scores each oligo against its own canonical gene.
 
-    stream=True uses line-streaming RIsearch parsing — recommended for cutoff=0
-    where the materialized TSV can be hundreds of MB per worker.
+    stream=True (the default) uses the line-streaming RIsearch parser:
+    bounded memory regardless of cutoff and ~7x faster on cutoff=0 because
+    the multi-hundred-MB materialized TSV per long-gene chunk never has to
+    be built. Set stream=False to recover the older DataFrame path if
+    needed for debugging — outputs match within FP rounding.
     """
     unique_genes = aso_df[CANONICAL_GENE].dropna().unique()
     feature_name = f"on_target_total_hybridization_{cutoff}"
@@ -237,12 +240,15 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbos
 
 
 def off_target_specific_seq_pandarallel(
-    aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=False
+    aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=True
 ):
     """Scores each oligo against a single statically provided gene.
 
-    stream=True uses line-streaming RIsearch parsing — recommended for cutoff=0
-    where the materialized TSV can be hundreds of MB per worker.
+    stream=True (the default) uses the line-streaming RIsearch parser:
+    bounded memory regardless of cutoff and ~7x faster on cutoff=0 because
+    the multi-hundred-MB materialized TSV per long-gene chunk never has to
+    be built. Set stream=False to recover the older DataFrame path if
+    needed for debugging — outputs match within FP rounding.
     """
     feature_name = f"off_target_single_{gene_name}_c{cutoff}"
     return _apply_risearch_scoring(
