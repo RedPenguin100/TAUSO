@@ -63,11 +63,40 @@ def _save_json(obj, path):
         json.dump(obj, f, indent=4)
 
 
+def _drop_zero_variance(final_data, features, dropped_log_path=None):
+    """Drop features with <=1 unique non-NaN value (cannot inform tree splits).
+
+    Returns the kept feature list. If dropped_log_path is given and anything was
+    dropped, writes a JSON mapping {feature: constant_value} ("NaN" for all-NaN
+    columns) so the dropped set is inspectable after the run.
+    """
+    dropped = {}
+    keep = []
+    for f in features:
+        unique = final_data[f].dropna().unique()
+        if len(unique) > 1:
+            keep.append(f)
+        elif len(unique) == 1:
+            dropped[f] = float(unique[0])
+        else:
+            dropped[f] = "NaN"
+
+    if dropped:
+        logger.info("Zero-variance filter: dropped %d / %d features: %s",
+                    len(dropped), len(features), list(dropped.keys()))
+        if dropped_log_path is not None:
+            _save_json(dropped, dropped_log_path)
+            logger.info("Dropped-features log -> %s", dropped_log_path)
+    return keep
+
+
 def _resolve_features(final_data, all_features, paths):
     """Return filtered feature list, saving to disk on first call and loading on subsequent ones.
 
     If the cache exists but is stale (columns missing from data, or new columns in data
     that weren't there when the cache was written), the cache is automatically regenerated.
+    The zero-variance filter is applied on every call so newly-constant columns get
+    dropped even when the cache is reused.
     """
     if paths["input_features"].exists():
         cached = _load_json(paths["input_features"], "tune")
@@ -83,12 +112,13 @@ def _resolve_features(final_data, all_features, paths):
             paths["input_features"].unlink()
         else:
             logger.info("Loaded %d input features from %s", len(cached), paths["input_features"])
-            return cached
+            features = _drop_zero_variance(final_data, cached, paths["dropped_features"])
+            if len(features) != len(cached):
+                _save_json(features, paths["input_features"])
+                logger.info("Cache updated after zero-variance filter -> %s", paths["input_features"])
+            return features
 
-    zero_var = [f for f in all_features if final_data[f].nunique() <= 1]
-    features = [f for f in all_features if f not in zero_var]
-    if zero_var:
-        logger.info("Dropped %d constant features: %s", len(zero_var), zero_var)
+    features = _drop_zero_variance(final_data, all_features, paths["dropped_features"])
     _save_json(features, paths["input_features"])
     logger.info("%d input features saved -> %s", len(features), paths["input_features"])
     return features
@@ -107,6 +137,7 @@ def _intermediate_paths(args):
         "name":             name,
         "model_base":       str(args.output / f"Model_Oligo_{name}.json"),
         "input_features":   args.output / f"input_features_{name}.json",
+        "dropped_features": args.output / f"dropped_features_{name}.json",
         "best_params":      args.output / f"best_params_{name}.json",
         "optimal_features": args.output / f"optimal_features_{name}.json",
         "rfe_history":      args.output / f"Model_Oligo_{name}_RFE_History.csv",
