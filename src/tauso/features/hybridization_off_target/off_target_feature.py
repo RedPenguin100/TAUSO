@@ -63,8 +63,15 @@ def _run_tasks_parallel(tasks, fn, n_jobs):
 
 
 def populate_off_target_specific(
-    ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method,
-    n_jobs=1, chunk_size=250, stream=True,
+    ASO_df,
+    gene_to_data,
+    cell_line2data,
+    top_n_list,
+    cutoff_list,
+    method,
+    n_jobs=1,
+    chunk_size=250,
+    stream=True,
 ):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.

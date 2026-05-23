@@ -215,9 +215,14 @@ def stream_triggers_mfe_hits(
     )
 
     columns = [
-        "trigger", "trigger_start", "trigger_end",
-        "target", "target_start", "target_end",
-        "score", "energy",
+        "trigger",
+        "trigger_start",
+        "trigger_end",
+        "target",
+        "target_start",
+        "target_end",
+        "score",
+        "energy",
     ]
     usecols_list = list(usecols)
     dtype_map = {"trigger": "string", "target": "string", "energy": "float64"}
