@@ -17,8 +17,7 @@ def _load_scorer() -> TrnaAdaptationIndex:
     path = os.path.join(get_data_dir(), HUMAN_TGCN_FILENAME)
     if not os.path.exists(path):
         raise FileNotFoundError(
-            f"Missing tGCN file at {path}. Run 'tauso setup-tgcn' (or 'tauso setup-omics') "
-            "to download it from GtRNAdb."
+            f"Missing tGCN file at {path}. Run 'tauso setup-tgcn' (or 'tauso setup-omics') to download it from GtRNAdb."
         )
     tGCN = pd.read_csv(path)
     return TrnaAdaptationIndex(tGCN=tGCN, s_values="dosReis", genetic_code=1)
