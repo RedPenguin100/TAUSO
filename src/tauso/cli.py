@@ -194,19 +194,22 @@ DEFAULT_COHORT_CELLS = (
 @click.argument("cell_names", nargs=-1)
 @click.option("--reset", is_flag=True, help="Clear existing cohort before adding.")
 @click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
+@click.option("--cai/--no-cai", default=True, help="Build CAI weights (default: enabled).")
 @click.option("--force", is_flag=True, help="Force CAI weights recomputation.")
 @click.pass_context
-def build_cell_context(ctx, cell_names, reset, genome, force):
+def build_cell_context(ctx, cell_names, reset, genome, cai, force):
     """
     Build all per-cell-line reference data needed by downstream feature
     computation: register cells, extract per-cell expression files, and
-    compute CAI weights.
+    (by default) compute CAI weights.
 
     Bare invocation uses the default cohort. Pass cell names to use a
-    custom cohort; pass --reset to replace an existing cohort.
+    custom cohort; pass --reset to replace an existing cohort; pass
+    --no-cai to skip the CAI weight computation step.
 
     Example:
-      tauso build-cell-context                            # default cohort
+      tauso build-cell-context                            # default cohort, with CAI
+      tauso build-cell-context --no-cai                   # skip CAI
       tauso build-cell-context HEPG2 SNU449 HELA          # custom cohort (append)
       tauso build-cell-context --reset HEPG2 SNU449       # custom cohort (replace)
     """
@@ -232,9 +235,10 @@ def build_cell_context(ctx, cell_names, reset, genome, force):
     click.echo(click.style("=== build-cell-context: cohort expression ===", bold=True))
     ctx.invoke(build_cohort_expression, genome=genome)
     click.echo()
-    click.echo(click.style("=== build-cell-context: CAI weights ===", bold=True))
-    ctx.invoke(build_cai_weights, top_n=300, top_n_generic=500, genome=genome, force=force)
-    click.echo()
+    if cai:
+        click.echo(click.style("=== build-cell-context: CAI weights ===", bold=True))
+        ctx.invoke(build_cai_weights, top_n=300, top_n_generic=500, genome=genome, force=force)
+        click.echo()
     echo_ok("build-cell-context complete.")
 
 
