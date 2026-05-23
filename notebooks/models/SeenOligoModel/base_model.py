@@ -262,7 +262,7 @@ def run_backward_selection(
         pbar.update(1)
 
         del dtrain, bst, Xtr, Xvl, Xte
-        if hasattr(cp, "get_default_memory_pool"):
+        if device == "cuda" and _CUPY_AVAILABLE and hasattr(cp, "get_default_memory_pool"):
             cp.get_default_memory_pool().free_all_blocks()
         gc.collect()
 
