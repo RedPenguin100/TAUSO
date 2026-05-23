@@ -147,17 +147,14 @@ jobs:
       - name: Setup DepMap
         run: tauso setup-depmap
 
-      - name: Build cell context (default cohort + expression + CAI weights)
-        run: tauso build-cell-context
-
       - name: Cache human tGCN
         uses: actions/cache@v4
         with:
           path: ${{ env.TAUSO_DATA_DIR }}/human_tgcn_hsapi38.csv
           key: human-tgcn-hsapi38-v1
 
-      - name: Setup human tGCN
-        run: tauso setup-tgcn
+      - name: Build cell context (default cohort + expression + CAI weights + tGCN)
+        run: tauso build-cell-context
 
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
