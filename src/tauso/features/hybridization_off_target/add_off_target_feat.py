@@ -15,6 +15,7 @@ from ..hybridization.fast_hybridization import (
     dump_target_file,
     get_trigger_mfe_scores_by_risearch,
     get_triggers_mfe_scores_batch,
+    stream_triggers_mfe_hits,
 )
 from .off_target_functions import aggregate_off_targets, parse_risearch_output
 
@@ -145,13 +146,23 @@ def _score_triggers(hits_by_trigger: dict, indices, exp_map, method) -> pd.Serie
     return scores
 
 
-def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=None):
+def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=None, stream=False):
     """Batch version of compute_single_row: one RIsearch call for the entire group.
 
     prebuilt_target_path: if provided, the caller owns the file lifecycle.
+    stream=True uses line-streaming pd.read_csv on RIsearch stdout so peak
+    memory is bounded by the parse chunksize, not by the size of the full
+    TSV. Output matches the materialized path within FP rounding.
+
+    Default is False at this layer so existing unit-test mocks of
+    get_triggers_mfe_scores_batch still exercise the function under test.
+    The public populate_* callers default stream=True.
     """
     if group_df.empty:
         return pd.Series(dtype=float)
+
+    if stream:
+        return _compute_group_batch_streaming(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path)
 
     TMP_PATH.mkdir(exist_ok=True)
 
@@ -185,3 +196,67 @@ def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_tar
     del result
 
     return _score_triggers(hits_by_trigger, indices, exp_map, method)
+
+
+def _compute_group_batch_streaming(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=None):
+    """Streaming variant of compute_group_batch.
+
+    Folds streaming RIsearch hit chunks into a {(trigger, target): min_energy}
+    dict on the fly, then runs the self-target filter and scoring at the end.
+    Memory stays bounded by the pd.read_csv chunksize regardless of cutoff.
+    """
+    TMP_PATH.mkdir(exist_ok=True)
+
+    _owns_target = prebuilt_target_path is None
+    target_path = (
+        dump_target_file(f"target-batch-{uuid.uuid4().hex}.fa", seq_map) if _owns_target else prebuilt_target_path
+    )
+
+    indices = group_df.index.tolist()
+    sequences = group_df[SEQUENCE].tolist()
+    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, sequences)]
+    idx_to_gene = {str(i): g for i, g in zip(group_df.index, group_df[CANONICAL_GENE])}
+
+    min_energy: dict = {}  # (trigger, target) -> min energy across all hits
+
+    try:
+        for hit_df in stream_triggers_mfe_hits(
+            trigger_id_seq_pairs=query_pairs,
+            target_file_path=target_path,
+            minimum_score=cutoff,
+            parsing_type="2",
+            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+            transpose=True,
+            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+            usecols=("trigger", "target", "energy"),
+        ):
+            if hit_df.empty:
+                continue
+            chunk_min = (
+                hit_df.groupby(["trigger", "target"], sort=False)["energy"].min()
+            )
+            for key, e in chunk_min.items():  # key is (trigger, target) tuple
+                v = float(e)
+                existing = min_energy.get(key)
+                if existing is None or v < existing:
+                    min_energy[key] = v
+    finally:
+        if _owns_target and os.path.exists(target_path):
+            os.remove(target_path)
+
+    if not min_energy:
+        return pd.Series(0.0, index=group_df.index, dtype=float)
+
+    # Group by trigger, filter out self-targets, build {trigger: {target: energy}}
+    trigger_to_energies: dict = {}
+    for (trig, tgt), e in min_energy.items():
+        if tgt == idx_to_gene.get(trig):
+            continue  # self-hit
+        trigger_to_energies.setdefault(trig, {})[tgt] = e
+
+    scores = pd.Series(0.0, index=indices, dtype=float)
+    for idx in indices:
+        energies = trigger_to_energies.get(str(idx))
+        if energies:
+            scores[idx] = calculate_score_helper(energies, exp_map, method)
+    return scores
