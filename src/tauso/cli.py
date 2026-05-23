@@ -1,7 +1,4 @@
 import gzip
-import hashlib
-import io
-import itertools
 import json
 import logging
 import os
@@ -17,10 +14,19 @@ import click
 import gdown
 import gffutils
 import pandas as pd
-import requests
 from gffutils.iterators import DataIterator
 from pyfaidx import Fasta
 
+from tauso.cli_utils import (
+    count_lines,
+    download_and_gunzip,
+    download_with_progress,
+    echo_err,
+    echo_ok,
+    echo_warn,
+    sha1_file,
+    verify_hash_or_exit,
+)
 from tauso.data.data import get_data_dir, get_paths
 from tauso.features.codon_usage.cai import calc_CAI_weight
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
@@ -44,193 +50,110 @@ def main():
     )
 
 
-def download_and_gunzip(url, dest_path, remove_gz=False):
-    if os.path.exists(dest_path):
-        click.echo(f"  File already exists: {os.path.basename(dest_path)}")
-        return
-
-    try:
-        click.echo(f"  Downloading {os.path.basename(url)}...")
-        temp_gz = dest_path + ".gz"
-
-        with requests.get(url, stream=True, timeout=30) as r:
-            r.raise_for_status()
-            total_size = int(r.headers.get("content-length", 0))
-
-            with open(temp_gz, "wb") as f:
-                with click.progressbar(length=total_size, label="    Downloading") as bar:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                        bar.update(len(chunk))
-
-        click.echo(f"  Unzipping to {os.path.basename(dest_path)}...")
-        with gzip.open(temp_gz, "rb") as f_in:
-            with open(dest_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        if remove_gz:
-            os.remove(temp_gz)
-    except Exception as e:
-        if os.path.exists(dest_path):
-            os.remove(dest_path)
-        if os.path.exists(temp_gz):
-            os.remove(temp_gz)
-        raise e
+# Zenodo-mirrored DepMap "Public 25Q3" snapshot. DepMap silently re-uploads files
+# under the same release name, so we pin to an immutable Zenodo record and verify
+# the SHA1 of each download.
+ZENODO_DEPMAP_RECORD = "20355477"
+DEPMAP_FILES_SHA1 = {
+    "Model.csv": "4e9805ecf79d187e1fb5d4c760312e5a40729e34",
+    "OmicsProfiles.csv": "fc5a1ed86ea89f805d56715f439e9738b3e28a72",
+    "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "22ac03aa45a6b9ef4f60e9ed8bb574e64dcb56f6",
+}
 
 
-def count_lines(filepath):
-    with open(filepath, "rb") as f:
-        return sum(1 for line in f if not line.startswith(b"#"))
+def _zenodo_file_url(record_id: str, filename: str) -> str:
+    return f"https://zenodo.org/records/{record_id}/files/{filename}"
 
 
-def batch_iterator(iterator, batch_size=1000):
-    while True:
-        batch = list(itertools.islice(iterator, batch_size))
-        if not batch:
-            break
-        yield batch
+def _ensure_depmap_file(filename: str, expected_sha1: str, data_dir: str, force: bool) -> bool:
+    """Ensure `filename` exists in `data_dir` with the pinned SHA1. Returns True if the file
+    was (re-)downloaded, False if an existing valid copy was reused."""
+    dest = os.path.join(data_dir, filename)
 
+    if os.path.exists(dest) and not force:
+        if sha1_file(dest) == expected_sha1:
+            echo_ok(f"{filename} exists (SHA1 verified).")
+            return False
+        echo_warn(f"SHA1 mismatch for {filename} — re-downloading.")
 
-def _sha256_file(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-# Pinned SHA1 of the DepMap "Public 25Q3" OmicsExpressionTPMLogp1HumanAllGenesStranded.csv
-# captured on 2026-05-23. DepMap silently re-uploads files under the same release name,
-# so this fingerprint exists to detect such drift. To be replaced with a fetch from an
-# immutable mirror (e.g. Zenodo) once one is set up.
-EXPECTED_OMICS_EXPRESSION_CSV_SHA1 = "22ac03aa45a6b9ef4f60e9ed8bb574e64dcb56f6"
+    url = _zenodo_file_url(ZENODO_DEPMAP_RECORD, filename)
+    click.echo(f"Downloading {filename} from Zenodo...")
+    download_with_progress(url, dest, label=f"    {filename}")
+    verify_hash_or_exit(dest, expected_sha1, algo="sha1")
+    echo_ok(f"Downloaded {filename} (SHA1 verified).")
+    return True
 
 
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
 def setup_depmap(force):
     """
-    Downloads DepMap Public 25Q3 data directly from the DepMap API.
-    Auto-fetches fresh signed URLs to ensure downloads work.
-    OmicsExpression is additionally converted to Parquet after download; the original CSV is retained
-    so its hash can be verified against a pinned reference.
+    Downloads DepMap Public 25Q3 data from a pinned Zenodo mirror
+    (https://zenodo.org/records/20355477), verifying each file's SHA1.
+    The OmicsExpression CSV is additionally converted to Parquet for fast loading;
+    both the CSV and Parquet are retained on disk.
     """
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
 
-    RELEASE = "DepMap Public 25Q3"
-    TARGET_FILES = {
-        "Model.csv": "Model.csv",
-        "OmicsProfiles.csv": "OmicsProfiles.csv",
-        "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv",
-    }
-    # These CSVs are additionally converted to Parquet; the original CSV is kept on disk.
-    CONVERT_TO_PARQUET = {"OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"}
+    click.echo("Initializing DepMap setup (Zenodo mirror of DepMap Public 25Q3)...")
 
-    click.echo(f"Initializing DepMap setup for: {RELEASE}")
+    for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
+        _ensure_depmap_file(filename, expected_sha1, data_dir, force)
 
-    # Check what needs downloading before hitting the API
-    to_download = {
-        remote: local
-        for remote, local in TARGET_FILES.items()
-        if force or not os.path.exists(os.path.join(data_dir, local))
-    }
-
-    if not to_download:
-        click.echo("✓ All DepMap files already present.")
-        click.echo("\nDepMap setup complete.")
-        return
-
-    # Only fetch the index if we actually need to download something
-    click.echo("Fetching fresh download URLs from DepMap API...")
-
-    headers = {"User-Agent": "Mozilla/5.0"}
-    index_url = "https://depmap.org/portal/api/download/files"
-
-    try:
-        r = requests.get(index_url, headers=headers)
-        r.raise_for_status()
-        index_df = pd.read_csv(io.StringIO(r.text))
-    except Exception as e:
-        click.echo(click.style(f"❌ Error fetching DepMap index: {e}", fg="red"))
-        sys.exit(1)
-
-    release_df = index_df[index_df["release"] == RELEASE]
-    if release_df.empty:
-        click.echo(click.style(f"❌ Release '{RELEASE}' not found in API.", fg="red"))
-        click.echo(f"Available releases: {index_df['release'].unique()[:5]}...")
-        sys.exit(1)
-
-    # Check if the API provides checksums (column may be named 'md5', 'sha256', etc.)
-    checksum_col = next((c for c in release_df.columns if c.lower() in ("md5", "sha256", "checksum")), None)
-
-    for remote_name, local_name in TARGET_FILES.items():
-        dest = os.path.join(data_dir, local_name)
-        sha256_dest = dest + ".sha256"
-
-        if local_name in CONVERT_TO_PARQUET:
-            parquet_dest = dest.replace(".csv", ".parquet")
-            # If CSV exists but parquet does not, build the parquet alongside it.
-            if os.path.exists(dest) and not os.path.exists(parquet_dest):
-                click.echo(f"  Converting {local_name} to Parquet...")
-                pd.read_csv(dest).to_parquet(parquet_dest, index=False)
-                click.echo(click.style(f"✓ Converted {local_name} → parquet (CSV kept).", fg="green"))
-            if os.path.exists(parquet_dest) and os.path.exists(dest) and not force:
-                click.echo(f"✓ {local_name} (CSV + parquet) exists.")
-                continue
-        else:
-            if os.path.exists(dest) and not force:
-                # Verify stored SHA256 if available
-                if os.path.exists(sha256_dest):
-                    with open(sha256_dest) as fh:
-                        stored = fh.read().strip()
-                    if _sha256_file(dest) != stored:
-                        click.echo(click.style(f"⚠ SHA256 mismatch for {local_name} — re-downloading.", fg="yellow"))
-                    else:
-                        click.echo(f"✓ {local_name} exists (SHA256 verified).")
-                        continue
-                else:
-                    click.echo(f"✓ {local_name} exists.")
-                    continue
-
-        file_row = release_df[release_df["filename"] == remote_name]
-        if file_row.empty:
-            click.echo(click.style(f"⚠ Warning: '{remote_name}' not found in {RELEASE}.", fg="yellow"))
-            continue
-
-        download_url = file_row.iloc[0]["url"]
-        expected_checksum = file_row.iloc[0].get(checksum_col) if checksum_col else None
-
-        click.echo(f"Downloading {local_name}...")
-        try:
-            subprocess.run(
-                ["wget", "-q", "--show-progress", "-U", "Mozilla/5.0", "-O", dest, download_url],
-                check=True,
-            )
-        except subprocess.CalledProcessError:
-            click.echo(click.style(f"❌ Failed to download {local_name}", fg="red"))
-            if os.path.exists(dest):
-                os.remove(dest)
-            continue
-
-        # SHA256 verification
-        actual_sha256 = _sha256_file(dest)
-        if expected_checksum and expected_checksum.lower() != actual_sha256:
-            click.echo(click.style(f"❌ Checksum mismatch for {local_name}! Deleting.", fg="red"))
-            os.remove(dest)
-            continue
-        with open(sha256_dest, "w") as fh:
-            fh.write(actual_sha256)
-        click.echo(click.style(f"✓ Downloaded {local_name} (SHA256 saved).", fg="green"))
-
-        if local_name in CONVERT_TO_PARQUET:
-            click.echo(f"  Converting {local_name} to Parquet...")
-            pd.read_csv(dest).to_parquet(parquet_dest, index=False)
-            click.echo(click.style(f"✓ Converted to Parquet (CSV kept).", fg="green"))
+    # OmicsExpression: maintain a parquet alongside the CSV for fast loading.
+    omics_csv = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv")
+    omics_parquet = omics_csv.replace(".csv", ".parquet")
+    if not os.path.exists(omics_parquet) or force:
+        click.echo("  Converting OmicsExpression CSV to Parquet...")
+        pd.read_csv(omics_csv).to_parquet(omics_parquet, index=False)
+        echo_ok("Converted to Parquet (CSV kept).")
 
     click.echo("\nDepMap setup complete.")
 
 
-import re
+@main.command(name="setup-omics")
+@click.option("--force", is_flag=True, help="Force redownload of all omics datasets.")
+@click.pass_context
+def setup_omics(ctx, force):
+    """
+    Set up all omics datasets: DepMap (cell-line metadata, profiles, expression)
+    and mRNA half-life data. Use 'build-cohort-expression' afterwards to derive
+    per-cohort expression files.
+    """
+    click.echo(click.style("=== setup-omics: DepMap ===", bold=True))
+    ctx.invoke(setup_depmap, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: mRNA half-life ===", bold=True))
+    ctx.invoke(setup_mrna_halflife, force=force)
+    click.echo()
+    echo_ok("Omics setup complete.")
+
+
+@main.command(name="setup-all")
+@click.option("--genome", default="GRCh38", help="Genome to set up (default: GRCh38).")
+@click.option("--force", is_flag=True, help="Force redownload of every dataset.")
+@click.option("--threads", "-t", default=1, help="Threads for bowtie index build (default: 1).")
+@click.option("--mem-per-thread", default=800, help="Max MB/thread for bowtie (default: 800).")
+@click.pass_context
+def setup_all(ctx, genome, force, threads, mem_per_thread):
+    """
+    End-to-end setup: genome + bowtie + omics + raccess. Idempotent — already-present
+    datasets are verified by hash and skipped unless --force is given.
+    """
+    click.echo(click.style("=== setup-all: genome ===", bold=True))
+    ctx.invoke(setup_genome, genome=genome, force=force, remove_gz=False)
+    click.echo()
+    click.echo(click.style("=== setup-all: bowtie ===", bold=True))
+    ctx.invoke(setup_bowtie, genome=genome, force=force, threads=threads, mem_per_thread=mem_per_thread)
+    click.echo()
+    click.echo(click.style("=== setup-all: omics ===", bold=True))
+    ctx.invoke(setup_omics, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-all: raccess ===", bold=True))
+    ctx.invoke(setup_raccess)
+    click.echo()
+    echo_ok("setup-all complete.")
 
 
 @main.command()
@@ -305,30 +228,25 @@ def add_cell(cell_names, reset):
 
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
-def build_omics(genome):
+def build_cohort_expression(genome):
     """
     Generates gene-level expression files for all cell lines in the cohort.
     Uses DepMap 'AllGenes' format (Gene Level Log2(TPM+1)).
     """
     if genome != "GRCh38":
         # While the logic is genome-agnostic now, we keep this guard if your downstream tools expect GRCh38
-        click.echo(
-            click.style(
-                f"⚠ Warning: This command is optimized for DepMap (Human GRCh38) data.",
-                fg="yellow",
-            )
-        )
+        echo_warn("This command is optimized for DepMap (Human GRCh38) data.")
 
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
     exp_path = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet")
 
     if not os.path.exists(manifest_path):
-        click.echo(click.style("❌ No cohort found. Use 'tauso add-cell' first.", fg="red"))
+        echo_err("No cohort found. Use 'tauso add-cell' first.")
         return
 
     if not os.path.exists(exp_path):
-        click.echo(click.style(f"❌ Expression parquet not found: {exp_path}", fg="red"))
+        echo_err(f"Expression parquet not found: {exp_path}")
         click.echo("Run 'tauso setup-depmap' to download and convert it.")
         return
 
@@ -476,49 +394,6 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
     click.echo(click.style(f"\nSUCCESS: CAI weights saved to {out_path}", fg="green"))
 
 
-def calc_file_hash(fpath):
-    sha256_hash = hashlib.sha256()
-    with open(fpath, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
-
-
-def should_skip_download(file_path, force, expected_hash):
-    """Checks if file exists and matches hash. Returns True if we can skip."""
-    if not os.path.exists(file_path):
-        return False
-
-    if force:
-        click.echo(click.style("Force flag detected. Redownloading...", fg="yellow"))
-        return False
-
-    click.echo("File exists. Verifying hash...")
-    try:
-        current_hash = calc_file_hash(file_path)
-        if current_hash == expected_hash:
-            click.echo(click.style(f"✓ Hash matched. Skipping download.", fg="green"))
-            return True
-        else:
-            click.echo(
-                click.style(
-                    f"⚠ Hash mismatch on existing file. Redownload with --force",
-                    fg="red",
-                )
-            )
-            click.echo(f"Expected: {expected_hash}")
-            click.echo(f"Got:      {current_hash}")
-            sys.exit(1)
-    except Exception as e:
-        click.echo(
-            click.style(
-                f"⚠ Error reading existing file ({e}). Redownload with --force",
-                fg="red",
-            )
-        )
-        sys.exit(1)
-
-
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload if file exists.")
 def setup_mrna_halflife(force):
@@ -533,57 +408,33 @@ def setup_mrna_halflife(force):
     os.makedirs(data_dir, exist_ok=True)
     destination = os.path.join(data_dir, "mrna_half_life.csv.gz")
 
-    click.echo(f"Initializing Stability Data setup...")
+    click.echo("Initializing Stability Data setup...")
     click.echo(f"Target path: {destination}")
 
-    # 1. Check if we can skip
-    if should_skip_download(destination, force, EXPECTED_SHA256):
+    if os.path.exists(destination) and not force:
+        verify_hash_or_exit(destination, EXPECTED_SHA256, algo="sha256")
+        echo_ok("Existing file matches expected SHA256. Skipping download.")
         return
 
-    # 2. Perform Download
     try:
         click.echo("Contacting Google Drive via gdown...")
         output = gdown.download(url, destination, quiet=False)
-
         if not output:
             raise Exception("Download failed (no output file).")
 
-        click.echo(click.style(f"✓ Download complete: {destination}", fg="green"))
-
-        # 3. Verify Gzip Integrity
+        # Validate gzip integrity (gdown sometimes returns an HTML error page).
         try:
             with gzip.open(destination, "rb") as f:
                 f.read(1)
-            click.echo(click.style(f"✓ Integrity check passed (valid gzip).", fg="green"))
         except Exception:
-            click.echo(
-                click.style(
-                    f"⚠ Warning: File is not a valid gzip (likely HTML error).",
-                    fg="red",
-                )
-            )
+            echo_err("Downloaded file is not a valid gzip (likely an HTML error page).")
             sys.exit(1)
 
-        # 4. Verify Hash (Post-Download)
-        click.echo("Verifying new file hash...")
-        new_hash = calc_file_hash(destination)
-
-        if new_hash != EXPECTED_SHA256:
-            click.echo(click.style(f"⚠ Hash mismatch!", fg="red"))
-            click.echo(f"Expected: {EXPECTED_SHA256}")
-            click.echo(f"Got:      {new_hash}")
-            click.echo(
-                click.style(
-                    "Please update EXPECTED_SHA256 with the 'Got' value above.",
-                    fg="yellow",
-                )
-            )
-            sys.exit(1)
-
-        click.echo(click.style(f"✓ Hash check passed.", fg="green"))
+        verify_hash_or_exit(destination, EXPECTED_SHA256, algo="sha256")
+        echo_ok(f"Downloaded and verified: {destination}")
 
     except Exception as e:
-        click.echo(click.style(f"Error downloading file: {e}", fg="red"))
+        echo_err(f"Error downloading file: {e}")
         sys.exit(1)
 
 
