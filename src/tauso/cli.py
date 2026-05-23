@@ -156,6 +156,88 @@ def setup_all(ctx, genome, force, threads, mem_per_thread):
     echo_ok("setup-all complete.")
 
 
+DEFAULT_COHORT_CELLS = (
+    "HEPG2",
+    "SNU449",
+    "HELA",
+    "A431",
+    "SKMEL28",
+    "SHSY5Y",
+    "U251MG",
+    "NCIH929",
+    "KMS11",
+    "NCIH460",
+    "SKNAS",
+    "SKNSH",
+    "KARPAS299",
+    "HEP3B217",
+    "THP1",
+    "LNCAPCLONEFGC",
+    "T24",
+    "A549",
+    "VCAP",
+    "HUH7",
+    "JURKAT",
+    "SKOV3",
+    "K562",
+    "A172",
+    "PC3",
+    "MCF7",
+    "SW872",
+    "G361",
+    "HEK293",
+    "MM1S",
+)
+
+
+@main.command(name="build-cell-context")
+@click.argument("cell_names", nargs=-1)
+@click.option("--reset", is_flag=True, help="Clear existing cohort before adding.")
+@click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
+@click.option("--force", is_flag=True, help="Force CAI weights recomputation.")
+@click.pass_context
+def build_cell_context(ctx, cell_names, reset, genome, force):
+    """
+    Build all per-cell-line reference data needed by downstream feature
+    computation: register cells, extract per-cell expression files, and
+    compute CAI weights.
+
+    Bare invocation uses the default cohort. Pass cell names to use a
+    custom cohort; pass --reset to replace an existing cohort.
+
+    Example:
+      tauso build-cell-context                            # default cohort
+      tauso build-cell-context HEPG2 SNU449 HELA          # custom cohort (append)
+      tauso build-cell-context --reset HEPG2 SNU449       # custom cohort (replace)
+    """
+    data_dir = get_data_dir()
+    cohort_exists = os.path.exists(os.path.join(data_dir, "cell_cohort.json"))
+
+    if cell_names:
+        cells_to_add = cell_names
+    elif reset:
+        echo_err("--reset requires at least one cell name.")
+        sys.exit(1)
+    elif not cohort_exists:
+        click.echo(f"No existing cohort; using {len(DEFAULT_COHORT_CELLS)} default cells.")
+        cells_to_add = DEFAULT_COHORT_CELLS
+    else:
+        cells_to_add = ()
+
+    if cells_to_add:
+        click.echo(click.style(f"=== build-cell-context: add-cell ({len(cells_to_add)} cells) ===", bold=True))
+        ctx.invoke(add_cell, cell_names=cells_to_add, reset=reset)
+        click.echo()
+
+    click.echo(click.style("=== build-cell-context: cohort expression ===", bold=True))
+    ctx.invoke(build_cohort_expression, genome=genome)
+    click.echo()
+    click.echo(click.style("=== build-cell-context: CAI weights ===", bold=True))
+    ctx.invoke(build_cai_weights, top_n=300, top_n_generic=500, genome=genome, force=force)
+    click.echo()
+    echo_ok("build-cell-context complete.")
+
+
 @main.command()
 @click.argument("cell_names", nargs=-1)
 @click.option("--reset", is_flag=True, help="Clear existing list before adding.")
