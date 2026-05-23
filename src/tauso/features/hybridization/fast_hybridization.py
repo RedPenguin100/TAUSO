@@ -235,7 +235,7 @@ def stream_triggers_mfe_hits(
             bufsize=-1,
         ) as proc:
             try:
-                for chunk_df in pd.read_csv(
+                yield from pd.read_csv(
                     proc.stdout,
                     sep="\t",
                     header=None,
@@ -243,8 +243,7 @@ def stream_triggers_mfe_hits(
                     usecols=usecols_list,
                     dtype=dtypes,
                     chunksize=parse_chunk_rows,
-                ):
-                    yield chunk_df
+                )
             except pd.errors.EmptyDataError:
                 # No hits at all — RIsearch produced empty stdout.
                 pass
