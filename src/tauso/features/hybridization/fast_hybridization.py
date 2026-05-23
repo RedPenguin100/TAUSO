@@ -177,6 +177,7 @@ def stream_triggers_mfe_hits(
     transpose=False,
     batch_id=None,
     parse_chunk_rows: int = 100_000,
+    usecols=("trigger", "energy"),
 ):
     """Streaming counterpart to get_triggers_mfe_scores_batch.
 
@@ -191,7 +192,8 @@ def stream_triggers_mfe_hits(
 
     Assumes parsing_type="2" — the standard 8-column TSV emitted by the
     scoring callers: trigger, t_start, t_end, target, ta_start, ta_end, score, energy.
-    Only `trigger` and `energy` are loaded (`usecols`) to halve parse cost.
+    Pass `usecols` to load only the columns the caller needs (defaults to
+    trigger+energy; the off_target_specific path needs trigger+target+energy).
     """
     if not trigger_id_seq_pairs:
         return
@@ -217,6 +219,9 @@ def stream_triggers_mfe_hits(
         "target", "target_start", "target_end",
         "score", "energy",
     ]
+    usecols_list = list(usecols)
+    dtype_map = {"trigger": "string", "target": "string", "energy": "float64"}
+    dtypes = {k: v for k, v in dtype_map.items() if k in usecols_list}
 
     try:
         import pandas as pd
@@ -235,8 +240,8 @@ def stream_triggers_mfe_hits(
                     sep="\t",
                     header=None,
                     names=columns,
-                    usecols=["trigger", "energy"],
-                    dtype={"trigger": "string", "energy": "float64"},
+                    usecols=usecols_list,
+                    dtype=dtypes,
                     chunksize=parse_chunk_rows,
                 ):
                     yield chunk_df

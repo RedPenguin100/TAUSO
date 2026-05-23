@@ -25,19 +25,23 @@ def _chunk_df(df, chunk_size):
     return [df.iloc[i : i + chunk_size] for i in range(0, len(df), chunk_size)]
 
 
-def _score_chunk(chunk_df, seq_map, exp_map, cutoff, method, target_path):
+def _score_chunk(chunk_df, seq_map, exp_map, cutoff, method, target_path, stream=True):
     """Single atomic RIsearch scoring unit. Thread-safe: uses a unique query FASTA per call."""
-    return compute_group_batch(chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path)
+    return compute_group_batch(
+        chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path, stream=stream
+    )
 
 
-def _score_chunk_or_fallback(chunk_df, info, is_known_cell_line, cutoff, method):
+def _score_chunk_or_fallback(chunk_df, info, is_known_cell_line, cutoff, method, stream=True):
     """Like _score_chunk but handles missing/empty cell-line info."""
     if not is_known_cell_line:
         return pd.Series(np.nan, index=chunk_df.index)
     if info is None or info[0] is None:
         return pd.Series(0.0, index=chunk_df.index)
     target_path, seq_map, exp_map = info
-    return compute_group_batch(chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path)
+    return compute_group_batch(
+        chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path, stream=stream
+    )
 
 
 def _run_tasks_parallel(tasks, fn, n_jobs):
@@ -59,7 +63,8 @@ def _run_tasks_parallel(tasks, fn, n_jobs):
 
 
 def populate_off_target_specific(
-    ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_jobs=1, chunk_size=250
+    ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method,
+    n_jobs=1, chunk_size=250, stream=True,
 ):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
@@ -67,6 +72,9 @@ def populate_off_target_specific(
     Target FASCTAs are built once per (top_n, cell_line) and reused across all cutoffs.
     Parallelism: all (cutoff, cell_line, aso_chunk) combinations run concurrently up to
     n_jobs threads, with each chunk capped at chunk_size ASOs to bound peak RIsearch memory.
+
+    stream=True (default) uses the streaming RIsearch parser inside compute_group_batch
+    so per-task peak memory stays bounded regardless of cutoff.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -117,7 +125,7 @@ def populate_off_target_specific(
             # Pre-chunk every cell line's group so chunks are shared across cutoffs
             cell_line_chunks = {cl: _chunk_df(gdf, chunk_size) for cl, gdf in groups}
 
-            # Tasks: (key, chunk_df, info, is_known, cutoff, method)
+            # Tasks: (key, chunk_df, info, is_known, cutoff, method, stream)
             # key = (cutoff, cell_line, chunk_idx) for ordered reassembly
             tasks = [
                 (
@@ -127,6 +135,7 @@ def populate_off_target_specific(
                     cell_line in cell_line2data,
                     cutoff,
                     method,
+                    stream,
                 )
                 for cutoff in cutoff_list
                 for cell_line, _ in groups
@@ -176,6 +185,7 @@ def populate_off_target_general(
     method,
     n_jobs=1,
     chunk_size=250,
+    stream=True,
 ):
     """
     Enriches ASO_df with off-target scores using a batched RIsearch call per chunk.
@@ -184,6 +194,9 @@ def populate_off_target_general(
     combinations are run — concurrently when n_jobs > 1. Each chunk is at most
     chunk_size ASOs to bound peak RIsearch memory. Results are assembled in
     original (top_n, cutoff) order.
+
+    stream=True (default) uses the streaming RIsearch parser inside
+    compute_group_batch so per-task peak memory stays bounded regardless of cutoff.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -233,6 +246,7 @@ def populate_off_target_general(
                 cutoff,
                 method,
                 top_n_data[top_n][2],
+                stream,
             )
             for top_n in top_n_list
             for cutoff in cutoff_list
@@ -267,6 +281,7 @@ def populate_off_target_specific_per_rank(
     cutoff_list,
     method,
     n_jobs=1,
+    stream=True,
 ):
     """
     Enriches ASO_df with rank-specific off-target details relative to the specific cell line.
@@ -280,6 +295,9 @@ def populate_off_target_specific_per_rank(
       3. Expression Value (Float)
 
     When n_jobs > 1, cell lines are processed concurrently.
+
+    stream=True (default) uses the streaming RIsearch parser inside
+    compute_group_batch so per-task peak memory stays bounded regardless of cutoff.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -328,7 +346,7 @@ def populate_off_target_specific_per_rank(
                 col_gene = f"{base_col}_Gene"
                 col_exp = f"{base_col}_Exp"
 
-                scores = compute_group_batch(group_df, single_seq_map, single_exp_map, cutoff, method)
+                scores = compute_group_batch(group_df, single_seq_map, single_exp_map, cutoff, method, stream=stream)
                 partial.setdefault(col_score, []).append(scores)
                 partial.setdefault(col_gene, []).append(pd.Series([gene_name] * len(group_df), index=group_df.index))
                 partial.setdefault(col_exp, []).append(
