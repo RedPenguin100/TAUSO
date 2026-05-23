@@ -63,13 +63,31 @@ def _save_json(obj, path):
         json.dump(obj, f, indent=4)
 
 
-def _drop_zero_variance(final_data, features):
-    """Drop features with <=1 unique non-NaN value (cannot inform tree splits)."""
-    zero_var = [f for f in features if final_data[f].nunique() <= 1]
-    if zero_var:
+def _drop_zero_variance(final_data, features, dropped_log_path=None):
+    """Drop features with <=1 unique non-NaN value (cannot inform tree splits).
+
+    Returns the kept feature list. If dropped_log_path is given and anything was
+    dropped, writes a JSON mapping {feature: constant_value} ("NaN" for all-NaN
+    columns) so the dropped set is inspectable after the run.
+    """
+    dropped = {}
+    keep = []
+    for f in features:
+        unique = final_data[f].dropna().unique()
+        if len(unique) > 1:
+            keep.append(f)
+        elif len(unique) == 1:
+            dropped[f] = float(unique[0])
+        else:
+            dropped[f] = "NaN"
+
+    if dropped:
         logger.info("Zero-variance filter: dropped %d / %d features: %s",
-                    len(zero_var), len(features), zero_var)
-    return [f for f in features if f not in zero_var]
+                    len(dropped), len(features), list(dropped.keys()))
+        if dropped_log_path is not None:
+            _save_json(dropped, dropped_log_path)
+            logger.info("Dropped-features log -> %s", dropped_log_path)
+    return keep
 
 
 def _resolve_features(final_data, all_features, paths):
@@ -94,13 +112,13 @@ def _resolve_features(final_data, all_features, paths):
             paths["input_features"].unlink()
         else:
             logger.info("Loaded %d input features from %s", len(cached), paths["input_features"])
-            features = _drop_zero_variance(final_data, cached)
+            features = _drop_zero_variance(final_data, cached, paths["dropped_features"])
             if len(features) != len(cached):
                 _save_json(features, paths["input_features"])
                 logger.info("Cache updated after zero-variance filter -> %s", paths["input_features"])
             return features
 
-    features = _drop_zero_variance(final_data, all_features)
+    features = _drop_zero_variance(final_data, all_features, paths["dropped_features"])
     _save_json(features, paths["input_features"])
     logger.info("%d input features saved -> %s", len(features), paths["input_features"])
     return features
@@ -119,6 +137,7 @@ def _intermediate_paths(args):
         "name":             name,
         "model_base":       str(args.output / f"Model_Oligo_{name}.json"),
         "input_features":   args.output / f"input_features_{name}.json",
+        "dropped_features": args.output / f"dropped_features_{name}.json",
         "best_params":      args.output / f"best_params_{name}.json",
         "optimal_features": args.output / f"optimal_features_{name}.json",
         "rfe_history":      args.output / f"Model_Oligo_{name}_RFE_History.csv",
