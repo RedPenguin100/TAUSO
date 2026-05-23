@@ -63,11 +63,22 @@ def _save_json(obj, path):
         json.dump(obj, f, indent=4)
 
 
+def _drop_zero_variance(final_data, features):
+    """Drop features with <=1 unique non-NaN value (cannot inform tree splits)."""
+    zero_var = [f for f in features if final_data[f].nunique() <= 1]
+    if zero_var:
+        logger.info("Zero-variance filter: dropped %d / %d features: %s",
+                    len(zero_var), len(features), zero_var)
+    return [f for f in features if f not in zero_var]
+
+
 def _resolve_features(final_data, all_features, paths):
     """Return filtered feature list, saving to disk on first call and loading on subsequent ones.
 
     If the cache exists but is stale (columns missing from data, or new columns in data
     that weren't there when the cache was written), the cache is automatically regenerated.
+    The zero-variance filter is applied on every call so newly-constant columns get
+    dropped even when the cache is reused.
     """
     if paths["input_features"].exists():
         cached = _load_json(paths["input_features"], "tune")
@@ -83,12 +94,13 @@ def _resolve_features(final_data, all_features, paths):
             paths["input_features"].unlink()
         else:
             logger.info("Loaded %d input features from %s", len(cached), paths["input_features"])
-            return cached
+            features = _drop_zero_variance(final_data, cached)
+            if len(features) != len(cached):
+                _save_json(features, paths["input_features"])
+                logger.info("Cache updated after zero-variance filter -> %s", paths["input_features"])
+            return features
 
-    zero_var = [f for f in all_features if final_data[f].nunique() <= 1]
-    features = [f for f in all_features if f not in zero_var]
-    if zero_var:
-        logger.info("Dropped %d constant features: %s", len(zero_var), zero_var)
+    features = _drop_zero_variance(final_data, all_features)
     _save_json(features, paths["input_features"])
     logger.info("%d input features saved -> %s", len(features), paths["input_features"])
     return features
