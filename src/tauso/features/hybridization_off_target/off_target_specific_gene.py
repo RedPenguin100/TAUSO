@@ -2,7 +2,6 @@ import logging
 import os
 import uuid
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -10,6 +9,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from ...data.consts import CANONICAL_GENE, SEQUENCE
+from ...parallel_utils import run_parallel_tasks
 from ...util import get_antisense
 from ..hybridization.fast_hybridization import (
     TMP_PATH,
@@ -38,7 +38,7 @@ def _validate_genes_found(target_genes, gene_to_data):
 def _score_one_gene(gene, row_triggers, target_path, cutoff, chunk_size=100, stream=False):
     """Run RIsearch for one gene in chunks and return {trigger_id: score}. Thread-safe.
 
-    Chunking caps peak memory: with cutoff=0 a single 1000-query call can
+    chunk_size caps peak memory: with cutoff=0 a single 1000-query call can
     generate hundreds of MB of RIsearch output held in RAM before parsing.
     chunk_size=100 gives 10 calls instead of 1 while still being ~100x
     faster than the old one-subprocess-per-row approach.
@@ -114,13 +114,13 @@ def _score_one_gene_streaming(gene, row_triggers, target_path, cutoff, chunk_siz
     return combined
 
 
-def _build_tasks(gene_to_row_triggers, gene_to_target_info, n_jobs):
+def _build_tasks(gene_to_row_triggers, gene_to_target_info, n_jobs, chunk_size, stream):
     """
     Split each gene's row-triggers into sub-lists so that all n_jobs workers are used.
 
     When n_jobs exceeds the number of genes, each gene's rows are divided into
     ceil(n_jobs / n_genes) sub-tasks so the spare workers aren't wasted.
-    Returns a list of (gene, sub_triggers, target_path) tuples.
+    Returns a list of (gene, sub_triggers, target_path, chunk_size, stream) tuples.
     """
     n_genes = max(1, len(gene_to_row_triggers))
     tasks_per_gene = max(1, (n_jobs + n_genes - 1) // n_genes)
@@ -129,7 +129,7 @@ def _build_tasks(gene_to_row_triggers, gene_to_target_info, n_jobs):
         sub_size = max(1, (len(row_triggers) + tasks_per_gene - 1) // tasks_per_gene)
         target_path = gene_to_target_info[gene]
         for i in range(0, len(row_triggers), sub_size):
-            tasks.append((gene, row_triggers[i : i + sub_size], target_path))
+            tasks.append((gene, row_triggers[i : i + sub_size], target_path, chunk_size, stream))
     return tasks
 
 
@@ -142,6 +142,7 @@ def _apply_risearch_scoring(
     cutoff,
     n_jobs,
     verbose,
+    chunk_size=100,
     stream=False,
 ):
     """Core logic for RIsearch hybridization scoring."""
@@ -165,38 +166,27 @@ def _apply_risearch_scoring(
                 continue
             gene_to_row_triggers[gene].append((idx, get_antisense(seq)))
 
-        tasks = _build_tasks(gene_to_row_triggers, gene_to_target_info, n_jobs)
+        tasks = _build_tasks(gene_to_row_triggers, gene_to_target_info, n_jobs, chunk_size, stream)
         effective_workers = min(n_jobs, len(tasks)) if n_jobs > 1 else 1
         logger.info(
-            "RIsearch scoring: %d genes × %d rows → %d tasks across %d workers (stream=%s)",
+            "RIsearch scoring: %d genes × %d rows → %d tasks across %d workers "
+            "(chunk_size=%d, stream=%s)",
             len(gene_to_row_triggers),
             sum(len(v) for v in gene_to_row_triggers.values()),
             len(tasks),
             effective_workers,
+            chunk_size,
             stream,
         )
 
-        # Accumulate partial results per gene before building the score series
+        # Each task returns {trigger_id: score}; accumulate per gene before building the series.
         gene_scores: dict[str, dict] = defaultdict(dict)
+        args_list = [(g, sub, tp, cutoff, cs, st) for g, sub, tp, cs, st in tasks]
+        gene_list = [t[0] for t in tasks]
 
-        if effective_workers > 1:
-            with ThreadPoolExecutor(max_workers=effective_workers) as pool:
-                futures = [
-                    (
-                        pool.submit(
-                            _score_one_gene, gene, sub_triggers, target_path, cutoff, stream=stream
-                        ),
-                        gene,
-                    )
-                    for gene, sub_triggers, target_path in tasks
-                ]
-                for fut, gene in futures:
-                    gene_scores[gene].update(fut.result())
-        else:
-            for gene, sub_triggers, target_path in tasks:
-                gene_scores[gene].update(
-                    _score_one_gene(gene, sub_triggers, target_path, cutoff, stream=stream)
-                )
+        raw_results = run_parallel_tasks(_score_one_gene, args_list, n_jobs, executor="thread")
+        for gene, partial in zip(gene_list, raw_results):
+            gene_scores[gene].update(partial)
 
         scores = pd.Series(0.0, index=aso_df.index)
         for gene, row_triggers in gene_to_row_triggers.items():
@@ -215,7 +205,9 @@ def _apply_risearch_scoring(
     return aso_df, feature_name
 
 
-def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=False):
+def on_target_total_hybridization(
+    aso_df, gene_to_data, cutoff, n_jobs=1, verbose=False, chunk_size=100, stream=False
+):
     """Scores each oligo against its own canonical gene.
 
     stream=True uses line-streaming RIsearch parsing — recommended for cutoff=0
@@ -232,12 +224,13 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoff, n_jobs=1, verbos
         cutoff=cutoff,
         n_jobs=n_jobs,
         verbose=verbose,
+        chunk_size=chunk_size,
         stream=stream,
     )
 
 
 def off_target_specific_seq_pandarallel(
-    aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False, stream=False
+    aso_df, gene_name, gene_to_data, cutoff, n_jobs=1, verbose=False, chunk_size=100, stream=False
 ):
     """Scores each oligo against a single statically provided gene.
 
@@ -254,5 +247,6 @@ def off_target_specific_seq_pandarallel(
         cutoff=cutoff,
         n_jobs=n_jobs,
         verbose=verbose,
+        chunk_size=chunk_size,
         stream=stream,
     )

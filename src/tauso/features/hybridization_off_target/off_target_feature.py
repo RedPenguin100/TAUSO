@@ -1,12 +1,12 @@
 import logging
 import os
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
 
 from ...data.consts import CELL_LINE_DEPMAP
+from ...parallel_utils import run_keyed_parallel_tasks, run_parallel_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -40,45 +40,40 @@ def _score_chunk_or_fallback(chunk_df, info, is_known_cell_line, cutoff, method)
     return compute_group_batch(chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path)
 
 
-def _run_tasks_parallel(tasks, fn, n_jobs):
-    """
-    Run a list of (key, *args) tasks using fn(*args).
-    Returns {key: result} in submission order.
-    When n_jobs == 1, runs serially.
-    """
-    results = {}
-    if n_jobs > 1 and len(tasks) > 1:
-        with ThreadPoolExecutor(max_workers=min(n_jobs, len(tasks))) as pool:
-            future_to_key = {pool.submit(fn, *args): key for key, *args in tasks}
-            for fut, key in future_to_key.items():
-                results[key] = fut.result()
-    else:
-        for key, *args in tasks:
-            results[key] = fn(*args)
-    return results
-
-
 def populate_off_target_specific(
-    ASO_df, gene_to_data, cell_line2data, top_n_list, cutoff_list, method, n_jobs=1, chunk_size=250
+    ASO_df,
+    gene_to_data,
+    cell_line2data,
+    top_n_list,
+    cutoff_list,
+    method,
+    n_jobs=1,
+    chunk_size=250,
+    executor="thread",
 ):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
 
     Target FASCTAs are built once per (top_n, cell_line) and reused across all cutoffs.
     Parallelism: all (cutoff, cell_line, aso_chunk) combinations run concurrently up to
-    n_jobs threads, with each chunk capped at chunk_size ASOs to bound peak RIsearch memory.
+    n_jobs workers, with each chunk capped at chunk_size ASOs to bound peak RIsearch memory.
+
+    executor: "thread" (default) or "process". Use "thread" unless profiling shows
+    Python overhead dominates over RIsearch subprocess time.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
     groups = list(ASO_df.groupby(CELL_LINE_DEPMAP, observed=True))
 
     logger.info(
-        "populate_off_target_specific: top_n=%s cutoffs=%s n_aso=%d n_cell_lines=%d n_jobs=%d",
+        "populate_off_target_specific: top_n=%s cutoffs=%s n_aso=%d n_cell_lines=%d n_jobs=%d chunk_size=%d executor=%s",
         top_n_list,
         cutoff_list,
         len(ASO_df),
         len(groups),
         n_jobs,
+        chunk_size,
+        executor,
     )
 
     for top_n in top_n_list:
@@ -136,15 +131,16 @@ def populate_off_target_specific(
             n_threads = min(n_jobs, len(tasks))
             logger.debug(
                 "populate_off_target_specific(top_n=%d): %d tasks "
-                "(%d cutoffs × %d cell_lines × chunks≤%d), using %d thread(s)",
+                "(%d cutoffs × %d cell_lines × chunks≤%d), using %d worker(s) via %s",
                 top_n,
                 len(tasks),
                 len(cutoff_list),
                 len(groups),
                 chunk_size,
                 n_threads,
+                executor,
             )
-            results = _run_tasks_parallel(tasks, _score_chunk_or_fallback, n_jobs)
+            results = run_keyed_parallel_tasks(tasks, _score_chunk_or_fallback, n_jobs, executor=executor)
 
             for cutoff in cutoff_list:
                 col = serialize_feature_name(method, top_n, cutoff, is_specific=True)
@@ -176,6 +172,7 @@ def populate_off_target_general(
     method,
     n_jobs=1,
     chunk_size=250,
+    executor="thread",
 ):
     """
     Enriches ASO_df with off-target scores using a batched RIsearch call per chunk.
@@ -184,6 +181,9 @@ def populate_off_target_general(
     combinations are run — concurrently when n_jobs > 1. Each chunk is at most
     chunk_size ASOs to bound peak RIsearch memory. Results are assembled in
     original (top_n, cutoff) order.
+
+    executor: "thread" (default) or "process". Use "thread" unless profiling shows
+    Python overhead dominates over RIsearch subprocess time.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -193,11 +193,13 @@ def populate_off_target_general(
     general_df_all = cell_line2data["general"]
 
     logger.info(
-        "populate_off_target_general: top_n=%s cutoffs=%s n_aso=%d n_jobs=%d",
+        "populate_off_target_general: top_n=%s cutoffs=%s n_aso=%d n_jobs=%d chunk_size=%d executor=%s",
         top_n_list,
         cutoff_list,
         len(ASO_df),
         n_jobs,
+        chunk_size,
+        executor,
     )
 
     aso_chunks = _chunk_df(ASO_df, chunk_size)
@@ -240,9 +242,14 @@ def populate_off_target_general(
         ]
 
         if n_jobs > 1:
-            logger.debug("Dispatching %d tasks across %d threads", len(tasks), min(n_jobs, len(tasks)))
+            logger.debug(
+                "Dispatching %d tasks across %d workers via %s",
+                len(tasks),
+                min(n_jobs, len(tasks)),
+                executor,
+            )
 
-        results = _run_tasks_parallel(tasks, _score_chunk, n_jobs)
+        results = run_keyed_parallel_tasks(tasks, _score_chunk, n_jobs, executor=executor)
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:
@@ -279,7 +286,8 @@ def populate_off_target_specific_per_rank(
       2. Gene Name (String)
       3. Expression Value (Float)
 
-    When n_jobs > 1, cell lines are processed concurrently.
+    When n_jobs > 1, cell lines are processed concurrently (thread-based).
+    Note: uses threads because _process_cell_line is a closure; not picklable for processes.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -337,16 +345,12 @@ def populate_off_target_specific_per_rank(
 
         return partial
 
-    if n_jobs > 1 and len(groups) > 1:
-        with ThreadPoolExecutor(max_workers=min(n_jobs, len(groups))) as pool:
-            futures = [pool.submit(_process_cell_line, cl, gdf) for cl, gdf in groups]
-            for fut in futures:
-                for col, series_list in fut.result().items():
-                    accumulator.setdefault(col, []).extend(series_list)
-    else:
-        for cell_line, group_df in groups:
-            for col, series_list in _process_cell_line(cell_line, group_df).items():
-                accumulator.setdefault(col, []).extend(series_list)
+    # _process_cell_line is a closure → executor must be "thread" (closures aren't picklable)
+    args_list = [(cl, gdf) for cl, gdf in groups]
+    partials = run_parallel_tasks(_process_cell_line, args_list, n_jobs, executor="thread")
+    for partial in partials:
+        for col, series_list in partial.items():
+            accumulator.setdefault(col, []).extend(series_list)
 
     # Track feature names in rank/cutoff order (not cell_line order)
     for rank_idx in range(max_rank):
