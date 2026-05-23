@@ -11,7 +11,7 @@ from ..data.consts import CANONICAL_GENE, CELL_LINE, standardize_cell_line_name
 from ..data.data import get_data_dir
 from ..features.codon_usage.cai import calc_CAI
 from ..features.codon_usage.enc import compute_ENC
-from ..features.codon_usage.tai import calc_tAI, tai_weights
+from ..features.codon_usage.tai import compute_tAI
 from ..parallel_utils import init_pandarallel
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,6 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     Calculates local and global tAI scores.
     Raises KeyError if required local context columns are missing.
     """
-    weights = tai_weights("hm")
     feature_names = []
 
     # 1. Local tAI Scores
@@ -37,13 +36,13 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
             )
 
         feat_name = f"tAI_score_{flank}_CDS"
-        df[feat_name] = df[local_col].apply(lambda seq: calc_tAI(seq, weights))
+        df[feat_name] = df[local_col].apply(compute_tAI)
         feature_names.append(feat_name)
 
     # 2. Global tAI Scores (Registry Lookup)
     logger.info("Pre-calculating Global tAI for %d unique genes...", len(registry))
     gene_tai_lookup = {
-        gene: calc_tAI(data.get("cds_sequence"), weights) if data.get("cds_sequence") else np.nan
+        gene: compute_tAI(data.get("cds_sequence")) if data.get("cds_sequence") else np.nan
         for gene, data in registry.items()
     }
 
