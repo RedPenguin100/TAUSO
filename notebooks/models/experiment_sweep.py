@@ -389,7 +389,7 @@ def _threshold_sweep(X_tr, y_tr, X_vl, y_vl, features, params, val_eval_idx, wei
 # Single experiment runner
 # ---------------------------------------------------------------------------
 
-def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthread, seed=1):
+def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthread, seed=1, min_eval_size=20):
     logger.info("\n" + "="*60)
     logger.info("EXPERIMENT: %s", cfg.name)
     logger.info("  loss=%s importance=%s weighting=%s eval=%s selection=%s n_train=%d",
@@ -408,12 +408,12 @@ def run_experiment(cfg: ExperimentConfig, final_data, features, all_val_df, nthr
     y_vl = val_df[INHIBITION].values.astype(np.float32)
 
     # --- cohort indices for evaluation and RFE selection ---
-    min_size = 10 if cfg.eval_cols == ["custom_id"] else 20
+    min_size = min_eval_size
     val_eval_idx   = _cohort_indices(val_df, cfg.eval_cols, min_size=min_size)
     # RFE always selects on gene×cell-line — the biologically meaningful unit.
     # Using eval_cols here was the bug: custom_id or gene-only groupings produce
     # noisier importance signals than the full gene×cell-line cohort.
-    val_select_idx = _cohort_indices(val_df, GC, min_size=20)
+    val_select_idx = _cohort_indices(val_df, GC, min_size=min_size)
     logger.info("  val eval cohorts (>=%d rows): %d  |  RFE select cohorts: %d",
                 min_size, len(val_eval_idx), len(val_select_idx))
 
@@ -498,6 +498,8 @@ def main():
     parser.add_argument("--split-source", default="oligoai", choices=["oligoai", "tauso"],
                         help="'oligoai' uses the existing split column; "
                              "'tauso' creates a stratified temporal split per gene×cell-line.")
+    parser.add_argument("--min-eval-size", type=int, default=20,
+                        help="Minimum cohort size for eval (default: 20). Floored at 20.")
     parser.add_argument("--log-level", default="INFO",
                         choices=["DEBUG", "INFO", "WARNING"])
     args = parser.parse_args()
@@ -507,6 +509,10 @@ def main():
         format="%(asctime)s %(levelname)s | %(message)s",
         stream=sys.stdout, force=True,
     )
+
+    if args.min_eval_size < 20:
+        logger.warning("--min-eval-size %d is below floor of 20; clamping to 20.", args.min_eval_size)
+        args.min_eval_size = 20
 
     # Load results so far (for --resume)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -538,7 +544,8 @@ def main():
         logger.info("\n[%d/%d] Starting %s", i + 1, len(experiments), cfg.name)
         try:
             result = run_experiment(cfg, final_data, features, all_val_df,
-                                    nthread=args.cpus, seed=args.seed)
+                                    nthread=args.cpus, seed=args.seed,
+                                    min_eval_size=args.min_eval_size)
             results.append(result)
         except Exception as e:
             logger.error("FAILED: %s — %s", cfg.name, e, exc_info=True)

@@ -117,7 +117,7 @@ def _intermediate_paths(args):
 # Data preparation
 # ---------------------------------------------------------------------------
 
-def _prep_data(final_data, features, eval_group, select_group):
+def _prep_data(final_data, features, eval_group, select_group, min_eval_size=50):
     from notebooks.models.SeenOligoModel.base_model import get_large_cohort_indices, split_data
 
     final_data = final_data.sort_values(by=features).reset_index(drop=True)
@@ -134,23 +134,23 @@ def _prep_data(final_data, features, eval_group, select_group):
     X_val,   y_val   = arrays(val_df)
     X_test,  y_test  = arrays(test_df)
 
-    logger.info("Split | train=%d val=%d test=%d", len(train_df), len(val_df), len(test_df))
+    logger.info("Split | train=%d val=%d test=%d | min_eval_size=%d", len(train_df), len(val_df), len(test_df), min_eval_size)
 
     val_optuna_groups = [
         (g.index.values, y_val[g.index.values])
         for _, g in val_df.reset_index(drop=True).groupby(eval_group)
-        if len(g) >= 20
+        if len(g) >= min_eval_size
     ]
 
     return {
         "X_train": X_train, "y_train": y_train,
         "X_val":   X_val,   "y_val":   y_val,
         "X_test":  X_test,  "y_test":  y_test,
-        "train_eval_idx":       get_large_cohort_indices(train_df, eval_group),
-        "val_eval_idx":         get_large_cohort_indices(val_df,   eval_group),
-        "test_eval_idx":        get_large_cohort_indices(test_df,  eval_group),
-        "val_select_idx":       get_large_cohort_indices(val_df,   select_group),
-        "test_select_idx":      get_large_cohort_indices(test_df,  select_group),
+        "train_eval_idx":       get_large_cohort_indices(train_df, eval_group, min_size=min_eval_size),
+        "val_eval_idx":         get_large_cohort_indices(val_df,   eval_group, min_size=min_eval_size),
+        "test_eval_idx":        get_large_cohort_indices(test_df,  eval_group, min_size=min_eval_size),
+        "val_select_idx":       get_large_cohort_indices(val_df,   select_group, min_size=min_eval_size),
+        "test_select_idx":      get_large_cohort_indices(test_df,  select_group, min_size=min_eval_size),
         "val_eval_groups_optuna": val_optuna_groups,
     }
 
@@ -258,6 +258,9 @@ def main():
     parser.add_argument("--split-source", default="oligoai", choices=["oligoai", "tauso"],
                         help="'oligoai' uses the existing split column (default); "
                              "'tauso' creates a stratified temporal split per gene×cell-line.")
+    parser.add_argument("--min-eval-size", type=int, default=50,
+                        help="Minimum cohort size to include in evaluation metrics (default: 50). "
+                             "Floored at 20 — smaller cohorts give noisy Spearman estimates.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
 
@@ -266,6 +269,11 @@ def main():
         format="%(asctime)s %(levelname)s %(name)s | %(message)s",
         stream=sys.stdout, force=True,
     )
+
+    if args.min_eval_size < 20:
+        logger.warning("--min-eval-size %d is below floor of 20; clamping to 20.", args.min_eval_size)
+        args.min_eval_size = 20
+
     os.environ["PYTHONHASHSEED"] = str(args.seed)
     args.output.mkdir(parents=True, exist_ok=True)
 
@@ -281,7 +289,8 @@ def main():
     features = _resolve_features(final_data, all_features, paths)
     logger.info("Features: %d", len(features))
 
-    data = _prep_data(final_data, features, cfg["eval_group"], cfg["select_group"])
+    data = _prep_data(final_data, features, cfg["eval_group"], cfg["select_group"],
+                      min_eval_size=args.min_eval_size)
 
     if args.step in ("tune",   "all"): step_tune(data, args, paths, objective)
     if args.step in ("select", "all"): step_select(data, features, args, paths)
