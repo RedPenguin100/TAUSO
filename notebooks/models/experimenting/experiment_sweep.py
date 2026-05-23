@@ -8,8 +8,8 @@ Each result is saved incrementally after every experiment — partial results
 survive a crash or early termination.
 
 Usage:
-    python -u -m notebooks.models.experiment_sweep 2>&1 | tee sweep.log
-    python -u -m notebooks.models.experiment_sweep --cpus 8 --output results/sweep.json
+    python -u -m notebooks.models.experimenting.experiment_sweep 2>&1 | tee sweep.log
+    python -u -m notebooks.models.experimenting.experiment_sweep --cpus 8 --output results/sweep.json
 
 Runtime: ~3–6 hours on 8 CPUs. Memory: <4 GB peak.
 """
