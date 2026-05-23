@@ -179,32 +179,6 @@ CELL_LINE_TO_DEPMAP = {
     "VCaP": "ACH-000115",
 }
 
-CELL_LINE_MAPPING = {
-    # Direct Matches & Synonyms
-    "HepG2": HEPG2,
-    "HepaRG": HEPG2,  # Liver -> Liver proxy
-    "SNU-449": SNU_449,
-    "Hela": HELA,
-    "A431": A431,
-    "A-431": A431,
-    "SK-MEL-28": SK_MEL_28,
-    "SH-SY5Y": SH_SY5Y,
-    "U251": U251,
-    "U-251 MG": U251,  # Map both to the canonical U251
-    "H929": H929,
-    "KMS11": KMS11,
-    "NCI-H460": NCI_H460,
-    "SK-N-AS": SK_N_AS,
-    "SK-N-SH": SK_N_SH,
-    "KARPAS-229": "KARPAS299",  # NOT A TYPO, a proxy!
-    # Neuronal / Experimental Contexts
-    "Angptl2/Actin": SK_N_AS,
-    "SK cells asyn": SK_N_AS,  # "SK cells" usually refers to SK-N-AS in this context
-    # iPSC/primary neurons: no DepMap proxy — removed to avoid wrong expression features
-    # Blood / Immune Proxies
-    "MM.1R": H929,  # Myeloma -> H929 (Myeloma) proxy
-}
-
 HUMAN = "human"
 MONKEY = "monkey"
 MOUSE = "mouse"
