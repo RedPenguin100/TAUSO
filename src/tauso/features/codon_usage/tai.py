@@ -1,32 +1,33 @@
+import os
+
 import numpy as np
 import pandas as pd
 from codonbias.scores import TrnaAdaptationIndex
 
-# Human tRNA gene copy numbers, snapshot of GtRNAdb's Hsapi38 (hg38) summary
-# fetched via codonbias.scores.fetch_GCN_from_GtRNAdb(genome="Hsapi38",
-# domain="eukaryota"). Hardcoded so we do not depend on the network or on
-# lxml at runtime. Refresh by re-running that helper if the source updates.
-_HUMAN_TGCN = {
-    "AAC": 9, "AAG": 9, "AAT": 15, "ACG": 7, "AGA": 9,
-    "AGC": 26, "AGG": 9, "AGT": 9, "CAA": 6, "CAC": 13,
-    "CAG": 9, "CAT": 20, "CCA": 7, "CCC": 5, "CCG": 4,
-    "CCT": 5, "CGA": 4, "CGC": 4, "CGG": 4, "CGT": 5,
-    "CTC": 8, "CTG": 13, "CTT": 15, "GAA": 10, "GAT": 3,
-    "GCA": 29, "GCC": 14, "GCT": 8, "GTA": 13, "GTC": 13,
-    "GTG": 9, "GTT": 25, "TAA": 4, "TAC": 5, "TAG": 3,
-    "TAT": 5, "TCA": 1, "TCC": 9, "TCG": 6, "TCT": 6,
-    "TGA": 4, "TGC": 8, "TGG": 7, "TGT": 6, "TTC": 8,
-    "TTG": 6, "TTT": 12,
-}
+from ...data.data import get_data_dir
 
-_TGCN_DF = pd.DataFrame(
-    {"anti_codon": list(_HUMAN_TGCN.keys()), "GCN": list(_HUMAN_TGCN.values())}
-)
+# Filename of the human tGCN snapshot written by `tauso setup-tgcn`.
+# Source: GtRNAdb Hsapi38 (eukaryota), sorted by anti_codon.
+HUMAN_TGCN_FILENAME = "human_tgcn_hsapi38.csv"
 
-_TAI_SCORER = TrnaAdaptationIndex(tGCN=_TGCN_DF, s_values="dosReis", genetic_code=1)
+_TAI_SCORER = None
+
+
+def _load_scorer() -> TrnaAdaptationIndex:
+    path = os.path.join(get_data_dir(), HUMAN_TGCN_FILENAME)
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Missing tGCN file at {path}. Run 'tauso setup-tgcn' (or 'tauso setup-omics') "
+            "to download it from GtRNAdb."
+        )
+    tGCN = pd.read_csv(path)
+    return TrnaAdaptationIndex(tGCN=tGCN, s_values="dosReis", genetic_code=1)
 
 
 def compute_tAI(seq: str) -> float:
+    global _TAI_SCORER
+    if _TAI_SCORER is None:
+        _TAI_SCORER = _load_scorer()
     if not isinstance(seq, str) or not seq.strip():
         return np.nan
     score = _TAI_SCORER.get_score(seq)

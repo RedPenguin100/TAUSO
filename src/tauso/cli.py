@@ -127,6 +127,9 @@ def setup_omics(ctx, force):
     click.echo(click.style("=== setup-omics: mRNA half-life ===", bold=True))
     ctx.invoke(setup_mrna_halflife, force=force)
     click.echo()
+    click.echo(click.style("=== setup-omics: human tGCN ===", bold=True))
+    ctx.invoke(setup_tgcn, force=force)
+    click.echo()
     echo_ok("Omics setup complete.")
 
 
@@ -521,6 +524,45 @@ def setup_mrna_halflife(force):
 
     except Exception as e:
         echo_err(f"Error downloading file: {e}")
+        sys.exit(1)
+
+
+HUMAN_TGCN_FILENAME = "human_tgcn_hsapi38.csv"
+HUMAN_TGCN_SHA256 = "80bbf6c62395e6b9463e56db16efa87fccdc3c6d2452b808099482c33f23d8e6"
+
+
+@main.command(name="setup-tgcn")
+@click.option("--force", is_flag=True, help="Force refetch if file exists.")
+def setup_tgcn(force):
+    """
+    Fetch the human tRNA gene copy number (tGCN) table from GtRNAdb's Hsapi38
+    summary and write it to TAUSO_DATA_DIR. The tAI feature loads this table
+    at first use; without it, populate_tai cannot run.
+    """
+    from codonbias.scores import fetch_GCN_from_GtRNAdb
+
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+    destination = os.path.join(data_dir, HUMAN_TGCN_FILENAME)
+
+    click.echo("Initializing human tGCN setup (GtRNAdb Hsapi38)...")
+    click.echo(f"Target path: {destination}")
+
+    if os.path.exists(destination) and not force:
+        verify_hash_or_exit(destination, HUMAN_TGCN_SHA256, algo="sha256")
+        echo_ok("Existing file matches expected SHA256. Skipping download.")
+        return
+
+    try:
+        click.echo("Fetching tGCN from GtRNAdb (requires lxml)...")
+        df = fetch_GCN_from_GtRNAdb(genome="Hsapi38", domain="eukaryota")
+        df = df.sort_values("anti_codon").reset_index(drop=True)
+        df.to_csv(destination, index=False)
+        verify_hash_or_exit(destination, HUMAN_TGCN_SHA256, algo="sha256")
+        echo_ok(f"Fetched and verified: {destination} ({len(df)} anti-codons).")
+
+    except Exception as e:
+        echo_err(f"Error fetching tGCN: {e}")
         sys.exit(1)
 
 
