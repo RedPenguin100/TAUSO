@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ...data.consts import CANONICAL_GENE, SEQUENCE
+from ...mem_debug import log_mem, log_obj_size, track
 
 logger = logging.getLogger(__name__)
 from ...util import get_antisense
@@ -120,16 +121,21 @@ def _parse_and_filter_hits(raw_output: str, group_df) -> dict:
 
     Returns {trigger_id: DataFrame of off-target hits}, empty dict if no valid hits.
     """
-    all_hits = parse_risearch_output(raw_output)
+    with track("_parse_and_filter_hits.parse_risearch_output"):
+        all_hits = parse_risearch_output(raw_output)
+    log_obj_size("all_hits", all_hits)
     if all_hits.empty or "energy" not in all_hits.columns:
         return {}
 
-    agg = all_hits.groupby(["trigger", "target"], sort=False)["energy"].min().reset_index()
+    with track("_parse_and_filter_hits.groupby_trigger_target"):
+        agg = all_hits.groupby(["trigger", "target"], sort=False)["energy"].min().reset_index()
+    log_obj_size("agg", agg)
     del all_hits
 
     idx_to_gene = {str(i): g for i, g in zip(group_df.index, group_df[CANONICAL_GENE])}
     agg["_own"] = agg["trigger"].map(idx_to_gene)
     filtered = agg[agg["target"] != agg["_own"]]
+    log_obj_size("filtered", filtered)
     del agg
 
     return {k: v for k, v in filtered.groupby("trigger", sort=False)}
@@ -155,6 +161,8 @@ def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_tar
 
     TMP_PATH.mkdir(exist_ok=True)
 
+    log_mem(f"compute_group_batch[n_rows={len(group_df)}, n_targets={len(seq_map)}, cutoff={cutoff}] start")
+
     _owns_target = prebuilt_target_path is None
     target_path = (
         dump_target_file(f"target-batch-{uuid.uuid4().hex}.fa", seq_map) if _owns_target else prebuilt_target_path
@@ -165,23 +173,31 @@ def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_tar
     query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, sequences)]
 
     try:
-        result = get_triggers_mfe_scores_batch(
-            trigger_id_seq_pairs=query_pairs,
-            target_file_path=target_path,
-            minimum_score=cutoff,
-            parsing_type="2",
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            transpose=True,
-            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-        )
+        with track(f"risearch_call[n_q={len(query_pairs)}, n_t={len(seq_map)}, cutoff={cutoff}]"):
+            result = get_triggers_mfe_scores_batch(
+                trigger_id_seq_pairs=query_pairs,
+                target_file_path=target_path,
+                minimum_score=cutoff,
+                parsing_type="2",
+                interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+                transpose=True,
+                batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+            )
     finally:
         if _owns_target and os.path.exists(target_path):
             os.remove(target_path)
 
+    log_obj_size(f"compute_group_batch.result[n_rows={len(group_df)}]", result)
+
     if not result.strip():
         return pd.Series(0.0, index=group_df.index, dtype=float)
 
-    hits_by_trigger = _parse_and_filter_hits(result, group_df)
+    with track(f"_parse_and_filter_hits[n_rows={len(group_df)}]"):
+        hits_by_trigger = _parse_and_filter_hits(result, group_df)
+    log_obj_size(f"hits_by_trigger[n_rows={len(group_df)}]", hits_by_trigger)
     del result
 
-    return _score_triggers(hits_by_trigger, indices, exp_map, method)
+    with track(f"_score_triggers[n_rows={len(group_df)}]"):
+        out = _score_triggers(hits_by_trigger, indices, exp_map, method)
+    log_mem(f"compute_group_batch[n_rows={len(group_df)}] end")
+    return out

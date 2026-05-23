@@ -10,6 +10,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from ...data.consts import CANONICAL_GENE, SEQUENCE
+from ...mem_debug import log_mem, log_obj_size, track
 from ...util import get_antisense
 from ..hybridization.fast_hybridization import (
     TMP_PATH,
@@ -51,24 +52,35 @@ def _score_one_gene(gene, row_triggers, target_path, cutoff, chunk_size=100, str
         return _score_one_gene_streaming(gene, row_triggers, target_path, cutoff, chunk_size)
 
     combined: dict = {}
+    n_chunks = (len(row_triggers) + chunk_size - 1) // chunk_size
+    log_mem(f"_score_one_gene[gene={gene}, n_rows={len(row_triggers)}, n_chunks={n_chunks}] start")
     for i in range(0, len(row_triggers), chunk_size):
         chunk = row_triggers[i : i + chunk_size]
-        result = get_triggers_mfe_scores_batch(
-            trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
-            target_file_path=target_path,
-            minimum_score=cutoff,
-            parsing_type="2",
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            transpose=True,
-            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-        )
+        chunk_idx = i // chunk_size
+        with track(f"risearch_call[gene={gene}, chunk={chunk_idx}/{n_chunks}, n_q={len(chunk)}]"):
+            result = get_triggers_mfe_scores_batch(
+                trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
+                target_file_path=target_path,
+                minimum_score=cutoff,
+                parsing_type="2",
+                interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+                transpose=True,
+                batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+            )
+        log_obj_size(f"risearch_result[gene={gene}, chunk={chunk_idx}]", result)
         if not result.strip():
             continue
-        result_df = parse_risearch_output(result)
+        with track(f"parse_risearch_output[gene={gene}, chunk={chunk_idx}]"):
+            result_df = parse_risearch_output(result)
+        log_obj_size(f"result_df[gene={gene}, chunk={chunk_idx}]", result_df)
         del result
         if result_df.empty or "energy" not in result_df.columns:
             continue
-        combined.update(_sum_exp_energy_by_trigger(result_df))
+        with track(f"_sum_exp_energy[gene={gene}, chunk={chunk_idx}]"):
+            combined.update(_sum_exp_energy_by_trigger(result_df))
+        del result_df
+    log_obj_size(f"combined[gene={gene}]", combined)
+    log_mem(f"_score_one_gene[gene={gene}] end")
     return combined
 
 
@@ -86,31 +98,40 @@ def _score_one_gene_streaming(gene, row_triggers, target_path, cutoff, chunk_siz
     than — the materialized path.
     """
     combined: dict = {}
+    n_chunks = (len(row_triggers) + chunk_size - 1) // chunk_size
+    log_mem(f"_score_one_gene_streaming[gene={gene}, n_rows={len(row_triggers)}, n_chunks={n_chunks}] start")
     for i in range(0, len(row_triggers), chunk_size):
         chunk = row_triggers[i : i + chunk_size]
-        for hit_df in stream_triggers_mfe_hits(
-            trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
-            target_file_path=target_path,
-            minimum_score=cutoff,
-            parsing_type="2",
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            transpose=True,
-            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-        ):
-            if hit_df.empty:
-                continue
-            exp_vals = np.exp(-_RT * hit_df["energy"].to_numpy())
-            partial = (
-                pd.Series(exp_vals)
-                .groupby(hit_df["trigger"].to_numpy(), sort=False)
-                .sum()
-            )
-            # Sum across chunks for the same trigger (rare but possible if a
-            # trigger straddles the chunksize boundary).
-            for k, v in partial.items():
-                k_str = str(k)
-                existing = combined.get(k_str)
-                combined[k_str] = float(v) if existing is None else existing + float(v)
+        chunk_idx = i // chunk_size
+        hit_chunk_count = 0
+        with track(f"risearch_stream[gene={gene}, chunk={chunk_idx}/{n_chunks}, n_q={len(chunk)}]"):
+            for hit_df in stream_triggers_mfe_hits(
+                trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
+                target_file_path=target_path,
+                minimum_score=cutoff,
+                parsing_type="2",
+                interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+                transpose=True,
+                batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+            ):
+                hit_chunk_count += 1
+                if hit_df.empty:
+                    continue
+                exp_vals = np.exp(-_RT * hit_df["energy"].to_numpy())
+                partial = (
+                    pd.Series(exp_vals)
+                    .groupby(hit_df["trigger"].to_numpy(), sort=False)
+                    .sum()
+                )
+                # Sum across chunks for the same trigger (rare but possible if a
+                # trigger straddles the chunksize boundary).
+                for k, v in partial.items():
+                    k_str = str(k)
+                    existing = combined.get(k_str)
+                    combined[k_str] = float(v) if existing is None else existing + float(v)
+        log_mem(f"after risearch_stream[gene={gene}, chunk={chunk_idx}, parse_chunks={hit_chunk_count}]")
+    log_obj_size(f"combined[gene={gene}]", combined)
+    log_mem(f"_score_one_gene_streaming[gene={gene}] end")
     return combined
 
 
@@ -148,12 +169,16 @@ def _apply_risearch_scoring(
     _validate_genes_found(target_genes, gene_to_data)
     TMP_PATH.mkdir(exist_ok=True)
 
+    log_mem(f"_apply_risearch_scoring[feature={feature_name}, n_aso={len(aso_df)}, "
+            f"n_genes={len(target_genes)}, n_jobs={n_jobs}, cutoff={cutoff}, stream={stream}] start")
+
     gene_to_target_info = {}
     try:
-        for gene in target_genes:
-            sequence = gene_to_data[gene].full_mrna
-            target_path = dump_target_file(f"target-{gene}-{uuid.uuid4().hex}.fa", {gene: sequence})
-            gene_to_target_info[gene] = target_path
+        with track(f"build_target_fastas[n_genes={len(target_genes)}]"):
+            for gene in target_genes:
+                sequence = gene_to_data[gene].full_mrna
+                target_path = dump_target_file(f"target-{gene}-{uuid.uuid4().hex}.fa", {gene: sequence})
+                gene_to_target_info[gene] = target_path
 
         gene_to_row_triggers = defaultdict(list)
         for idx, seq, gene in zip(
@@ -180,18 +205,20 @@ def _apply_risearch_scoring(
         gene_scores: dict[str, dict] = defaultdict(dict)
 
         if effective_workers > 1:
-            with ThreadPoolExecutor(max_workers=effective_workers) as pool:
-                futures = [
-                    (
-                        pool.submit(
-                            _score_one_gene, gene, sub_triggers, target_path, cutoff, stream=stream
-                        ),
-                        gene,
-                    )
-                    for gene, sub_triggers, target_path in tasks
-                ]
-                for fut, gene in futures:
-                    gene_scores[gene].update(fut.result())
+            with track(f"thread_pool_dispatch[n_tasks={len(tasks)}, workers={effective_workers}]"):
+                with ThreadPoolExecutor(max_workers=effective_workers) as pool:
+                    futures = [
+                        (
+                            pool.submit(
+                                _score_one_gene, gene, sub_triggers, target_path, cutoff, stream=stream
+                            ),
+                            gene,
+                        )
+                        for gene, sub_triggers, target_path in tasks
+                    ]
+                    for fut, gene in futures:
+                        gene_scores[gene].update(fut.result())
+                        log_mem(f"after_task_result[gene={gene}, total_scored={sum(len(d) for d in gene_scores.values())}]")
         else:
             for gene, sub_triggers, target_path in tasks:
                 gene_scores[gene].update(
