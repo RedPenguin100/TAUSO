@@ -98,13 +98,21 @@ def _sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
+# Pinned SHA1 of the DepMap "Public 25Q3" OmicsExpressionTPMLogp1HumanAllGenesStranded.csv
+# captured on 2026-05-23. DepMap silently re-uploads files under the same release name,
+# so this fingerprint exists to detect such drift. To be replaced with a fetch from an
+# immutable mirror (e.g. Zenodo) once one is set up.
+EXPECTED_OMICS_EXPRESSION_CSV_SHA1 = "22ac03aa45a6b9ef4f60e9ed8bb574e64dcb56f6"
+
+
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
 def setup_depmap(force):
     """
     Downloads DepMap Public 25Q3 data directly from the DepMap API.
     Auto-fetches fresh signed URLs to ensure downloads work.
-    OmicsExpression is converted to Parquet after download; original CSV is deleted.
+    OmicsExpression is additionally converted to Parquet after download; the original CSV is retained
+    so its hash can be verified against a pinned reference.
     """
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
@@ -115,7 +123,7 @@ def setup_depmap(force):
         "OmicsProfiles.csv": "OmicsProfiles.csv",
         "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv",
     }
-    # These CSVs are converted to Parquet and the original CSV deleted afterwards.
+    # These CSVs are additionally converted to Parquet; the original CSV is kept on disk.
     CONVERT_TO_PARQUET = {"OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"}
 
     click.echo(f"Initializing DepMap setup for: {RELEASE}")
@@ -161,14 +169,13 @@ def setup_depmap(force):
 
         if local_name in CONVERT_TO_PARQUET:
             parquet_dest = dest.replace(".csv", ".parquet")
-            # Migration: CSV exists but parquet does not → convert and delete
+            # If CSV exists but parquet does not, build the parquet alongside it.
             if os.path.exists(dest) and not os.path.exists(parquet_dest):
                 click.echo(f"  Converting {local_name} to Parquet...")
                 pd.read_csv(dest).to_parquet(parquet_dest, index=False)
-                os.remove(dest)
-                click.echo(click.style(f"✓ Converted {local_name} → parquet, original deleted.", fg="green"))
-            if os.path.exists(parquet_dest) and not force:
-                click.echo(f"✓ {local_name} (parquet) exists.")
+                click.echo(click.style(f"✓ Converted {local_name} → parquet (CSV kept).", fg="green"))
+            if os.path.exists(parquet_dest) and os.path.exists(dest) and not force:
+                click.echo(f"✓ {local_name} (CSV + parquet) exists.")
                 continue
         else:
             if os.path.exists(dest) and not force:
@@ -218,8 +225,7 @@ def setup_depmap(force):
         if local_name in CONVERT_TO_PARQUET:
             click.echo(f"  Converting {local_name} to Parquet...")
             pd.read_csv(dest).to_parquet(parquet_dest, index=False)
-            os.remove(dest)
-            click.echo(click.style(f"✓ Converted to Parquet, original CSV deleted.", fg="green"))
+            click.echo(click.style(f"✓ Converted to Parquet (CSV kept).", fg="green"))
 
     click.echo("\nDepMap setup complete.")
 
