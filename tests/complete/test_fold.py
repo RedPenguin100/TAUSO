@@ -4,10 +4,9 @@ import pytest
 
 from tauso.populate.populate_fold import (
     populate_mfe_features,
-    populate_sense_accessibility_batch,
+    populate_sense_accessibility_multi,
 )
 from tests.complete.conftest import get_n_jobs
-
 
 ACCESS_CONFIGURATIONS = [
     {"flank": 120, "access": 20, "seeds": [13]},
@@ -19,16 +18,14 @@ ACCESS_CONFIGURATIONS = [
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
 def test_access(mini_sampled_data, gene_to_data, dataframe_regression):
-    for idx, config in enumerate(ACCESS_CONFIGURATIONS):
-        data, feature_name = populate_sense_accessibility_batch(
-            mini_sampled_data,
-            gene_to_data,
-            batch_size=250,
-            flank_size=config["flank"],
-            access_size=config["access"],
-            seed_sizes=config["seeds"],
-            n_jobs=get_n_jobs(),
-        )
+    data, feature_names = populate_sense_accessibility_multi(
+        mini_sampled_data,
+        gene_to_data,
+        configs=ACCESS_CONFIGURATIONS,
+        batch_size=250,
+        n_jobs=get_n_jobs(),
+    )
+    for idx, feature_name in enumerate(feature_names):
         dataframe_regression.check(
             data[["index_oligo", feature_name]],
             basename=f"test_access_config{idx}_1000_",

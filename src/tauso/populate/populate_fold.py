@@ -7,6 +7,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+from .._raccess.core import find_raccess
 from ..data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
 from ..features.fold.vienna_fold import calculate_avg_mfe_over_sense_region
 from ..features.rna_access.access_calculator import (
@@ -14,6 +15,7 @@ from ..features.rna_access.access_calculator import (
     get_cache,
     get_sense_with_flanks,
 )
+from ..features.rna_access.rna_access import RNAAccess
 from ..features.rna_access.sense_accessibility import compute_sense_accessibility_value
 from ..parallel_utils import make_apply_fn
 
@@ -265,3 +267,173 @@ def populate_sense_accessibility_batch(
     df_out.drop(columns=["_temp_id"], inplace=True)
 
     return df_out, feature_name
+
+
+def _build_feature_name_for_config(config):
+    seeds_str = "-".join(map(str, config["seeds"]))
+    return f"access_{config['flank']}flank_{config['access']}access_{seeds_str}seed_sizes"
+
+
+def populate_sense_accessibility_multi(
+    aso_dataframe,
+    gene_to_data,
+    configs,
+    batch_size=1000,
+    access_win_size=ACCESS_WIN_SIZE,
+    n_jobs=1,
+):
+    """Compute several (access_size, seed_sizes) accessibility features in one pass.
+
+    Equivalent to calling `populate_sense_accessibility_batch` once per config in
+    `configs`, but per batch we call raccess only once with `seed_sizes = sorted
+    union of all configs' seeds`. Empirically the raccess subprocess wall time is
+    dominated by the smallest seed_size, so the union call costs about the same as
+    the most-expensive single-config call — and the duplicate configs (e.g. two
+    configs that differ only in `access_size`) become free.
+
+    Requirements:
+      - All configs must share the same `flank`. Different flanks would mean
+        different `rna_seqs`, which defeats the sharing.
+      - Output for each config matches the single-config function bit-for-bit:
+        post-processing in `calc_access_energies_from_access_res` depends only on
+        the requested seed_size's column in the raccess result, not on what other
+        seed_sizes were passed in the same call.
+
+    Returns (df, feature_names) where feature_names is a list aligned with configs.
+    """
+    if not configs:
+        df_out = aso_dataframe.copy()
+        return df_out, []
+
+    flank_sizes = {c["flank"] for c in configs}
+    if len(flank_sizes) != 1:
+        raise ValueError(f"All configs must share the same flank_size; got {sorted(flank_sizes)}")
+    flank_size = next(iter(flank_sizes))
+
+    union_seeds = sorted({s for c in configs for s in c["seeds"]})
+    min_access = min(c["access"] for c in configs)
+
+    feature_names = [_build_feature_name_for_config(c) for c in configs]
+
+    df_out = aso_dataframe.copy()
+    df_out["_temp_id"] = range(len(df_out))
+
+    valid_mask = df_out[SENSE_START] != -1
+    if not valid_mask.any():
+        for fn in feature_names:
+            df_out[fn] = np.nan
+        df_out.drop(columns=["_temp_id"], inplace=True)
+        return df_out, feature_names
+
+    valid_df = df_out.loc[valid_mask, ["_temp_id", SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
+
+    unique_genes = valid_df[CANONICAL_GENE].unique()
+    lightweight_gene_to_data = {
+        gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data
+    }
+
+    raccess_exe = find_raccess()
+
+    def _process_batch(batch_rows):
+        # Build rna_seqs once for the whole batch (lenient access_size filter).
+        rna_seqs = []
+        sense_len_map = {}
+        sense_start_map = {}
+        batch_uuid = str(uuid.uuid4())
+
+        for _, row in batch_rows.iterrows():
+            current_id = str(row["_temp_id"])
+            gene_name = row[CANONICAL_GENE]
+            if gene_name not in lightweight_gene_to_data:
+                continue
+            full_mrna_seq = lightweight_gene_to_data[gene_name]
+
+            current_sense_start = row[SENSE_START]
+            flank_start = max(0, current_sense_start - flank_size)
+            relative_start = current_sense_start - flank_start
+
+            flanked_sense = get_sense_with_flanks(
+                full_mrna_seq,
+                current_sense_start,
+                row[SENSE_LENGTH],
+                flank_size=flank_size,
+            )
+
+            if not flanked_sense or len(flanked_sense) < min_access:
+                continue
+
+            flanked_sense = flanked_sense.upper().replace("T", "U")
+            rna_seqs.append((current_id, flanked_sense))
+            sense_len_map[current_id] = row[SENSE_LENGTH]
+            sense_start_map[current_id] = relative_start
+
+        empty_results = {fn: pd.DataFrame(columns=["_temp_id", fn]) for fn in feature_names}
+        if not rna_seqs:
+            return empty_results
+
+        # ONE raccess call per batch with the union of seed_sizes.
+        ra = RNAAccess(union_seeds, access_win_size, raccess_exe)
+        ra.set_uuid_for_web(batch_uuid)
+        raccess_res = ra.calculate(rna_seqs)
+
+        results = {}
+        for config, feature_name in zip(configs, feature_names):
+            access_size = config["access"]
+            seeds = config["seeds"]
+            eligible_seeds = [s for s in seeds if s <= access_size]
+            if not eligible_seeds:
+                results[feature_name] = pd.DataFrame(columns=["_temp_id", feature_name])
+                continue
+
+            per_rna_dfs = []
+            for rna_id, rna_seq in rna_seqs:
+                rna_size = len(rna_seq)
+                if rna_size < access_size:
+                    continue
+                access_res = raccess_res[rna_id]
+                df = AccessCalculator.calc_access_energies_from_access_res(
+                    access_res, rna_size, access_size, eligible_seeds,
+                )
+                target_cols = [f"{s}_avg" for s in eligible_seeds if f"{s}_avg" in df.columns]
+                df["avg_access"] = df[target_cols].mean(axis=1) if target_cols else 0.0
+                df["rna_id"] = rna_id
+                per_rna_dfs.append(df[["rna_id", "avg_access"]])
+
+            if not per_rna_dfs:
+                results[feature_name] = pd.DataFrame(columns=["_temp_id", feature_name])
+                continue
+
+            df = pd.concat(per_rna_dfs, ignore_index=True)
+            df["pos_in_flank"] = df.groupby("rna_id", sort=False, observed=True).cumcount()
+            df["sense_length"] = df["rna_id"].map(sense_len_map)
+            df["rel_start"] = df["rna_id"].map(sense_start_map)
+            mask = (df["pos_in_flank"] >= df["rel_start"]) & (
+                df["pos_in_flank"] < df["rel_start"] + df["sense_length"]
+            )
+
+            batch_result = df[mask].groupby("rna_id", as_index=False, observed=True)["avg_access"].mean()
+            batch_result.rename(columns={"rna_id": "_temp_id", "avg_access": feature_name}, inplace=True)
+            batch_result["_temp_id"] = batch_result["_temp_id"].astype(int)
+            results[feature_name] = batch_result
+
+        return results
+
+    batches = [valid_df.iloc[i : i + batch_size] for i in range(0, len(valid_df), batch_size)]
+
+    if n_jobs > 1:
+        with ThreadPoolExecutor(max_workers=min(n_jobs, len(batches))) as pool:
+            batch_results = list(pool.map(_process_batch, batches))
+    else:
+        batch_results = [_process_batch(b) for b in batches]
+
+    for fn in feature_names:
+        per_batch = [br[fn] for br in batch_results if not br[fn].empty]
+        if per_batch:
+            results_df = pd.concat(per_batch, ignore_index=True)
+            result_map = dict(zip(results_df["_temp_id"], results_df[fn]))
+            df_out[fn] = df_out["_temp_id"].map(result_map)
+        else:
+            df_out[fn] = np.nan
+
+    df_out.drop(columns=["_temp_id"], inplace=True)
+    return df_out, feature_names
