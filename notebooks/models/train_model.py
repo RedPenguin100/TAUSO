@@ -187,7 +187,6 @@ def step_select(data, features, args, paths):
         seed=args.seed,
         importance_type=args.importance,
         parsimony_tolerance=args.parsimony_tolerance,
-        device=args.device,
     )
     _save_json(optimal, paths["optimal_features"])
     history_df.to_csv(paths["rfe_history"], index=False)
