@@ -224,7 +224,7 @@ https://conda.anaconda.org/conda-forge/linux-64/at-spi2-core-2.40.3-h0630a04_0.t
 https://conda.anaconda.org/conda-forge/noarch/beautifulsoup4-4.14.3-pyha770c72_0.conda#5267bef8efea4127aacd1f4e1f149b6e
 https://conda.anaconda.org/conda-forge/noarch/bleach-with-css-6.3.0-hbca2aae_1.conda#f11a319b9700b203aa14c295858782b6
 https://conda.anaconda.org/bioconda/linux-64/bowtie-1.3.1-py311h5fe0eda_10.tar.bz2#041e045e0b79b6427363d1ba4a5af6dd
-https://conda.anaconda.org/conda-forge/linux-64/cupy-core-14.0.1-py311h1228293_1.conda#2e234ecbfdc40a62c12f8b2b3eed998e
+https://conda.anaconda.org/conda-forge/linux-64/cupy-core-14.1.0-py311hb94af43_0.conda#11b4efb7255f5230322832d6dcf4f270
 https://conda.anaconda.org/conda-forge/noarch/fqdn-1.5.1-pyhd8ed1ab_1.conda#d3549fd50d450b6d9e7dddff25dd2110
 https://conda.anaconda.org/conda-forge/noarch/ipython-9.13.0-pyh53cf698_0.conda#73e9657cd19605740d21efb14d8d0cb9
 https://conda.anaconda.org/conda-forge/noarch/jsonschema-specifications-2025.9.1-pyhcf101f3_0.conda#439cd0f567d697b20a8f45cb70a1005a
@@ -238,7 +238,7 @@ https://conda.anaconda.org/conda-forge/noarch/urllib3-2.7.0-pyhd8ed1ab_0.conda#c
 https://conda.anaconda.org/bioconda/linux-64/viennarna-2.7.2-py311pl5321hb7402bf_1.conda#a1e8d7033787d5a28e991a41e949e1e8
 https://conda.anaconda.org/conda-forge/noarch/argon2-cffi-25.1.0-pyhd8ed1ab_0.conda#8ac12aff0860280ee0cff7fa2cf63f3b
 https://conda.anaconda.org/conda-forge/linux-64/at-spi2-atk-2.38.0-h0630a04_3.tar.bz2#6b889f174df1e0f816276ae69281af4d
-https://conda.anaconda.org/conda-forge/linux-64/cupy-14.0.1-py311h05cc0ae_1.conda#8ba54365c5cd5f9dcc2967ce30d24b5b
+https://conda.anaconda.org/conda-forge/linux-64/cupy-14.1.0-py311he6f25ab_0.conda#9e77e98cdfcf99bd43bf5d5b03e26cf9
 https://conda.anaconda.org/conda-forge/linux-64/epoxy-1.5.10-hb03c661_2.conda#057083b06ccf1c2778344b6dabace38b
 https://conda.anaconda.org/conda-forge/noarch/httpcore-1.0.9-pyh29332c3_0.conda#4f14640d58e2cc0aa0819d9d8ba125bb
 https://conda.anaconda.org/conda-forge/noarch/ipykernel-7.2.0-pyha191276_1.conda#8b267f517b81c13594ed68d646fd5dcb
