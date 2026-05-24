@@ -1,11 +1,27 @@
 import json
+import logging
+import math
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
 from numba import njit
 
+logger = logging.getLogger(__name__)
+
 _WEIGHTS_DIR = Path(__file__).resolve().parent / "weights"
+
+
+def _gap_has_unknown_bases(seq: str, gap_start: int, gap_end: int) -> bool:
+    """True if the DNA gap region contains any non-ACGT character.
+
+    Both scorers normalize ``U → T`` before scoring, so only A/C/G/T are
+    expected in the gap. Anything else (typically ``N``) is treated as
+    invalid input — see the scan_constrained_window_* functions, which
+    return NaN and emit a warning rather than silently scoring it.
+    """
+    gap = seq[gap_start:gap_end].upper().replace("U", "T")
+    return any(b not in "ACGT" for b in gap)
 
 
 @lru_cache(maxsize=None)
@@ -68,7 +84,16 @@ def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_
     otherwise the window must sit fully inside the gap. Positions outside
     ``[gap_start, gap_end)`` (modified flanks) contribute 0 — RNase H1 does
     not cleave at 2'-MOE / cEt / LNA sugar modifications.
+
+    Returns ``NaN`` (with a warning) if the gap contains any non-ACGT base.
     """
+    if _gap_has_unknown_bases(target_seq, gap_start, gap_end):
+        logger.warning(
+            "Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN",
+            gap_start, gap_end, target_seq,
+        )
+        return math.nan
+
     W = len(next(iter(weights.values())))
     gap_len = gap_end - gap_start
     L = len(target_seq)
@@ -108,7 +133,16 @@ def scan_constrained_window_dinuc(
 
     Same window-overlap rule and same flank-zeroing semantics: any dimer
     where either base sits outside ``[gap_start, gap_end)`` contributes 0.
+
+    Returns ``NaN`` (with a warning) if the gap contains any non-ACGT base.
     """
+    if _gap_has_unknown_bases(target_seq, gap_start, gap_end):
+        logger.warning(
+            "Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN",
+            gap_start, gap_end, target_seq,
+        )
+        return math.nan
+
     weights_matrix, W = get_numba_weights_matrix(dinuc_weights)
     gap_len = gap_end - gap_start
     L = len(target_seq)
