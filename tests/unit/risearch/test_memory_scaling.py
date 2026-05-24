@@ -20,7 +20,7 @@ import psutil
 import pytest
 
 from tauso.data.consts import CANONICAL_GENE, SEQUENCE
-from tauso.features.hybridization_off_target.add_off_target_feat import (
+from tauso.features.hybridization.off_target.add_off_target_feat import (
     AggregationMethod,
     compute_group_batch,
 )
@@ -73,7 +73,7 @@ def test_peak_allocation_scales_with_hits(n_rows, hits_per_query):
     tracemalloc.start()
 
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value=raw_output,
     ):
         scores = compute_group_batch(
@@ -110,7 +110,7 @@ def test_no_memory_leak_across_repeated_calls():
     # Warm up to stabilise allocator
     for _ in range(2):
         with patch(
-            "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+            "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
             return_value=raw_output,
         ):
             compute_group_batch(
@@ -127,7 +127,7 @@ def test_no_memory_leak_across_repeated_calls():
     N_REPS = 8
     for _ in range(N_REPS):
         with patch(
-            "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+            "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
             return_value=raw_output,
         ):
             compute_group_batch(
@@ -160,7 +160,7 @@ def test_rss_stable_across_large_batch():
     rss_before = _rss_mb()
 
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value=raw_output,
     ):
         compute_group_batch(
