@@ -81,7 +81,7 @@ def get_init_df(target_mrna: str, mod_type: str = "moe") -> pd.DataFrame:
             SEQUENCE: candidates,
             SENSE_START: sense_starts,
             SENSE_LENGTH: sense_lengths,
-            "sense_start_from_end": sense_starts_from_end,
+            SENSE_START_FROM_END: sense_starts_from_end,
         }
     )
 
