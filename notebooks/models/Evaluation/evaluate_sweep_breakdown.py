@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from scipy.stats import spearmanr
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, ndcg_score
 
 from notebooks.models.SeenOligoModel.base_model import split_data
 from notebooks.models.utility import load_and_validate_final_data
@@ -51,10 +51,16 @@ def _large_cohort_indices(df, group_cols, min_size):
     return [g.index.values for _, g in df.groupby(group_cols) if len(g) >= min_size]
 
 
+NAN_METRICS = {
+    "Spearman": np.nan, "Top1_Inhib": np.nan, "Top5_Inhib": np.nan,
+    "NDCG_5": np.nan, "NDCG_10": np.nan, "P@5": np.nan, "P@10": np.nan,
+    "MAE": np.nan, "RMSE": np.nan, "n_cohorts": 0,
+}
+
+
 def _metrics(preds, y_true, cohort_idx):
     if len(y_true) == 0:
-        return {"Spearman": np.nan, "Top1_Inhib": np.nan, "Top5_Inhib": np.nan,
-                "MAE": np.nan, "RMSE": np.nan, "n_cohorts": 0}
+        return dict(NAN_METRICS)
     overall_mask = np.isfinite(preds) & np.isfinite(y_true)
     if overall_mask.any():
         mae  = float(mean_absolute_error(y_true[overall_mask], preds[overall_mask]))
@@ -63,12 +69,15 @@ def _metrics(preds, y_true, cohort_idx):
         mae  = float("nan")
         rmse = float("nan")
     spearmans, top1s, top5s = [], [], []
+    ndcg5s, ndcg10s, p5s, p10s = [], [], [], []
     for idxs in cohort_idx:
         t, p = y_true[idxs], preds[idxs]
         finite = np.isfinite(t) & np.isfinite(p)
         if finite.sum() < 2:
             continue
         t, p = t[finite], p[finite]
+        if np.ptp(t) == 0 or np.ptp(p) == 0:
+            continue  # spearman / NDCG undefined on constant input
         corr, _ = spearmanr(t, p)
         if not np.isnan(corr):
             spearmans.append(corr)
@@ -76,10 +85,24 @@ def _metrics(preds, y_true, cohort_idx):
         k1, k5 = max(1, int(n * 0.01)), max(1, int(n * 0.05))
         top1s.append(np.median(t[np.argpartition(p, -k1)[-k1:]]))
         top5s.append(np.median(t[np.argpartition(p, -k5)[-k5:]]))
+        # NDCG needs non-negative relevance; clip negative inhibition to 0
+        rel = np.clip(t, 0, None).reshape(1, -1)
+        scr = p.reshape(1, -1)
+        for k, ndcg_bin, p_bin in ((5, ndcg5s, p5s), (10, ndcg10s, p10s)):
+            if n <= k:
+                continue
+            ndcg_bin.append(float(ndcg_score(rel, scr, k=k)))
+            top_k_pred = np.argpartition(p, -k)[-k:]
+            top_k_true = np.argpartition(t, -k)[-k:]
+            p_bin.append(np.intersect1d(top_k_pred, top_k_true).size / k)
     return {
         "Spearman":   float(np.nanmedian(spearmans)) if spearmans else float("nan"),
         "Top1_Inhib": float(np.nanmedian(top1s))     if top1s     else float("nan"),
         "Top5_Inhib": float(np.nanmedian(top5s))     if top5s     else float("nan"),
+        "NDCG_5":     float(np.nanmedian(ndcg5s))    if ndcg5s    else float("nan"),
+        "NDCG_10":    float(np.nanmedian(ndcg10s))   if ndcg10s   else float("nan"),
+        "P@5":        float(np.nanmedian(p5s))       if p5s       else float("nan"),
+        "P@10":       float(np.nanmedian(p10s))      if p10s      else float("nan"),
         "MAE":        mae,
         "RMSE":       rmse,
         "n_cohorts":  len(spearmans),
@@ -157,18 +180,28 @@ def _evaluate(models, splits, breakdown_col, groupings, min_size):
     return pd.DataFrame(rows)
 
 
-def _print_test_heatmap(df, breakdown_label, grouping_label):
+BREAKDOWN_METRICS = ("Spearman", "Top1_Inhib", "Top5_Inhib", "NDCG_5", "P@5")
+
+
+def _print_test_heatmap(df, breakdown_label, grouping_label, metric="Spearman"):
     sub = df[(df["Split"] == "Test") & (df["Grouping"] == grouping_label)]
     if sub.empty:
         print(f"  (no Test rows for grouping={grouping_label})")
         return
-    pivot = (sub.pivot_table(index="Model", columns="Breakdown", values="Spearman")
+    pivot = (sub.pivot_table(index="Model", columns="Breakdown", values=metric)
                 .round(3))
-    # rank models by their median Spearman across breakdowns
+    # rank models by their median value across breakdowns
     pivot["__median__"] = pivot.median(axis=1)
     pivot = pivot.sort_values("__median__", ascending=False).drop(columns="__median__")
-    print(f"\n--- TEST Spearman | breakdown={breakdown_label} | grouping={grouping_label} ---")
+    print(f"\n--- TEST {metric} | breakdown={breakdown_label} | grouping={grouping_label} ---")
     print(pivot.to_string())
+
+
+def _print_breakdown(df, breakdown_label):
+    """Print Spearman for both groupings; print Top1/Top5/NDCG/P@K for gene x CL."""
+    _print_test_heatmap(df, breakdown_label, "custom_id", metric="Spearman")
+    for metric in BREAKDOWN_METRICS:
+        _print_test_heatmap(df, breakdown_label, "gene x CL", metric=metric)
 
 
 def main():
@@ -245,28 +278,27 @@ def main():
                            min_size=args.min_size_cell_line)
     df_overall.to_csv(args.out_dir / "overall.csv", index=False)
 
-    test_overall = (df_overall[df_overall["Split"] == "Test"]
-                    .pivot_table(index="Model", columns="Grouping", values="Spearman")
-                    .round(3)
-                    .sort_values("gene x CL", ascending=False))
-    print("\n--- TEST Spearman | overall ---")
-    print(test_overall.to_string())
+    test_only = df_overall[df_overall["Split"] == "Test"]
+    for metric in BREAKDOWN_METRICS:
+        pivot = (test_only.pivot_table(index="Model", columns="Grouping", values=metric)
+                          .round(3)
+                          .sort_values("gene x CL", ascending=False))
+        print(f"\n--- TEST {metric} | overall ---")
+        print(pivot.to_string())
 
     # 4. Per cell line
     print("\n[2/3] Per cell line...")
     df_cl = _evaluate(all_specs, splits, CELL_LINE, groupings,
                       min_size=args.min_size_cell_line)
     df_cl.to_csv(args.out_dir / "per_cell_line.csv", index=False)
-    _print_test_heatmap(df_cl, "Cell Line", "custom_id")
-    _print_test_heatmap(df_cl, "Cell Line", "gene x CL")
+    _print_breakdown(df_cl, "Cell Line")
 
     # 5. Per modification
     print("\n[3/3] Per modification...")
     df_mod = _evaluate(all_specs, splits, MODIFICATION, groupings,
                        min_size=args.min_size_modification)
     df_mod.to_csv(args.out_dir / "per_modification.csv", index=False)
-    _print_test_heatmap(df_mod, "Modification", "custom_id")
-    _print_test_heatmap(df_mod, "Modification", "gene x CL")
+    _print_breakdown(df_mod, "Modification")
 
     print(f"\nSaved -> {args.out_dir}/overall.csv, per_cell_line.csv, per_modification.csv")
 
