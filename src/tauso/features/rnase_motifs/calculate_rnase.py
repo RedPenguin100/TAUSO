@@ -48,9 +48,7 @@ def _apply_rnaseh1(
         weights = rnaseh1_dict(exp)
         col_name = f"{out_prefix}{exp}_dynamic"
         feature_cols.append(col_name)
-        df[col_name] = [
-            scanner(r[0], weights, r[1], r[2]) if r is not None else 0.0 for r in precomputed
-        ]
+        df[col_name] = [scanner(r[0], weights, r[1], r[2]) if r is not None else 0.0 for r in precomputed]
 
     return df, feature_cols
 
@@ -93,4 +91,3 @@ def add_rnaseh1_scores_krel_dinuc(
 ) -> tuple[pd.DataFrame, list[str]]:
     """Dinucleotide PSSM RNase H1 scores (Krel weights), zeroed outside the DNA gap."""
     return _apply_rnaseh1(df, experiments, out_prefix, scan_constrained_window_dinuc)
-

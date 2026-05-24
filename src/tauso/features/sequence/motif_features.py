@@ -42,6 +42,7 @@ extending the convention to a "second gap" feature opens questions about
 weighting, RNase H1 substrate competition, and interaction with the PSSM
 windowing that we are not modelling yet.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -72,9 +73,7 @@ def _extract_dna_gap(row) -> str:
     return seq[start:end].upper()
 
 
-def add_rnaseh1_motif_features(
-    df: pd.DataFrame, out_prefix: str = "RNaseH1_"
-) -> tuple[pd.DataFrame, list[str]]:
+def add_rnaseh1_motif_features(df: pd.DataFrame, out_prefix: str = "RNaseH1_") -> tuple[pd.DataFrame, list[str]]:
     """Binary presence of curated RNase H1 motifs in the longest DNA gap.
 
     Adds one float column per motif (1.0 if present in the DNA gap, else 0.0)

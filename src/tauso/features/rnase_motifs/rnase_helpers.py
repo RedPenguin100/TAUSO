@@ -90,7 +90,9 @@ def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_
     if _gap_has_unknown_bases(target_seq, gap_start, gap_end):
         logger.warning(
             "Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN",
-            gap_start, gap_end, target_seq,
+            gap_start,
+            gap_end,
+            target_seq,
         )
         return math.nan
 
@@ -126,9 +128,7 @@ def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_
     return max(valid_scores) if valid_scores else 0.0
 
 
-def scan_constrained_window_dinuc(
-    target_seq: str, dinuc_weights: dict, gap_start: int, gap_end: int
-) -> float:
+def scan_constrained_window_dinuc(target_seq: str, dinuc_weights: dict, gap_start: int, gap_end: int) -> float:
     """Dinucleotide counterpart of :func:`scan_constrained_window`.
 
     Same window-overlap rule and same flank-zeroing semantics: any dimer
@@ -139,7 +139,9 @@ def scan_constrained_window_dinuc(
     if _gap_has_unknown_bases(target_seq, gap_start, gap_end):
         logger.warning(
             "Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN",
-            gap_start, gap_end, target_seq,
+            gap_start,
+            gap_end,
+            target_seq,
         )
         return math.nan
 
@@ -160,8 +162,6 @@ def scan_constrained_window_dinuc(
             is_valid = (win_start >= gap_start) and (win_end <= gap_end)
 
         if is_valid:
-            valid_scores.append(
-                _score_dinuc_window_masked(seq_ints, weights_matrix, win_start, gap_start, gap_end)
-            )
+            valid_scores.append(_score_dinuc_window_masked(seq_ints, weights_matrix, win_start, gap_start, gap_end))
 
     return max(valid_scores) if valid_scores else 0.0
