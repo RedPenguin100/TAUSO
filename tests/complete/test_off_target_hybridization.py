@@ -22,7 +22,7 @@ def transcriptomes_with_general(transcriptomes):
 
     from tauso.common.gtf import filter_gtf_genes
     from tauso.data.data import get_data_dir, load_gtf_db
-    from tauso.features.hybridization_off_target.common import get_general_expression_of_genes
+    from tauso.features.expression.general_expression import get_general_expression_of_genes
 
     db = load_gtf_db()
     valid_genes = filter_gtf_genes(db, filter_mode="non_mt")

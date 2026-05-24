@@ -3,8 +3,6 @@ from pathlib import Path
 
 import pandas as pd
 
-# TODO: move this function to a folder / file about expression
-
 logger = logging.getLogger(__name__)
 
 
