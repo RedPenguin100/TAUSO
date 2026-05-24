@@ -55,13 +55,20 @@ def _metrics(preds, y_true, cohort_idx):
     if len(y_true) == 0:
         return {"Spearman": np.nan, "Top1_Inhib": np.nan, "Top5_Inhib": np.nan,
                 "MAE": np.nan, "RMSE": np.nan, "n_cohorts": 0}
-    mae  = float(mean_absolute_error(y_true, preds))
-    rmse = float(np.sqrt(mean_squared_error(y_true, preds)))
+    overall_mask = np.isfinite(preds) & np.isfinite(y_true)
+    if overall_mask.any():
+        mae  = float(mean_absolute_error(y_true[overall_mask], preds[overall_mask]))
+        rmse = float(np.sqrt(mean_squared_error(y_true[overall_mask], preds[overall_mask])))
+    else:
+        mae  = float("nan")
+        rmse = float("nan")
     spearmans, top1s, top5s = [], [], []
     for idxs in cohort_idx:
         t, p = y_true[idxs], preds[idxs]
-        if len(t) < 2:
+        finite = np.isfinite(t) & np.isfinite(p)
+        if finite.sum() < 2:
             continue
+        t, p = t[finite], p[finite]
         corr, _ = spearmanr(t, p)
         if not np.isnan(corr):
             spearmans.append(corr)
