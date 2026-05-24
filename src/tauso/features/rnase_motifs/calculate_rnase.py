@@ -10,65 +10,38 @@ from .rnase_helpers import (
 )
 
 
-def _apply_rnaseh1(
-    df: pd.DataFrame,
-    experiments: tuple[str, ...],
-    out_prefix: str,
-    scanner,
+def _apply_rnaseh1_dinuc_scoring(
+    df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Find the longest DNA gap per row, then score it for each experiment.
-
-    Rows whose chemistry has no DNA gap of length >= 8, or that lack a valid
-    sequence/chemistry, get 0.0. The DNA gap is the longest consecutive run of
-    ``d`` markers — second-largest stretches (e.g. mixmer designs) are ignored.
-
-    ``scanner`` is :func:`scan_constrained_window` for single-nt PSSMs or
-    :func:`scan_constrained_window_dinuc` for the dinucleotide variants; both
-    zero out positions outside the gap, so sugar-modified flanks contribute
-    nothing to the score.
-    """
-    feature_cols: list[str] = []
+    """Core logic for applying RNase H1 dinucleotide scoring across experiments."""
+    feature_cols = []
     seqs = df[SEQUENCE].tolist()
     chems = df[CHEMICAL_PATTERN].tolist()
 
-    precomputed: list[tuple[str, int, int] | None] = []
-    for seq, chem in zip(seqs, chems):
+    def score_row(seq: str, chem: str, weights: dict) -> float:
         if not isinstance(seq, str) or not isinstance(chem, str):
-            precomputed.append(None)
-            continue
+            return 0.0
+
         start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
         if gap_len < 8:
-            precomputed.append(None)
-            continue
-        L = len(seq)
+            return 0.0
+
         target_rna = get_antisense(seq)
-        precomputed.append((target_rna, L - end_aso, L - start_aso))
+        L = len(seq)
+
+        gap_start_rc = L - end_aso
+        gap_end_rc = L - start_aso
+
+        return scan_constrained_window_dinuc(target_rna, weights, gap_start_rc, gap_end_rc)
 
     for exp in experiments:
         weights = rnaseh1_dict(exp)
         col_name = f"{out_prefix}{exp}_dynamic"
         feature_cols.append(col_name)
-        df[col_name] = [scanner(r[0], weights, r[1], r[2]) if r is not None else 0.0 for r in precomputed]
+
+        df[col_name] = [score_row(s, c, weights) for s, c in zip(seqs, chems)]
 
     return df, feature_cols
-
-
-def add_rnaseh1_scores_nt(
-    df: pd.DataFrame,
-    experiments: tuple[str, ...] = ("R4a", "R4b", "R7"),
-    out_prefix: str = "RNaseH1_score_",
-) -> tuple[pd.DataFrame, list[str]]:
-    """Single-nt PSSM RNase H1 scores (logFC weights), zeroed outside the DNA gap."""
-    return _apply_rnaseh1(df, experiments, out_prefix, scan_constrained_window)
-
-
-def add_rnaseh1_scores_krel_nt(
-    df: pd.DataFrame,
-    experiments: tuple[str, ...] = ("R4a_krel", "R4b_krel", "R7_krel"),
-    out_prefix: str = "RNaseH1_Krel_score_",
-) -> tuple[pd.DataFrame, list[str]]:
-    """Single-nt PSSM RNase H1 scores (Krel weights), zeroed outside the DNA gap."""
-    return _apply_rnaseh1(df, experiments, out_prefix, scan_constrained_window)
 
 
 def add_rnaseh1_scores_dinuc(
@@ -76,8 +49,12 @@ def add_rnaseh1_scores_dinuc(
     experiments: tuple[str, ...] = ("R4a_dinuc", "R4b_dinuc", "R7_dinuc"),
     out_prefix: str = "RNaseH1_score_dinucleotide_",
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Dinucleotide PSSM RNase H1 scores (logFC weights), zeroed outside the DNA gap."""
-    return _apply_rnaseh1(df, experiments, out_prefix, scan_constrained_window_dinuc)
+    """
+    Calculates the best RNase H1 DINUCLEOTIDE score strictly within the longest DNA gap.
+    Uses the 'logFC' dinucleotide weights (not krel).
+    Returns 0.0 if the DNA gap is shorter than 8 nucleotides.
+    """
+    return _apply_rnaseh1_dinuc_scoring(df, experiments, out_prefix)
 
 
 def add_rnaseh1_scores_krel_dinuc(
@@ -89,5 +66,63 @@ def add_rnaseh1_scores_krel_dinuc(
     ),
     out_prefix: str = "RNaseH1_Krel_dinucleotide_score_",
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Dinucleotide PSSM RNase H1 scores (Krel weights), zeroed outside the DNA gap."""
-    return _apply_rnaseh1(df, experiments, out_prefix, scan_constrained_window_dinuc)
+    """
+    Calculates the best RNase H1 score strictly within the longest DNA gap.
+    Returns 0.0 if the DNA gap is shorter than 8 nucleotides.
+    """
+    return _apply_rnaseh1_dinuc_scoring(df, experiments, out_prefix)
+
+
+def _apply_rnaseh1_scoring(
+    df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str
+) -> tuple[pd.DataFrame, list[str]]:
+    """Core logic for applying RNase H1 scoring across a set of experiments."""
+    feature_cols = []
+    seqs = df[SEQUENCE].tolist()
+    chems = df[CHEMICAL_PATTERN].tolist()
+
+    # Define the row scorer here to keep the namespace clean.
+    # It safely takes 'weights' as an argument, dodging the late-binding trap.
+    def score_row(seq: str, chem: str, weights: dict) -> float:
+        if not isinstance(seq, str) or not isinstance(chem, str):
+            return 0.0
+
+        start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
+        if gap_len < 8:
+            return 0.0
+
+        target_rna = get_antisense(seq)
+        L = len(seq)
+
+        gap_start_rc = L - end_aso
+        gap_end_rc = L - start_aso
+
+        return scan_constrained_window(target_rna, weights, gap_start_rc, gap_end_rc)
+
+    for exp in experiments:
+        weights = rnaseh1_dict(exp)
+        col_name = f"{out_prefix}{exp}_dynamic"
+        feature_cols.append(col_name)
+
+        # Pass the loop variable 'weights' directly into the function call
+        df[col_name] = [score_row(s, c, weights) for s, c in zip(seqs, chems)]
+
+    return df, feature_cols
+
+
+def add_rnaseh1_scores_krel_nt(
+    df: pd.DataFrame,
+    experiments: tuple[str, ...] = ("R4a_krel", "R4b_krel", "R7_krel"),
+    out_prefix: str = "RNaseH1_Krel_score_",
+) -> tuple[pd.DataFrame, list[str]]:
+    """Calculates RNase H1 SINGLE-NUCLEOTIDE score (LogFC) using best-effort overlap logic."""
+    return _apply_rnaseh1_scoring(df, experiments, out_prefix)
+
+
+def add_rnaseh1_scores_nt(
+    df: pd.DataFrame,
+    experiments: tuple[str, ...] = ("R4a", "R4b", "R7"),
+    out_prefix: str = "RNaseH1_score_",
+) -> tuple[pd.DataFrame, list[str]]:
+    """Calculates RNase H1 SINGLE-NUCLEOTIDE score (LogFC) using best-effort overlap logic."""
+    return _apply_rnaseh1_scoring(df, experiments, out_prefix)

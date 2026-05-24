@@ -13,13 +13,6 @@ _WEIGHTS_DIR = Path(__file__).resolve().parent / "weights"
 
 
 def _gap_has_unknown_bases(seq: str, gap_start: int, gap_end: int) -> bool:
-    """True if the DNA gap region contains any non-ACGT character.
-
-    Both scorers normalize ``U → T`` before scoring, so only A/C/G/T are
-    expected in the gap. Anything else (typically ``N``) is treated as
-    invalid input — see the scan_constrained_window_* functions, which
-    return NaN and emit a warning rather than silently scoring it.
-    """
     gap = seq[gap_start:gap_end].upper().replace("U", "T")
     return any(b not in "ACGT" for b in gap)
 
@@ -64,49 +57,40 @@ def get_numba_weights_matrix(weights_dict):
 @njit(fastmath=True)
 def _score_dinuc_window_masked(seq_ints, weights_matrix, window_start, gap_start, gap_end):
     """Numba kernel: dinuc score over one window, with flank-bridging dimers zeroed."""
-    W = weights_matrix.shape[1]
+    window_size = weights_matrix.shape[1]
     L = len(seq_ints)
     score = 0.0
-    for i in range(W - 1):
+    for i in range(window_size - 1):
         pos1 = window_start + i
         pos2 = pos1 + 1
         if pos1 < gap_start or pos2 >= gap_end or pos2 >= L:
             continue
         dimer_idx = (seq_ints[pos1] * 4) + seq_ints[pos2]
         score += weights_matrix[dimer_idx, i]
-    return score / W
+    return score / window_size
 
 
 def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_end: int) -> float:
-    """Max single-nt PSSM score over windows that satisfy a gap-overlap constraint.
+    """Max single-nt PSSM score over windows overlapping the DNA gap.
 
-    If the window is wider than the DNA gap, it must fully engulf the gap;
-    otherwise the window must sit fully inside the gap. Positions outside
-    ``[gap_start, gap_end)`` (modified flanks) contribute 0 — RNase H1 does
-    not cleave at 2'-MOE / cEt / LNA sugar modifications.
-
-    Returns ``NaN`` (with a warning) if the gap contains any non-ACGT base.
+    Positions outside ``[gap_start, gap_end)`` contribute 0 (sugar-modified flanks
+    are not cleaved). Returns NaN with a warning if the gap has any non-ACGT base.
     """
     if _gap_has_unknown_bases(target_seq, gap_start, gap_end):
-        logger.warning(
-            "Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN",
-            gap_start,
-            gap_end,
-            target_seq,
-        )
+        logger.warning("Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN", gap_start, gap_end, target_seq)
         return math.nan
 
-    W = len(next(iter(weights.values())))
+    window_size = len(next(iter(weights.values())))
     gap_len = gap_end - gap_start
     L = len(target_seq)
     seq = target_seq.upper().replace("U", "T")
 
     valid_scores = []
-    for i in range(L - W + 1):
+    for i in range(L - window_size + 1):
         win_start = i
-        win_end = i + W
+        win_end = i + window_size
 
-        if W > gap_len:
+        if window_size > gap_len:
             is_valid = (win_start <= gap_start) and (win_end >= gap_end)
         else:
             is_valid = (win_start >= gap_start) and (win_end <= gap_end)
@@ -115,7 +99,7 @@ def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_
             continue
 
         score = 0.0
-        for k in range(W):
+        for k in range(window_size):
             pos = win_start + k
             if pos < gap_start or pos >= gap_end:
                 continue
@@ -123,40 +107,31 @@ def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_
                 score += weights[seq[pos]][k]
             except (KeyError, IndexError):
                 pass
-        valid_scores.append(score / W)
+        valid_scores.append(score / window_size)
 
     return max(valid_scores) if valid_scores else 0.0
 
 
 def scan_constrained_window_dinuc(target_seq: str, dinuc_weights: dict, gap_start: int, gap_end: int) -> float:
-    """Dinucleotide counterpart of :func:`scan_constrained_window`.
-
-    Same window-overlap rule and same flank-zeroing semantics: any dimer
-    where either base sits outside ``[gap_start, gap_end)`` contributes 0.
-
-    Returns ``NaN`` (with a warning) if the gap contains any non-ACGT base.
+    """Dinucleotide counterpart of :func:`scan_constrained_window`. Same overlap rule
+    and flank-zeroing. Returns NaN with a warning if the gap has any non-ACGT base.
     """
     if _gap_has_unknown_bases(target_seq, gap_start, gap_end):
-        logger.warning(
-            "Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN",
-            gap_start,
-            gap_end,
-            target_seq,
-        )
+        logger.warning("Non-ACGT base in DNA gap [%d, %d) of %r; returning NaN", gap_start, gap_end, target_seq)
         return math.nan
 
-    weights_matrix, W = get_numba_weights_matrix(dinuc_weights)
+    weights_matrix, window_size = get_numba_weights_matrix(dinuc_weights)
     gap_len = gap_end - gap_start
     L = len(target_seq)
     seq_str = target_seq.upper().replace("U", "T")
     seq_ints = np.array([CHAR_TO_INT.get(c, 0) for c in seq_str], dtype=np.int8)
 
     valid_scores = []
-    for i in range(L - W + 1):
+    for i in range(L - window_size + 1):
         win_start = i
-        win_end = i + W
+        win_end = i + window_size
 
-        if W > gap_len:
+        if window_size > gap_len:
             is_valid = (win_start <= gap_start) and (win_end >= gap_end)
         else:
             is_valid = (win_start >= gap_start) and (win_end <= gap_end)
