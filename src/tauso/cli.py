@@ -30,6 +30,7 @@ from tauso.cli_utils import (
 from tauso.data.data import get_data_dir, get_paths
 from tauso.features.codon_usage.cai import calc_CAI_weight
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
+from tauso.features.codon_usage.tai import TGCNSource
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import (
     GeneCoordinateMapper,
@@ -126,6 +127,9 @@ def setup_omics(ctx, force):
     click.echo()
     click.echo(click.style("=== setup-omics: mRNA half-life ===", bold=True))
     ctx.invoke(setup_mrna_halflife, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: human tGCN ===", bold=True))
+    ctx.invoke(setup_tgcn, force=force)
     click.echo()
     echo_ok("Omics setup complete.")
 
@@ -239,6 +243,10 @@ def build_cell_context(ctx, cell_names, reset, genome, cai, force):
         click.echo(click.style("=== build-cell-context: CAI weights ===", bold=True))
         ctx.invoke(build_cai_weights, top_n=300, top_n_generic=500, genome=genome, force=force)
         click.echo()
+
+    click.echo(click.style("=== build-cell-context: human tGCN ===", bold=True))
+    ctx.invoke(setup_tgcn, force=force)
+    click.echo()
     echo_ok("build-cell-context complete.")
 
 
@@ -521,6 +529,51 @@ def setup_mrna_halflife(force):
 
     except Exception as e:
         echo_err(f"Error downloading file: {e}")
+        sys.exit(1)
+
+
+@main.command(name="setup-tgcn")
+@click.option(
+    "--organism",
+    type=click.Choice(["human"], case_sensitive=False),
+    default="human",
+    show_default=True,
+    help="Organism whose tGCN to fetch. Available: human (GtRNAdb Hsapi38).",
+)
+@click.option("--force", is_flag=True, help="Force refetch if file exists.")
+def setup_tgcn(organism, force):
+    """
+    Fetch a tRNA gene copy number (tGCN) table from GtRNAdb and write it
+    to TAUSO_DATA_DIR. The tAI feature loads this table at first use;
+    without it, populate_tai cannot run.
+    """
+    from codonbias.scores import fetch_GCN_from_GtRNAdb
+
+    src = TGCNSource[organism.upper()]
+    spec = src.value
+
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+    destination = os.path.join(data_dir, spec.filename)
+
+    click.echo(f"Initializing {organism} tGCN setup (GtRNAdb {spec.gtrnadb_genome})...")
+    click.echo(f"Target path: {destination}")
+
+    if os.path.exists(destination) and not force:
+        verify_hash_or_exit(destination, spec.sha256, algo="sha256")
+        echo_ok("Existing file matches expected SHA256. Skipping download.")
+        return
+
+    try:
+        click.echo("Fetching tGCN from GtRNAdb (requires lxml)...")
+        df = fetch_GCN_from_GtRNAdb(genome=spec.gtrnadb_genome, domain=spec.gtrnadb_domain)
+        df = df.sort_values("anti_codon").reset_index(drop=True)
+        df.to_csv(destination, index=False)
+        verify_hash_or_exit(destination, spec.sha256, algo="sha256")
+        echo_ok(f"Fetched and verified: {destination} ({len(df)} anti-codons).")
+
+    except Exception as e:
+        echo_err(f"Error fetching tGCN: {e}")
         sys.exit(1)
 
 
