@@ -157,4 +157,4 @@ jobs:
         run: tauso build-cell-context
 
       - name: Run tests
-        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
+        run: micromamba run -n tauso pytest -vvvs --durations=0 --n-jobs 4
