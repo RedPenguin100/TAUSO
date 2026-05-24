@@ -657,6 +657,39 @@ def setup_attract(force):
             sys.exit(1)
 
 
+@main.command(name="setup-riboseq")
+@click.option("--force", is_flag=True, help="Force redownload if file exists.")
+def setup_riboseq(force):
+    """
+    Downloads the 40S ribosome-profiling bigWig from Zenodo.
+
+    Source: https://zenodo.org/records/20366983 (DOI 10.5281/zenodo.20366983),
+    an immutable mirror of the RiboSeq data. Installs into TAUSO_DATA_DIR.
+    """
+    ZENODO_RECORD = "20366983"
+    FILENAME = "human_unselected_40S.RiboProElong.bw"
+    EXPECTED_MD5 = "c1a06bf87fbee3d66f8422922dddd709"
+
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+    destination = os.path.join(data_dir, FILENAME)
+    click.echo(f"Target path: {destination}")
+
+    if os.path.exists(destination) and not force:
+        verify_hash_or_exit(destination, EXPECTED_MD5, algo="md5")
+        echo_ok(f"Existing {FILENAME} matches expected MD5. Skipping download.")
+        return
+
+    url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{FILENAME}/content"
+    try:
+        download_with_progress(url, destination, label=f"Downloading {FILENAME}")
+        verify_hash_or_exit(destination, EXPECTED_MD5, algo="md5")
+        echo_ok(f"Downloaded and verified: {destination}")
+    except Exception as e:
+        echo_err(f"Error downloading {FILENAME}: {e}")
+        sys.exit(1)
+
+
 GENCODE_HUMAN_RELEASE = "38"
 
 

@@ -105,6 +105,6 @@ setup(
         "egg_info": CustomEggInfo,
     },
     # Update package_data to include the 'out/' prefix
-    package_data={PACKAGE_NAME: [f"out/{BINARY_NAME}", f"features/context/*.bw"]},
+    package_data={PACKAGE_NAME: [f"out/{BINARY_NAME}"]},
     include_package_data=True,
 )
