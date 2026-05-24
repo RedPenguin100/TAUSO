@@ -135,14 +135,11 @@ jobs:
         with:
           path: |
             ${{ env.TAUSO_DATA_DIR }}/Model.csv
-            ${{ env.TAUSO_DATA_DIR }}/Model.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv
-            ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet
-            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
             ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
-          key: depmap-25Q3-v2
+          key: depmap-25Q3-v3
 
       - name: Setup DepMap
         run: tauso setup-depmap
