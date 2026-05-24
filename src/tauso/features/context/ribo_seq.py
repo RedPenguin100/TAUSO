@@ -6,6 +6,7 @@ import numpy as np
 import pyBigWig
 
 from ...data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
+from ...data.data import get_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +14,10 @@ parent = Path(__file__).parent
 
 
 def get_ribo_40s_human_data():
-    """Safely resolves the path to the bundled .bw file."""
-    bw_path = Path(__file__).resolve().parent / "human_unselected_40S.RiboProElong.bw"
+    """Resolve the path to the ribo-seq bigWig in TAUSO_DATA_DIR."""
+    bw_path = Path(get_data_dir()) / "human_unselected_40S.RiboProElong.bw"
     if not bw_path.exists():
-        raise FileNotFoundError(f"Missing packaged data file at {bw_path}")
+        raise FileNotFoundError(f"Ribo-seq bigWig not found at {bw_path}. Run 'tauso setup-riboseq' to download it.")
     return str(bw_path)
 
 
