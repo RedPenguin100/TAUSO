@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 from tauso.data.consts import CANONICAL_GENE, SEQUENCE
-from tauso.features.hybridization_off_target.add_off_target_feat import (
+from tauso.features.hybridization.off_target.add_off_target_feat import (
     AggregationMethod,
     compute_group_batch,
 )
@@ -46,7 +46,7 @@ def _make_group_df(rows):
 def _mock_batch(fake_output, prebuilt_target_path="FAKE"):
     """Patch get_triggers_mfe_scores_batch to return synthetic output, then call compute_group_batch."""
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value=fake_output,
     ):
         return compute_group_batch
@@ -67,7 +67,7 @@ def test_artm_scores_computed_correctly():
 
     batch_fn = _mock_batch(FAKE_RISEARCH_OUTPUT)
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value=FAKE_RISEARCH_OUTPUT,
     ):
         scores = compute_group_batch(
@@ -103,7 +103,7 @@ def test_self_target_always_excluded():
     only_self_output = "0\t1\t20\tGENE_A\t100\t120\t1000\t-9.0\n"
 
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value=only_self_output,
     ):
         scores = compute_group_batch(
@@ -126,7 +126,7 @@ def test_empty_risearch_output_returns_zeros():
         ]
     )
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value="",
     ):
         scores = compute_group_batch(
@@ -154,9 +154,9 @@ def test_prebuilt_target_path_skips_file_ops(tmp_path):
     sentinel.write_text(">dummy\nACGT\n")
 
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value="",
-    ), patch("tauso.features.hybridization_off_target.add_off_target_feat.dump_target_file") as mock_dump:
+    ), patch("tauso.features.hybridization.off_target.add_off_target_feat.dump_target_file") as mock_dump:
         compute_group_batch(
             group_df,
             seq_map={},
@@ -177,7 +177,7 @@ def test_min_energy_per_target_used():
     # Row 0 has two hits to GENE_A: -3.0 and -15.0 → min = -15.0
     multi_hit_output = "0\t1\t20\tGENE_A\t100\t120\t1000\t-3.0\n0\t1\t20\tGENE_A\t200\t220\t900\t-15.0\n"
     with patch(
-        "tauso.features.hybridization_off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
+        "tauso.features.hybridization.off_target.add_off_target_feat.get_triggers_mfe_scores_batch",
         return_value=multi_hit_output,
     ):
         scores = compute_group_batch(

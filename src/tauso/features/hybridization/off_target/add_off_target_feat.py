@@ -5,11 +5,11 @@ import uuid
 import numpy as np
 import pandas as pd
 
-from ...data.consts import CANONICAL_GENE, SEQUENCE
+from ....data.consts import CANONICAL_GENE, SEQUENCE
 
 logger = logging.getLogger(__name__)
-from ...util import get_antisense
-from ..hybridization.fast_hybridization import (
+from ....util import get_antisense
+from ..fast_hybridization import (
     TMP_PATH,
     Interaction,
     dump_target_file,
