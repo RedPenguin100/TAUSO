@@ -11,7 +11,6 @@ from importlib.resources import files
 from pathlib import Path
 
 import click
-import gdown
 import gffutils
 import pandas as pd
 from gffutils.iterators import DataIterator
@@ -32,6 +31,7 @@ from tauso.data.data import get_data_dir, get_paths
 from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_FILENAME, build_scorer_from_reference
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.features.codon_usage.tai import TGCNSource
+from tauso.features.context.mrna_halflife import HALFLIFE_SOURCE_COLUMNS
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import (
     GeneCoordinateMapper,
@@ -541,43 +541,44 @@ def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
 @click.option("--force", is_flag=True, help="Force redownload if file exists.")
 def setup_mrna_halflife(force):
     """
-    Downloads the 'species_stability_no_threshold.csv.gz' dataset from the TTDB source.
+    Downloads the mRNA half-life dataset (TTDB) from Zenodo and converts it to a
+    lean Parquet (only the columns the loader needs) for fast loading.
     """
-    FILE_ID = "1GekvDui-B2tSAQ6wgO3tIXpKd54EGRbn"
+    # TTDB (Transcriptome Turnover Database) stability dataset — database as of
+    # 2026-05-24. Fetched from a Zenodo mirror, verified byte-identical (SHA256
+    # ec0c1f90...) to TTDB's official `species_stability_no_threshold.csv.gz`
+    # Google Drive download listed at https://sysbio.gzzoc.com/ttdb/download.html.
+    # Zenodo is used for a stable, immutable, DOI-backed HTTP download.
+    ZENODO_RECORD = "20368324"
+    GZ_NAME = "mrna_half_life.csv.gz"
     EXPECTED_SHA256 = "ec0c1f90eed96516de510c484a7a7dd4bbd10d253306710bb33e714f88c5c135"
 
-    url = f"https://drive.google.com/uc?id={FILE_ID}"
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
-    destination = os.path.join(data_dir, "mrna_half_life.csv.gz")
+    gz_path = os.path.join(data_dir, GZ_NAME)
+    parquet_path = os.path.join(data_dir, "mrna_half_life.parquet")
 
-    click.echo("Initializing Stability Data setup...")
-    click.echo(f"Target path: {destination}")
+    click.echo("Initializing mRNA half-life setup (TTDB via Zenodo)...")
+    click.echo(f"Target path: {parquet_path}")
 
-    if os.path.exists(destination) and not force:
-        verify_hash_or_exit(destination, EXPECTED_SHA256, algo="sha256")
-        echo_ok("Existing file matches expected SHA256. Skipping download.")
+    if os.path.exists(parquet_path) and not force:
+        echo_ok(f"{os.path.basename(parquet_path)} already present. Skipping.")
         return
 
+    url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{GZ_NAME}/content"
     try:
-        click.echo("Contacting Google Drive via gdown...")
-        output = gdown.download(url, destination, quiet=False)
-        if not output:
-            raise Exception("Download failed (no output file).")
+        download_with_progress(url, gz_path, label=f"Downloading {GZ_NAME}")
+        verify_hash_or_exit(gz_path, EXPECTED_SHA256, algo="sha256")
+        echo_ok(f"Downloaded and verified: {gz_path}")
 
-        # Validate gzip integrity (gdown sometimes returns an HTML error page).
-        try:
-            with gzip.open(destination, "rb") as f:
-                f.read(1)
-        except Exception:
-            echo_err("Downloaded file is not a valid gzip (likely an HTML error page).")
-            sys.exit(1)
+        click.echo("  Converting to Parquet (loader columns only)...")
+        pd.read_csv(gz_path, compression="gzip", usecols=HALFLIFE_SOURCE_COLUMNS).to_parquet(parquet_path, index=False)
+        echo_ok(f"Converted to Parquet: {parquet_path}")
 
-        verify_hash_or_exit(destination, EXPECTED_SHA256, algo="sha256")
-        echo_ok(f"Downloaded and verified: {destination}")
-
+        # The gzip CSV is dead weight once the Parquet exists (re-downloadable from Zenodo/TTDB).
+        os.remove(gz_path)
     except Exception as e:
-        echo_err(f"Error downloading file: {e}")
+        echo_err(f"Error setting up mRNA half-life data: {e}")
         sys.exit(1)
 
 
