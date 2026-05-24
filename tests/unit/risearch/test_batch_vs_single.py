@@ -14,7 +14,7 @@ from tauso.features.hybridization.fast_hybridization import (
     get_trigger_mfe_scores_by_risearch,
     get_triggers_mfe_scores_batch,
 )
-from tauso.features.hybridization_off_target.off_target_functions import parse_risearch_output
+from tauso.features.hybridization.off_target.off_target_functions import parse_risearch_output
 from tauso.util import get_antisense
 from tests.common.consts import INTEGRATION_TESTS_PATH
 

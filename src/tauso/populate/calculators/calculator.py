@@ -18,8 +18,8 @@ from ...data.consts import (
     SENSE_TYPE,
     SENSE_UTR,
 )
-from ...features.feature_extraction import save_feature_internal
 from ...timer import Timer
+from ..feature_cache import save_feature_internal
 from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
     populate_special_gene_expression,
@@ -308,7 +308,7 @@ class Calculator:
         if missing:
             logger.info("Computing specific off-target features...")
 
-            from tauso.features.hybridization_off_target.off_target_specific_gene import (
+            from tauso.features.hybridization.off_target.off_target_specific_gene import (
                 off_target_specific_seq_pandarallel,
             )
 
@@ -336,7 +336,7 @@ class Calculator:
         if missing:
             logger.info("Computing %d on-target hybridization features...", len(missing))
 
-            from tauso.features.hybridization_off_target.off_target_specific_gene import on_target_total_hybridization
+            from tauso.features.hybridization.off_target.off_target_specific_gene import on_target_total_hybridization
 
             # Optimization: We can reuse the lean dictionary because on-target
             # only evaluates against the canonical gene of each row.
@@ -656,8 +656,8 @@ class Calculator:
 
     def calculate_off_target_general(self):
         """Calculates general off-target hybridization scores."""
-        from tauso.features.hybridization_off_target.add_off_target_feat import AggregationMethod
-        from tauso.features.hybridization_off_target.off_target_feature import serialize_feature_name
+        from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
+        from tauso.features.hybridization.off_target.off_target_feature import serialize_feature_name
 
         # Define the parameter spaces
         methods = [AggregationMethod.ARTM, AggregationMethod.MECH]
@@ -672,7 +672,7 @@ class Calculator:
 
         if missing:
             logger.info("Computing %d general off-target features...", len(missing))
-            from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_general
+            from tauso.features.hybridization.off_target.off_target_feature import populate_off_target_general
 
             # Load the heavy dictionaries (happens instantly if already in memory)
             gene_to_data = self.cache.get_full_gene_data()
@@ -704,8 +704,8 @@ class Calculator:
 
     def calculate_off_target_specific(self):
         """Calculates cell-line specific off-target hybridization scores."""
-        from tauso.features.hybridization_off_target.add_off_target_feat import AggregationMethod
-        from tauso.features.hybridization_off_target.off_target_feature import serialize_feature_name
+        from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
+        from tauso.features.hybridization.off_target.off_target_feature import serialize_feature_name
 
         method = AggregationMethod.ARTM
         top_n_list = [50, 100, 200]
@@ -720,7 +720,7 @@ class Calculator:
 
         if missing:
             logger.info("Computing %d specific off-target features...", len(missing))
-            from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_specific
+            from tauso.features.hybridization.off_target.off_target_feature import populate_off_target_specific
 
             gene_to_data = self.cache.get_full_gene_data()
             self._check_dependencies([CELL_LINE_DEPMAP])

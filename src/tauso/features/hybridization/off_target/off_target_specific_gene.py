@@ -9,9 +9,9 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-from ...data.consts import CANONICAL_GENE, SEQUENCE
-from ...util import get_antisense
-from ..hybridization.fast_hybridization import (
+from ....data.consts import CANONICAL_GENE, SEQUENCE
+from ....util import get_antisense
+from ..fast_hybridization import (
     TMP_PATH,
     Interaction,
     dump_target_file,

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tauso.features.hybridization_off_target.off_target_specific_gene import (
+from tauso.features.hybridization.off_target.off_target_specific_gene import (
     _RT,
     _sum_exp_energy_by_trigger,
 )
