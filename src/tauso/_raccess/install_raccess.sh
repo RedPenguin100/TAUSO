@@ -78,8 +78,14 @@ cd "src"
 
 echo "Building raccess with matrix-math optimizations..."
 
-export CXXFLAGS="-O3 -march=native -ffast-math -fno-rtti"
-export CFLAGS="-O3 -march=native -ffast-math"
+# -march defaults to 'native' (fastest, but the binary only runs on a CPU like
+# the build host's). On heterogeneous clusters where the build node and the run
+# node differ, native causes SIGILL (illegal instruction) at runtime — set
+# RACCESS_MARCH=x86-64-v2 (or another baseline) for a portable binary.
+RACCESS_MARCH="${RACCESS_MARCH:-native}"
+echo "Building raccess with -march=$RACCESS_MARCH"
+export CXXFLAGS="-O3 -march=$RACCESS_MARCH -ffast-math -fno-rtti"
+export CFLAGS="-O3 -march=$RACCESS_MARCH -ffast-math"
 export LDFLAGS=""
 
 make clean
