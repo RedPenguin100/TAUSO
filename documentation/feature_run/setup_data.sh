@@ -28,6 +28,13 @@ fi
 THREADS="${BOWTIE_THREADS:-$(nproc)}"
 MEM_PER_THREAD="${BOWTIE_MEM_PER_THREAD:-2048}"
 
+# Optional: set OFFHOME_CACHE=1 to keep caches/temp off a quota-limited $HOME.
+if [ "${OFFHOME_CACHE:-0}" = "1" ]; then
+  export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/.cache}"
+  export TMPDIR="${TMPDIR:-$BASE/.tmp}"
+  mkdir -p "$XDG_CACHE_HOME" "$TMPDIR"
+fi
+
 mkdir -p "$TAUSO_DATA_DIR"
 cd "$REPO"
 run() { "$MM" run -n "$ENV" "$@"; }

@@ -93,6 +93,10 @@ verifies.
 
 - Uses the `-dev` lock (includes `uv` + test/dev tooling — same env CI builds).
 - Needs outbound internet (downloads packages).
+- **Quota-limited `$HOME`?** `uv`/`pip` cache to `~/.cache` by default and can
+  exceed a small home quota mid-install. Set `OFFHOME_CACHE=1` (off by default)
+  to keep all caches + temp under the base dir instead. `setup_data.sh` honours
+  the same flag.
 
 ---
 
