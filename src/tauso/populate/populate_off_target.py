@@ -6,12 +6,11 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 
-from ....data.consts import CELL_LINE_DEPMAP
+from ..data.consts import CELL_LINE_DEPMAP
+from ..features.hybridization.fast_hybridization import TMP_PATH, dump_target_file
+from ..features.hybridization.off_target.add_off_target_feat import compute_group_batch
 
 logger = logging.getLogger(__name__)
-
-from ..fast_hybridization import TMP_PATH, dump_target_file
-from .add_off_target_feat import compute_group_batch
 
 
 def serialize_feature_name(method, top_n, cutoff, is_specific):

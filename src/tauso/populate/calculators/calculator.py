@@ -657,7 +657,7 @@ class Calculator:
     def calculate_off_target_general(self):
         """Calculates general off-target hybridization scores."""
         from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
-        from tauso.features.hybridization.off_target.off_target_feature import serialize_feature_name
+        from tauso.populate.populate_off_target import serialize_feature_name
 
         # Define the parameter spaces
         methods = [AggregationMethod.ARTM, AggregationMethod.MECH]
@@ -672,7 +672,7 @@ class Calculator:
 
         if missing:
             logger.info("Computing %d general off-target features...", len(missing))
-            from tauso.features.hybridization.off_target.off_target_feature import populate_off_target_general
+            from tauso.populate.populate_off_target import populate_off_target_general
 
             # Load the heavy dictionaries (happens instantly if already in memory)
             gene_to_data = self.cache.get_full_gene_data()
@@ -705,7 +705,7 @@ class Calculator:
     def calculate_off_target_specific(self):
         """Calculates cell-line specific off-target hybridization scores."""
         from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
-        from tauso.features.hybridization.off_target.off_target_feature import serialize_feature_name
+        from tauso.populate.populate_off_target import serialize_feature_name
 
         method = AggregationMethod.ARTM
         top_n_list = [50, 100, 200]
@@ -720,7 +720,7 @@ class Calculator:
 
         if missing:
             logger.info("Computing %d specific off-target features...", len(missing))
-            from tauso.features.hybridization.off_target.off_target_feature import populate_off_target_specific
+            from tauso.populate.populate_off_target import populate_off_target_specific
 
             gene_to_data = self.cache.get_full_gene_data()
             self._check_dependencies([CELL_LINE_DEPMAP])
@@ -761,7 +761,7 @@ class Calculator:
 
             self._check_dependencies([CANONICAL_GENE, CELL_LINE])
 
-            from tauso.features.context.mrna_halflife import populate_mrna_halflife_features
+            from tauso.populate.populate_mrna_halflife import populate_mrna_halflife_features
 
             # 1. Lazy load the provider
             provider = self.cache.get_halflife_provider()

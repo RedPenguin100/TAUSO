@@ -2,7 +2,7 @@ import pytest
 
 from tests.complete.conftest import get_n_jobs
 from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
-from tauso.features.hybridization.off_target.off_target_feature import (
+from tauso.populate.populate_off_target import (
     populate_off_target_general,
     populate_off_target_specific,
 )
