@@ -28,7 +28,7 @@ from tauso.cli_utils import (
     verify_hash_or_exit,
 )
 from tauso.data.data import get_data_dir, get_paths
-from tauso.features.codon_usage.cai import calc_CAI_weight
+from tauso.features.codon_usage.cai import CAI_WEIGHTS_FILENAME, build_scorer_from_reference
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.features.codon_usage.tai import TGCNSource
 from tauso.genome.read_human_genome import get_locus_to_data_dict
@@ -393,10 +393,13 @@ def build_cohort_expression(genome):
 @click.option("--force", is_flag=True, help="Overwrite existing cai_weights.json if it exists.")
 def build_cai_weights(top_n, top_n_generic, genome, force):
     """
-    Generates CAI weight profiles for the cohort and a Generic fallback.
+    Generates CAI weight profiles for the cohort and a Generic fallback,
+    using codonbias.scores.CodonAdaptationIndex over the top-N highly
+    expressed CDS sequences per cell line. Saves {cell_line: {codon: weight}}
+    to cai_weights.json.
     """
     data_dir = get_data_dir()
-    out_path = os.path.join(data_dir, "cai_weights.json")
+    out_path = os.path.join(data_dir, CAI_WEIGHTS_FILENAME)
 
     if os.path.exists(out_path) and not force:
         click.echo(
@@ -456,8 +459,8 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
         cds_list = cds_list[:top_n]
 
         if len(cds_list) == top_n:
-            _, weights_flat = calc_CAI_weight(cds_list)
-            cai_weights_map[cell_name] = weights_flat
+            scorer = build_scorer_from_reference(cds_list)
+            cai_weights_map[cell_name] = scorer.weights.to_dict()
             click.echo(f"  ✓ {cell_name} weights ready ({len(cds_list)} genes).")
         else:
             click.echo(f"  ⚠ {cell_name} has insufficient sequences.")
@@ -465,18 +468,16 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
     # B. Generic Weights (Consensus Intersection)
     click.echo(f"\nCalculating Generic Weights (Intersection of Top {top_n_generic})...")
 
-    # Extract sequences for the consensus genes
     fallback_cds_list = [
         ref_registry[g]["cds_sequence"]
         for g in fallback_genes
         if g in ref_registry and ref_registry[g].get("cds_sequence")
     ]
-
     fallback_cds_list = fallback_cds_list[:top_n]
 
     if fallback_cds_list:
-        _, generic_weights = calc_CAI_weight(fallback_cds_list)
-        cai_weights_map["Generic"] = generic_weights
+        scorer = build_scorer_from_reference(fallback_cds_list)
+        cai_weights_map["Generic"] = scorer.weights.to_dict()
         click.echo(f"  ✓ Generic weights ready ({len(fallback_cds_list)} genes).")
     else:
         click.echo("  ⚠ Warning: No sequences found for fallback genes.")

@@ -1,223 +1,93 @@
-import math
-import re
-from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Union
+from __future__ import annotations
 
+import numpy as np
 import pandas as pd
+from codonbias.scores import CodonAdaptationIndex
 
-STOP_CODONS = {"TAA", "TAG", "TGA"}
+# JSON written by `tauso build-cai-weights`: {cell_line: {codon: weight}}
+# plus a "Generic" entry holding the cohort-consensus fallback. The weights
+# themselves are produced at build-time by codonbias's CodonAdaptationIndex
+# (pseudocount=0); at populate-time we reinject them into a fresh scorer.
+CAI_WEIGHTS_FILENAME = "cai_weights.json"
+
+# pseudocount=0 matches the previous hand-rolled `calc_CAI_weight`
+# (raw codon counts normalised per amino acid by the max, no smoothing).
+CAI_PSEUDOCOUNT = 0
 
 
-def _clean_dna(seq: str) -> str:
+def _all_codons_seq() -> str:
+    """Return a synthetic CDS containing every one of the 64 codons exactly
+    once. Used to bootstrap a CodonAdaptationIndex with non-zero counts for
+    every codon, so codonbias's internal log() never sees a zero (avoids
+    spurious RuntimeWarnings) before we overwrite the weights anyway.
     """
-    Normalize a nucleotide sequence:
-      - Uppercase letters,
-      - Convert RNA 'U' to DNA 'T',
-      - Replace any non-ACGT character with 'N'.
+    bases = "ACGT"
+    return "".join(b1 + b2 + b3 for b1 in bases for b2 in bases for b3 in bases)
+
+
+_SCORER_BOOTSTRAP_SEQ = _all_codons_seq()
+
+
+def _make_scorer_from_weights(weights: dict[str, float]) -> CodonAdaptationIndex:
+    """Construct a CodonAdaptationIndex and overwrite its internal weight
+    tables with `weights`. The bootstrap sequence above is only there to
+    let __init__ build `counter`, `kmer_index`, etc.; we then replace the
+    learned weights with the saved ones.
+
+    TODO(codonbias-internals): this writes to attributes that are not part
+    of codonbias's public API (`weights`, `log_weights`, `_log_weights_arr`).
+    Replace with a public hook once codon-bias upstream exposes one.
     """
-    seq = seq.upper().replace("U", "T")
-    return re.sub(r"[^ACGT]", "N", seq)
+    scorer = CodonAdaptationIndex(ref_seq=[_SCORER_BOOTSTRAP_SEQ], pseudocount=CAI_PSEUDOCOUNT)
+    scorer.weights = pd.Series(weights, name="weight")
+    # Codons never observed in the reference set produce weight 0; log(0) = -inf
+    # is the intended sentinel (codonbias's geomean handles it). Compute log
+    # on the raw numpy array so the warning suppression actually sticks
+    # (pandas wraps ufuncs through __array_ufunc__ and bypasses np.errstate
+    # when the operand is a Series).
+    with np.errstate(divide="ignore"):
+        log_values = np.log(scorer.weights.values)
+    scorer.log_weights = pd.Series(log_values, index=scorer.weights.index, name="weight")
+    scorer._log_weights_arr = scorer.log_weights.reindex(scorer.counter.kmer_index).values
+    return scorer
 
 
-# Keep the original family structure for backward compatibility and transparency.
-FAMILIES: List[Dict[str, int]] = [
-    {"TTT": 0, "TTC": 0},  # Phe
-    {"ATT": 0, "ATC": 0, "ATA": 0},  # Ile
-    {"GTT": 0, "GTC": 0, "GTA": 0, "GTG": 0},  # Val
-    {"CCT": 0, "CCC": 0, "CCA": 0, "CCG": 0},  # Pro
-    {"ACT": 0, "ACC": 0, "ACA": 0, "ACG": 0},  # Thr
-    {"GCT": 0, "GCC": 0, "GCA": 0, "GCG": 0},  # Ala
-    {"TAT": 0, "TAC": 0},  # Tyr
-    {"CAT": 0, "CAC": 0},  # His
-    {"CAA": 0, "CAG": 0},  # Gln
-    {"AAT": 0, "AAC": 0},  # Asn
-    {"AAA": 0, "AAG": 0},  # Lys
-    {"GAT": 0, "GAC": 0},  # Asp
-    {"GAA": 0, "GAG": 0},  # Glu
-    {"TGT": 0, "TGC": 0},  # Cys
-    {"GGT": 0, "GGC": 0, "GGA": 0, "GGG": 0},  # Gly
-    {"TTA": 0, "TTG": 0, "CTT": 0, "CTC": 0, "CTA": 0, "CTG": 0},  # Leu
-    {"TCT": 0, "TCC": 0, "TCA": 0, "TCG": 0, "AGT": 0, "AGC": 0},  # Ser
-    {"CGT": 0, "CGC": 0, "CGA": 0, "CGG": 0, "AGA": 0, "AGG": 0},  # Arg
-    {"ATG": 0},  # Met
-    {"TGG": 0},  # Trp
-]
+def build_scorer_from_reference(cds_list: list[str]) -> CodonAdaptationIndex:
+    """Build a CodonAdaptationIndex from a list of reference CDS sequences.
+    Used at build-time by `tauso build-cai-weights`."""
+    return CodonAdaptationIndex(ref_seq=cds_list, pseudocount=CAI_PSEUDOCOUNT)
 
 
-def calc_CAI_weight(reference_seqs: Union[str, List[str]]):
-    """
-    Build CAI weights from one or more reference CDS sequences.
+class CAIScorerCache:
+    """Lazy per-cell-line CAI scorer cache. Wraps codonbias scorers whose
+    weight tables are loaded from the saved cai_weights.json (one weight
+    dict per cell line, plus a 'Generic' fallback)."""
 
-    Parameters
-    ----------
-    reference_seqs : str | list[str]
-        One CDS string or a list of CDS strings (DNA alphabet: A/C/G/T).
-        Typical usage: highly-expressed genes in the organism of interest.
+    GENERIC_KEY = "Generic"
 
-    Returns
-    -------
-    weights_list : list[dict[str,float]]
-        A list of dictionaries (one per synonymous family) where each codon
-        weight is normalized by the family's maximum frequency.
-        (Backward-compatible shape with your original code.)
-    weights_flat : dict[str,float]
-        A flat dictionary {codon: weight} for O(1) lookups.
-    """
-    if isinstance(reference_seqs, str):
-        reference_seqs = [reference_seqs]
+    def __init__(self, weights_map: dict[str, dict[str, float]]):
+        self._weights_map = weights_map
+        self._scorers: dict[str, CodonAdaptationIndex | None] = {}
 
-    # Fresh copy of families (counts start at zero)
-    families: List[Dict[str, int]] = [{k: 0 for k in fam} for fam in FAMILIES]
-
-    # Accumulate codon counts across all reference sequences
-    for ref in reference_seqs:
-        ref = _clean_dna(ref)
-        for i in range(0, len(ref) - 2, 3):
-            codon = ref[i : i + 3]
-            if "N" in codon or codon in STOP_CODONS:
-                continue
-            for fam in families:
-                if codon in fam:
-                    fam[codon] += 1
-                    break
-
-    # Normalize each family by its maximum count
-    weights_list: List[Dict[str, float]] = []
-    for fam in families:
-        m = max(fam.values()) if fam else 0
-        if m > 0:
-            weights_list.append({k: (v / m) for k, v in fam.items()})
-        else:
-            # No information for this family; leave zeros (handled by epsilon later)
-            weights_list.append({k: 0.0 for k in fam})
-
-    # Build flat lookup
-    weights_flat: Dict[str, float] = {}
-    for fam in weights_list:
-        weights_flat.update(fam)
-
-    return weights_list, weights_flat
-
-
-def calc_CAI(
-    seq: str,
-    weights: Union[List[Dict[str, float]], Dict[str, float]],
-    epsilon: float = 1e-8,
-) -> float:
-    """
-    Compute the Codon Adaptation Index (CAI) using a log-space geometric mean.
-
-    Parameters
-    ----------
-    seq : str
-        CDS sequence (DNA alphabet: A/C/G/T). Assumed to be in-frame;
-        trailing bases are ignored. Internal stop codons are skipped.
-    weights : list[dict[str,float]] | dict[str,float]
-        Either the original "list of families" structure or a flat dict {codon: weight}.
-    epsilon : float
-        Small positive fallback when a codon weight is missing or zero.
-
-    Returns
-    -------
-    float
-        CAI value in [0, 1] (practically), or NaN if no valid codons remain.
-    """
-    clean = _clean_dna(seq)
-    codons = [clean[i : i + 3] for i in range(0, len(clean) - 2, 3)]
-    # Ignore ambiguous codons and stops (same behavior as your original)
-    codons = [c for c in codons if "N" not in c and c not in STOP_CODONS]
-    if not codons:
-        return float("nan")
-
-    # Getter that works for either weights shape
-    if isinstance(weights, list):
-
-        def get_w(codon: str) -> float:
-            for fam in weights:
-                if codon in fam:
-                    return fam[codon]
+    def _build_scorer(self, cell_line: str) -> CodonAdaptationIndex | None:
+        weights = self._weights_map.get(cell_line) or self._weights_map.get(self.GENERIC_KEY)
+        if not weights:
             return None
-    else:
+        return _make_scorer_from_weights(weights)
 
-        def get_w(codon: str) -> float:
-            return weights.get(codon)
+    def get_scorer(self, cell_line: str) -> CodonAdaptationIndex | None:
+        if cell_line not in self._scorers:
+            self._scorers[cell_line] = self._build_scorer(cell_line)
+        return self._scorers[cell_line]
 
-    # Log-space geometric mean: exp( (1/N) * sum(log w_i) )
-    s_log = 0.0
-    N = 0
-    for c in codons:
-        w = get_w(c)
-        if not w or w <= 0.0:
-            w = epsilon
-        s_log += math.log(w)
-        N += 1
+    def score(self, seq: str, cell_line: str) -> float:
+        if not isinstance(seq, str) or not seq.strip():
+            return np.nan
+        scorer = self.get_scorer(cell_line)
+        if scorer is None:
+            return np.nan
+        value = scorer.get_score(seq)
+        return float(value) if np.isfinite(value) else np.nan
 
-    return math.exp(s_log / max(N, 1))
-
-
-############################################################################################################
-# CAI reference weights from cell-line transcriptomes
-DEFAULT_TRANSCRIPTOME_FILENAMES: List[str] = [
-    "ACH-000232_transcriptome.csv",
-    "ACH-000463_transcriptome.csv",
-    "ACH-000681_transcriptome.csv",
-    "ACH-000739_transcriptome.csv",
-    "ACH-001086_transcriptome.csv",
-    "ACH-001188_transcriptome.csv",
-    "ACH-001328_transcriptome.csv",
-]
-
-
-def build_cai_reference_weights_from_transcriptomes(
-    *,
-    transcriptome_dir: Optional[Path] = None,
-    transcriptome_filenames: Iterable[str] = DEFAULT_TRANSCRIPTOME_FILENAMES,
-    top_n: int = 300,
-    expr_col: str = "expression_norm",
-    mutated_seq_col: str = "Mutated Transcript sequence",
-    original_seq_col: str = "Original Transcript sequence",
-) -> dict:
-    """
-    Build CAI reference weights from top-N transcript sequences by expression.
-
-    Returns:
-      weights_flat: dict[str, float]
-        Codon -> CAI weight mapping used as the reference set.
-    """
-    if top_n <= 0:
-        raise ValueError(f"top_n must be positive. Got: {top_n}")
-
-    # Resolve default data path relative to this file (repo-stable)
-    if transcriptome_dir is None:
-        project_root = Path(__file__).resolve().parents[3]
-        transcriptome_dir = project_root / "notebooks" / "transcripts" / "cell_line_expression"
-
-    transcriptome_dir = Path(transcriptome_dir)
-
-    files = [transcriptome_dir / fn for fn in transcriptome_filenames]
-    missing = [p.name for p in files if not p.exists()]
-    if missing:
-        raise FileNotFoundError(f"Missing transcriptome files in {transcriptome_dir}: {missing}")
-
-    dfs = [pd.read_csv(p) for p in files]
-    transcript_df = pd.concat(dfs, ignore_index=True).drop_duplicates().copy()
-
-    # Required columns
-    for col in (expr_col, mutated_seq_col, original_seq_col):
-        if col not in transcript_df.columns:
-            raise KeyError(f"Missing required column '{col}' in transcriptome data.")
-
-    # Prefer mutated, fallback to original
-    transcript_df["ref_sequence"] = transcript_df[mutated_seq_col].fillna(transcript_df[original_seq_col])
-
-    # Top-N by expression
-    ref_df = transcript_df.sort_values(expr_col, ascending=False).head(top_n)
-
-    reference_seqs = ref_df["ref_sequence"].dropna().astype(str).tolist()
-    if not reference_seqs:
-        raise ValueError("No reference sequences found for CAI reference set.")
-
-    # Build CAI weights
-    _, weights_flat = calc_CAI_weight(reference_seqs)
-
-    return weights_flat
+    def known_cell_lines(self) -> set[str]:
+        return set(self._weights_map.keys())
