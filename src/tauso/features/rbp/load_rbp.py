@@ -4,10 +4,13 @@ import os
 import numpy as np
 import pandas as pd
 
+from ...data.data import get_data_dir
+
 logger = logging.getLogger(__name__)
 
-# Files sourced from ATtRACT.zip (https://attract.cnic.es/attract/static/ATtRACT.zip)
-_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+# Files sourced from a frozen ATtRACT mirror on Zenodo (https://zenodo.org/records/20366079).
+# Downloaded into TAUSO_DATA_DIR via `tauso setup-attract`.
+_DATA_DIR = os.path.join(get_data_dir(), "attract")
 
 
 def load_attract_data():
@@ -21,7 +24,7 @@ def load_attract_data():
 
     # Check if they exist before running
     if not os.path.exists(csv_path) or not os.path.exists(pwm_path):
-        raise FileNotFoundError(f"Bundled ATtRACT files not found in {_DATA_DIR}.")
+        raise FileNotFoundError(f"ATtRACT files not found in {_DATA_DIR}. Run 'tauso setup-attract' to download them.")
 
     logger.info("Loading RBP metadata from %s...", csv_path)
 
