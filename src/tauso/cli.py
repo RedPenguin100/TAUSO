@@ -66,6 +66,18 @@ def _zenodo_file_url(record_id: str, filename: str) -> str:
     return f"https://zenodo.org/records/{record_id}/files/{filename}"
 
 
+def _parquet_is_readable(path: str) -> bool:
+    """Cheap structural integrity check via pyarrow metadata read. Reads only the
+    footer (schema, row counts) — fast — and raises on truncation / malformed file."""
+    try:
+        import pyarrow.parquet as pq
+
+        pq.read_metadata(path)
+        return True
+    except Exception:
+        return False
+
+
 def _ensure_depmap_file(filename: str, expected_sha1: str, data_dir: str, force: bool) -> bool:
     """Ensure `filename` exists in `data_dir` with the pinned SHA1. Returns True if the file
     was (re-)downloaded, False if an existing valid copy was reused."""
@@ -93,7 +105,8 @@ def setup_depmap(force):
     (https://zenodo.org/records/20355477), verifying each file's SHA1.
     The OmicsExpression CSV is converted to Parquet for fast loading and the
     CSV is then removed — all consumers read the Parquet directly. If the
-    Parquet already exists, the 1.1 GB CSV download is skipped.
+    Parquet already exists and is structurally valid, the 1.1 GB CSV download
+    is skipped; a corrupt Parquet is rebuilt from a fresh download.
     """
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
@@ -104,6 +117,11 @@ def setup_depmap(force):
     omics_csv = os.path.join(data_dir, omics_csv_name)
     omics_parquet = omics_csv.replace(".csv", ".parquet")
     parquet_already_built = os.path.exists(omics_parquet) and not force
+
+    if parquet_already_built and not _parquet_is_readable(omics_parquet):
+        echo_warn(f"{os.path.basename(omics_parquet)} is corrupt — will re-download CSV and re-convert.")
+        os.remove(omics_parquet)
+        parquet_already_built = False
 
     for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
         if filename == omics_csv_name and parquet_already_built:
