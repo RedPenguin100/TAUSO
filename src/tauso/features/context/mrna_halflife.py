@@ -65,7 +65,11 @@ def load_halflife_mapping():
     # 8. Handle Duplicates using GEOMETRIC MEAN
     # Since we have filtered out the "noisy" experiments, the remaining
     # duplicates are likely valid replicates. Geometric mean is best for rates.
-    df_clean = df.groupby(["gene", "cell_line"], observed=True)["half_life"].apply(gmean)
+    # gmean == exp(mean(log(x))); compute it vectorized via the native groupby
+    # mean. groupby(...).apply(gmean) calls scipy once per group (~330k groups),
+    # which is ~450x slower for an identical result.
+    df["_log_half_life"] = np.log(df["half_life"])
+    df_clean = np.exp(df.groupby(["gene", "cell_line"], observed=True)["_log_half_life"].mean())
 
     # 9. Convert to Dictionary
     mapping = df_clean.to_dict()
@@ -87,7 +91,12 @@ class HalfLifeProvider:
 
         # We group by gene and aggregate using gmean (and std/count for metadata)
         # Note: We use ddof=1 for std dev to estimate sample standard deviation
-        gene_stats_df = df_map.groupby("gene", observed=True)["hl"].agg(geom_mean=gmean, count="count", std="std")
+        # geom_mean is computed vectorized as exp(mean(log(hl))) to avoid the
+        # per-group scipy gmean call (same result, far faster).
+        df_map["_log_hl"] = np.log(df_map["hl"])
+        gene_grp = df_map.groupby("gene", observed=True)
+        gene_stats_df = gene_grp["hl"].agg(count="count", std="std")
+        gene_stats_df["geom_mean"] = np.exp(gene_grp["_log_hl"].mean())
         # Convert to dict for O(1) lookup: gene -> {stats}
         self.gene_stats = gene_stats_df.to_dict(orient="index")
 
