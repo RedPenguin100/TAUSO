@@ -872,7 +872,7 @@ class Calculator:
             import pandas as pd
             from pandas.errors import PerformanceWarning
 
-            from tauso.features.rbp.RBP_features import create_positional_sequence_columns
+            from tauso.features.rbp.rbp_features import create_positional_sequence_columns
 
             warnings.simplefilter(action="ignore", category=PerformanceWarning)
             warnings.simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
