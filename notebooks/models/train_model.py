@@ -161,10 +161,19 @@ def _intermediate_paths(args):
 # Data preparation
 # ---------------------------------------------------------------------------
 
-def _prep_data(final_data, features, eval_group, select_group, min_eval_size=50):
+def _prep_data(final_data, features, eval_group, select_group, min_eval_size=50, rank=False):
     from notebooks.models.SeenOligoModel.base_model import get_large_cohort_indices, split_data
 
-    final_data = final_data.sort_values(by=features).reset_index(drop=True)
+    # Learning-to-rank needs rows grouped (contiguous) by query id. Sort the whole
+    # frame by the ranking cohort (select_group) so each split stays grouped, and
+    # assign a global qid (consistent across splits so stacking can re-group later).
+    if rank:
+        final_data = final_data.sort_values(by=list(select_group)).reset_index(drop=True)
+        qid_all = final_data.groupby(select_group, sort=False).ngroup().values.astype(np.int32)
+        final_data = final_data.assign(_qid=qid_all)
+    else:
+        final_data = final_data.sort_values(by=features).reset_index(drop=True)
+
     train_df, val_df, test_df = split_data(
         final_data, features,
         split_col=SPLIT_CONFIG["col"], train_val=SPLIT_CONFIG["train"],
@@ -186,7 +195,7 @@ def _prep_data(final_data, features, eval_group, select_group, min_eval_size=50)
         if len(g) >= min_eval_size
     ]
 
-    return {
+    out = {
         "X_train": X_train, "y_train": y_train,
         "X_val":   X_val,   "y_val":   y_val,
         "X_test":  X_test,  "y_test":  y_test,
@@ -197,6 +206,11 @@ def _prep_data(final_data, features, eval_group, select_group, min_eval_size=50)
         "test_select_idx":      get_large_cohort_indices(test_df,  select_group, min_size=min_eval_size),
         "val_eval_groups_optuna": val_optuna_groups,
     }
+    if rank:
+        out["qid_train"] = train_df["_qid"].values.astype(np.int32)
+        out["qid_val"]   = val_df["_qid"].values.astype(np.int32)
+        out["qid_test"]  = test_df["_qid"].values.astype(np.int32)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +224,7 @@ def step_tune(data, args, paths, objective):
         (data["X_train"], data["y_train"]), (data["X_val"], data["y_val"]),
         objective, data["val_eval_groups_optuna"],
         seed=args.seed, device=args.device, n_jobs=args.cpus,
+        qid_train=data.get("qid_train"), qid_val=data.get("qid_val"),
     )
     _save_json(best_params, paths["best_params"])
     logger.info("Best params saved -> %s", paths["best_params"])
@@ -234,6 +249,7 @@ def step_select(data, features, args, paths):
         device=args.device,
         history_path=paths["rfe_history"],
         optimal_path=paths["optimal_features"],
+        qid_train=data.get("qid_train"),
     )
     logger.info("Optimal features (%d) -> %s", len(optimal), paths["optimal_features"])
     logger.info("RFE history -> %s", paths["rfe_history"])
@@ -249,18 +265,28 @@ def step_train(data, features, args, paths):
     optimal_features = _load_json(paths["optimal_features"], "select")
     logger.info("Loaded %d features | rounds=%s", len(optimal_features), best_params.get("num_boost_round"))
 
+    is_rank = str(best_params.get("objective", "")).startswith("rank:")
+
     def stack(*keys):
-        return np.vstack([data[f"X_{k}"] for k in keys]), np.concatenate([data[f"y_{k}"] for k in keys])
+        X = np.vstack([data[f"X_{k}"] for k in keys])
+        y = np.concatenate([data[f"y_{k}"] for k in keys])
+        if not is_rank:
+            return X, y, None
+        # ranking needs contiguous qid groups; concatenated splits interleave the
+        # same cohort, so re-sort the stacked rows by qid (stable keeps determinism)
+        q = np.concatenate([data[f"qid_{k}"] for k in keys])
+        order = np.argsort(q, kind="stable")
+        return X[order], y[order], q[order]
 
-    X_tv,  y_tv  = stack("train", "val")
-    X_all, y_all = stack("train", "val", "test")
+    X_tv,  y_tv,  q_tv  = stack("train", "val")
+    X_all, y_all, q_all = stack("train", "val", "test")
 
-    def train(X, y, label):
+    def train(X, y, q, label):
         logger.info("Training %s (%d rows)", label, len(X))
-        return train_final_model(optimal_features, features, (X, y), best_params, seed=args.seed)
+        return train_final_model(optimal_features, features, (X, y), best_params, seed=args.seed, qid=q)
 
-    model_tv  = train(X_tv,  y_tv,  "train+val")
-    model_all = train(X_all, y_all, "all data")
+    model_tv  = train(X_tv,  y_tv,  q_tv,  "train+val")
+    model_all = train(X_all, y_all, q_all, "all data")
 
     opt_idxs = [features.index(f) for f in optimal_features]
 
@@ -286,7 +312,7 @@ def step_train(data, features, args, paths):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--loss",      required=True, choices=["L1", "L2", "huber"])
+    parser.add_argument("--loss",      required=True, choices=["L1", "L2", "huber", "ndcg"])
     parser.add_argument("--split",     required=True, choices=list(SPLIT_CONFIGS))
     parser.add_argument("--step",      default="all", choices=["all", "tune", "select", "train"])
     parser.add_argument("--cpus",      type=int,  default=1)
@@ -326,8 +352,10 @@ def main():
 
     paths    = _intermediate_paths(args)
     cfg      = SPLIT_CONFIGS[args.split]
-    _OBJECTIVES = {"L1": "reg:absoluteerror", "L2": "reg:squarederror", "huber": "reg:pseudohubererror"}
+    _OBJECTIVES = {"L1": "reg:absoluteerror", "L2": "reg:squarederror",
+                   "huber": "reg:pseudohubererror", "ndcg": "rank:ndcg"}
     objective = _OBJECTIVES[args.loss]
+    is_rank = objective.startswith("rank:")
 
     logger.info("loss=%s split=%s step=%s device=%s cpus=%d seed=%d", args.loss, args.split, args.step, args.device, args.cpus, args.seed)
 
@@ -342,7 +370,7 @@ def main():
     logger.info("Features: %d", len(features))
 
     data = _prep_data(final_data, features, cfg["eval_group"], cfg["select_group"],
-                      min_eval_size=args.min_eval_size)
+                      min_eval_size=args.min_eval_size, rank=is_rank)
 
     if args.step in ("tune",   "all"): step_tune(data, args, paths, objective)
     if args.step in ("select", "all"): step_select(data, features, args, paths)

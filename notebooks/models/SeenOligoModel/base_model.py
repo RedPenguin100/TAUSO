@@ -14,7 +14,7 @@ import optuna
 import pandas as pd
 import xgboost as xgb
 from scipy.stats import spearmanr
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, ndcg_score
 from tqdm.auto import tqdm
 
 from tauso.data.consts import INHIBITION
@@ -66,6 +66,45 @@ def calculate_metrics(preds, y_true, eval_groups):
     }
 
 
+def _ndcg_precision_at_k(t, p, ks=(5, 10)):
+    """Per-group NDCG@k and Precision@k (|top-k predicted ∩ top-k actual| / k).
+
+    Returns {k: (ndcg, precision)}; (nan, nan) when the group is smaller than k
+    or the labels are constant (NDCG undefined). Mirrors evaluate_sweep_breakdown.
+    """
+    out = {}
+    n = len(t)
+    rel = np.clip(t, 0, None).reshape(1, -1)   # NDCG needs non-negative relevance
+    scr = p.reshape(1, -1)
+    for k in ks:
+        if n <= k or np.ptp(t) == 0:
+            out[k] = (np.nan, np.nan)
+            continue
+        ndcg = float(ndcg_score(rel, scr, k=k))
+        top_k_pred = np.argpartition(p, -k)[-k:]
+        top_k_true = np.argpartition(t, -k)[-k:]
+        prec = np.intersect1d(top_k_pred, top_k_true).size / k
+        out[k] = (ndcg, prec)
+    return out
+
+
+def _ranking_metrics(preds, y_true, eval_groups):
+    """Median NDCG@5/10 and P@5/10 across eval groups."""
+    ndcg5s, ndcg10s, p5s, p10s = [], [], [], []
+    for idxs in eval_groups:
+        res = _ndcg_precision_at_k(y_true[idxs], preds[idxs])
+        if not np.isnan(res[5][0]):
+            ndcg5s.append(res[5][0]); p5s.append(res[5][1])
+        if not np.isnan(res[10][0]):
+            ndcg10s.append(res[10][0]); p10s.append(res[10][1])
+    return {
+        "NDCG_5":  float(np.nanmedian(ndcg5s))  if ndcg5s  else 0.0,
+        "NDCG_10": float(np.nanmedian(ndcg10s)) if ndcg10s else 0.0,
+        "P@5":     float(np.nanmedian(p5s))     if p5s     else 0.0,
+        "P@10":    float(np.nanmedian(p10s))    if p10s    else 0.0,
+    }
+
+
 def evaluate_final_performance(model, X_np, y_true, eval_groups, feature_names):
     preds = model.predict(xgb.DMatrix(X_np, feature_names=feature_names))
     spearmans, top1s, top5s = _collect_group_stats(y_true, preds, eval_groups)
@@ -75,6 +114,7 @@ def evaluate_final_performance(model, X_np, y_true, eval_groups, feature_names):
         "Spearman": float(np.nanmedian(spearmans)) if spearmans else 0.0,
         "Median_Top1_Inhib": float(np.nanmedian([np.median(t) for t in top1s])) if top1s else 0.0,
         "Median_Top5_Inhib": float(np.nanmedian([np.median(t) for t in top5s])) if top5s else 0.0,
+        **_ranking_metrics(preds, y_true, eval_groups),
     }
 
 
@@ -138,11 +178,30 @@ def _save_outputs(path_base, model_tv, model_all, metrics_tv, metrics_all, histo
 # Training steps
 # ---------------------------------------------------------------------------
 
-def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna, seed, device="cpu", n_jobs=1):
+def _is_ranking(objective):
+    return objective.startswith("rank:")
+
+
+def _ranking_params(objective):
+    """Extra params for learning-to-rank objectives. Linear gain (ndcg_exp_gain
+    False) keeps inhibition values 0-100 from blowing up 2**rel; topk pair method
+    focuses gradient on the head of the ranking, which is what Top-K / NDCG@K care
+    about."""
+    if not _is_ranking(objective):
+        return {}
+    return {"ndcg_exp_gain": False, "lambdarank_pair_method": "topk"}
+
+
+def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna, seed,
+                         device="cpu", n_jobs=1, qid_train=None, qid_val=None):
     X_train, y_train = train_data
     X_val, y_val = val_data
-    dtrain = xgb.DMatrix(X_train, label=y_train)
-    dval = xgb.DMatrix(X_val, label=y_val)
+    if _is_ranking(objective):
+        dtrain = xgb.DMatrix(X_train, label=np.clip(y_train, 0, None), qid=qid_train)
+        dval   = xgb.DMatrix(X_val,   label=np.clip(y_val,   0, None), qid=qid_val)
+    else:
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
 
     def objective_func(trial):
         params = {
@@ -156,6 +215,7 @@ def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna
             "gamma": trial.suggest_float("gamma", 0.1, 10.0, log=True),
             "reg_alpha": trial.suggest_float("reg_alpha", 0.1, 100.0, log=True),
             "reg_lambda": trial.suggest_float("reg_lambda", 0.1, 100.0, log=True),
+            **_ranking_params(objective),
         }
         if objective == "reg:pseudohubererror":
             params["huber_slope"] = trial.suggest_float("huber_slope", 0.5, 10.0, log=True)
@@ -175,6 +235,7 @@ def tune_hyperparameters(train_data, val_data, objective, val_eval_groups_optuna
     best_params = study.best_params.copy()
     best_params["num_boost_round"] = study.best_trial.user_attrs["best_iteration"]
     best_params.update({"tree_method": "hist", "device": device, "nthread": n_jobs, "objective": objective, "seed": seed})
+    best_params.update(_ranking_params(objective))
 
     logger.info("Tuning complete | best_spearman=%.4f | params=%s", study.best_value, best_params)
     return best_params
@@ -205,7 +266,7 @@ def _atomic_csv_write(path, df):
 def run_backward_selection(
     train_data, val_data, test_data, features, best_params, val_eval_idx, val_select_idx, test_select_idx, seed,
     importance_type="gain", parsimony_tolerance=PARSIMONY_TOLERANCE, device="cpu",
-    history_path=None, optimal_path=None,
+    history_path=None, optimal_path=None, qid_train=None,
 ):
     X_train, y_train, y_train_np = train_data
     X_val, y_val = val_data
@@ -221,6 +282,8 @@ def run_backward_selection(
     if params.get("seed") != seed:
         raise ValueError(f"Seed mismatch: best_params={params.get('seed')} vs argument={seed}")
     num_rounds = params.pop("num_boost_round", 1000)
+    is_rank = _is_ranking(params.get("objective", ""))
+    rank_label = np.clip(y_train, 0, None) if is_rank else y_train
 
     logger.info("RFE start | features=%d rounds=%d importance=%s parsimony=%.4f",
                 len(current_features), num_rounds, importance_type, parsimony_tolerance)
@@ -233,7 +296,10 @@ def run_backward_selection(
         Xvl = to_dev(X_val[:, idxs])
         Xte = to_dev(X_test[:, idxs])
 
-        dtrain = xgb.QuantileDMatrix(Xtr, label=y_train, feature_names=current_features)
+        if is_rank:
+            dtrain = xgb.QuantileDMatrix(Xtr, label=rank_label, feature_names=current_features, qid=qid_train)
+        else:
+            dtrain = xgb.QuantileDMatrix(Xtr, label=y_train, feature_names=current_features)
         bst = xgb.train(params, dtrain, num_boost_round=num_rounds, verbose_eval=False)
 
         tr_preds, vl_preds, te_preds = bst.inplace_predict(Xtr), bst.inplace_predict(Xvl), bst.inplace_predict(Xte)
@@ -255,6 +321,7 @@ def run_backward_selection(
             "train_spearman": m_train["spearman"],
             "val_spearman": calculate_metrics(vl_preds, y_val, val_eval_idx)["spearman"],
             "val_spearman_select": val_spear,
+            "val_ndcg5_select": _ranking_metrics(vl_preds, y_val, val_select_idx)["NDCG_5"],
         }
 
         stop_reason = None
@@ -304,7 +371,7 @@ def run_backward_selection(
     return optimal, df_hist
 
 
-def train_final_model(optimal_features, features, train_data, best_params, seed):
+def train_final_model(optimal_features, features, train_data, best_params, seed, qid=None):
     X, y = train_data
     feat_to_idx = {f: i for i, f in enumerate(features)}
     idxs = [feat_to_idx[f] for f in optimal_features]
@@ -312,7 +379,11 @@ def train_final_model(optimal_features, features, train_data, best_params, seed)
     num_rounds = params.pop("num_boost_round", 1000)
 
     logger.info("Training final model | features=%d rounds=%d", len(optimal_features), num_rounds)
-    dtrain = xgb.QuantileDMatrix(X[:, idxs], label=y, feature_names=optimal_features)
+    if _is_ranking(params.get("objective", "")):
+        dtrain = xgb.QuantileDMatrix(X[:, idxs], label=np.clip(y, 0, None),
+                                     feature_names=optimal_features, qid=qid)
+    else:
+        dtrain = xgb.QuantileDMatrix(X[:, idxs], label=y, feature_names=optimal_features)
     return xgb.train(params, dtrain, num_boost_round=num_rounds, verbose_eval=False)
 
 
