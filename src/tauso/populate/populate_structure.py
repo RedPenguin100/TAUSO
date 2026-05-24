@@ -3,7 +3,6 @@ import logging
 import numpy as np
 
 from ..data.consts import *
-from ..features.names import *
 from ..genome.LocusInfo import StrandType
 from ..util import get_antisense_rna
 
