@@ -532,13 +532,18 @@ def setup_mrna_halflife(force):
         sys.exit(1)
 
 
+_TGCN_SOURCE_HELP = "Organism tGCN to fetch. Available: " + ", ".join(
+    f"{s.name.lower()} (GtRNAdb {s.value.gtrnadb_genome})" for s in TGCNSource
+)
+
+
 @main.command(name="setup-tgcn")
 @click.option(
     "--source",
     type=click.Choice([s.name.lower() for s in TGCNSource], case_sensitive=False),
     default=TGCNSource.HUMAN.name.lower(),
     show_default=True,
-    help="Which organism's tGCN to fetch.",
+    help=_TGCN_SOURCE_HELP,
 )
 @click.option("--force", is_flag=True, help="Force refetch if file exists.")
 def setup_tgcn(source, force):
@@ -546,6 +551,8 @@ def setup_tgcn(source, force):
     Fetch a per-organism tRNA gene copy number (tGCN) table from GtRNAdb
     and write it to TAUSO_DATA_DIR. The tAI feature loads this table at
     first use; without it, populate_tai cannot run.
+
+    See --source for the list of supported organisms.
     """
     from codonbias.scores import fetch_GCN_from_GtRNAdb
 
