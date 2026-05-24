@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 from ..data.consts import CANONICAL_GENE, CELL_LINE, standardize_cell_line_name
 from ..data.data import get_data_dir
-from ..features.codon_usage.cai import calc_CAI
+from ..features.codon_usage.cai import CAI_WEIGHTS_FILENAME, CAIScorerCache
 from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import compute_tAI
 from ..parallel_utils import init_pandarallel
@@ -120,8 +120,9 @@ def populate_cai(
     n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
-    Calculates context-specific CAI scores based on cell line weights.
-    Loads 'cai_weights.json' internally.
+    Calculates context-specific CAI scores based on per-cell-line weight
+    tables. Loads cai_weights.json internally and reuses codonbias
+    CodonAdaptationIndex scorers (one per cell line) for the math.
 
     Args:
         df: Input dataframe.
@@ -135,14 +136,18 @@ def populate_cai(
     feature_names = []
 
     # 1. Load Centralized Weights
-    weights_path = Path(get_data_dir()) / "cai_weights.json"
+    weights_path = Path(get_data_dir()) / CAI_WEIGHTS_FILENAME
     if not weights_path.exists():
-        raise FileNotFoundError(f"CAI weights file not found at: {weights_path}")
+        raise FileNotFoundError(
+            f"CAI weights file not found at: {weights_path}. "
+            "Run 'tauso build-cai-weights' (or 'tauso build-cell-context')."
+        )
 
     with open(weights_path, "r") as f:
-        weight_map = json.load(f)
+        weights_map = json.load(f)
 
-    logger.info("Loaded CAI profiles for: %s", list(weight_map.keys()))
+    scorer_cache = CAIScorerCache(weights_map=weights_map)
+    logger.info("Loaded CAI weight profiles for: %s", list(weights_map.keys()))
 
     # 2. Setup Parallelization
     use_parallel = init_pandarallel(n_jobs)
@@ -151,7 +156,7 @@ def populate_cai(
     # pandarallel pickles the closure into worker processes, so per-row
     # deduplication sets would fire once per worker instead of once total.
     _DEPMAP_NO_EXPRESSION = {"SW872", "HK2"}
-    unknown_cell_lines = set(df[CELL_LINE].map(standardize_cell_line_name).dropna()) - set(weight_map.keys())
+    unknown_cell_lines = set(df[CELL_LINE].map(standardize_cell_line_name).dropna()) - scorer_cache.known_cell_lines()
     for _cl in sorted(unknown_cell_lines):
         if _cl in _DEPMAP_NO_EXPRESSION:
             logger.warning(
@@ -170,12 +175,7 @@ def populate_cai(
         cell_line_raw = row.get(CELL_LINE)
         cell_line_name = standardize_cell_line_name(cell_line_raw)
 
-        weights = weight_map.get(cell_line_name) or weight_map.get("Generic")
-
-        if not weights:
-            return np.nan
-
-        return calc_CAI(str(sequence), weights)
+        return scorer_cache.score(str(sequence), cell_line_name)
 
     # 4. Local CAI Windows
     logger.info("Applying context-specific CAI scores to windows...")
