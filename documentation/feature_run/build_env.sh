@@ -25,6 +25,17 @@ if [ -z "${MM:-}" ]; then
   if [ -x "$BASE/bin/micromamba" ]; then MM="$BASE/bin/micromamba"; else MM="micromamba"; fi
 fi
 
+# Optional: on machines with a quota-limited $HOME (e.g. some clusters), uv/pip
+# default to ~/.cache and can blow the home quota mid-install. Set OFFHOME_CACHE=1
+# to keep all caches/temp under the base dir instead. Off by default.
+if [ "${OFFHOME_CACHE:-0}" = "1" ]; then
+  export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/.cache}"
+  export UV_CACHE_DIR="${UV_CACHE_DIR:-$BASE/.uv_cache}"
+  export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$BASE/.pip_cache}"
+  export TMPDIR="${TMPDIR:-$BASE/.tmp}"
+  mkdir -p "$XDG_CACHE_HOME" "$UV_CACHE_DIR" "$PIP_CACHE_DIR" "$TMPDIR"
+fi
+
 cd "$REPO"
 
 if ! "$MM" env list | grep -q "$ENV"; then
