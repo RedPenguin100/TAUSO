@@ -135,13 +135,15 @@ def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_
 
     valid_scores = []
     for i in range(L - window_size + 1):
+        win_start = i
         win_end = i + window_size
+
         if window_size > gap_len:
-            is_valid = (i <= gap_start) and (win_end >= gap_end)
+            is_valid = (win_start <= gap_start) and (win_end >= gap_end)
         else:
-            is_valid = (i >= gap_start) and (win_end <= gap_end)
+            is_valid = (win_start >= gap_start) and (win_end <= gap_end)
 
         if is_valid:
-            valid_scores.append(compute_rnaseh1_score(target_seq, weights, window_start=i))
+            valid_scores.append(compute_rnaseh1_score(target_seq, weights, window_start=win_start))
 
     return max(valid_scores) if valid_scores else 0.0
