@@ -532,27 +532,23 @@ def setup_mrna_halflife(force):
         sys.exit(1)
 
 
-_TGCN_SOURCE_HELP = "Organism tGCN to fetch. Available: " + ", ".join(
-    f"{s.name.lower()} (GtRNAdb {s.value.gtrnadb_genome})" for s in TGCNSource
-)
-
-
 @main.command(name="setup-tgcn")
 @click.option(
     "--source",
-    type=click.Choice([s.name.lower() for s in TGCNSource], case_sensitive=False),
-    default=TGCNSource.HUMAN.name.lower(),
+    type=click.Choice(["hsapi38"], case_sensitive=False),
+    default="hsapi38",
     show_default=True,
-    help=_TGCN_SOURCE_HELP,
+    help="GtRNAdb genome to fetch. Available: hsapi38 (human).",
 )
 @click.option("--force", is_flag=True, help="Force refetch if file exists.")
 def setup_tgcn(source, force):
     """
-    Fetch a per-organism tRNA gene copy number (tGCN) table from GtRNAdb
-    and write it to TAUSO_DATA_DIR. The tAI feature loads this table at
-    first use; without it, populate_tai cannot run.
+    Fetch a tRNA gene copy number (tGCN) table from GtRNAdb and write it
+    to TAUSO_DATA_DIR. The tAI feature loads this table at first use;
+    without it, populate_tai cannot run.
 
-    See --source for the list of supported organisms.
+    --source is the specific GtRNAdb genome ID (e.g. hsapi38 for human);
+    see TGCNSource for the supported set.
     """
     from codonbias.scores import fetch_GCN_from_GtRNAdb
 
@@ -563,7 +559,7 @@ def setup_tgcn(source, force):
     os.makedirs(data_dir, exist_ok=True)
     destination = os.path.join(data_dir, spec.filename)
 
-    click.echo(f"Initializing {source} tGCN setup (GtRNAdb {spec.gtrnadb_genome})...")
+    click.echo(f"Initializing {spec.organism} tGCN setup (GtRNAdb {spec.gtrnadb_genome})...")
     click.echo(f"Target path: {destination}")
 
     if os.path.exists(destination) and not force:
