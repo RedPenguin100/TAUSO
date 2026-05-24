@@ -1,10 +1,30 @@
 import logging
+import os
 from collections import defaultdict
 
 from ..data.data import load_genome, load_gff_db, load_gtf_db
 from ..timer import Timer
 from ..util import get_antisense_u
-from .LocusInfo import GeneType, LocusInfo, StrandType
+from .LocusInfo import GeneType, LazyLocusInfo, LocusInfo, StrandType
+
+# Per-process FASTA handle cache, keyed by (genome, pid). pyfaidx handles are not
+# safe to share across forked workers (shared fd offset), so each process opens
+# its own; keying on pid makes this correct after a fork.
+_PROCESS_FASTA: dict = {}
+
+
+def fetch_full_mrna(genome, chrom, gene_start, gene_end, strand):
+    """Fetch a gene's full genomic span (introns included) from the FASTA and
+    apply the same strand transform as the eager loader. Used by LazyLocusInfo
+    to materialize `full_mrna` on demand."""
+    key = (genome, os.getpid())
+    fasta = _PROCESS_FASTA.get(key)
+    if fasta is None:
+        fasta = load_genome(genome)
+        _PROCESS_FASTA[key] = fasta
+    seq = str(fasta[chrom][gene_start:gene_end])
+    return get_antisense_u(seq) if strand == StrandType.NEG else seq.upper()
+
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +86,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     db = load_gff_db(genome)
     logger.debug("[Get_Locus] Loaded annotation database.")
 
-    logger.debug("[Get_Locus] Loading fasta dict")
-    fasta_dict = load_genome(genome)
-    logger.debug("[Get_Locus] Loaded fasta dict.")
-
-    locus_to_data = defaultdict(LocusInfo)
+    locus_to_data = defaultdict(LazyLocusInfo)
     target_names = set(gene_subset) if gene_subset else None
     duplicate_counts: dict[str, int] = {}
 
@@ -92,12 +108,11 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         locus_info = locus_to_data[locus_tag]
         locus_info.strand = StrandType.from_string(gene.strand)
 
-        seq = str(fasta_dict[chrom][gene.start - 1 : gene.end])
-        seq = get_antisense_u(seq) if locus_info.strand == StrandType.NEG else seq.upper()
-
+        locus_info.chrom = chrom
+        locus_info.genome = genome
         locus_info.gene_start = gene.start - 1
         locus_info.gene_end = gene.end
-        locus_info.full_mrna = seq
+        # full_mrna is fetched lazily from the FASTA on first access (LazyLocusInfo).
         locus_info.gene_type = GeneType.from_string(_get_gene_type_gff(gene))
 
         if canonical_only:
