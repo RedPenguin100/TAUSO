@@ -11,10 +11,11 @@ from ...data.data import get_data_dir
 
 @dataclass(frozen=True)
 class TGCNSourceSpec:
-    """Where to fetch a tGCN table from and how to verify it. One entry per
-    specific GtRNAdb genome (e.g. Hsapi38 for human, Mmusc10 for mouse)."""
+    """Where to fetch a tGCN table from and how to verify it. Each enum
+    member picks a canonical GtRNAdb genome for that organism; if multiple
+    builds per organism ever need to coexist we'll add a --genome override
+    at that point."""
 
-    organism: str  # display name, e.g. "human"
     filename: str  # filename inside TAUSO_DATA_DIR
     gtrnadb_genome: str  # GtRNAdb genome ID, e.g. "Hsapi38"
     gtrnadb_domain: str  # GtRNAdb taxonomic domain, e.g. "eukaryota"
@@ -22,17 +23,15 @@ class TGCNSourceSpec:
 
 
 class TGCNSource(Enum):
-    """Supported tGCN sources, keyed by specific GtRNAdb genome ID."""
+    """Supported tGCN sources, keyed by organism."""
 
-    HSAPI38 = TGCNSourceSpec(
-        organism="human",
+    HUMAN = TGCNSourceSpec(
         filename="human_tgcn_hsapi38.csv",
         gtrnadb_genome="Hsapi38",
         gtrnadb_domain="eukaryota",
         sha256="80bbf6c62395e6b9463e56db16efa87fccdc3c6d2452b808099482c33f23d8e6",
     )
-    # MMUSC10 = TGCNSourceSpec(
-    #     organism="mouse",
+    # MOUSE = TGCNSourceSpec(
     #     filename="mouse_tgcn_mmusc10.csv",
     #     gtrnadb_genome="Mmusc10",
     #     gtrnadb_domain="eukaryota",
@@ -51,7 +50,7 @@ def _load_scorer(source: TGCNSource) -> TrnaAdaptationIndex:
     path = os.path.join(get_data_dir(), spec.filename)
     if not os.path.exists(path):
         raise FileNotFoundError(
-            f"Missing tGCN file at {path}. Run 'tauso setup-tgcn --source {source.name.lower()}' to download it."
+            f"Missing tGCN file at {path}. Run 'tauso setup-tgcn --organism {source.name.lower()}' to download it."
         )
     tGCN = pd.read_csv(path)
     scorer = TrnaAdaptationIndex(tGCN=tGCN, s_values="dosReis", genetic_code=1)
@@ -59,7 +58,7 @@ def _load_scorer(source: TGCNSource) -> TrnaAdaptationIndex:
     return scorer
 
 
-def compute_tAI(seq: str, source: TGCNSource = TGCNSource.HSAPI38) -> float:
+def compute_tAI(seq: str, source: TGCNSource = TGCNSource.HUMAN) -> float:
     if not isinstance(seq, str) or not seq.strip():
         return np.nan
     score = _load_scorer(source).get_score(seq)
