@@ -5,14 +5,15 @@ import pandas as pd
 from codonbias.scores import CodonAdaptationIndex
 
 # JSON written by `tauso build-cai-weights`: {cell_line: {codon: weight}}
-# plus a "Generic" entry holding the cohort-consensus fallback. The weights
-# themselves are produced at build-time by codonbias's CodonAdaptationIndex
-# (pseudocount=0); at populate-time we reinject them into a fresh scorer.
+# plus a "Generic" entry holding the cohort-consensus fallback.
 CAI_WEIGHTS_FILENAME = "cai_weights.json"
 
-# pseudocount=0 matches the previous hand-rolled `calc_CAI_weight`
-# (raw codon counts normalised per amino acid by the max, no smoothing).
-CAI_PSEUDOCOUNT = 0
+# Default pseudocount for the build-time weight computation. 0 matches the
+# previous hand-rolled `calc_CAI_weight` (raw codon counts normalised per
+# amino acid by the max, no smoothing). codonbias's own default is 1, which
+# avoids zero weights for unobserved codons at the cost of a small shift in
+# every weight; callers can override via the CLI.
+CAI_DEFAULT_PSEUDOCOUNT = 0
 
 
 def _all_codons_seq() -> str:
@@ -38,24 +39,20 @@ def _make_scorer_from_weights(weights: dict[str, float]) -> CodonAdaptationIndex
     of codonbias's public API (`weights`, `log_weights`, `_log_weights_arr`).
     Replace with a public hook once codon-bias upstream exposes one.
     """
-    scorer = CodonAdaptationIndex(ref_seq=[_SCORER_BOOTSTRAP_SEQ], pseudocount=CAI_PSEUDOCOUNT)
+    scorer = CodonAdaptationIndex(ref_seq=[_SCORER_BOOTSTRAP_SEQ], pseudocount=CAI_DEFAULT_PSEUDOCOUNT)
     scorer.weights = pd.Series(weights, name="weight")
-    # Codons never observed in the reference set produce weight 0; log(0) = -inf
-    # is the intended sentinel (codonbias's geomean handles it). Compute log
-    # on the raw numpy array so the warning suppression actually sticks
-    # (pandas wraps ufuncs through __array_ufunc__ and bypasses np.errstate
-    # when the operand is a Series).
-    with np.errstate(divide="ignore"):
-        log_values = np.log(scorer.weights.values)
-    scorer.log_weights = pd.Series(log_values, index=scorer.weights.index, name="weight")
+    scorer.log_weights = np.log(scorer.weights)
     scorer._log_weights_arr = scorer.log_weights.reindex(scorer.counter.kmer_index).values
     return scorer
 
 
-def build_scorer_from_reference(cds_list: list[str]) -> CodonAdaptationIndex:
+def build_scorer_from_reference(
+    cds_list: list[str], pseudocount: int = CAI_DEFAULT_PSEUDOCOUNT
+) -> CodonAdaptationIndex:
     """Build a CodonAdaptationIndex from a list of reference CDS sequences.
-    Used at build-time by `tauso build-cai-weights`."""
-    return CodonAdaptationIndex(ref_seq=cds_list, pseudocount=CAI_PSEUDOCOUNT)
+    Used at build-time by `tauso build-cai-weights`. See codonbias's own
+    docs for the meaning of `pseudocount`."""
+    return CodonAdaptationIndex(ref_seq=cds_list, pseudocount=pseudocount)
 
 
 class CAIScorerCache:

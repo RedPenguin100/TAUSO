@@ -28,7 +28,7 @@ from tauso.cli_utils import (
     verify_hash_or_exit,
 )
 from tauso.data.data import get_data_dir, get_paths
-from tauso.features.codon_usage.cai import CAI_WEIGHTS_FILENAME, build_scorer_from_reference
+from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_FILENAME, build_scorer_from_reference
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.features.codon_usage.tai import TGCNSource
 from tauso.genome.read_human_genome import get_locus_to_data_dict
@@ -390,8 +390,17 @@ def build_cohort_expression(genome):
     help="Genes per cell for Generic pool (Default: 500).",
 )
 @click.option("--genome", default="GRCh38", help="Genome version.")
+@click.option(
+    "--pseudocount",
+    default=CAI_DEFAULT_PSEUDOCOUNT,
+    show_default=True,
+    type=int,
+    help="Pseudocount added to codon counts before normalisation (codonbias). "
+    "0 matches the previous hand-rolled math; 1 (codonbias's own default) "
+    "smooths and avoids zero weights for unobserved codons.",
+)
 @click.option("--force", is_flag=True, help="Overwrite existing cai_weights.json if it exists.")
-def build_cai_weights(top_n, top_n_generic, genome, force):
+def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
     """
     Generates CAI weight profiles for the cohort and a Generic fallback,
     using codonbias.scores.CodonAdaptationIndex over the top-N highly
@@ -459,7 +468,7 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
         cds_list = cds_list[:top_n]
 
         if len(cds_list) == top_n:
-            scorer = build_scorer_from_reference(cds_list)
+            scorer = build_scorer_from_reference(cds_list, pseudocount=pseudocount)
             cai_weights_map[cell_name] = scorer.weights.to_dict()
             click.echo(f"  ✓ {cell_name} weights ready ({len(cds_list)} genes).")
         else:
