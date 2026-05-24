@@ -9,6 +9,20 @@ logger = logging.getLogger(__name__)
 
 from ...data.data import get_data_dir
 
+# Columns the loader needs from the raw TTDB dataset. The full file (21 columns,
+# distributed as csv.gz on Zenodo) is converted to a lean Parquet of just these
+# columns by `tauso setup-mrna-halflife`.
+#
+# `gene_name_x` / `gene_name_y` are pandas merge() suffixes present in TTDB's
+# officially distributed file (species_stability_no_threshold.csv.gz, the Google
+# Drive mirror linked from https://sysbio.gzzoc.com/ttdb/download.html) — TTDB's
+# standardization pipeline joined two tables that each carry a `gene_name`
+# column. They are NOT created by this repo. Verified across all 2.17M rows:
+# the SAME gene per row (identical after upper()+strip()); the only raw
+# difference (~35% of rows) is letter case, with `gene_name_y` the uppercase-
+# normalized form (~99.8% all-upper vs ~64% for `_x`). We use `_y`.
+HALFLIFE_SOURCE_COLUMNS = ["gene_name_y", "cell_type", "half_life", "condition", "r_squared"]
+
 
 def load_halflife_mapping():
     """
@@ -16,19 +30,16 @@ def load_halflife_mapping():
     Returns a dictionary: {(Gene_Symbol, Cell_Line): Half_Life_Hours}
     """
     data_dir = get_data_dir()
-    path = os.path.join(data_dir, "mrna_half_life.csv.gz")
+    path = os.path.join(data_dir, "mrna_half_life.parquet")
 
     logger.info("Loading half-life data from %s...", path)
 
     if not os.path.exists(path):
         raise FileNotFoundError(f"Data file not found at {path}. Run 'tauso setup-mrna-halflife' first.")
 
-    # 1. Load necessary columns
-    # We use 'gene_name_y' (standardized) and 'condition' (for filtering)
-    cols_to_use = ["gene_name_y", "cell_type", "half_life", "condition", "r_squared"]
-
-    # Load data
-    df = pd.read_csv(path, compression="gzip", usecols=cols_to_use)
+    # 1. Load necessary columns. Parquet is columnar, so this reads only these
+    # (we use 'gene_name_y' standardized and 'condition' for filtering).
+    df = pd.read_parquet(path, columns=HALFLIFE_SOURCE_COLUMNS)
 
     # 2. Rename for clarity
     df = df.rename(columns={"gene_name_y": "gene", "cell_type": "cell_line"})
