@@ -1,6 +1,14 @@
 import pytest
 
-from tauso.features.names import *
+from tauso.data.consts import (
+    SENSE_EXON,
+    SENSE_INTRON,
+    SENSE_LENGTH,
+    SENSE_START,
+    SENSE_START_FROM_END,
+    SENSE_TYPE,
+    SENSE_UTR,
+)
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
 

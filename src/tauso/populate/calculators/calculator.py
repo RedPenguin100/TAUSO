@@ -5,9 +5,20 @@ import pandas as pd
 import psutil
 from pympler import asizeof
 
-from ...data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
+from ...data.consts import (
+    CANONICAL_GENE,
+    CELL_LINE_DEPMAP,
+    SENSE_3UTR,
+    SENSE_5UTR,
+    SENSE_EXON,
+    SENSE_INTRON,
+    SENSE_LENGTH,
+    SENSE_START,
+    SENSE_START_FROM_END,
+    SENSE_TYPE,
+    SENSE_UTR,
+)
 from ...features.feature_extraction import save_feature_internal
-from ...features.names import *
 from ...timer import Timer
 from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
@@ -189,15 +200,15 @@ class Calculator:
 
     def calculate_structure(self):
         expected_features = [
-            "sense_start",
-            "sense_start_from_end",
-            "sense_length",
+            SENSE_START,
+            SENSE_START_FROM_END,
+            SENSE_LENGTH,
             SENSE_EXON,
             SENSE_INTRON,
             SENSE_UTR,
             SENSE_3UTR,
             SENSE_5UTR,
-            "sense_type",
+            SENSE_TYPE,
             f"n_{SENSE_EXON}",
             f"n_{SENSE_INTRON}",
             f"n_{SENSE_3UTR}",
@@ -352,8 +363,6 @@ class Calculator:
         expected_features = [f"mfe_win{w}_flank{f}_step{s}" for f, w, s in DEFAULT_SETTINGS]
 
         missing = self._get_missing_features(expected_features)
-
-        from tauso.data.consts import SENSE_LENGTH, SENSE_START
 
         if missing:
             logger.info("Computing %d MFE features...", len(missing))
@@ -610,8 +619,6 @@ class Calculator:
             return
 
         logger.info("Computing Codon Usage Bias (CUB) features...")
-
-        from tauso.data.consts import SENSE_START
 
         self._check_dependencies([SENSE_START])
 
