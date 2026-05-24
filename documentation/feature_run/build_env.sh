@@ -1,25 +1,30 @@
 #!/usr/bin/env bash
 #
-# Build the reproducible `tauso_repro` env from the explicit conda lock and
-# editable-install tauso. Designed to be run on a SLURM compute node via:
+# Build the reproducible tauso env from the explicit conda lock and
+# editable-install tauso.
 #
-#     tauso_run --cpu=8 --mem=32G bash <path-to-this-script>
+# Path-relative and self-locating: the repo is the clone two levels above this
+# script (<BASE>/TAUSO/documentation/feature_run/build_env.sh), so <BASE> is the
+# directory above the clone. Nothing is hard-coded; launch it however you like
+# (directly, or wrapped by a job scheduler):
 #
-# It is kept as a script (not an inline one-liner) because `tauso_run` does not
-# pass `&&` chains / `|` pipes / `-n <env>` flags / quotes through cleanly.
+#     bash <BASE>/TAUSO/documentation/feature_run/build_env.sh
 #
-# Override any of these via the environment if your layout differs:
-#     MM                 path to the micromamba binary
-#     MAMBA_ROOT_PREFIX  isolated root prefix for envs/packages
-#     ENV                env name to create
+# Override via the environment if your layout differs:
+#     MM                 micromamba binary (default: $BASE/bin/micromamba, else PATH)
+#     MAMBA_ROOT_PREFIX  env/package store (default: $BASE/micromamba)
+#     ENV                env name           (default: tauso_repro)
 set -euo pipefail
 
-MM="${MM:-/tamir2/kovaliov/bin/micromamba}"
-export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-/tamir2/kovaliov/micromamba}"
-ENV="${ENV:-tauso_repro}"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"   # the TAUSO clone
+BASE="$(dirname "$REPO")"                                    # the chosen base dir
 
-# repo root = two levels up from this script (documentation/feature_run/..)
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$BASE/micromamba}"
+ENV="${ENV:-tauso_repro}"
+if [ -z "${MM:-}" ]; then
+  if [ -x "$BASE/bin/micromamba" ]; then MM="$BASE/bin/micromamba"; else MM="micromamba"; fi
+fi
+
 cd "$REPO"
 
 if ! "$MM" env list | grep -q "$ENV"; then
