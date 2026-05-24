@@ -1037,7 +1037,14 @@ def setup_bowtie(genome, force, threads, mem_per_thread):
     is_flag=True,
     help="Force re-cloning of the raccess repository (passed to install_raccess.sh).",
 )
-def setup_raccess(ctx, force_clone):
+@click.option(
+    "--march",
+    default=None,
+    help="-march for the raccess build (default: native, or $RACCESS_MARCH). "
+    "Use 'x86-64-v2' for a portable binary that runs across heterogeneous "
+    "cluster CPUs (native can crash with SIGILL when build and run nodes differ).",
+)
+def setup_raccess(ctx, force_clone, march):
     """
     Run the raccess installation per their license.
     Installs into the configured TAUSO_DATA_DIR.
@@ -1053,9 +1060,14 @@ def setup_raccess(ctx, force_clone):
     # Pass raccess_dir as the first argument to the script
     cmd = ["bash", str(script_path), raccess_dir] + forwarded_args
 
-    click.echo(f"+ {' '.join(cmd)}")
+    # --march flag wins, else inherit $RACCESS_MARCH, else the script's 'native' default
+    env = os.environ.copy()
+    if march:
+        env["RACCESS_MARCH"] = march
+
+    click.echo(f"+ {' '.join(cmd)} (RACCESS_MARCH={env.get('RACCESS_MARCH', 'native')})")
     try:
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, env=env)
     except subprocess.CalledProcessError as e:
         logger.error("install_raccess.sh failed, consider installing zlib1g-dev")
         sys.exit(1)
