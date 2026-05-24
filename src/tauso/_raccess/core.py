@@ -18,13 +18,7 @@ def find_raccess():
     if bin_path.exists() and os.access(bin_path, os.X_OK):
         return str(bin_path)
 
-    # 3. Look relative to this file (in case it's built in the repo/package)
-    # e.g. tauso/_raccess/bin/run_raccess
-    repo_path = Path(__file__).parent / "bin" / RACCESS_EXE_NAME
-    if repo_path.exists() and os.access(repo_path, os.X_OK):
-        return str(repo_path)
-
-    # 4. PATH
+    # 3. PATH
     which = shutil.which(RACCESS_EXE_NAME)
     if which:
         return which
