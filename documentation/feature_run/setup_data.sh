@@ -31,8 +31,10 @@ MEM_PER_THREAD="${BOWTIE_MEM_PER_THREAD:-2048}"
 # Optional: set OFFHOME_CACHE=1 to keep caches/temp off a quota-limited $HOME.
 if [ "${OFFHOME_CACHE:-0}" = "1" ]; then
   export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/.cache}"
-  export TMPDIR="${TMPDIR:-$BASE/.tmp}"
-  mkdir -p "$XDG_CACHE_HOME" "$TMPDIR"
+  # node-local temp (NOT NFS): an NFS $TMPDIR makes multiprocessing cleanup spam
+  # harmless ".nfsXXXX Device or resource busy" tracebacks.
+  export TMPDIR="${TMPDIR:-/tmp}"
+  mkdir -p "$XDG_CACHE_HOME"
 fi
 
 mkdir -p "$TAUSO_DATA_DIR"

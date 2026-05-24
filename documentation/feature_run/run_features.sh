@@ -16,8 +16,11 @@ if [ -z "${MM:-}" ]; then
 fi
 if [ "${OFFHOME_CACHE:-0}" = "1" ]; then
   export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/.cache}"
-  export TMPDIR="${TMPDIR:-$BASE/.tmp}"
-  mkdir -p "$XDG_CACHE_HOME" "$TMPDIR"
+  # node-local temp (NOT NFS): an NFS $TMPDIR makes multiprocessing cleanup spam
+  # harmless ".nfsXXXX Device or resource busy" tracebacks. Home quota only ever
+  # needed ~/.cache redirected, never TMPDIR.
+  export TMPDIR="${TMPDIR:-/tmp}"
+  mkdir -p "$XDG_CACHE_HOME"
 fi
 CPUS="${CPUS:-$(nproc)}"
 cd "$REPO"

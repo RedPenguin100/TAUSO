@@ -32,8 +32,11 @@ if [ "${OFFHOME_CACHE:-0}" = "1" ]; then
   export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/.cache}"
   export UV_CACHE_DIR="${UV_CACHE_DIR:-$BASE/.uv_cache}"
   export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$BASE/.pip_cache}"
-  export TMPDIR="${TMPDIR:-$BASE/.tmp}"
-  mkdir -p "$XDG_CACHE_HOME" "$UV_CACHE_DIR" "$PIP_CACHE_DIR" "$TMPDIR"
+  # node-local temp (NOT NFS): an NFS $TMPDIR makes multiprocessing cleanup spam
+  # harmless ".nfsXXXX Device or resource busy" tracebacks. uv/pip caches still
+  # go off-home above; only TMPDIR must stay node-local.
+  export TMPDIR="${TMPDIR:-/tmp}"
+  mkdir -p "$XDG_CACHE_HOME" "$UV_CACHE_DIR" "$PIP_CACHE_DIR"
 fi
 
 cd "$REPO"
