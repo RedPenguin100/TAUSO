@@ -619,6 +619,44 @@ def setup_tgcn(organism, force):
         sys.exit(1)
 
 
+@main.command(name="setup-attract")
+@click.option("--force", is_flag=True, help="Force redownload if files exist.")
+def setup_attract(force):
+    """
+    Downloads the ATtRACT RBP database files from Zenodo.
+
+    Source: https://zenodo.org/records/20366079 (DOI 10.5281/zenodo.20366079),
+    a frozen mirror of the ATtRACT DB. Installs into the 'attract' subfolder of
+    TAUSO_DATA_DIR.
+    """
+    ZENODO_RECORD = "20366079"
+    FILES = {
+        "RBS_motifs_Homo_sapiens.csv": "12927c0ca4655b4f040ea5e7e3406dc7",
+        "pwm.txt": "7ff45b94c14d1b992680f561e0a038a4",
+    }
+
+    dest_dir = os.path.join(get_data_dir(), "attract")
+    os.makedirs(dest_dir, exist_ok=True)
+    click.echo(f"Target directory: {dest_dir}")
+
+    for name, expected_md5 in FILES.items():
+        destination = os.path.join(dest_dir, name)
+
+        if os.path.exists(destination) and not force:
+            verify_hash_or_exit(destination, expected_md5, algo="md5")
+            echo_ok(f"Existing {name} matches expected MD5. Skipping download.")
+            continue
+
+        url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{name}/content"
+        try:
+            download_with_progress(url, destination, label=f"Downloading {name}")
+            verify_hash_or_exit(destination, expected_md5, algo="md5")
+            echo_ok(f"Downloaded and verified: {destination}")
+        except Exception as e:
+            echo_err(f"Error downloading {name}: {e}")
+            sys.exit(1)
+
+
 GENCODE_HUMAN_RELEASE = "38"
 
 

@@ -129,6 +129,15 @@ jobs:
       - name: Setup mRNA half life
         run: tauso setup-mrna-halflife
 
+      - name: Cache ATtRACT RBP data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/attract
+          key: attract-zenodo-20366079
+
+      - name: Setup ATtRACT RBP data
+        run: tauso setup-attract
+
       - name: Cache DepMap Data
         id: cache-depmap
         uses: actions/cache@v4
