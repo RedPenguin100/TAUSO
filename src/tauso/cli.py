@@ -25,6 +25,7 @@ from tauso.cli_utils import (
     echo_ok,
     echo_warn,
     sha1_file,
+    sha256_file,
     verify_hash_or_exit,
 )
 from tauso.data.data import get_data_dir, get_paths
@@ -91,24 +92,55 @@ def setup_depmap(force):
     """
     Downloads DepMap Public 25Q3 data from a pinned Zenodo mirror
     (https://zenodo.org/records/20355477), verifying each file's SHA1.
-    The OmicsExpression CSV is additionally converted to Parquet for fast loading;
-    both the CSV and Parquet are retained on disk.
+    The OmicsExpression CSV is converted to Parquet for fast loading and the
+    CSV is then removed — all consumers read the Parquet directly. A sidecar
+    `<parquet>.sha256` is written on conversion; future runs skip the 1.1 GB
+    CSV download iff the Parquet still matches that hash. A mismatch triggers
+    a fresh download + re-conversion.
     """
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
 
     click.echo("Initializing DepMap setup (Zenodo mirror of DepMap Public 25Q3)...")
 
+    omics_csv_name = "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
+    omics_csv = os.path.join(data_dir, omics_csv_name)
+    omics_parquet = omics_csv.replace(".csv", ".parquet")
+    omics_parquet_sha = omics_parquet + ".sha256"
+    parquet_already_built = os.path.exists(omics_parquet) and not force
+
+    # If we have both the Parquet and its sidecar hash, verify they agree.
+    # Mismatch (or missing sidecar with --force) means the Parquet is no longer
+    # the one we wrote → rebuild from a fresh CSV download.
+    if parquet_already_built and os.path.exists(omics_parquet_sha):
+        recorded = Path(omics_parquet_sha).read_text().strip()
+        if sha256_file(omics_parquet) != recorded:
+            echo_warn(f"{os.path.basename(omics_parquet)} hash mismatch — will re-download CSV and re-convert.")
+            os.remove(omics_parquet)
+            os.remove(omics_parquet_sha)
+            parquet_already_built = False
+
     for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
+        if filename == omics_csv_name and parquet_already_built:
+            echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
+            continue
         _ensure_depmap_file(filename, expected_sha1, data_dir, force)
 
-    # OmicsExpression: maintain a parquet alongside the CSV for fast loading.
-    omics_csv = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv")
-    omics_parquet = omics_csv.replace(".csv", ".parquet")
-    if not os.path.exists(omics_parquet) or force:
+    if not parquet_already_built:
         click.echo("  Converting OmicsExpression CSV to Parquet...")
         pd.read_csv(omics_csv).to_parquet(omics_parquet, index=False)
-        echo_ok("Converted to Parquet (CSV kept).")
+        echo_ok("Converted to Parquet.")
+
+    # Record (or refresh) the sidecar hash so future runs can detect tampering / bit rot.
+    if not os.path.exists(omics_parquet_sha):
+        Path(omics_parquet_sha).write_text(sha256_file(omics_parquet))
+
+    # The CSV is dead weight once the Parquet exists — every consumer (production
+    # code in genome/transcriptome.py and features/expression/general_expression.py,
+    # plus tests) takes the CSV path but immediately swaps the suffix to .parquet.
+    if os.path.exists(omics_csv):
+        os.remove(omics_csv)
+        echo_ok(f"Removed {omics_csv_name} (Parquet supersedes it).")
 
     click.echo("\nDepMap setup complete.")
 
