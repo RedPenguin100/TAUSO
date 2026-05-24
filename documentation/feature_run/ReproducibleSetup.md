@@ -98,26 +98,29 @@ verifies.
 
 ## Phase 3 — data setup
 
+One self-locating script, [`setup_data.sh`](./setup_data.sh), runs the whole
+chain in the correct, non-redundant order:
+
 ```bash
-export TAUSO_DATA_DIR="$BASE/.tauso_data"
-mkdir -p "$TAUSO_DATA_DIR"
-cd "$BASE/TAUSO"
-
-# genome + bowtie + omics + raccess  (bowtie is the slow step — tune threads/mem)
-micromamba run -n tauso_repro tauso setup-all -t 32 --mem-per-thread 2048
-
-# cell context (cohort + expression + CAI weights + tGCN)
-micromamba run -n tauso_repro tauso build-cell-context
-
-# process + index the oligo data
-micromamba run -n tauso_repro python -u -m notebooks.data.OligoAI.assign_canonical_gene
-micromamba run -n tauso_repro python -u -m notebooks.utils.data
+bash "$BASE/TAUSO/documentation/feature_run/setup_data.sh"
 ```
 
+It runs (verified against `cli.py`):
+1. `tauso setup-all` — genome → bowtie → omics → raccess, where **omics** =
+   DepMap, mRNA half-life, tGCN, **ATtRACT RBP motifs**, and the **ribo-seq**
+   bigWig. (So the omics sub-steps are *not* called separately — that would be
+   redundant.)
+2. `tauso build-cell-context` — cohort, per-cell expression, CAI weights, tGCN.
+3. `assign_canonical_gene` — process the oligo data.
+4. `notebooks.utils.data` — index the oligo data.
+
 - `setup-all` is idempotent (hash-checks, skips existing; `--force` to rebuild).
-- To isolate just the long pole:
-  `micromamba run -n tauso_repro tauso setup-bowtie -t 32 --mem-per-thread 2048`
-- Downloads genome / DepMap / bowtie sources — needs internet.
+  The only repeat in the chain is `setup-tgcn` (run by both `setup-all` and
+  `build-cell-context`) — idempotent, so harmless.
+- Bowtie is the long pole. The script uses `nproc` threads + 2048 MB/thread by
+  default; override with `BOWTIE_THREADS` / `BOWTIE_MEM_PER_THREAD`. To isolate
+  just bowtie: `micromamba run -n tauso_repro tauso setup-bowtie -t <N> --mem-per-thread <MB>`.
+- Downloads genome / DepMap / bowtie sources — needs outbound internet.
 
 ---
 
@@ -148,4 +151,8 @@ micromamba run -n tauso_repro \
 
 Every command above is launch-agnostic and expressed relative to `$BASE`. Wrap
 the long-running steps with your scheduler as you see fit; nothing here assumes
-how the command is dispatched.
+how the command is dispatched. If your launcher passes the command to a single
+shell string (e.g. an `sbatch --wrap`-style wrapper), quote the whole thing —
+`my_launcher "bash $BASE/TAUSO/documentation/feature_run/setup_data.sh"` — which
+is also why each phase is a single `bash <script>` rather than a flagged
+command.
