@@ -138,6 +138,15 @@ jobs:
       - name: Setup ATtRACT RBP data
         run: tauso setup-attract
 
+      - name: Cache RiboSeq data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/human_unselected_40S.RiboProElong.bw
+          key: riboseq-zenodo-20366983
+
+      - name: Setup RiboSeq data
+        run: tauso setup-riboseq
+
       - name: Cache DepMap Data
         id: cache-depmap
         uses: actions/cache@v4
