@@ -150,9 +150,10 @@ def setup_depmap(force):
 @click.pass_context
 def setup_omics(ctx, force):
     """
-    Set up all omics datasets: DepMap (cell-line metadata, profiles, expression)
-    and mRNA half-life data. Use 'build-cohort-expression' afterwards to derive
-    per-cohort expression files.
+    Set up all omics datasets: DepMap (cell-line metadata, profiles, expression),
+    mRNA half-life data, human tGCN (tAI), ATtRACT RBP motifs, and the ribo-seq
+    bigWig. Use 'build-cohort-expression' afterwards to derive per-cohort
+    expression files.
     """
     click.echo(click.style("=== setup-omics: DepMap ===", bold=True))
     ctx.invoke(setup_depmap, force=force)
@@ -162,6 +163,12 @@ def setup_omics(ctx, force):
     click.echo()
     click.echo(click.style("=== setup-omics: human tGCN ===", bold=True))
     ctx.invoke(setup_tgcn, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: ATtRACT RBP ===", bold=True))
+    ctx.invoke(setup_attract, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: ribo-seq ===", bold=True))
+    ctx.invoke(setup_riboseq, force=force)
     click.echo()
     echo_ok("Omics setup complete.")
 
