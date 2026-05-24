@@ -93,11 +93,8 @@ cp "$BUILD_DIR/src/raccess/run_raccess" "$DATA_DIR/bin/run_raccess"
 
 echo "Successfully installed executable to: $DATA_DIR/bin/run_raccess"
 
-PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "$PACKAGE_DIR/bin"
-cp "$BUILD_DIR/src/raccess/run_raccess" "$PACKAGE_DIR/bin/"
-
-echo "Successfully copied executable to: $PACKAGE_DIR/bin/run_raccess"
-echo "It will now be auto-discovered by tauso."
+# NOTE: we deliberately do NOT copy the binary into the package tree.
+# raccess has a non-distribution license, so the built binary must live only
+# in the user's TAUSO_DATA_DIR and never be bundled/committed/redistributed.
 echo
 echo "Done."
