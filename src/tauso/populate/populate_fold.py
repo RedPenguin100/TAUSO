@@ -48,10 +48,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     required_cols = [CANONICAL_GENE, SENSE_START, SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
-    unique_genes = df[CANONICAL_GENE].dropna().unique()
-    lightweight_gene_to_data = {
-        gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data
-    }
+    lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE].dropna().unique(), gene_to_data)
 
     # Group settings by (flank, window). Every entry in a group reuses the same
     # sub-sequence cut and the same set of folded windows; only the `step` grid
@@ -139,10 +136,9 @@ def _build_feature_name(flank_size, access_size, seeds):
     return f"access_{flank_size}flank_{access_size}access_{'-'.join(map(str, seeds))}seed_sizes"
 
 
-def _compute_lightweight_gene_to_data(valid_df, gene_to_data):
+def _lightweight_gene_to_data(genes, gene_to_data):
     """gene -> mRNA string, so worker threads don't pickle the heavy gene_to_data."""
-    unique_genes = valid_df[CANONICAL_GENE].unique()
-    return {gene: str(gene_to_data[gene].full_mrna) for gene in unique_genes if gene in gene_to_data}
+    return {gene: str(gene_to_data[gene].full_mrna) for gene in genes if gene in gene_to_data}
 
 
 def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_seq_len):
@@ -301,7 +297,7 @@ def populate_sense_accessibility_multi(
         return df_out, feature_names
 
     valid_df = df_out.loc[valid_mask, ["_temp_id", SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
-    lightweight_gene_to_data = _compute_lightweight_gene_to_data(valid_df, gene_to_data)
+    lightweight_gene_to_data = _lightweight_gene_to_data(valid_df[CANONICAL_GENE].unique(), gene_to_data)
     raccess_exe = find_raccess()
 
     def _process_batch(batch_rows):

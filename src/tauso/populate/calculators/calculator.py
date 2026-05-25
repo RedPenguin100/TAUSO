@@ -372,18 +372,17 @@ class Calculator:
             # Reuse the lean dictionary
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-            for setting in DEFAULT_SETTINGS:
-                f, w, s = setting
-                feature_name = f"mfe_win{w}_flank{f}_step{s}"
+            # Compute every missing setting in one pass: populate_mfe_features groups
+            # settings that share a (flank, window) so their folds are computed once,
+            # and the parallel dispatch is paid a single time instead of per setting.
+            missing_settings = [(f, w, s) for f, w, s in DEFAULT_SETTINGS if f"mfe_win{w}_flank{f}_step{s}" in missing]
 
-                # Only run the heavy computation if this specific setting is missing
-                if feature_name in missing:
-                    self.data, generated_features = populate_mfe_features(
-                        self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=[setting]
-                    )
+            self.data, generated_features = populate_mfe_features(
+                self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
+            )
 
-                    for feature in generated_features:
-                        self._save_calculated_feature(feature_name=feature)
+            for feature in generated_features:
+                self._save_calculated_feature(feature_name=feature)
         else:
             logger.info("All MFE features exist. Skipping.")
 
