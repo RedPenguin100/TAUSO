@@ -488,12 +488,7 @@ def sum_exp_energy_by_trigger_pyarrow(
     if not parts:
         return {}
 
-    final = (
-        pa.concat_tables(parts)
-        .group_by("trigger")
-        .aggregate([("_exp", "sum")])
-        .rename_columns(["trigger", "_exp"])
-    )
+    final = pa.concat_tables(parts).group_by("trigger").aggregate([("_exp", "sum")]).rename_columns(["trigger", "_exp"])
     triggers = final.column("trigger").to_pylist()
     sums = final.column("_exp").to_pylist()
     return {t: float(s) for t, s in zip(triggers, sums)}
