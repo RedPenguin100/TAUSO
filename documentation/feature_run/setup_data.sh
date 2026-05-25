@@ -28,6 +28,14 @@ fi
 THREADS="${BOWTIE_THREADS:-$(nproc)}"
 MEM_PER_THREAD="${BOWTIE_MEM_PER_THREAD:-2048}"
 
+# raccess is compiled by setup-all. -march=native produces a binary that only
+# runs on a CPU like the build node's, which SIGILLs on a heterogeneous cluster
+# where build and run nodes differ. Default to the portable x86-64-v2 baseline
+# (runs on essentially any x86-64 from ~2009+). The install script reads this
+# env var, so it applies even though setup-all doesn't pass --march. Override
+# with RACCESS_MARCH=native on a homogeneous machine for a faster binary.
+export RACCESS_MARCH="${RACCESS_MARCH:-x86-64-v2}"
+
 # Optional: set OFFHOME_CACHE=1 to keep caches/temp off a quota-limited $HOME.
 if [ "${OFFHOME_CACHE:-0}" = "1" ]; then
   export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/.cache}"
@@ -39,7 +47,7 @@ mkdir -p "$TAUSO_DATA_DIR"
 cd "$REPO"
 run() { "$MM" run -n "$ENV" "$@"; }
 
-echo ">>> [1/4] setup-all  (genome, bowtie, omics[depmap/mrna/tgcn/attract/riboseq], raccess)"
+echo ">>> [1/4] setup-all  (genome, bowtie, omics[depmap/mrna/tgcn/attract/riboseq], raccess -march=$RACCESS_MARCH)"
 run tauso setup-all -t "$THREADS" --mem-per-thread "$MEM_PER_THREAD"
 
 echo ">>> [2/4] build-cell-context  (cohort, cohort expression, CAI weights, tGCN)"

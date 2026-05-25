@@ -21,6 +21,17 @@ if [ "${OFFHOME_CACHE:-0}" = "1" ]; then
 fi
 CPUS="${CPUS:-$(nproc)}"
 cd "$REPO"
+# Fast guard: a -march=native raccess binary SIGILLs on a node unlike the build
+# host. Catch it here (~1s) instead of after grinding to sense-accessibility.
+# Skipped for `merge` (no raccess needed). Set SKIP_RACCESS_CHECK=1 to bypass.
+RACCESS="$TAUSO_DATA_DIR/raccess/bin/run_raccess"
+if [ "${1:-all}" != "merge" ] && [ "${SKIP_RACCESS_CHECK:-0}" != "1" ] && [ -x "$RACCESS" ]; then
+  "$RACCESS" >/dev/null 2>&1 || if [ "$?" -eq 132 ]; then
+    echo "ABORT: raccess SIGILL on $(hostname) -- rebuild portably before running:" >&2
+    echo "  RACCESS_MARCH=x86-64-v2 tauso setup-raccess --force-clone --march x86-64-v2" >&2
+    exit 1
+  fi
+fi
 feats() { "$MM" run -n "$ENV" python -u -m notebooks.features.calculate_features --dataset oligo "$@"; }
 case "${1:-all}" in
   merge) feats --merge "$2" ;;
