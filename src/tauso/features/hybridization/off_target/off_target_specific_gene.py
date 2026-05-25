@@ -16,7 +16,8 @@ from ..fast_hybridization import (
     Interaction,
     dump_target_file,
     get_triggers_mfe_scores_batch,
-    sum_exp_energy_by_trigger_pyarrow,
+    parse_risearch_hits_pyarrow,
+    sum_exp_by_trigger,
 )
 from .off_target_functions import parse_risearch_output
 
@@ -89,15 +90,15 @@ def _score_one_gene_streaming(gene, row_triggers, target_path, cutoff, chunk_siz
     combined: dict = {}
     for i in range(0, len(row_triggers), chunk_size):
         chunk = row_triggers[i : i + chunk_size]
-        partial = sum_exp_energy_by_trigger_pyarrow(
+        partial = parse_risearch_hits_pyarrow(
             trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
             target_file_path=target_path,
+            aggregation=sum_exp_by_trigger(rt=_RT),
             minimum_score=cutoff,
             parsing_type="2",
             interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
             transpose=True,
             batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-            rt=_RT,
         )
         # Sum across chunks for the same trigger (rare but possible if a
         # trigger straddles the chunksize boundary).

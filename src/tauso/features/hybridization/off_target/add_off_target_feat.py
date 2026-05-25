@@ -10,12 +10,13 @@ from ....data.consts import CANONICAL_GENE, SEQUENCE
 logger = logging.getLogger(__name__)
 from ....util import get_antisense
 from ..fast_hybridization import (
+    MIN_ENERGY_BY_PAIR,
     TMP_PATH,
     Interaction,
     dump_target_file,
     get_trigger_mfe_scores_by_risearch,
     get_triggers_mfe_scores_batch,
-    min_energy_by_pair_pyarrow,
+    parse_risearch_hits_pyarrow,
 )
 from .off_target_functions import aggregate_off_targets, parse_risearch_output
 
@@ -223,9 +224,10 @@ def _compute_group_batch_streaming(group_df, seq_map, exp_map, cutoff, method, p
 
     try:
         # (trigger, target) -> min energy across all hits
-        min_energy = min_energy_by_pair_pyarrow(
+        min_energy = parse_risearch_hits_pyarrow(
             trigger_id_seq_pairs=query_pairs,
             target_file_path=target_path,
+            aggregation=MIN_ENERGY_BY_PAIR,
             minimum_score=cutoff,
             parsing_type="2",
             interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
