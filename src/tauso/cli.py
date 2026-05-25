@@ -32,7 +32,7 @@ from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.features.codon_usage.tai import TGCNSource
 from tauso.features.context.mrna_halflife import HALFLIFE_SOURCE_COLUMNS
-from tauso.genome.read_human_genome import get_locus_to_data_dict
+from tauso.genome.read_human_genome import build_locus_cache, get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import (
     GeneCoordinateMapper,
     build_gene_sequence_registry,
@@ -924,6 +924,16 @@ def setup_genome(genome, force, remove_gz):
         build_annotation_db(
             annotation_path=gff_path, db_path=gff_db_path, db_success_path=gff_db_success, genome=genome, fmt="GFF"
         )
+
+        # Pre-build the coordinate-only locus pickle so populate runs (and SLURM
+        # tasks) skip the ~24s gff traversal and load it from cache instead.
+        click.echo("Building locus coordinate cache...")
+        try:
+            cache_path = build_locus_cache(genome=genome, include_introns=True, canonical_only=True)
+            click.echo(click.style(f"✓ Locus cache built at {cache_path}", fg="green"))
+        except Exception as e:
+            # Non-fatal: the cache is an optimization; populate falls back to the gff db.
+            click.echo(click.style(f"⚠ Could not build locus cache ({e}); will build on first use.", fg="yellow"))
 
 
 # --- NEW COMMAND: OFF-TARGET SEARCH ---
