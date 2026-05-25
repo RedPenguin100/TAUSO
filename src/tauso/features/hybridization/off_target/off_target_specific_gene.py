@@ -16,7 +16,7 @@ from ..fast_hybridization import (
     Interaction,
     dump_target_file,
     get_triggers_mfe_scores_batch,
-    stream_triggers_mfe_hits,
+    sum_exp_energy_by_trigger_pyarrow,
 )
 from .off_target_functions import parse_risearch_output
 
@@ -73,22 +73,23 @@ def _score_one_gene(gene, row_triggers, target_path, cutoff, chunk_size=100, str
 
 
 def _score_one_gene_streaming(gene, row_triggers, target_path, cutoff, chunk_size=100):
-    """Streaming variant of _score_one_gene: chunk-parses RIsearch stdout via
-    pd.read_csv(chunksize) and aggregates exp(-RT·energy) per chunk.
+    """Streaming variant of _score_one_gene: parses RIsearch stdout with pyarrow
+    and aggregates sum(exp(-RT·energy)) per trigger.
 
-    Avoids materializing the full RIsearch TSV (the giant string + DataFrame
-    the non-streaming path holds). Memory is bounded by the pd.read_csv chunk,
-    not by total output size — the win for cutoff=0 where output can be
-    hundreds of MB per RIsearch call.
+    pyarrow's parser, exp transform, and group_by sum all run in C++ and release
+    the GIL, so this scales under the ThreadPoolExecutor in _apply_risearch_scoring
+    (the old pd.read_csv parse + numpy/pandas aggregate held the GIL and plateaued
+    under threads). Memory is bounded by the pyarrow read block, not by total
+    output size — the win for cutoff=0 where a single RIsearch call can emit
+    hundreds of MB. Results match the pandas path within FP rounding.
 
-    Aggregation is vectorized per chunk (numpy exp + pandas groupby sum) so
-    total wall time is competitive with — and on cutoff=0 measurably faster
-    than — the materialized path.
+    The outer chunk loop is preserved so the RIsearch invocations are identical
+    to the previous path; only the parse + aggregate engine changed.
     """
     combined: dict = {}
     for i in range(0, len(row_triggers), chunk_size):
         chunk = row_triggers[i : i + chunk_size]
-        for hit_df in stream_triggers_mfe_hits(
+        partial = sum_exp_energy_by_trigger_pyarrow(
             trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
             target_file_path=target_path,
             minimum_score=cutoff,
@@ -96,17 +97,13 @@ def _score_one_gene_streaming(gene, row_triggers, target_path, cutoff, chunk_siz
             interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
             transpose=True,
             batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-        ):
-            if hit_df.empty:
-                continue
-            exp_vals = np.exp(-_RT * hit_df["energy"].to_numpy())
-            partial = pd.Series(exp_vals).groupby(hit_df["trigger"].to_numpy(), sort=False).sum()
-            # Sum across chunks for the same trigger (rare but possible if a
-            # trigger straddles the chunksize boundary).
-            for k, v in partial.items():
-                k_str = str(k)
-                existing = combined.get(k_str)
-                combined[k_str] = float(v) if existing is None else existing + float(v)
+            rt=_RT,
+        )
+        # Sum across chunks for the same trigger (rare but possible if a
+        # trigger straddles the chunksize boundary).
+        for k, v in partial.items():
+            existing = combined.get(k)
+            combined[k] = v if existing is None else existing + v
     return combined
 
 
