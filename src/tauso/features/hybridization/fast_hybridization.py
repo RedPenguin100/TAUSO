@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from importlib.resources import files
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, NamedTuple, Tuple
 
 from ...util import get_antisense_rna
 from .interaction import Interaction
@@ -267,9 +267,28 @@ def stream_triggers_mfe_hits(
             query_path.unlink()
 
 
-def min_energy_by_pair_pyarrow(
+class RisearchAggregation(NamedTuple):
+    """How to reduce streamed RIsearch hits into a {key: value} dict.
+
+    columns  — which of the 8 RIsearch TSV columns to parse (a subset of
+               trigger/target/energy).
+    combine  — (pyarrow.RecordBatch) -> partial pyarrow.Table, applied per parsed
+               block so millions of hits never materialize at once.
+    finalize — (concatenated partial Table) -> the result dict.
+
+    See MIN_ENERGY_BY_PAIR and sum_exp_by_trigger.
+    """
+
+    columns: Tuple[str, ...]
+    combine: Callable
+    finalize: Callable
+
+
+def parse_risearch_hits_pyarrow(
     trigger_id_seq_pairs: List[Tuple[str, str]],
     target_file_path,
+    *,
+    aggregation: RisearchAggregation,
     interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
     minimum_score: int = 900,
     neighborhood: int = 0,
@@ -278,17 +297,20 @@ def min_energy_by_pair_pyarrow(
     batch_id=None,
     block_size: int = 64 << 20,
 ):
-    """Run RIsearch and return {(trigger, target): min_energy} over all hits.
+    """Run RIsearch and stream its stdout through pyarrow, block by block.
 
-    Parses the RIsearch stdout with pyarrow instead of pandas. pyarrow's CSV
-    reader and group_by run in C++ and release the GIL, so this scales under a
-    ThreadPoolExecutor (the pandas parse holds the GIL and plateaus at ~1.7x),
-    and it is ~5x faster than the pandas streaming path on large cutoff=0
-    outputs. Memory is bounded by `block_size` plus the small per-pair result
-    (the MIN aggregation collapses millions of hits to a handful of groups).
+    Pure mechanism — no energy biology lives here. It owns the subprocess, the
+    pyarrow CSV reader, the per-block loop, the concatenation of partials and the
+    temp-file cleanup. pyarrow's CSV reader runs in C++ and releases the GIL, so
+    callers scale under a ThreadPoolExecutor (the old pandas parse held the GIL
+    and plateaued at ~1.7x). Memory is bounded by `block_size` plus the small
+    partials `aggregation` returns.
 
-    The MIN is exact and the float parse is identical to pandas (verified), so
-    results match the previous path bit-for-bit.
+    What to compute is supplied by `aggregation` (a RisearchAggregation): it
+    declares which columns to parse, reduces each parsed block to a partial table
+    (`combine`), and reduces the concatenated partials to the result dict
+    (`finalize`). The RIsearch output is always the 8-column parsing_type="2" TSV:
+    trigger, t_start, t_end, target, ta_start, ta_end, score, energy.
     """
     if not trigger_id_seq_pairs:
         return {}
@@ -324,9 +346,10 @@ def min_energy_by_pair_pyarrow(
     ]
     read_opts = pacsv.ReadOptions(column_names=columns, use_threads=False, block_size=block_size)
     parse_opts = pacsv.ParseOptions(delimiter="\t")
+    type_map = {"trigger": pa.string(), "target": pa.string(), "energy": pa.float64()}
     convert_opts = pacsv.ConvertOptions(
-        include_columns=["trigger", "target", "energy"],
-        column_types={"trigger": pa.string(), "target": pa.string(), "energy": pa.float64()},
+        include_columns=list(aggregation.columns),
+        column_types={col: type_map[col] for col in aggregation.columns},
     )
 
     parts = []
@@ -346,8 +369,7 @@ def min_energy_by_pair_pyarrow(
                 for batch in reader:
                     if batch.num_rows == 0:
                         continue
-                    g = pa.Table.from_batches([batch]).group_by(["trigger", "target"]).aggregate([("energy", "min")])
-                    parts.append(g.rename_columns(["trigger", "target", "energy"]))
+                    parts.append(aggregation.combine(batch))
             except pa.ArrowInvalid:
                 # No hits — RIsearch produced empty stdout.
                 pass
@@ -367,131 +389,69 @@ def min_energy_by_pair_pyarrow(
     if not parts:
         return {}
 
-    final = (
-        pa.concat_tables(parts)
-        .group_by(["trigger", "target"])
-        .aggregate([("energy", "min")])
-        .rename_columns(["trigger", "target", "energy"])
-    )
-    triggers = final.column("trigger").to_pylist()
-    targets = final.column("target").to_pylist()
-    energies = final.column("energy").to_pylist()
-    return {(t, g): float(e) for t, g, e in zip(triggers, targets, energies)}
+    return aggregation.finalize(pa.concat_tables(parts))
 
 
-def sum_exp_energy_by_trigger_pyarrow(
-    trigger_id_seq_pairs: List[Tuple[str, str]],
-    target_file_path,
-    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
-    minimum_score: int = 900,
-    neighborhood: int = 0,
-    parsing_type="2",
-    transpose=False,
-    batch_id=None,
-    rt: float = 0.616,
-    block_size: int = 64 << 20,
-):
-    """Run RIsearch and return {trigger: sum(exp(-rt * energy))} over all hits.
+def _min_energy_by_pair() -> RisearchAggregation:
+    """Off-target score: keep only the strongest (min-energy) hit per (trigger, target).
 
-    The single-target-gene counterpart of `min_energy_by_pair_pyarrow`: this
-    aggregation is a SUM of exp(-rt*energy) over every hit per trigger (not a
-    per-pair MIN), which is the score `_sum_exp_energy_by_trigger` produced from
-    a pandas DataFrame. Parsing, the exp transform, and the group_by sum all run
-    in pyarrow C++ and release the GIL, so the single-gene path scales under a
-    ThreadPoolExecutor like the populate_* path does. Memory is bounded by
-    `block_size` plus the small per-trigger result.
-
-    The sum is order-dependent in floating point, so results match the pandas
-    path within FP rounding (not bit-for-bit), the same as the previous
-    pd.read_csv path it replaces.
+    The MIN is exact, so this matches the previous pandas path bit-for-bit.
     """
-    if not trigger_id_seq_pairs:
-        return {}
 
-    import pyarrow as pa
-    import pyarrow.compute as pc
-    import pyarrow.csv as pacsv
+    def _reduce(table):
+        return (
+            table.group_by(["trigger", "target"])
+            .aggregate([("energy", "min")])
+            .rename_columns(["trigger", "target", "energy"])
+        )
 
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    if batch_id is None:
-        batch_id = uuid.uuid4().hex
+    def combine(batch):
+        import pyarrow as pa
 
-    query_path = (TMP_PATH / f"query-pa-{batch_id}.fa").resolve()
-    lines: List[str] = []
-    for query_id, trigger in trigger_id_seq_pairs:
-        lines.append(f">{query_id}")
-        lines.append(get_antisense_rna(trigger))
-    query_path.write_text("\n".join(lines) + "\n")
+        return _reduce(pa.Table.from_batches([batch]))
 
-    mode = _interaction_mode(interaction_type)
-    args = _build_risearch_args(
-        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
-    )
+    def finalize(table):
+        final = _reduce(table)
+        return {
+            (trig, tgt): float(e)
+            for trig, tgt, e in zip(
+                final.column("trigger").to_pylist(),
+                final.column("target").to_pylist(),
+                final.column("energy").to_pylist(),
+            )
+        }
 
-    columns = [
-        "trigger",
-        "trigger_start",
-        "trigger_end",
-        "target",
-        "target_start",
-        "target_end",
-        "score",
-        "energy",
-    ]
-    read_opts = pacsv.ReadOptions(column_names=columns, use_threads=False, block_size=block_size)
-    parse_opts = pacsv.ParseOptions(delimiter="\t")
-    convert_opts = pacsv.ConvertOptions(
-        include_columns=["trigger", "energy"],
-        column_types={"trigger": pa.string(), "energy": pa.float64()},
-    )
+    return RisearchAggregation(columns=("trigger", "target", "energy"), combine=combine, finalize=finalize)
 
-    parts = []
-    try:
-        with subprocess.Popen(
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            cwd=str(TMP_PATH),
-            bufsize=-1,
-        ) as proc:
-            try:
-                reader = pacsv.open_csv(
-                    proc.stdout, read_options=read_opts, parse_options=parse_opts, convert_options=convert_opts
-                )
-                for batch in reader:
-                    if batch.num_rows == 0:
-                        continue
-                    exp_col = pc.exp(pc.multiply(batch.column("energy"), -rt))
-                    g = (
-                        pa.table({"trigger": batch.column("trigger"), "_exp": exp_col})
-                        .group_by("trigger")
-                        .aggregate([("_exp", "sum")])
-                    )
-                    parts.append(g.rename_columns(["trigger", "_exp"]))
-            except pa.ArrowInvalid:
-                # No hits — RIsearch produced empty stdout.
-                pass
-            finally:
-                if proc.stdout is not None and not proc.stdout.closed:
-                    try:
-                        proc.stdout.read()
-                    except Exception:
-                        pass
-            rc = proc.wait()
-            if rc != 0:
-                raise subprocess.CalledProcessError(rc, args)
-    finally:
-        if query_path.exists():
-            query_path.unlink()
 
-    if not parts:
-        return {}
+MIN_ENERGY_BY_PAIR = _min_energy_by_pair()
 
-    final = pa.concat_tables(parts).group_by("trigger").aggregate([("_exp", "sum")]).rename_columns(["trigger", "_exp"])
-    triggers = final.column("trigger").to_pylist()
-    sums = final.column("_exp").to_pylist()
-    return {t: float(s) for t, s in zip(triggers, sums)}
+
+def sum_exp_by_trigger(rt: float = 0.616) -> RisearchAggregation:
+    """Single-target-gene score: Boltzmann-style sum of exp(-rt*energy) over every hit per trigger.
+
+    Unlike MIN_ENERGY_BY_PAIR this sums over all sites (not just the strongest),
+    so close-to-optimal sites all contribute. The sum is float-order-dependent,
+    so results match the previous pandas path within FP rounding (not bit-for-bit).
+    """
+
+    def _reduce(table):
+        return table.group_by("trigger").aggregate([("_exp", "sum")]).rename_columns(["trigger", "_exp"])
+
+    def combine(batch):
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
+        exp_col = pc.exp(pc.multiply(batch.column("energy"), -rt))
+        return _reduce(pa.table({"trigger": batch.column("trigger"), "_exp": exp_col}))
+
+    def finalize(table):
+        final = _reduce(table)
+        return {
+            trig: float(s) for trig, s in zip(final.column("trigger").to_pylist(), final.column("_exp").to_pylist())
+        }
+
+    return RisearchAggregation(columns=("trigger", "energy"), combine=combine, finalize=finalize)
 
 
 def _parse_mfe_scores_2(result):
