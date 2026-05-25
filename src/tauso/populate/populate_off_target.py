@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -11,20 +11,6 @@ from ..features.hybridization.fast_hybridization import TMP_PATH, dump_target_fi
 from ..features.hybridization.off_target.add_off_target_feat import compute_group_batch
 
 logger = logging.getLogger(__name__)
-
-
-def _select_pool(cutoff_list):
-    """Pool for a batch of scoring tasks. cutoff=0 is parse-bound and the parse
-    step is GIL-bound, so a process pool scales where threads plateau; higher
-    cutoffs emit little output so threads (lower overhead) are best.
-    TAUSO_OFFTARGET_POOL=thread|process overrides.
-    """
-    override = os.environ.get("TAUSO_OFFTARGET_POOL")
-    if override == "process":
-        return ProcessPoolExecutor
-    if override == "thread":
-        return ThreadPoolExecutor
-    return ProcessPoolExecutor if 0 in cutoff_list else ThreadPoolExecutor
 
 
 def serialize_feature_name(method, top_n, cutoff, is_specific):
@@ -55,7 +41,7 @@ def _score_chunk_or_fallback(chunk_df, info, is_known_cell_line, cutoff, method,
     return compute_group_batch(chunk_df, None, exp_map, cutoff, method, prebuilt_target_path=target_path, stream=stream)
 
 
-def _run_tasks_parallel(tasks, fn, n_jobs, pool_cls=ThreadPoolExecutor):
+def _run_tasks_parallel(tasks, fn, n_jobs):
     """
     Run a list of (key, *args) tasks using fn(*args).
     Returns {key: result} in submission order.
@@ -63,7 +49,7 @@ def _run_tasks_parallel(tasks, fn, n_jobs, pool_cls=ThreadPoolExecutor):
     """
     results = {}
     if n_jobs > 1 and len(tasks) > 1:
-        with pool_cls(max_workers=min(n_jobs, len(tasks))) as pool:
+        with ThreadPoolExecutor(max_workers=min(n_jobs, len(tasks))) as pool:
             future_to_key = {pool.submit(fn, *args): key for key, *args in tasks}
             for fut, key in future_to_key.items():
                 results[key] = fut.result()
@@ -171,7 +157,7 @@ def populate_off_target_specific(
                 chunk_size,
                 n_threads,
             )
-            results = _run_tasks_parallel(tasks, _score_chunk_or_fallback, n_jobs, pool_cls=_select_pool(cutoff_list))
+            results = _run_tasks_parallel(tasks, _score_chunk_or_fallback, n_jobs)
 
             for cutoff in cutoff_list:
                 col = serialize_feature_name(method, top_n, cutoff, is_specific=True)
@@ -273,7 +259,7 @@ def populate_off_target_general(
         if n_jobs > 1:
             logger.debug("Dispatching %d tasks across %d threads", len(tasks), min(n_jobs, len(tasks)))
 
-        results = _run_tasks_parallel(tasks, _score_chunk, n_jobs, pool_cls=_select_pool(cutoff_list))
+        results = _run_tasks_parallel(tasks, _score_chunk, n_jobs)
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:
