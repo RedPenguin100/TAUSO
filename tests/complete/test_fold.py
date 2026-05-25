@@ -3,17 +3,11 @@ import logging
 import pytest
 
 from tauso.populate.populate_fold import (
+    DEFAULT_SENSE_CONFIGURATION,
     populate_mfe_features,
     populate_sense_accessibility_multi,
 )
 from tests.complete.conftest import get_n_jobs
-
-ACCESS_CONFIGURATIONS = [
-    {"flank": 120, "access": 20, "seeds": [13]},
-    {"flank": 120, "access": 13, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 20, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 13, "seeds": [13, 26, 39]},
-]
 
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
@@ -21,7 +15,7 @@ def test_access(mini_sampled_data, gene_to_data, dataframe_regression):
     data, feature_names = populate_sense_accessibility_multi(
         mini_sampled_data,
         gene_to_data,
-        configs=ACCESS_CONFIGURATIONS,
+        configs=DEFAULT_SENSE_CONFIGURATION,
         batch_size=250,
         n_jobs=get_n_jobs(),
     )
