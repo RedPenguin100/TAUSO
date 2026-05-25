@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,20 @@ from ..features.hybridization.fast_hybridization import TMP_PATH, dump_target_fi
 from ..features.hybridization.off_target.add_off_target_feat import compute_group_batch
 
 logger = logging.getLogger(__name__)
+
+
+def _select_pool(cutoff_list):
+    """Pool for a batch of scoring tasks. cutoff=0 is parse-bound and the parse
+    step is GIL-bound, so a process pool scales where threads plateau; higher
+    cutoffs emit little output so threads (lower overhead) are best.
+    TAUSO_OFFTARGET_POOL=thread|process overrides.
+    """
+    override = os.environ.get("TAUSO_OFFTARGET_POOL")
+    if override == "process":
+        return ProcessPoolExecutor
+    if override == "thread":
+        return ThreadPoolExecutor
+    return ProcessPoolExecutor if 0 in cutoff_list else ThreadPoolExecutor
 
 
 def serialize_feature_name(method, top_n, cutoff, is_specific):
@@ -24,11 +38,11 @@ def _chunk_df(df, chunk_size):
     return [df.iloc[i : i + chunk_size] for i in range(0, len(df), chunk_size)]
 
 
-def _score_chunk(chunk_df, seq_map, exp_map, cutoff, method, target_path, stream=True):
-    """Single atomic RIsearch scoring unit. Thread-safe: uses a unique query FASTA per call."""
-    return compute_group_batch(
-        chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path, stream=stream
-    )
+def _score_chunk(chunk_df, exp_map, cutoff, method, target_path, stream=True):
+    """Single atomic RIsearch scoring unit. Thread/process-safe: uses a unique query
+    FASTA per call and reads the prebuilt target from `target_path` (the seq_map is
+    only needed to build that file, which the caller already did)."""
+    return compute_group_batch(chunk_df, None, exp_map, cutoff, method, prebuilt_target_path=target_path, stream=stream)
 
 
 def _score_chunk_or_fallback(chunk_df, info, is_known_cell_line, cutoff, method, stream=True):
@@ -37,13 +51,11 @@ def _score_chunk_or_fallback(chunk_df, info, is_known_cell_line, cutoff, method,
         return pd.Series(np.nan, index=chunk_df.index)
     if info is None or info[0] is None:
         return pd.Series(0.0, index=chunk_df.index)
-    target_path, seq_map, exp_map = info
-    return compute_group_batch(
-        chunk_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=target_path, stream=stream
-    )
+    target_path, exp_map = info
+    return compute_group_batch(chunk_df, None, exp_map, cutoff, method, prebuilt_target_path=target_path, stream=stream)
 
 
-def _run_tasks_parallel(tasks, fn, n_jobs):
+def _run_tasks_parallel(tasks, fn, n_jobs, pool_cls=ThreadPoolExecutor):
     """
     Run a list of (key, *args) tasks using fn(*args).
     Returns {key: result} in submission order.
@@ -51,7 +63,7 @@ def _run_tasks_parallel(tasks, fn, n_jobs):
     """
     results = {}
     if n_jobs > 1 and len(tasks) > 1:
-        with ThreadPoolExecutor(max_workers=min(n_jobs, len(tasks))) as pool:
+        with pool_cls(max_workers=min(n_jobs, len(tasks))) as pool:
             future_to_key = {pool.submit(fn, *args): key for key, *args in tasks}
             for fut, key in future_to_key.items():
                 results[key] = fut.result()
@@ -122,11 +134,11 @@ def populate_off_target_specific(
                         )
 
                 if not spec_seq_map:
-                    cell_line_info[cell_line] = (None, {}, {})
+                    cell_line_info[cell_line] = (None, {})
                     continue
 
                 target_path = dump_target_file(f"target-spec-{cell_line}-{uuid.uuid4().hex}.fa", spec_seq_map)
-                cell_line_info[cell_line] = (target_path, spec_seq_map, spec_exp_map)
+                cell_line_info[cell_line] = (target_path, spec_exp_map)
 
             # Pre-chunk every cell line's group so chunks are shared across cutoffs
             cell_line_chunks = {cl: _chunk_df(gdf, chunk_size) for cl, gdf in groups}
@@ -159,7 +171,7 @@ def populate_off_target_specific(
                 chunk_size,
                 n_threads,
             )
-            results = _run_tasks_parallel(tasks, _score_chunk_or_fallback, n_jobs)
+            results = _run_tasks_parallel(tasks, _score_chunk_or_fallback, n_jobs, pool_cls=_select_pool(cutoff_list))
 
             for cutoff in cutoff_list:
                 col = serialize_feature_name(method, top_n, cutoff, is_specific=True)
@@ -247,11 +259,10 @@ def populate_off_target_general(
             (
                 (top_n, cutoff, chunk_idx),
                 chunk_df,
-                top_n_data[top_n][0],
-                top_n_data[top_n][1],
+                top_n_data[top_n][1],  # exp_map
                 cutoff,
                 method,
-                top_n_data[top_n][2],
+                top_n_data[top_n][2],  # prebuilt target_path
                 stream,
             )
             for top_n in top_n_list
@@ -262,7 +273,7 @@ def populate_off_target_general(
         if n_jobs > 1:
             logger.debug("Dispatching %d tasks across %d threads", len(tasks), min(n_jobs, len(tasks)))
 
-        results = _run_tasks_parallel(tasks, _score_chunk, n_jobs)
+        results = _run_tasks_parallel(tasks, _score_chunk, n_jobs, pool_cls=_select_pool(cutoff_list))
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:

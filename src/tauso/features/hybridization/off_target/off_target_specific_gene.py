@@ -2,7 +2,7 @@ import logging
 import os
 import uuid
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -21,6 +21,25 @@ from ..fast_hybridization import (
 from .off_target_functions import parse_risearch_output
 
 _RT = 0.616
+
+
+def offtarget_pool_cls(cutoff):
+    """Executor for off-target scoring tasks.
+
+    cutoff=0 is parse-heavy and the RIsearch-output parse step is GIL-bound, so
+    a process pool scales where threads plateau (~1.7x cap, measured). Each
+    worker runs RIsearch + parse locally and returns only the small aggregated
+    result, so the large RIsearch output never crosses a process boundary.
+    Higher cutoffs emit little output → parsing is negligible → threads (lower
+    overhead) are best. Auto-selects on cutoff; TAUSO_OFFTARGET_POOL=thread|process
+    forces a choice.
+    """
+    override = os.environ.get("TAUSO_OFFTARGET_POOL")
+    if override == "process":
+        return ProcessPoolExecutor
+    if override == "thread":
+        return ThreadPoolExecutor
+    return ProcessPoolExecutor if cutoff == 0 else ThreadPoolExecutor
 
 
 def _sum_exp_energy_by_trigger(result_df: pd.DataFrame) -> dict:
@@ -176,7 +195,7 @@ def _apply_risearch_scoring(
         gene_scores: dict[str, dict] = defaultdict(dict)
 
         if effective_workers > 1:
-            with ThreadPoolExecutor(max_workers=effective_workers) as pool:
+            with offtarget_pool_cls(cutoff)(max_workers=effective_workers) as pool:
                 futures = [
                     (
                         pool.submit(_score_one_gene, gene, sub_triggers, target_path, cutoff, stream=stream),
