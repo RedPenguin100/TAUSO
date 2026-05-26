@@ -1,3 +1,12 @@
+"""Off-target feature scores.
+
+Calculates the various off-target feature scores from RIsearch hits, on top of the
+abstracted RIsearch streaming utilities in fast_hybridization. Given a group of ASOs and
+a prebuilt target FASTA, it runs RIsearch once, reduces the hits to the strongest energy
+per (trigger, target) for each energy cutoff, and turns those energies into an
+expression-weighted score.
+"""
+
 import logging
 import os
 import uuid
@@ -6,19 +15,14 @@ import numpy as np
 import pandas as pd
 
 from ....data.consts import CANONICAL_GENE, SEQUENCE
-
-logger = logging.getLogger(__name__)
 from ....util import get_antisense
 from ..fast_hybridization import (
-    MIN_ENERGY_BY_PAIR,
-    TMP_PATH,
     Interaction,
-    dump_target_file,
-    get_trigger_mfe_scores_by_risearch,
-    get_triggers_mfe_scores_batch,
+    min_energy_by_pair_multi_cutoff,
     parse_risearch_hits_pyarrow,
 )
-from .off_target_functions import aggregate_off_targets, parse_risearch_output
+
+logger = logging.getLogger(__name__)
 
 
 class AggregationMethod:
@@ -30,41 +34,13 @@ class AggregationMethod:
     MECH = "MECH"
 
 
-def compute_single_row(row, general_seq_map, general_exp_map, cutoff, method):
-    """Pure logic function: Takes one row -> Returns one score."""
-    trigger = get_antisense(row[SEQUENCE])
-    target_gene = row[CANONICAL_GENE]
+def aggregate_energies(energy_dict, expression_dict, method):
+    """Combine per-gene off-target energies into a single score, weighted by expression.
 
-    result_dict = get_trigger_mfe_scores_by_risearch(
-        trigger,
-        general_seq_map,
-        minimum_score=cutoff,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-        parsing_type="2",
-        transpose=True,
-    )
-
-    result_df = parse_risearch_output(result_dict)
-    result_df_agg = aggregate_off_targets(result_df)
-
-    if result_df_agg.empty:
-        return 0
-
-    result_df_agg = result_df_agg[result_df_agg["target"] != target_gene]
-    if result_df_agg.empty:
-        logger.warning(
-            "Target gene %s excluded all off-target hits; score set to 0 for ASO %s",
-            target_gene,
-            row[SEQUENCE],
-        )
-        return 0
-
-    simple_energies = dict(zip(result_df_agg["target"], result_df_agg["energy"]))
-    return calculate_score_helper(simple_energies, general_exp_map, method)
-
-
-def calculate_score_helper(energy_dict, expression_dict, method):
-    """Standardizes the scoring math to avoid code duplication."""
+    energy_dict: {gene: energy} for the off-target genes a trigger binds.
+    expression_dict: {gene: (TPM, normalised)}.
+    method: an AggregationMethod choosing how energy and expression are combined.
+    """
     if not energy_dict:
         return 0.0
 
@@ -117,140 +93,68 @@ def calculate_score_helper(energy_dict, expression_dict, method):
     return score
 
 
-def _parse_and_filter_hits(raw_output: str, group_df) -> dict:
-    """Parse RIsearch TSV, min-aggregate per (trigger, target), remove self-hits.
+def calculate_risearch_energy_per_cutoff(query_pairs, target_path, cutoffs, minimum_score):
+    """Run RIsearch once at `minimum_score` and bucket the hits by cutoff.
 
-    Returns {trigger_id: DataFrame of off-target hits}, empty dict if no valid hits.
+    query_pairs: [(trigger_id, trigger_seq)]; target_path: a prebuilt target FASTA.
+    cutoffs: the energy-score cutoffs to keep buckets for (a hit counts toward cutoff c
+    when its score > c). minimum_score: the RIsearch -s threshold for the single run
+    (the caller passes the loosest cutoff so every requested cutoff is derivable).
+
+    Returns {cutoff: {(trigger, target): strongest_energy}} (no self-filter, no scoring).
     """
-    all_hits = parse_risearch_output(raw_output)
-    if all_hits.empty or "energy" not in all_hits.columns:
-        return {}
-
-    agg = all_hits.groupby(["trigger", "target"], sort=False)["energy"].min().reset_index()
-    del all_hits
-
-    idx_to_gene = {str(i): g for i, g in zip(group_df.index, group_df[CANONICAL_GENE])}
-    agg["_own"] = agg["trigger"].map(idx_to_gene)
-    filtered = agg[agg["target"] != agg["_own"]]
-    del agg
-
-    return {k: v for k, v in filtered.groupby("trigger", sort=False)}
-
-
-def _score_triggers(hits_by_trigger: dict, indices, exp_map, method) -> pd.Series:
-    """Apply calculate_score_helper for each trigger, return a Series indexed by indices."""
-    scores = pd.Series(0.0, index=indices, dtype=float)
-    for idx in indices:
-        hits = hits_by_trigger.get(str(idx))
-        if hits is not None:
-            scores[idx] = calculate_score_helper(dict(zip(hits["target"], hits["energy"])), exp_map, method)
-    return scores
+    if not query_pairs:
+        return {int(c): {} for c in cutoffs}
+    return parse_risearch_hits_pyarrow(
+        trigger_id_seq_pairs=query_pairs,
+        target_file_path=target_path,
+        aggregation=min_energy_by_pair_multi_cutoff(cutoffs),
+        minimum_score=minimum_score,
+        parsing_type="2",
+        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+        transpose=True,
+        batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
+    )
 
 
-def compute_group_batch(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=None, stream=False):
-    """Batch version of compute_single_row: one RIsearch call for the entire group.
+def energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs):
+    """Turn per-cutoff off-target energies into a score Series per cutoff.
 
-    prebuilt_target_path: if provided, the caller owns the file lifecycle.
-    stream=True uses line-streaming pd.read_csv on RIsearch stdout so peak
-    memory is bounded by the parse chunksize, not by the size of the full
-    TSV. Output matches the materialized path within FP rounding.
+    per_cutoff: {cutoff: {(trigger, target): energy}} from calculate_risearch_energy_per_cutoff.
+    indices: the ASO row indices to produce scores for (the Series index).
+    idx_to_gene: {trigger_id: own canonical gene} — hits to a trigger's own gene are dropped.
+    exp_map: {gene: (TPM, normalised)}; method: an AggregationMethod.
 
-    Default is False at this layer so existing unit-test mocks of
-    get_triggers_mfe_scores_batch still exercise the function under test.
-    The public populate_* callers default stream=True.
+    Returns {cutoff: Series of scores indexed by `indices`}.
     """
+    out = {}
+    for cutoff in cutoffs:
+        per_trigger: dict = {}
+        for (trigger, target), energy in per_cutoff.get(int(cutoff), {}).items():
+            if target == idx_to_gene.get(trigger):
+                continue
+            per_trigger.setdefault(trigger, {})[target] = energy
+
+        scores = pd.Series(0.0, index=indices, dtype=float)
+        for idx in indices:
+            energies = per_trigger.get(str(idx))
+            if energies:
+                scores[idx] = aggregate_energies(energies, exp_map, method)
+        out[cutoff] = scores
+    return out
+
+
+def compute_group_batch_multi_cutoff(group_df, exp_map, cutoffs, method, prebuilt_target_path):
+    """Score one ASO group against a prebuilt target for every cutoff, with one RIsearch run.
+
+    Returns {cutoff: Series of scores indexed like group_df}.
+    """
+    indices = group_df.index.tolist()
     if group_df.empty:
-        return pd.Series(dtype=float)
+        return {c: pd.Series(dtype=float) for c in cutoffs}
 
-    if stream:
-        return _compute_group_batch_streaming(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path)
+    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, group_df[SEQUENCE])]
+    idx_to_gene = {str(idx): gene for idx, gene in zip(indices, group_df[CANONICAL_GENE])}
 
-    TMP_PATH.mkdir(exist_ok=True)
-
-    _owns_target = prebuilt_target_path is None
-    target_path = (
-        dump_target_file(f"target-batch-{uuid.uuid4().hex}.fa", seq_map) if _owns_target else prebuilt_target_path
-    )
-
-    indices = group_df.index.tolist()
-    sequences = group_df[SEQUENCE].tolist()
-    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, sequences)]
-
-    try:
-        result = get_triggers_mfe_scores_batch(
-            trigger_id_seq_pairs=query_pairs,
-            target_file_path=target_path,
-            minimum_score=cutoff,
-            parsing_type="2",
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            transpose=True,
-            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-        )
-    finally:
-        if _owns_target and os.path.exists(target_path):
-            os.remove(target_path)
-
-    if not result.strip():
-        return pd.Series(0.0, index=group_df.index, dtype=float)
-
-    hits_by_trigger = _parse_and_filter_hits(result, group_df)
-    del result
-
-    return _score_triggers(hits_by_trigger, indices, exp_map, method)
-
-
-def _compute_group_batch_streaming(group_df, seq_map, exp_map, cutoff, method, prebuilt_target_path=None):
-    """Streaming variant of compute_group_batch.
-
-    Parses RIsearch stdout with pyarrow and aggregates {(trigger, target):
-    min_energy} via Arrow group_by, then runs the self-target filter and scoring
-    at the end. pyarrow's parser + group_by release the GIL, so this scales
-    under a thread pool (the pandas parse plateaued at ~1.7x), and is ~5x faster
-    than the old pandas streaming path on large cutoff=0 outputs. Peak memory is
-    bounded by the pyarrow read block + the small per-pair result. Results are
-    bit-for-bit identical (MIN is exact; pyarrow's float parse matches pandas').
-    """
-    TMP_PATH.mkdir(exist_ok=True)
-
-    _owns_target = prebuilt_target_path is None
-    target_path = (
-        dump_target_file(f"target-batch-{uuid.uuid4().hex}.fa", seq_map) if _owns_target else prebuilt_target_path
-    )
-
-    indices = group_df.index.tolist()
-    sequences = group_df[SEQUENCE].tolist()
-    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, sequences)]
-    idx_to_gene = {str(i): g for i, g in zip(group_df.index, group_df[CANONICAL_GENE])}
-
-    try:
-        # (trigger, target) -> min energy across all hits
-        min_energy = parse_risearch_hits_pyarrow(
-            trigger_id_seq_pairs=query_pairs,
-            target_file_path=target_path,
-            aggregation=MIN_ENERGY_BY_PAIR,
-            minimum_score=cutoff,
-            parsing_type="2",
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            transpose=True,
-            batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
-        )
-    finally:
-        if _owns_target and os.path.exists(target_path):
-            os.remove(target_path)
-
-    if not min_energy:
-        return pd.Series(0.0, index=group_df.index, dtype=float)
-
-    # Group by trigger, filter out self-targets, build {trigger: {target: energy}}
-    trigger_to_energies: dict = {}
-    for (trig, tgt), e in min_energy.items():
-        if tgt == idx_to_gene.get(trig):
-            continue  # self-hit
-        trigger_to_energies.setdefault(trig, {})[tgt] = e
-
-    scores = pd.Series(0.0, index=indices, dtype=float)
-    for idx in indices:
-        energies = trigger_to_energies.get(str(idx))
-        if energies:
-            scores[idx] = calculate_score_helper(energies, exp_map, method)
-    return scores
+    per_cutoff = calculate_risearch_energy_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
+    return energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs)

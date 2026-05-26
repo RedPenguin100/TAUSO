@@ -1,6 +1,6 @@
 """
 Verify that get_antisense_rna produces the same output as Bio.Seq.reverse_complement_rna()
-and that the batch FASTA format written by get_triggers_mfe_scores_batch is correct.
+and that the batch query FASTA format written by the RIsearch invocation is correct.
 """
 
 import pytest
@@ -51,7 +51,7 @@ def test_multi_query_fasta_format():
         old_parts.append(f">{query_id}\n{Seq(trigger).reverse_complement_rna()}\n")
     old_content = "".join(old_parts)
 
-    # Bulk join (production approach used in get_triggers_mfe_scores_batch)
+    # Bulk join (production approach used in the _risearch_stdout query-FASTA writer)
     lines = []
     for query_id, trigger in pairs:
         lines.append(f">{query_id}")
