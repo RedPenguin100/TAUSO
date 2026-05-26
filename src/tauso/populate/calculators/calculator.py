@@ -340,7 +340,7 @@ class Calculator:
 
     def calculate_on_target_hybridization(self):
         """Calculates on-target total hybridization features."""
-        cutoffs = [1200, 0]
+        cutoffs = [800, 1000, 1200]
         expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs]
 
         missing = self._get_missing_features(expected_features)

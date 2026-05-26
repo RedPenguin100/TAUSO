@@ -12,7 +12,7 @@ from tauso.populate.populate_off_target import (
 from tests.complete.conftest import get_n_jobs
 
 SINGLE_TARGET_GENES = ["RNASEH1", "ACTB"]
-CUTOFFS = [0, 1200]
+CUTOFFS = [800, 1000, 1200]
 # Production off-target cutoffs (see calculator.calculate_off_target_single). cutoff=0 is
 # intentionally excluded: it emits every weak hit over the whole gene (~26x slower) for
 # little signal; its parse path stays covered by test_on_target_hybridization_regression.
