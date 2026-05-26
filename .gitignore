@@ -28,3 +28,5 @@ bulk_input_*
 
 .claude/
 CLAUDE.md
+# Trained model artifacts (regenerable via train_model.py)
+notebooks/models/SimpleModels/
