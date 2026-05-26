@@ -91,6 +91,10 @@ jobs:
       - name: Install raccess
         run: tauso setup-raccess
 
+      # The coordinate-only locus pickle (built by `setup-genome`) is cached here too,
+      # which skips its ~24s gffutils traversal. It lives in THIS cache rather than a
+      # separate one so it is restored with the same preserved mtime ordering as the
+      # gff db — the loader rebuilds the pickle if it looks older than GRCh38.gff3.db.
       - name: Cache Genome Database
         id: cache-genome
         uses: actions/cache@v4
@@ -103,7 +107,8 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.gz
-          key: ${{ runner.os }}-tauso.genome-GRCh38-v4
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.locus.v1.introns1.canon1.pkl
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v5
 
       - name: Install genome
         run: tauso setup-genome
