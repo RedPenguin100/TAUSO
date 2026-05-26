@@ -26,32 +26,29 @@ iGEM project.
 * Features include GC content, hybridization, RNA accessibility, folding, and toxicity heuristics.
 * Tool to download genomic sequences, annotations, and index them with `bowtie`.
 
-## Installation for python users
+## Getting Started
 
-The best way to use the library is with a separate conda environment
+**→ New users: See [Quick Start Guide](documentation/QUICKSTART.md) for step-by-step instructions.**
 
-* `conda env create -f environment.yml`
-* `conda activate tauso`
-* `pip install -e .`
+## Installation
 
-## Commands and setup
+```bash
+# One command - installs everything
+mamba env create -f environment-dev.yml
+mamba activate tauso
+```
 
-The tool allows you to install genomes easily and index them. Every command has a `--help` option.
+**→ Complete guide:** [Installation Guide](documentation/INSTALLATION.md)
 
-`tauso setup-raccess` - Install a folding prediction tool named raccess. Distribution of the code is prohibited, so
-the user has to install manually. **This command is necessary to run the tool**
+## Data Setup
 
-`tauso setup-genome` - download the genome and annotation files. Currently, GRCh38 and GRCm39 are supported. Can take
-5-10+ minutes. **This command is necessary to run the tool**
+```bash
+# Quick setup (1-2 hours)
+tauso setup-all              # Genome, bowtie, omics, raccess
+tauso build-cell-context     # Cell-line expression + CAI weights
+```
 
-`tauso setup-bowtie` - after running `setup-genome`, you may run this command to index the genome. May take 30-60+
-minutes.
-
-`tauso run-off-target` - After running both `setup-genome` and `setup-bowtie`, you may analyze off-targets and limit the
-mismatches, with useful annotation about each off-target (intergenic, exonic, intronic regions).
-
-NOTE: In the future we plan to write an article about better off-target analysis, this will be posted in a separate
-paper.
+**→ Complete guide:** [Data Setup Guide](documentation/DATA_SETUP.md)
 
 ## Functions
 
