@@ -1,354 +1,156 @@
 """
-Train the XGBoost ASO efficacy model on server CPUs (or GPU if available).
+Train simple XGBoost ASO-efficacy models — fixed params, no feature selection.
 
-Steps can be run together or independently so that long runs can be split
-across multiple jobs or resumed after a failure:
+Trains fixed-param models over a small, interpretable grid; the evaluation
+(Evaluation/evaluate_all.py) reports which config wins on which metric / chemistry / cell line.
 
-  tune   -- Optuna hyperparameter search. Saves best_params_<name>.json.
-  select -- Backward feature selection (RFE). Loads best_params, saves
-             optimal_features_<name>.json and RFE history CSV.
-  train  -- Train final models on selected features. Loads best_params and
-             optimal_features, saves TrainVal / AllData model JSONs + metrics.
-  all    -- Runs tune -> select -> train in sequence (default).
+Grid axes:
+  loss  : L2 (reg:squarederror) | L1 (reg:absoluteerror) | ndcg (rank:ndcg)
+  rbp   : norbp (drop RBP_*) | withrbp (keep them)
+  sense : both | raw (drop normalized n_sense_*) | n (drop raw sense_*, keep n_sense_*)
+  split : (NDCG only) cohort=gene×cell-line | custom_id  -- the query-group for ranking.
+          Regression is loss-on-rows (no grouping), so it is split-agnostic and trained once;
+          evaluation reports it on both groupings anyway.
+
+Each model is saved with feature_names baked in so the evaluator reads them directly:
+  <out-dir>/<config>/Model_Oligo_<config>_TrainVal.json   (trained on train+val)
+  <out-dir>/<config>/Model_Oligo_<config>_AllData.json    (train+val+test; deployment, test-leaked)
 
 Usage:
-    python -m notebooks.models.train_model --loss L2 --split cohort --cpus 32
-    python -m notebooks.models.train_model --loss L2 --split cohort --step tune --cpus 32
-    python -m notebooks.models.train_model --loss L2 --split cohort --step select --cpus 32
-    python -m notebooks.models.train_model --loss L2 --split cohort --step train
-    python -m notebooks.models.train_model --loss L2 --split cohort --device cuda
-    python -m notebooks.models.train_model --loss L2 --split cohort --cpus 32 --seed 42
-
-Output is written to notebooks/models/SeenOligoModel/ by default (--output to override).
-
-SLURM note: run with `python -u` or PYTHONUNBUFFERED=1 for live log output.
+    python -u -m notebooks.models.train_model                      # full grid
+    python -u -m notebooks.models.train_model --configs L2_norbp_both,L1_norbp_both
+    python -u -m notebooks.models.train_model --list
 """
 import argparse
-import json
+import itertools
 import logging
-import os
-import re
 import sys
 from pathlib import Path
 
 import numpy as np
-from notebooks.models.utility import load_and_validate_final_data
+import xgboost as xgb
 
+from notebooks.models.utility import load_and_validate_final_data
 from tauso.data.consts import CANONICAL_GENE, CELL_LINE, INHIBITION
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_OUTPUT_DIR = Path(__file__).parent / "SeenOligoModel"
+DEFAULT_OUTPUT_DIR = Path(__file__).parent / "SimpleModels"
 
-SPLIT_CONFIGS = {
-    "cohort":    {"eval_group": "custom_id", "select_group": [CANONICAL_GENE, CELL_LINE], "suffix": ""},
-    "custom_id": {"eval_group": "custom_id", "select_group": ["custom_id"],               "suffix": "_CustomId"},
+# Fixed, sensible, regularized params (the config that beat the tuned pipeline).
+SANE = {
+    "tree_method": "hist", "device": "cuda",
+    "max_depth": 6, "learning_rate": 0.05,
+    "subsample": 0.8, "colsample_bytree": 0.6, "min_child_weight": 20,
+    "reg_lambda": 5.0, "reg_alpha": 1.0, "seed": 1,
 }
-
-SPLIT_CONFIG = {"col": "split", "train": "train", "val": "val", "test": "test"}
-
-
-# ---------------------------------------------------------------------------
-# File I/O helpers
-# ---------------------------------------------------------------------------
-
-def _load_json(path, missing_step):
-    if not path.exists():
-        raise FileNotFoundError(f"{path} not found. Run --step {missing_step} first.")
-    with open(path) as f:
-        return json.load(f)
-
-
-def _save_json(obj, path):
-    with open(path, "w") as f:
-        json.dump(obj, f, indent=4)
-
-
-def _apply_feature_filter(features, pattern):
-    """Exclude features whose name matches the regex pattern."""
-    if not pattern:
-        return features
-    rx = re.compile(pattern)
-    keep    = [f for f in features if not rx.search(f)]
-    dropped = [f for f in features if     rx.search(f)]
-    if dropped:
-        logger.info(f"Feature filter | excluding {len(dropped)} features matching '{pattern}' (examples: {dropped[:5]})")
-    return keep
-
-
-def _drop_zero_variance(final_data, features, dropped_log_path=None):
-    """Drop features with <=1 unique non-NaN value (cannot inform tree splits).
-
-    Returns the kept feature list. If dropped_log_path is given and anything was
-    dropped, writes a JSON mapping {feature: constant_value} ("NaN" for all-NaN
-    columns) so the dropped set is inspectable after the run.
-    """
-    dropped = {}
-    keep = []
-    for f in features:
-        unique = final_data[f].dropna().unique()
-        if len(unique) > 1:
-            keep.append(f)
-        elif len(unique) == 1:
-            dropped[f] = float(unique[0])
-        else:
-            dropped[f] = "NaN"
-
-    if dropped:
-        logger.info("Zero-variance filter: dropped %d / %d features: %s",
-                    len(dropped), len(features), list(dropped.keys()))
-        if dropped_log_path is not None:
-            _save_json(dropped, dropped_log_path)
-            logger.info("Dropped-features log -> %s", dropped_log_path)
-    return keep
-
-
-def _resolve_features(final_data, all_features, paths):
-    """Return filtered feature list, saving to disk on first call and loading on subsequent ones.
-
-    If the cache exists but is stale (columns missing from data, or new columns in data
-    that weren't there when the cache was written), the cache is automatically regenerated.
-    The zero-variance filter is applied on every call so newly-constant columns get
-    dropped even when the cache is reused.
-    """
-    if paths["input_features"].exists():
-        cached = _load_json(paths["input_features"], "tune")
-        missing_from_data = [f for f in cached if f not in all_features]
-        new_in_data = [f for f in all_features if f not in cached]
-
-        if missing_from_data or new_in_data:
-            logger.warning(
-                "Cached input_features is stale: %d columns gone from data, "
-                "%d new columns in data. Regenerating %s.",
-                len(missing_from_data), len(new_in_data), paths["input_features"],
-            )
-            paths["input_features"].unlink()
-        else:
-            logger.info("Loaded %d input features from %s", len(cached), paths["input_features"])
-            features = _drop_zero_variance(final_data, cached, paths["dropped_features"])
-            if len(features) != len(cached):
-                _save_json(features, paths["input_features"])
-                logger.info("Cache updated after zero-variance filter -> %s", paths["input_features"])
-            return features
-
-    features = _drop_zero_variance(final_data, all_features, paths["dropped_features"])
-    _save_json(features, paths["input_features"])
-    logger.info("%d input features saved -> %s", len(features), paths["input_features"])
-    return features
-
-
-def _save_model_and_metrics(model, path, metrics):
-    model.save_model(path)
-    _save_json(metrics, path.replace(".json", "_metrics.json"))
-    logger.info("  %s | train_spearman=%.4f val_spearman=%.4f",
-                Path(path).name, metrics["Train"]["Spearman"], metrics["Validation"]["Spearman"])
-
-
-def _intermediate_paths(args):
-    name = f"{args.loss}{SPLIT_CONFIGS[args.split]['suffix']}"
-    return {
-        "name":             name,
-        "model_base":       str(args.output / f"Model_Oligo_{name}.json"),
-        "input_features":   args.output / f"input_features_{name}.json",
-        "dropped_features": args.output / f"dropped_features_{name}.json",
-        "best_params":      args.output / f"best_params_{name}.json",
-        "optimal_features": args.output / f"optimal_features_{name}.json",
-        "rfe_history":      args.output / f"Model_Oligo_{name}_RFE_History.csv",
-    }
+ROUNDS = 700
+OBJECTIVES = {"L2": "reg:squarederror", "L1": "reg:absoluteerror", "ndcg": "rank:ndcg"}
+RAW_SENSE_DROP = r"^sense_(3utr|5utr|exon|intron|utr)$"  # raw versions that have an n_ counterpart
 
 
 # ---------------------------------------------------------------------------
-# Data preparation
+# Feature sets
 # ---------------------------------------------------------------------------
 
-def _prep_data(final_data, features, eval_group, select_group, min_eval_size=50):
-    from notebooks.models.SeenOligoModel.base_model import get_large_cohort_indices, split_data
-
-    final_data = final_data.sort_values(by=features).reset_index(drop=True)
-    train_df, val_df, test_df = split_data(
-        final_data, features,
-        split_col=SPLIT_CONFIG["col"], train_val=SPLIT_CONFIG["train"],
-        val_val=SPLIT_CONFIG["val"], test_val=SPLIT_CONFIG["test"],
-    )
-
-    def arrays(df):
-        return df[features].values.astype(np.float32), df[INHIBITION].values.astype(np.float32)
-
-    X_train, y_train = arrays(train_df)
-    X_val,   y_val   = arrays(val_df)
-    X_test,  y_test  = arrays(test_df)
-
-    logger.info("Split | train=%d val=%d test=%d | min_eval_size=%d", len(train_df), len(val_df), len(test_df), min_eval_size)
-
-    val_optuna_groups = [
-        (g.index.values, y_val[g.index.values])
-        for _, g in val_df.reset_index(drop=True).groupby(eval_group)
-        if len(g) >= min_eval_size
-    ]
-
-    return {
-        "X_train": X_train, "y_train": y_train,
-        "X_val":   X_val,   "y_val":   y_val,
-        "X_test":  X_test,  "y_test":  y_test,
-        "train_eval_idx":       get_large_cohort_indices(train_df, eval_group, min_size=min_eval_size),
-        "val_eval_idx":         get_large_cohort_indices(val_df,   eval_group, min_size=min_eval_size),
-        "test_eval_idx":        get_large_cohort_indices(test_df,  eval_group, min_size=min_eval_size),
-        "val_select_idx":       get_large_cohort_indices(val_df,   select_group, min_size=min_eval_size),
-        "test_select_idx":      get_large_cohort_indices(test_df,  select_group, min_size=min_eval_size),
-        "val_eval_groups_optuna": val_optuna_groups,
-    }
+def _feature_set(all_features, rbp, sense):
+    import re
+    feats = list(all_features)
+    if rbp == "norbp":
+        feats = [f for f in feats if not f.startswith("RBP_")]
+    if sense == "raw":                                   # keep raw sense_*, drop normalized n_sense_*
+        feats = [f for f in feats if not f.startswith("n_")]
+    elif sense == "n":                                   # keep n_sense_*, drop raw sense_3utr/.../utr
+        feats = [f for f in feats if not re.search(RAW_SENSE_DROP, f)]
+    return feats
 
 
 # ---------------------------------------------------------------------------
-# Steps
+# Grid
 # ---------------------------------------------------------------------------
 
-def step_tune(data, args, paths, objective):
-    from notebooks.models.SeenOligoModel.base_model import tune_hyperparameters
-    logger.info("=== STEP: tune ===")
-    best_params = tune_hyperparameters(
-        (data["X_train"], data["y_train"]), (data["X_val"], data["y_val"]),
-        objective, data["val_eval_groups_optuna"],
-        seed=args.seed, device=args.device, n_jobs=args.cpus,
-    )
-    _save_json(best_params, paths["best_params"])
-    logger.info("Best params saved -> %s", paths["best_params"])
-    return best_params
-
-
-def step_select(data, features, args, paths):
-    from notebooks.models.SeenOligoModel.base_model import run_backward_selection
-    logger.info("=== STEP: select ===")
-    features = _load_json(paths["input_features"], "tune")
-    best_params = _load_json(paths["best_params"], "tune")
-
-    optimal, history_df = run_backward_selection(
-        (data["X_train"], data["y_train"], data["y_train"]),
-        (data["X_val"],   data["y_val"]),
-        (data["X_test"],  data["y_test"]),
-        features, best_params,
-        data["val_eval_idx"], data["val_select_idx"], data["test_select_idx"],
-        seed=args.seed,
-        importance_type=args.importance,
-        parsimony_tolerance=args.parsimony_tolerance,
-        device=args.device,
-        history_path=paths["rfe_history"],
-        optimal_path=paths["optimal_features"],
-    )
-    logger.info("Optimal features (%d) -> %s", len(optimal), paths["optimal_features"])
-    logger.info("RFE history -> %s", paths["rfe_history"])
-    return optimal
-
-
-def step_train(data, features, args, paths):
-    from notebooks.models.SeenOligoModel.base_model import evaluate_final_performance, train_final_model
-    logger.info("=== STEP: train ===")
-
-    features         = _load_json(paths["input_features"],   "tune")
-    best_params      = _load_json(paths["best_params"],      "tune")
-    optimal_features = _load_json(paths["optimal_features"], "select")
-    logger.info("Loaded %d features | rounds=%s", len(optimal_features), best_params.get("num_boost_round"))
-
-    def stack(*keys):
-        return np.vstack([data[f"X_{k}"] for k in keys]), np.concatenate([data[f"y_{k}"] for k in keys])
-
-    X_tv,  y_tv  = stack("train", "val")
-    X_all, y_all = stack("train", "val", "test")
-
-    def train(X, y, label):
-        logger.info("Training %s (%d rows)", label, len(X))
-        return train_final_model(optimal_features, features, (X, y), best_params, seed=args.seed)
-
-    model_tv  = train(X_tv,  y_tv,  "train+val")
-    model_all = train(X_all, y_all, "all data")
-
-    opt_idxs = [features.index(f) for f in optimal_features]
-
-    def eval_split(model, X_key, y_key, idx_key):
-        return evaluate_final_performance(
-            model, data[X_key][:, opt_idxs], data[y_key], data[idx_key], optimal_features
-        )
-
-    for model, suffix, _label in [(model_tv, "_TrainVal", "TrainVal"), (model_all, "_AllData", "AllData")]:
-        metrics = {
-            "Train":      eval_split(model, "X_train", "y_train", "train_eval_idx"),
-            "Validation": eval_split(model, "X_val",   "y_val",   "val_eval_idx"),
-        }
-        path = paths["model_base"].replace(".json", f"{suffix}.json")
-        _save_model_and_metrics(model, path, metrics)
-
-    return {"model_train_val": model_tv, "model_all": model_all}
+def build_grid():
+    """Return {config_name: dict(loss, rbp, sense, split)}."""
+    grid = {}
+    rbps, senses = ["norbp", "withrbp"], ["both", "raw", "n"]
+    for loss in ("L2", "L1"):                            # regression: split-agnostic
+        for rbp, sense in itertools.product(rbps, senses):
+            grid[f"{loss}_{rbp}_{sense}"] = dict(loss=loss, rbp=rbp, sense=sense, split=None)
+    for split in ("cohort", "custom_id"):                # ndcg: query group depends on split
+        for rbp, sense in itertools.product(rbps, senses):
+            grid[f"ndcg_{rbp}_{sense}_{split}"] = dict(loss="ndcg", rbp=rbp, sense=sense, split=split)
+    return grid
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Training
 # ---------------------------------------------------------------------------
+
+def _ndcg_groups(df, split):
+    """Contiguous-group sort order + group sizes for a rank:ndcg query grouping."""
+    key = df.groupby([CANONICAL_GENE, CELL_LINE]).ngroup() if split == "cohort" else df["custom_id"].astype("category").cat.codes
+    g = key.to_numpy()
+    order = np.argsort(g, kind="stable")
+    sizes = np.bincount(g[order])
+    return order, sizes[sizes > 0]
+
+
+def _train(df, feats, cfg):
+    y = df[INHIBITION].to_numpy(np.float64)
+    X = df[feats].to_numpy(np.float32)
+    params = {**SANE, "objective": OBJECTIVES[cfg["loss"]]}
+    if cfg["loss"] == "ndcg":
+        order, sizes = _ndcg_groups(df, cfg["split"])
+        grades = np.rint(np.clip(y, 0, 100) / 100.0 * 15.0).astype(np.int32)[order]  # 0..15 relevance
+        d = xgb.DMatrix(X[order], label=grades, feature_names=feats)
+        d.set_group(sizes)
+    else:
+        d = xgb.QuantileDMatrix(X, label=y, feature_names=feats)
+    return xgb.train(params, d, num_boost_round=ROUNDS)
+
+
+def train_config(name, cfg, final_data, all_features, out_dir):
+    feats = _feature_set(all_features, cfg["rbp"], cfg["sense"])
+    trv = final_data[final_data["split"].isin(["train", "val"])]
+    alld = final_data
+    logger.info("[%s] loss=%s rbp=%s sense=%s split=%s | %d features",
+                name, cfg["loss"], cfg["rbp"], cfg["sense"], cfg["split"], len(feats))
+
+    cdir = out_dir / name
+    cdir.mkdir(parents=True, exist_ok=True)
+    _train(trv,  feats, cfg).save_model(str(cdir / f"Model_Oligo_{name}_TrainVal.json"))
+    _train(alld, feats, cfg).save_model(str(cdir / f"Model_Oligo_{name}_AllData.json"))
+    logger.info("[%s] saved -> %s", name, cdir)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--loss",      required=True, choices=["L1", "L2", "huber"])
-    parser.add_argument("--split",     required=True, choices=list(SPLIT_CONFIGS))
-    parser.add_argument("--step",      default="all", choices=["all", "tune", "select", "train"])
-    parser.add_argument("--cpus",      type=int,  default=1)
-    parser.add_argument("--device",    default="cpu", choices=["cpu", "cuda"])
-    parser.add_argument("--seed",      type=int,  default=1)
-    parser.add_argument("--output",    type=Path, default=DEFAULT_OUTPUT_DIR)
-    parser.add_argument("--importance", default="gain", choices=["gain", "permutation"],
-                        help="Feature importance metric for RFE (default: gain). "
-                             "permutation is slower but more reliable.")
-    parser.add_argument("--parsimony-tolerance", type=float, default=0.005,
-                        help="Max Spearman drop from peak allowed when picking parsimonious feature set "
-                             "(default: 0.005).")
-    parser.add_argument("--split-source", default="oligoai", choices=["oligoai", "tauso"],
-                        help="'oligoai' uses the existing split column (default); "
-                             "'tauso' creates a stratified temporal split per gene×cell-line.")
-    parser.add_argument("--min-eval-size", type=int, default=50,
-                        help="Minimum cohort size to include in evaluation metrics (default: 50). "
-                             "Floored at 20 — smaller cohorts give noisy Spearman estimates.")
-    parser.add_argument("--exclude-feature-pattern", default=None,
-                        help="Regex; features whose name matches are excluded from training. "
-                             "Example: --exclude-feature-pattern '^OHE_pos' drops all positional one-hots.")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    parser.add_argument("--configs", default=None, help="Comma-separated config names (default: full grid)")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--list", action="store_true", help="List grid configs and exit")
+    parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
+    logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s | %(message)s",
+                        stream=sys.stdout, force=True)
 
-    logging.basicConfig(
-        level=getattr(logging, args.log_level),
-        format="%(asctime)s %(levelname)s %(name)s | %(message)s",
-        stream=sys.stdout, force=True,
-    )
+    grid = build_grid()
+    if args.list:
+        print(f"\n{len(grid)} configs:")
+        for n, c in grid.items():
+            print(f"  {n}")
+        return
 
-    if args.min_eval_size < 20:
-        logger.warning("--min-eval-size %d is below floor of 20; clamping to 20.", args.min_eval_size)
-        args.min_eval_size = 20
-
-    os.environ["PYTHONHASHSEED"] = str(args.seed)
-    args.output.mkdir(parents=True, exist_ok=True)
-
-    paths    = _intermediate_paths(args)
-    cfg      = SPLIT_CONFIGS[args.split]
-    _OBJECTIVES = {"L1": "reg:absoluteerror", "L2": "reg:squarederror", "huber": "reg:pseudohubererror"}
-    objective = _OBJECTIVES[args.loss]
-
-    logger.info("loss=%s split=%s step=%s device=%s cpus=%d seed=%d", args.loss, args.split, args.step, args.device, args.cpus, args.seed)
+    selected = args.configs.split(",") if args.configs else list(grid)
+    unknown = [c for c in selected if c not in grid]
+    if unknown:
+        logger.error("Unknown configs: %s", unknown); sys.exit(1)
 
     logger.info("Loading data...")
-    final_data, all_features = load_and_validate_final_data(version="oligo", split_source=args.split_source)
-    features = _resolve_features(final_data, all_features, paths)
-    if args.exclude_feature_pattern:
-        before = len(features)
-        features = _apply_feature_filter(features, args.exclude_feature_pattern)
-        if len(features) != before:
-            _save_json(features, paths["input_features"])
-    logger.info("Features: %d", len(features))
-
-    data = _prep_data(final_data, features, cfg["eval_group"], cfg["select_group"],
-                      min_eval_size=args.min_eval_size)
-
-    if args.step in ("tune",   "all"): step_tune(data, args, paths, objective)
-    if args.step in ("select", "all"): step_select(data, features, args, paths)
-    if args.step in ("train",  "all"): step_train(data, features, args, paths)
-
-    logger.info("Done.")
+    final_data, all_features = load_and_validate_final_data(version="oligo")
+    logger.info("Training %d configs -> %s", len(selected), args.output)
+    for name in selected:
+        train_config(name, grid[name], final_data, all_features, args.output)
+    logger.info("Done. Evaluate with: python -m notebooks.models.Evaluation.evaluate_all --models-dir %s", args.output)
 
 
 if __name__ == "__main__":
