@@ -1,141 +1,95 @@
 """
-Validate the two assumptions behind collapsing off-target's 24 redundant RIsearch
-passes (2 methods x 4 top_n x 3 cutoffs) into ONE loosest pass + in-memory
-derivation:
+Validate the two assumptions that let off-target derive several cutoffs / top_n subsets
+from a single loose RIsearch run instead of one run each:
 
-  1. cutoff: a RIsearch run at a loose ``-s`` cutoff, filtered to ``score >
-     strict_cutoff``, reproduces a run made directly at ``strict_cutoff``. Two
-     load-bearing details, both verified here on real data: the cutoff filters
-     on the SCORE column (not energy), and RIsearch's ``-s S`` is EXCLUSIVE
-     (reports ``score > S``) — so the in-memory filter must be ``>``, not ``>=``
-     (a hit at exactly ``score == S`` is absent from the direct ``-s S`` run).
-  2. top_n: a RIsearch run against the top-N target genes, restricted to a
-     top-K gene prefix (K < N), reproduces a run made directly against just the
-     top-K genes (RIsearch scores each (query, target) pair independently, so
-     dropping genes from the target FASTA cannot change the surviving rows).
+  1. cutoff: a stricter ``-s`` run equals the loose run filtered to ``score > cutoff``
+     (RIsearch ``-s`` is exclusive, and the filter is on the score column, not energy).
+  2. gene subset: running against all target genes and restricting to a gene subset
+     equals running against just that subset (RIsearch scores each (query, target) pair
+     independently).
 
-Real genes (the ``gene_to_data`` session fixture), the real RIsearch binary, no
-mocks. Queries are the antisense of real 30-mers drawn from the target mRNAs, so
-each query has at least one strong self-hit that survives the strict cutoff —
-the equivalence assertions are non-trivial.
+Real genes, the real RIsearch binary, no mocks.
 """
 
 import os
 
-import pandas as pd
 import pytest
 
 from tauso.features.hybridization.fast_hybridization import (
-    TMP_PATH,
     Interaction,
     dump_target_file,
     risearch_hits_dataframe,
 )
 from tauso.util import get_antisense
 
-LOOSE_CUTOFF = 800
-STRICT_CUTOFF = 1200
-SLICE_LEN = 4000
-_SORT_COLS = ["trigger", "target", "trigger_start", "target_start", "score", "energy"]
-
-
-def _run(query_pairs, target_path, cutoff):
-    """One real RIsearch batch call -> raw hit DataFrame (8 columns)."""
-    return risearch_hits_dataframe(
-        query_pairs,
-        target_path,
-        minimum_score=cutoff,
-        parsing_type="2",
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-        transpose=True,
-    )
-
-
-def _canonical(df):
-    """Sort rows so two hit tables compare equal regardless of RIsearch output order."""
-    return df[_SORT_COLS].sort_values(_SORT_COLS).reset_index(drop=True)
+LOOSE, STRICT = 800, 1200
+COLS = ["trigger", "target", "trigger_start", "target_start", "score", "energy"]
+_RISEARCH = dict(parsing_type="2", interaction_type=Interaction.RNA_DNA_NO_WOBBLE, transpose=True)
 
 
 @pytest.fixture(scope="module")
-def real_target_and_queries(gene_to_data):
-    """3 real genes (mRNA sliced for speed) + one antisense 30-mer query per gene."""
-    genes, seq_map = [], {}
-    for gene, data in gene_to_data.items():
-        mrna = data.full_mrna
-        if mrna and len(mrna) >= SLICE_LEN:
-            seq_map[gene] = mrna[:SLICE_LEN]
-            genes.append(gene)
-        if len(genes) == 3:
-            break
-    assert len(genes) == 3, "need 3 real genes with a long-enough mRNA"
-
-    query_pairs = [(str(i), get_antisense(seq_map[g][500:530])) for i, g in enumerate(genes)]
-    return genes, seq_map, query_pairs
+def target_and_queries(gene_to_data_full):
+    """Three relatively short real genes as the off-target target, with one antisense
+    query per gene. The query is a 120-mer so every gene's self-hit clears the strict
+    cutoff regardless of its GC content; genes are kept >= 4000 nt so the region is well
+    inside the transcript."""
+    genes = sorted(
+        (g for g, d in gene_to_data_full.items() if d.full_mrna and len(d.full_mrna) >= 4000),
+        key=lambda g: len(gene_to_data_full[g].full_mrna),
+    )[:3]
+    seq_map = {g: gene_to_data_full[g].full_mrna for g in genes}
+    queries = [(str(i), get_antisense(seq_map[g][500:620])) for i, g in enumerate(genes)]
+    return genes, seq_map, queries
 
 
-def test_cutoff_filter_on_score_equals_direct_strict_run(real_target_and_queries):
-    """Loose run filtered to score > strict == a run made directly at the strict cutoff."""
-    genes, seq_map, query_pairs = real_target_and_queries
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    target_path = dump_target_file("ot-deriv-cutoff.fa", seq_map)
+def _hits(df):
+    return set(df[COLS].itertuples(index=False, name=None))
+
+
+def test_cutoff_filter_uses_score_and_is_exclusive(target_and_queries):
+    _, seq_map, queries = target_and_queries
+    target = dump_target_file("ot-cutoff.fa", seq_map)
     try:
-        loose = _run(query_pairs, target_path, LOOSE_CUTOFF)
-        strict = _run(query_pairs, target_path, STRICT_CUTOFF)
+        loose = risearch_hits_dataframe(queries, target, minimum_score=LOOSE, **_RISEARCH)
+        strict = risearch_hits_dataframe(queries, target, minimum_score=STRICT, **_RISEARCH)
     finally:
-        if os.path.exists(target_path):
-            os.remove(target_path)
+        os.remove(target)
 
-    assert not strict.empty, "strict run produced no hits — test would be vacuous"
-    # The loose run must be a complete superset of the strict run (no strict hit
-    # is missing from loose — RIsearch seeding does not drop hits as -s loosens).
-    missing = (
-        strict[_SORT_COLS]
-        .merge(loose[_SORT_COLS], on=_SORT_COLS, how="left", indicator=True)
-        .query("_merge == 'left_only'")
-    )
-    assert missing.empty, "loose run is not a superset of the strict run"
-    # `-s` is exclusive, so the boundary is `>` (a hit at score == strict exists
-    # in the loose run but not the strict run).
-    derived = loose[loose["score"] > STRICT_CUTOFF]
-    pd.testing.assert_frame_equal(_canonical(derived), _canonical(strict))
+    strict_hits = _hits(strict)
+    assert strict_hits, "strict run produced no hits"
+    assert strict_hits <= _hits(loose)  # loose is a superset of strict
+    assert _hits(loose[loose["score"] > STRICT]) == strict_hits
 
 
-def test_topn_gene_prefix_filter_equals_direct_subset_run(real_target_and_queries):
-    """Top-N run restricted to a top-K gene prefix == a run made directly against top-K."""
-    genes, seq_map, query_pairs = real_target_and_queries
-    prefix = genes[:2]
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    full_path = dump_target_file("ot-deriv-full.fa", seq_map)
-    sub_path = dump_target_file("ot-deriv-sub.fa", {g: seq_map[g] for g in prefix})
+def test_gene_subset_filter_matches_subset_target(target_and_queries):
+    genes, seq_map, queries = target_and_queries
+    subset = set(genes[:2])
+    full_target = dump_target_file("ot-full.fa", seq_map)
+    sub_target = dump_target_file("ot-sub.fa", {g: seq_map[g] for g in subset})
     try:
-        full = _run(query_pairs, full_path, LOOSE_CUTOFF)
-        sub = _run(query_pairs, sub_path, LOOSE_CUTOFF)
+        full = risearch_hits_dataframe(queries, full_target, minimum_score=LOOSE, **_RISEARCH)
+        sub = risearch_hits_dataframe(queries, sub_target, minimum_score=LOOSE, **_RISEARCH)
     finally:
-        for p in (full_path, sub_path):
-            if os.path.exists(p):
-                os.remove(p)
+        os.remove(full_target)
+        os.remove(sub_target)
 
-    assert not sub.empty, "subset run produced no hits — test would be vacuous"
-    derived = full[full["target"].isin(set(prefix))]
-    pd.testing.assert_frame_equal(_canonical(derived), _canonical(sub))
+    sub_hits = _hits(sub)
+    assert sub_hits, "subset run produced no hits"
+    assert _hits(full[full["target"].isin(subset)]) == sub_hits
 
 
-def test_combined_derivation_equals_direct_strict_subset_run(real_target_and_queries):
-    """The actual refactor path: ONE loose + all-genes run, filtered by both
-    score > strict AND the top-K gene prefix, reproduces a direct strict + top-K run."""
-    genes, seq_map, query_pairs = real_target_and_queries
-    prefix = genes[:2]
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    loose_full_path = dump_target_file("ot-deriv-comb-full.fa", seq_map)
-    strict_sub_path = dump_target_file("ot-deriv-comb-sub.fa", {g: seq_map[g] for g in prefix})
+def test_cutoff_and_subset_filters_combine(target_and_queries):
+    genes, seq_map, queries = target_and_queries
+    subset = set(genes[:2])
+    loose_full = dump_target_file("ot-comb-full.fa", seq_map)
+    strict_sub = dump_target_file("ot-comb-sub.fa", {g: seq_map[g] for g in subset})
     try:
-        loose_full = _run(query_pairs, loose_full_path, LOOSE_CUTOFF)
-        direct = _run(query_pairs, strict_sub_path, STRICT_CUTOFF)
+        loose = risearch_hits_dataframe(queries, loose_full, minimum_score=LOOSE, **_RISEARCH)
+        direct = risearch_hits_dataframe(queries, strict_sub, minimum_score=STRICT, **_RISEARCH)
     finally:
-        for p in (loose_full_path, strict_sub_path):
-            if os.path.exists(p):
-                os.remove(p)
+        os.remove(loose_full)
+        os.remove(strict_sub)
 
-    assert not direct.empty, "direct run produced no hits — test would be vacuous"
-    derived = loose_full[(loose_full["score"] > STRICT_CUTOFF) & (loose_full["target"].isin(set(prefix)))]
-    pd.testing.assert_frame_equal(_canonical(derived), _canonical(direct))
+    direct_hits = _hits(direct)
+    assert direct_hits, "direct run produced no hits"
+    assert _hits(loose[(loose["score"] > STRICT) & (loose["target"].isin(subset))]) == direct_hits

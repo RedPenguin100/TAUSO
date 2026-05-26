@@ -320,7 +320,7 @@ class Calculator:
             # All cutoffs for a gene come from ONE RIsearch pass per ASO batch.
             for target_gene in targets:
                 self.data, feature_names = off_target_specific_seq_pandarallel(
-                    self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus, verbose=True
+                    self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus
                 )
                 for feature_name in feature_names:
                     self._save_calculated_feature(feature_name=feature_name)
@@ -347,7 +347,7 @@ class Calculator:
             needed_cutoffs = [c for c in cutoffs if f"on_target_total_hybridization_{c}" in missing]
             if needed_cutoffs:
                 self.data, generated_names = on_target_total_hybridization(
-                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus, verbose=True
+                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
                 )
                 for feature_name in generated_names:
                     self._save_calculated_feature(feature_name=feature_name)

@@ -1,13 +1,15 @@
+"""Standalone GTF/FASTA parsing helpers and a chromosome-name → accession map.
+
+Lightweight readers used to build cached genome annotations, independent of the main
+genome-loading path in this package.
+"""
+
 import logging
 import pickle
 
 from Bio import SeqIO
 
 logger = logging.getLogger(__name__)
-
-"""
-This file contains helper functions for getting the mRNA sequences (GTF/FASTA parsing).
-"""
 
 
 def parse_gtf(gtf_path, cache_path=None):
@@ -47,23 +49,16 @@ def parse_gtf(gtf_path, cache_path=None):
                     "feature_coords": [],  # will collect all coords for accurate span
                 }
 
-            # Add to appropriate list
             feature_map = {"exon": "exons", "CDS": "cds", "UTR": "utrs"}
             key = feature_map.get(feature)
             if key:
                 annotations[transcript_id][key].append((start, end))
 
-            # Collect for overall start/end calculation
             annotations[transcript_id]["feature_coords"].append((start, end))
-
-    # Now compute correct start/end from all features
 
     for coords in annotations.values():
         all_features = coords["feature_coords"]
-        # Start is the smallest of all 'start' values
         coords["start"] = min(f[0] for f in all_features)
-
-        # End is the largest of all 'end' values
         coords["end"] = max(f[1] for f in all_features)
 
     if cache_path:

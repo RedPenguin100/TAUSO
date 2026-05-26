@@ -1,7 +1,6 @@
 import logging
 import os
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -9,6 +8,7 @@ import pandas as pd
 from ..data.consts import CELL_LINE_DEPMAP
 from ..features.hybridization.fast_hybridization import TMP_PATH, dump_target_file
 from ..features.hybridization.off_target.add_off_target_feat import compute_group_batch_multi_cutoff
+from ..features.hybridization.off_target.parallel import run_tasks_parallel
 
 logger = logging.getLogger(__name__)
 
@@ -28,24 +28,6 @@ def _score_chunk_multi_cutoff(chunk_df, exp_map, cutoffs, method, target_path):
     """One RIsearch pass for a chunk against a prebuilt target, scoring every cutoff
     from that single pass. Returns {cutoff: Series}."""
     return compute_group_batch_multi_cutoff(chunk_df, exp_map, cutoffs, method, prebuilt_target_path=target_path)
-
-
-def _run_tasks_parallel(tasks, fn, n_jobs):
-    """
-    Run a list of (key, *args) tasks using fn(*args).
-    Returns {key: result} in submission order.
-    When n_jobs == 1, runs serially.
-    """
-    results = {}
-    if n_jobs > 1 and len(tasks) > 1:
-        with ThreadPoolExecutor(max_workers=min(n_jobs, len(tasks))) as pool:
-            future_to_key = {pool.submit(fn, *args): key for key, *args in tasks}
-            for fut, key in future_to_key.items():
-                results[key] = fut.result()
-    else:
-        for key, *args in tasks:
-            results[key] = fn(*args)
-    return results
 
 
 def populate_off_target_specific(
@@ -119,14 +101,13 @@ def populate_off_target_specific(
                     "chunks": chunks,
                 }
 
-            # One RIsearch pass per (cell_line, chunk); all cutoffs derived from it.
             tasks = [
                 ((cell_line, chunk_idx), chunk_df, info["exp_map"], cutoff_list, method, info["target_path"])
                 for cell_line, info in cell_info.items()
                 if info["is_known"] and info["target_path"] is not None
                 for chunk_idx, chunk_df in enumerate(info["chunks"])
             ]
-            results = _run_tasks_parallel(tasks, _score_chunk_multi_cutoff, n_jobs)
+            results = run_tasks_parallel(tasks, _score_chunk_multi_cutoff, n_jobs)
 
             for cutoff in cutoff_list:
                 col = serialize_feature_name(method, top_n, cutoff, is_specific=True)
@@ -189,7 +170,6 @@ def populate_off_target_general(
         n_jobs,
     )
 
-    # Phase 1: build one target FASTA per top_n.
     TMP_PATH.mkdir(parents=True, exist_ok=True)
     top_n_data = {}  # {top_n: (exp_map, target_path)}
     try:
@@ -210,14 +190,13 @@ def populate_off_target_general(
             target_path = dump_target_file(f"target-general-{uuid.uuid4().hex}.fa", seq_map)
             top_n_data[top_n] = (exp_map, target_path)
 
-        # Phase 2: one RIsearch pass per (top_n, chunk); all cutoffs derived from it.
         tasks = [
             ((top_n, chunk_idx), chunk_df, top_n_data[top_n][0], cutoff_list, method, top_n_data[top_n][1])
             for top_n in top_n_list
             for chunk_idx, chunk_df in enumerate(aso_chunks)
         ]
         # results[(top_n, chunk_idx)] = {cutoff: Series}
-        results = _run_tasks_parallel(tasks, _score_chunk_multi_cutoff, n_jobs)
+        results = run_tasks_parallel(tasks, _score_chunk_multi_cutoff, n_jobs)
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:

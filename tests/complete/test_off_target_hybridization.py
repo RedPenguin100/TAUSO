@@ -66,11 +66,11 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_full, da
 
 @pytest.mark.parametrize("mini_structure_data", [300], indirect=True)
 def test_on_target_multi_cutoff_matches_per_cutoff(mini_structure_data, gene_to_data):
-    """Single/on-target cutoff-collapse: deriving all cutoffs from one loose pass equals
-    running each cutoff separately (within FP rounding of the order-dependent exp-sum)."""
+    """on_target deriving all cutoffs from one loose pass equals running each separately
+    (within FP rounding of the order-dependent exp-sum)."""
     import pandas as pd
 
-    cutoffs = [0, 1200]
+    cutoffs = [600, 1200]  # cutoff=0 is very slow (huge output), so use a tighter loose bound
     multi, _ = on_target_total_hybridization(
         mini_structure_data.copy(), gene_to_data, cutoffs=cutoffs, n_jobs=get_n_jobs()
     )
@@ -118,10 +118,8 @@ def test_off_target_general_regression(
 def test_off_target_general_multi_cutoff_matches_per_cutoff(
     mini_structure_data, gene_to_data_full, transcriptomes_with_general
 ):
-    """Step-1 correctness: deriving every cutoff from one loose RIsearch pass must
-    equal running each cutoff on its own. Together with test_off_target_general_regression
-    (which pins the single-cutoff path to the saved baseline) this proves the
-    collapsed multi-cutoff path is bit-for-bit identical to the original per-cutoff code."""
+    """off_target_general multi-cutoff collapse test: deriving every cutoff from one loose
+    RIsearch pass equals running each cutoff on its own."""
     import pandas as pd
 
     cutoffs = [800, 1000, 1200]

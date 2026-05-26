@@ -1,10 +1,10 @@
-"""Off-target reductions + scoring.
+"""Off-target feature scores.
 
-Personality: turn a group of ASOs into off-target feature scores. It runs one RIsearch
-pass per group (via the generic streaming primitives in fast_hybridization), reduces the
-hits to min-energy-per-(trigger, target) for each cutoff, then applies the off-target
-scoring math (self-target filtering + the AggregationMethod weighting). No RIsearch
-process / parsing mechanism lives here — that's fast_hybridization's job.
+Calculates the various off-target feature scores from RIsearch hits, on top of the
+abstracted RIsearch streaming utilities in fast_hybridization. Given a group of ASOs and
+a prebuilt target FASTA, it runs RIsearch once, reduces the hits to the strongest energy
+per (trigger, target) for each energy cutoff, and turns those energies into an
+expression-weighted score.
 """
 
 import logging
@@ -17,7 +17,6 @@ import pandas as pd
 from ....data.consts import CANONICAL_GENE, SEQUENCE
 from ....util import get_antisense
 from ..fast_hybridization import (
-    TMP_PATH,
     Interaction,
     min_energy_by_pair_multi_cutoff,
     parse_risearch_hits_pyarrow,
@@ -35,8 +34,13 @@ class AggregationMethod:
     MECH = "MECH"
 
 
-def calculate_score_helper(energy_dict, expression_dict, method):
-    """Standardizes the scoring math to avoid code duplication."""
+def aggregate_energies(energy_dict, expression_dict, method):
+    """Combine per-gene off-target energies into a single score, weighted by expression.
+
+    energy_dict: {gene: energy} for the off-target genes a trigger binds.
+    expression_dict: {gene: (TPM, normalised)}.
+    method: an AggregationMethod choosing how energy and expression are combined.
+    """
     if not energy_dict:
         return 0.0
 
@@ -89,17 +93,23 @@ def calculate_score_helper(energy_dict, expression_dict, method):
     return score
 
 
-def risearch_min_energy_multi_cutoff(query_pairs, target_path, cutoffs):
-    """ONE RIsearch pass at the loosest cutoff against a prebuilt target.
+def calculate_risearch_energy_per_cutoff(query_pairs, target_path, cutoffs, minimum_score):
+    """Run RIsearch once at `minimum_score` and bucket the hits by cutoff.
 
-    Returns {cutoff: {(trigger, target): min_energy}} (no self-filter, no scoring)."""
+    query_pairs: [(trigger_id, trigger_seq)]; target_path: a prebuilt target FASTA.
+    cutoffs: the energy-score cutoffs to keep buckets for (a hit counts toward cutoff c
+    when its score > c). minimum_score: the RIsearch -s threshold for the single run
+    (the caller passes the loosest cutoff so every requested cutoff is derivable).
+
+    Returns {cutoff: {(trigger, target): strongest_energy}} (no self-filter, no scoring).
+    """
     if not query_pairs:
         return {int(c): {} for c in cutoffs}
     return parse_risearch_hits_pyarrow(
         trigger_id_seq_pairs=query_pairs,
         target_file_path=target_path,
         aggregation=min_energy_by_pair_multi_cutoff(cutoffs),
-        minimum_score=min(cutoffs),
+        minimum_score=minimum_score,
         parsing_type="2",
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         transpose=True,
@@ -107,33 +117,35 @@ def risearch_min_energy_multi_cutoff(query_pairs, target_path, cutoffs):
     )
 
 
-def score_min_energy_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs):
-    """Self-filter + calculate_score_helper for each cutoff. Returns {cutoff: Series}."""
+def energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs):
+    """Turn per-cutoff off-target energies into a score Series per cutoff.
+
+    per_cutoff: {cutoff: {(trigger, target): energy}} from calculate_risearch_energy_per_cutoff.
+    indices: the ASO row indices to produce scores for (the Series index).
+    idx_to_gene: {trigger_id: own canonical gene} — hits to a trigger's own gene are dropped.
+    exp_map: {gene: (TPM, normalised)}; method: an AggregationMethod.
+
+    Returns {cutoff: Series of scores indexed by `indices`}.
+    """
     out = {}
     for cutoff in cutoffs:
-        min_energy = per_cutoff.get(int(cutoff), {})
-        # Group by trigger, filter out self-targets, build {trigger: {target: energy}}
-        trigger_to_energies: dict = {}
-        for (trig, tgt), e in min_energy.items():
-            if tgt == idx_to_gene.get(trig):
-                continue  # self-hit
-            trigger_to_energies.setdefault(trig, {})[tgt] = e
+        per_trigger: dict = {}
+        for (trigger, target), energy in per_cutoff.get(int(cutoff), {}).items():
+            if target == idx_to_gene.get(trigger):
+                continue
+            per_trigger.setdefault(trigger, {})[target] = energy
 
         scores = pd.Series(0.0, index=indices, dtype=float)
         for idx in indices:
-            energies = trigger_to_energies.get(str(idx))
+            energies = per_trigger.get(str(idx))
             if energies:
-                scores[idx] = calculate_score_helper(energies, exp_map, method)
+                scores[idx] = aggregate_energies(energies, exp_map, method)
         out[cutoff] = scores
     return out
 
 
 def compute_group_batch_multi_cutoff(group_df, exp_map, cutoffs, method, prebuilt_target_path):
-    """Score a group against a prebuilt target for several cutoffs with ONE RIsearch pass.
-
-    Runs RIsearch once at the loosest cutoff and derives every cutoff's min-energy-per-pair
-    in the same streaming pass (see min_energy_by_pair_multi_cutoff and
-    tests/complete/test_off_target_derivation_equivalence.py).
+    """Score one ASO group against a prebuilt target for every cutoff, with one RIsearch run.
 
     Returns {cutoff: Series of scores indexed like group_df}.
     """
@@ -141,10 +153,8 @@ def compute_group_batch_multi_cutoff(group_df, exp_map, cutoffs, method, prebuil
     if group_df.empty:
         return {c: pd.Series(dtype=float) for c in cutoffs}
 
-    TMP_PATH.mkdir(exist_ok=True)
-    sequences = group_df[SEQUENCE].tolist()
-    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, sequences)]
-    idx_to_gene = {str(i): g for i, g in zip(group_df.index, group_df[CANONICAL_GENE])}
+    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, group_df[SEQUENCE])]
+    idx_to_gene = {str(idx): gene for idx, gene in zip(indices, group_df[CANONICAL_GENE])}
 
-    per_cutoff = risearch_min_energy_multi_cutoff(query_pairs, prebuilt_target_path, cutoffs)
-    return score_min_energy_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs)
+    per_cutoff = calculate_risearch_energy_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
+    return energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs)
