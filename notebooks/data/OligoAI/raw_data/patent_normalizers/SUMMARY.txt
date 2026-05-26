@@ -1,0 +1,41 @@
+patents annotated: 113 / 343
+rows covered: 158712 / 173191 = 91.6%
+
+== normalization_basis ==
+normalization_basis
+total_RNA_ribogreen    89
+unknown                16
+housekeeping_gene       8
+
+== assay_method ==
+assay_method
+RT-qPCR    113
+
+== confidence ==
+confidence
+high      81
+medium    29
+low        3
+
+== fetch_method ==
+fetch_method
+google_patents_html_grep    109
+uspto_image_pdf_ocr           4
+
+== used_actb ==
+used_actb
+no     112
+yes      1
+
+### ACTB-as-normalizer: 1 patent(s)
+  US20180273577A1 KRAS (n=2504)
+
+### housekeeping_gene: 8 patent(s), 3859 rows
+  US20200056179A1 ATXN2 -> GUSB (n=3242, high)
+  US20070161589A1 CD40 -> GAPDH (n=136, medium)
+  US20090124009A1 PTPN1 -> GAPDH (n=82, medium)
+  US20020147164A1 CYTH1 -> GAPDH (n=80, medium)
+  US20020147165A1 CALR -> GAPDH (n=80, medium)
+  US20020147166A1 TLN1 -> GAPDH (n=80, high)
+  US20030220282A1 PTPN1 -> GAPDH (n=80, high)
+  US20050143335A1 BIRC5 -> GAPDH (n=79, high)
