@@ -73,8 +73,7 @@ class RNAAccess:
 
             seeds = ",".join(map(str, self.segment_sizes))
             cmd = (
-                f"{self.exe_path} -outfile={out_path} -seqfile={seq_path} "
-                f"-access_len={seeds} -max_span={self.max_span}"
+                f"{self.exe_path} -outfile={out_path} -seqfile={seq_path} -access_len={seeds} -max_span={self.max_span}"
             )
             subprocess.run(
                 shlex.split(cmd),

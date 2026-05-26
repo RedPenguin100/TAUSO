@@ -10,11 +10,11 @@ def get_cached_mfe(seq):
 
 
 def _per_position_avg_energies(sequence, window_size, start, stop, step):
-    """One sliding-window sweep. Returns per-position avg mfe across `sequence`.
+    """One sliding-window sweep over `sequence`; returns the per-position average MFE.
 
-    Same inner loop as the single-step reference: fold each window in
-    range(start, stop, step), spread mfe/window_size over its positions, then
-    average per position. Positions not covered by any window are NaN.
+    Fold each window in range(start, stop, step), spread its mfe/window_size
+    evenly over the window's positions, then average per position. Positions no
+    window covers are NaN.
     """
     seq_len = len(sequence)
     energy_values = np.zeros(seq_len)
@@ -34,13 +34,13 @@ def _per_position_avg_energies(sequence, window_size, start, stop, step):
 def calculate_avg_mfe_per_step(sequence, sense_start_in_flank, sense_length, window_size, steps):
     """Sliding-window MFE averaged over the sense region, for several `step` values at once.
 
-    Equivalent to calling the single-step reference once per `step` in `steps`, but faster:
-      1. We only sweep windows whose `[i, i+window_size)` overlaps the sense region.
-         Windows outside contribute to positions never read by the final
-         `nanmean(avg[sense_start:sense_end])`, so skipping them is identity-preserving.
-      2. Different steps share fold calls at overlapping positions via the module-level
-         `get_cached_mfe` lru_cache (within a single call the unique-window count is
-         well under cache size, so this is effectively free).
+    The plain version of each step sweeps windows from position 0 across the whole
+    sequence and nanmeans the sense-region positions. Two shortcuts give the same
+    numbers more cheaply:
+      1. Only sweep windows overlapping the sense region — outside windows touch
+         only positions the final mean never reads.
+      2. Overlapping windows reuse folds across steps via the module-level
+         `get_cached_mfe` cache (unique windows per call stay well under its size).
     """
     sequence = str(sequence).upper().replace("T", "U")
     seq_len = len(sequence)
