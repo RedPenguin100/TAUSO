@@ -41,8 +41,9 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
 
             score += weights[pos, base_idx]
 
-        if valid_window and score > 0:
-            total_score += score
+        # Occupancy: sum over windows of the bound-probability (logistic of the log2-odds score).
+        if valid_window:
+            total_score += 1.0 / (1.0 + 2.0 ** (-score))
 
     return total_score
 

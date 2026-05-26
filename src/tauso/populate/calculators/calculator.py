@@ -123,7 +123,7 @@ class Calculator:
             mapper = self.cache.get_gene_mapper()
             registry = self.cache.get_gene_registry(self._get_unique_genes())
 
-            flank_sizes_premrna = [20, 30, 40, 50, 60, 70]  # From your snippet
+            flank_sizes_premrna = [5, 20, 30, 40, 50, 60, 70]  # 5 = RBP footprint window
 
             self.data = add_external_mrna_and_context_columns(
                 df=self.data,
@@ -778,7 +778,7 @@ class Calculator:
 
     def calculate_rbp(self):
         """Calculates all RBP Affinity, Interaction, Functional, and Regional features."""
-        flank_size = 50
+        flank_size = 5
         window_col = f"flank_sequence_{flank_size}"
 
         # 1. Define "Sentinel" features.
