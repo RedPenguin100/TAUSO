@@ -107,11 +107,10 @@ def test_off_target_single_rrna_regression(mini_seq_data, dataframe_regression):
     rrna_species = list(RRNA_ACCESSIONS)
     feature_names = []
     for target_gene in rrna_species:
-        for cutoff in RRNA_CUTOFFS:
-            data, feature_name = off_target_specific_seq_pandarallel(
-                data, target_gene, rrna_loci, cutoff=cutoff, n_jobs=get_n_jobs()
-            )
-            feature_names.append(feature_name)
+        data, fnames = off_target_specific_seq_pandarallel(
+            data, target_gene, rrna_loci, cutoffs=RRNA_CUTOFFS, n_jobs=get_n_jobs()
+        )
+        feature_names += fnames
     for cutoff in RRNA_CUTOFFS:
         total_col = f"off_target_single_rRNA_total_c{cutoff}"
         data[total_col] = data[[f"off_target_single_{sp}_c{cutoff}" for sp in rrna_species]].sum(axis=1)
@@ -139,7 +138,8 @@ def test_rrna_off_target_binder_vs_random():
     binder = get_antisense(seq_18s[200:220])  # antisense of an 18S 20-mer -> binds 18S
     df = pd.DataFrame({SEQUENCE: [binder, "ACGTACGTACGTACGTACGT"]})
 
-    df, feat = off_target_specific_seq_pandarallel(df, "rRNA_18S", loci, cutoff=1200, n_jobs=1)
+    df, feats = off_target_specific_seq_pandarallel(df, "rRNA_18S", loci, cutoffs=[1200], n_jobs=1)
+    feat = feats[0]
     assert df[feat].iloc[0] > 0.0, "designed 18S binder should hybridize to 18S"
     assert df[feat].iloc[1] == 0.0, "random oligo should not strongly hybridize to 18S"
 
