@@ -13,6 +13,10 @@ from tests.complete.conftest import get_n_jobs
 
 SINGLE_TARGET_GENES = ["RNASEH1", "ACTB"]
 CUTOFFS = [0, 1200]
+# cutoff=0 emits every weak hit over the whole gene, so it dominates runtime (~26x
+# slower) while a loose 800 pass already exercises the multi-cutoff collapse. The
+# cutoff=0 parse path stays covered by test_on_target_hybridization_regression.
+SINGLE_OFF_TARGET_CUTOFFS = [800, 1200]
 RRNA_CUTOFFS = [0, 800, 1000, 1200, 1500]
 
 
@@ -59,7 +63,7 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_full, da
     feature_names = []
     for target_gene in SINGLE_TARGET_GENES:
         data, fnames = off_target_specific_seq_pandarallel(
-            data, target_gene, gene_to_data_full, cutoffs=CUTOFFS, n_jobs=get_n_jobs()
+            data, target_gene, gene_to_data_full, cutoffs=SINGLE_OFF_TARGET_CUTOFFS, n_jobs=get_n_jobs()
         )
         feature_names += fnames
     dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
