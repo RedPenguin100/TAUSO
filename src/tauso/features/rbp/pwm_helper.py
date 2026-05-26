@@ -10,7 +10,7 @@ from ...data.consts import CELL_LINE_DEPMAP
 from ...data.data import get_data_dir
 from ..codon_usage.find_cai_reference import load_cell_line_gene_expression
 
-_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+_DATA_DIR = os.path.join(get_data_dir(), "attract")
 
 
 def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=False):
@@ -95,7 +95,9 @@ def build_rbp_expression_matrix(
     expression_dir = os.path.join(data_dir, "processed_expression")
 
     if not os.path.exists(attract_csv_path):
-        raise FileNotFoundError(f"CRITICAL: ATtRACT metadata not found at {attract_csv_path}")
+        raise FileNotFoundError(
+            f"CRITICAL: ATtRACT metadata not found at {attract_csv_path}. Run 'tauso setup-attract' to download it."
+        )
 
     if not os.path.exists(expression_dir):
         raise FileNotFoundError(f"CRITICAL: Expression directory not found at {expression_dir}")

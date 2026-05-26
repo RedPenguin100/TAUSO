@@ -29,6 +29,8 @@ dependencies = [
     "pandarallel",
     "pympler",
     "xgboost>=3.2,<4",
+    "codon-bias==0.5.0",
+    "lxml",
 ]
 
 [project.optional-dependencies]
@@ -49,11 +51,13 @@ package-dir = {"" = "src"}
 include-package-data = true
 
 [tool.setuptools.package-data]
+# risearch binary compiled at build time by setup.py's build hooks.
+"tauso" = ["out/risearch_executable"]
 "tauso._raccess" = [
     "install_raccess.sh",
     "patches/*.patch"
 ]
-"tauso.features.rbp" = ["data/*"]
+"tauso.features.rnase_motifs" = ["weights/*.json"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

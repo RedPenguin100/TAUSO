@@ -20,7 +20,13 @@ notebooks/external
 *aso_inhibitions_with_canonical_gene_indexed.csv
 *aso_inhibitions_with_canonical_gene_indexed.csv.gz
 
+# raccess has a non-distribution license: it is built locally by
+# `tauso setup-raccess` and must never be committed/redistributed.
+/src/tauso/_raccess/bin/
+
 bulk_input_*
 
 .claude/
 CLAUDE.md
+# Trained model artifacts (regenerable via train_model.py)
+notebooks/models/SimpleModels/

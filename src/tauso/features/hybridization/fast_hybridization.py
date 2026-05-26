@@ -4,12 +4,13 @@ import re
 import subprocess
 import tempfile
 import uuid
+from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, NamedTuple, Tuple
 
 from ...util import get_antisense_rna
-from .Interaction import Interaction
+from .interaction import Interaction
 
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
@@ -84,6 +85,96 @@ def _run_risearch(args: List[str]) -> str:
     )
 
 
+# The fixed 8-column parsing_type="2" TSV that RIsearch emits.
+RISEARCH_COLUMNS = (
+    "trigger",
+    "trigger_start",
+    "trigger_end",
+    "target",
+    "target_start",
+    "target_end",
+    "score",
+    "energy",
+)
+
+
+@contextmanager
+def _risearch_stdout(
+    trigger_id_seq_pairs: List[Tuple[str, str]],
+    target_file_path,
+    *,
+    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
+    minimum_score: int = 900,
+    neighborhood: int = 0,
+    parsing_type="2",
+    transpose=False,
+    batch_id=None,
+):
+    """The single RIsearch invocation. Writes the batched query FASTA, builds the args,
+    spawns the subprocess, and yields its live stdout for the caller to consume. On exit
+    it drains stdout, checks the exit code, and removes the query file. Every RIsearch
+    consumer (streaming aggregation, raw-hits collection) goes through here so the
+    process/FASTA/cleanup logic lives in exactly one place.
+    """
+    TMP_PATH.mkdir(parents=True, exist_ok=True)
+    if batch_id is None:
+        batch_id = uuid.uuid4().hex
+
+    query_path = (TMP_PATH / f"query-{batch_id}.fa").resolve()
+    lines: List[str] = []
+    for query_id, trigger in trigger_id_seq_pairs:
+        lines.append(f">{query_id}")
+        lines.append(get_antisense_rna(trigger))
+    query_path.write_text("\n".join(lines) + "\n")
+
+    mode = _interaction_mode(interaction_type)
+    args = _build_risearch_args(
+        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
+    )
+
+    try:
+        with subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            cwd=str(TMP_PATH),
+            bufsize=-1,
+        ) as proc:
+            try:
+                yield proc.stdout
+            finally:
+                # Drain any unread stdout so the child can exit cleanly.
+                if proc.stdout is not None and not proc.stdout.closed:
+                    try:
+                        proc.stdout.read()
+                    except Exception:
+                        pass
+            rc = proc.wait()
+            if rc != 0:
+                raise subprocess.CalledProcessError(rc, args)
+    finally:
+        if query_path.exists():
+            query_path.unlink()
+
+
+def _pa_column_types():
+    """pyarrow column types for the RISEARCH_COLUMNS TSV (built lazily — pyarrow is a
+    heavy import kept out of module import time)."""
+    import pyarrow as pa
+
+    return {
+        "trigger": pa.string(),
+        "trigger_start": pa.int64(),
+        "trigger_end": pa.int64(),
+        "target": pa.string(),
+        "target_start": pa.int64(),
+        "target_end": pa.int64(),
+        "score": pa.int64(),
+        "energy": pa.float64(),
+    }
+
+
 def get_trigger_mfe_scores_by_risearch(
     trigger: str,
     name_to_sequence: Dict[str, str],
@@ -129,137 +220,270 @@ def get_trigger_mfe_scores_by_risearch(
             query_path.unlink()
 
 
-def get_triggers_mfe_scores_batch(
+class RisearchAggregation(NamedTuple):
+    """How to reduce streamed RIsearch hits into a {key: value} dict.
+
+    columns  — which of the 8 RIsearch TSV columns to parse (a subset of
+               trigger/target/energy).
+    combine  — (pyarrow.RecordBatch) -> partial pyarrow.Table, applied per parsed
+               block so millions of hits never materialize at once.
+    finalize — (concatenated partial Table) -> the result dict.
+
+    See min_energy_by_pair_multi_cutoff and sum_exp_by_trigger_multi_cutoff.
+    """
+
+    columns: Tuple[str, ...]
+    combine: Callable
+    finalize: Callable
+
+
+def parse_risearch_hits_pyarrow(
     trigger_id_seq_pairs: List[Tuple[str, str]],
     target_file_path,
-    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
-    minimum_score: int = 900,
-    neighborhood: int = 0,
-    parsing_type=None,
-    transpose=False,
-    batch_id=None,
-) -> str:
-    """Run RIsearch once for all (id, trigger) pairs against a pre-built target file."""
-    if not trigger_id_seq_pairs:
-        return ""
-
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-
-    if batch_id is None:
-        batch_id = uuid.uuid4().hex
-
-    query_path = (TMP_PATH / f"query-batch-{batch_id}.fa").resolve()
-    lines: List[str] = []
-    for query_id, trigger in trigger_id_seq_pairs:
-        lines.append(f">{query_id}")
-        lines.append(get_antisense_rna(trigger))
-    query_path.write_text("\n".join(lines) + "\n")
-
-    mode = _interaction_mode(interaction_type)
-    args = _build_risearch_args(
-        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
-    )
-
-    try:
-        return _run_risearch(args)
-    finally:
-        if query_path.exists():
-            query_path.unlink()
-
-
-def stream_triggers_mfe_hits(
-    trigger_id_seq_pairs: List[Tuple[str, str]],
-    target_file_path,
+    *,
+    aggregation: RisearchAggregation,
     interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
     minimum_score: int = 900,
     neighborhood: int = 0,
     parsing_type="2",
     transpose=False,
     batch_id=None,
-    parse_chunk_rows: int = 100_000,
-    usecols=("trigger", "energy"),
+    block_size: int = 64 << 20,
 ):
-    """Streaming counterpart to get_triggers_mfe_scores_batch.
+    """Run RIsearch and stream its stdout through pyarrow, block by block.
 
-    Yields pandas DataFrames (chunks of `parse_chunk_rows` rows each) with
-    columns ['trigger', 'energy'] parsed directly from the RIsearch subprocess
-    stdout via pd.read_csv(chunksize=...). This combines:
+    Pure mechanism — no energy biology lives here. It owns the subprocess, the
+    pyarrow CSV reader, the per-block loop, the concatenation of partials and the
+    temp-file cleanup. pyarrow's CSV reader runs in C++ and releases the GIL, so
+    callers scale under a ThreadPoolExecutor (the old pandas parse held the GIL
+    and plateaued at ~1.7x). Memory is bounded by `block_size` plus the small
+    partials `aggregation` returns.
 
-      - Bounded memory (one chunk in flight, vs the full TSV materialized
-        by get_triggers_mfe_scores_batch + parse_risearch_output)
-      - C-level parsing speed (pd.read_csv is much faster than pure-Python
-        line iteration on multi-million-line outputs)
-
-    Assumes parsing_type="2" — the standard 8-column TSV emitted by the
-    scoring callers: trigger, t_start, t_end, target, ta_start, ta_end, score, energy.
-    Pass `usecols` to load only the columns the caller needs (defaults to
-    trigger+energy; the off_target_specific path needs trigger+target+energy).
+    What to compute is supplied by `aggregation` (a RisearchAggregation): it
+    declares which columns to parse, reduces each parsed block to a partial table
+    (`combine`), and reduces the concatenated partials to the result dict
+    (`finalize`). The RIsearch output is always the 8-column parsing_type="2" TSV:
+    trigger, t_start, t_end, target, ta_start, ta_end, score, energy.
     """
     if not trigger_id_seq_pairs:
-        return
+        return {}
 
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    if batch_id is None:
-        batch_id = uuid.uuid4().hex
+    import pyarrow as pa
+    import pyarrow.csv as pacsv
 
-    query_path = (TMP_PATH / f"query-stream-{batch_id}.fa").resolve()
-    lines: List[str] = []
-    for query_id, trigger in trigger_id_seq_pairs:
-        lines.append(f">{query_id}")
-        lines.append(get_antisense_rna(trigger))
-    query_path.write_text("\n".join(lines) + "\n")
-
-    mode = _interaction_mode(interaction_type)
-    args = _build_risearch_args(
-        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
+    type_map = _pa_column_types()
+    read_opts = pacsv.ReadOptions(column_names=list(RISEARCH_COLUMNS), use_threads=False, block_size=block_size)
+    parse_opts = pacsv.ParseOptions(delimiter="\t")
+    convert_opts = pacsv.ConvertOptions(
+        include_columns=list(aggregation.columns),
+        column_types={col: type_map[col] for col in aggregation.columns},
     )
 
-    columns = [
-        "trigger", "trigger_start", "trigger_end",
-        "target", "target_start", "target_end",
-        "score", "energy",
-    ]
-    usecols_list = list(usecols)
-    dtype_map = {"trigger": "string", "target": "string", "energy": "float64"}
-    dtypes = {k: v for k, v in dtype_map.items() if k in usecols_list}
+    parts = []
+    with _risearch_stdout(
+        trigger_id_seq_pairs,
+        target_file_path,
+        interaction_type=interaction_type,
+        minimum_score=minimum_score,
+        neighborhood=neighborhood,
+        parsing_type=parsing_type,
+        transpose=transpose,
+        batch_id=batch_id,
+    ) as stdout:
+        try:
+            reader = pacsv.open_csv(
+                stdout, read_options=read_opts, parse_options=parse_opts, convert_options=convert_opts
+            )
+            for batch in reader:
+                if batch.num_rows == 0:
+                    continue
+                parts.append(aggregation.combine(batch))
+        except pa.ArrowInvalid:
+            # No hits — RIsearch produced empty stdout.
+            pass
 
-    try:
-        import pandas as pd
+    if not parts:
+        return {}
 
-        with subprocess.Popen(
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            cwd=str(TMP_PATH),
-            bufsize=-1,
-        ) as proc:
-            try:
-                yield from pd.read_csv(
-                    proc.stdout,
-                    sep="\t",
-                    header=None,
-                    names=columns,
-                    usecols=usecols_list,
-                    dtype=dtypes,
-                    chunksize=parse_chunk_rows,
-                )
-            except pd.errors.EmptyDataError:
-                # No hits at all — RIsearch produced empty stdout.
-                pass
-            finally:
-                # Drain any remaining bytes pandas didn't read so RIsearch can exit
-                if proc.stdout is not None and not proc.stdout.closed:
-                    try:
-                        proc.stdout.read()
-                    except Exception:
-                        pass
-            rc = proc.wait()
-            if rc != 0:
-                raise subprocess.CalledProcessError(rc, args)
-    finally:
-        if query_path.exists():
-            query_path.unlink()
+    return aggregation.finalize(pa.concat_tables(parts))
+
+
+def risearch_hits_dataframe(
+    trigger_id_seq_pairs: List[Tuple[str, str]],
+    target_file_path,
+    *,
+    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
+    minimum_score: int = 900,
+    neighborhood: int = 0,
+    parsing_type="2",
+    transpose=False,
+    batch_id=None,
+    block_size: int = 64 << 20,
+):
+    """Run one batched RIsearch and return ALL hits as a DataFrame (the 8 RISEARCH_COLUMNS).
+
+    Same single batched invocation as parse_risearch_hits_pyarrow and streamed through
+    pyarrow, but materialises the full table instead of reducing it — intended for tests
+    and debugging, not the hot path (production uses parse_risearch_hits_pyarrow with an
+    aggregation so memory stays bounded). Replaces the old get_triggers_mfe_scores_batch
+    + parse_risearch_output pair.
+    """
+    import pandas as pd
+    import pyarrow as pa
+    import pyarrow.csv as pacsv
+
+    empty = pd.DataFrame(columns=list(RISEARCH_COLUMNS))
+    if not trigger_id_seq_pairs:
+        return empty
+
+    read_opts = pacsv.ReadOptions(column_names=list(RISEARCH_COLUMNS), use_threads=False, block_size=block_size)
+    parse_opts = pacsv.ParseOptions(delimiter="\t")
+    convert_opts = pacsv.ConvertOptions(column_types=_pa_column_types())
+
+    tables = []
+    with _risearch_stdout(
+        trigger_id_seq_pairs,
+        target_file_path,
+        interaction_type=interaction_type,
+        minimum_score=minimum_score,
+        neighborhood=neighborhood,
+        parsing_type=parsing_type,
+        transpose=transpose,
+        batch_id=batch_id,
+    ) as stdout:
+        try:
+            reader = pacsv.open_csv(
+                stdout, read_options=read_opts, parse_options=parse_opts, convert_options=convert_opts
+            )
+            for batch in reader:
+                if batch.num_rows:
+                    tables.append(pa.Table.from_batches([batch]))
+        except pa.ArrowInvalid:
+            pass
+
+    return pa.concat_tables(tables).to_pandas() if tables else empty
+
+
+def min_energy_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
+    """Off-target score for several cutoffs from ONE loose RIsearch pass.
+
+    Run RIsearch at the loosest cutoff and, in the same streaming pass, keep the
+    min-energy hit per (trigger, target) *separately for each cutoff*, counting a
+    hit toward cutoff ``c`` only when ``score > c``. RIsearch's ``-s`` is exclusive
+    and its cutoffs are nested, so this reproduces N independent per-cutoff runs
+    bit-for-bit (see tests/complete/test_off_target_derivation_equivalence.py).
+
+    Returns ``{cutoff: {(trigger, target): min_energy}}``. Memory is bounded by the
+    number of distinct (cutoff, trigger, target) pairs, not the raw hit count.
+    """
+    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
+
+    def _empty():
+        import pyarrow as pa
+
+        return pa.table(
+            {
+                "cutoff": pa.array([], pa.int64()),
+                "trigger": pa.array([], pa.string()),
+                "target": pa.array([], pa.string()),
+                "energy": pa.array([], pa.float64()),
+            }
+        )
+
+    def combine(batch):
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
+        table = pa.Table.from_batches([batch])
+        parts = []
+        for c in sorted_cutoffs:
+            sub = table.filter(pc.greater(table.column("score"), c))
+            if sub.num_rows == 0:
+                continue
+            agg = (
+                sub.group_by(["trigger", "target"])
+                .aggregate([("energy", "min")])
+                .rename_columns(["trigger", "target", "energy"])
+            )
+            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
+            parts.append(agg.select(["cutoff", "trigger", "target", "energy"]))
+        return pa.concat_tables(parts) if parts else _empty()
+
+    def finalize(table):
+        final = (
+            table.group_by(["cutoff", "trigger", "target"])
+            .aggregate([("energy", "min")])
+            .rename_columns(["cutoff", "trigger", "target", "energy"])
+        )
+        result: dict = {c: {} for c in sorted_cutoffs}
+        for c, trig, tgt, e in zip(
+            final.column("cutoff").to_pylist(),
+            final.column("trigger").to_pylist(),
+            final.column("target").to_pylist(),
+            final.column("energy").to_pylist(),
+        ):
+            result[c][(trig, tgt)] = float(e)
+        return result
+
+    return RisearchAggregation(columns=("trigger", "target", "score", "energy"), combine=combine, finalize=finalize)
+
+
+def sum_exp_by_trigger_multi_cutoff(cutoffs, rt: float = 0.616) -> RisearchAggregation:
+    """Single-target-gene score for several cutoffs from ONE loose RIsearch pass.
+
+    A Boltzmann-style sum of exp(-rt*energy) over every hit per trigger (not just the
+    strongest), kept separately for each cutoff — a hit counts toward cutoff ``c`` only
+    when ``score > c``. RIsearch's ``-s`` is exclusive and its cutoffs are nested, so this
+    reproduces N independent per-cutoff runs (within FP rounding, as the sum is
+    float-order-dependent).
+
+    Returns ``{cutoff: {trigger: sum_exp}}``.
+    """
+    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
+
+    def _empty():
+        import pyarrow as pa
+
+        return pa.table(
+            {
+                "cutoff": pa.array([], pa.int64()),
+                "trigger": pa.array([], pa.string()),
+                "_exp": pa.array([], pa.float64()),
+            }
+        )
+
+    def combine(batch):
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
+        exp_col = pc.exp(pc.multiply(batch.column("energy"), -rt))
+        base = pa.table({"trigger": batch.column("trigger"), "score": batch.column("score"), "_exp": exp_col})
+        parts = []
+        for c in sorted_cutoffs:
+            sub = base.filter(pc.greater(base.column("score"), c))
+            if sub.num_rows == 0:
+                continue
+            agg = sub.group_by("trigger").aggregate([("_exp", "sum")]).rename_columns(["trigger", "_exp"])
+            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
+            parts.append(agg.select(["cutoff", "trigger", "_exp"]))
+        return pa.concat_tables(parts) if parts else _empty()
+
+    def finalize(table):
+        final = (
+            table.group_by(["cutoff", "trigger"])
+            .aggregate([("_exp", "sum")])
+            .rename_columns(["cutoff", "trigger", "_exp"])
+        )
+        result: dict = {c: {} for c in sorted_cutoffs}
+        for c, trig, s in zip(
+            final.column("cutoff").to_pylist(),
+            final.column("trigger").to_pylist(),
+            final.column("_exp").to_pylist(),
+        ):
+            result[c][trig] = float(s)
+        return result
+
+    return RisearchAggregation(columns=("trigger", "score", "energy"), combine=combine, finalize=finalize)
 
 
 def _parse_mfe_scores_2(result):

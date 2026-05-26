@@ -4,6 +4,9 @@
 [submodule "notebooks/competitors/OligoAI/OligoAI"]
 	path = notebooks/competitors/OligoAI/OligoAI
 	url = https://github.com/RedPenguin100/OligoAI
+[submodule "notebooks/competitors/PFREDIntegration"]
+	path = notebooks/competitors/PFRED/PFREDIntegration
+	url = https://github.com/RedPenguin100/PFREDIntegration.git
 [submodule "notebooks/competitors/ClinASO"]
 	path = notebooks/competitors/ClinASO
 	url = https://github.com/RedPenguin100/ClinASO.git

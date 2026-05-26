@@ -10,7 +10,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
-from tauso.features.rbp.RBP_features import (
+from tauso.features.rbp.rbp_features import (
     add_global_complexity_features,
     add_strict_functional_features,
     get_background_probs,

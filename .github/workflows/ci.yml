@@ -91,6 +91,10 @@ jobs:
       - name: Install raccess
         run: tauso setup-raccess
 
+      # The coordinate-only locus pickle (built by `setup-genome`) is cached here too,
+      # which skips its ~24s gffutils traversal. It lives in THIS cache rather than a
+      # separate one so it is restored with the same preserved mtime ordering as the
+      # gff db — the loader rebuilds the pickle if it looks older than GRCh38.gff3.db.
       - name: Cache Genome Database
         id: cache-genome
         uses: actions/cache@v4
@@ -103,7 +107,8 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.gz
-          key: ${{ runner.os }}-tauso.genome-GRCh38-v4
+            ${{ env.TAUSO_DATA_DIR }}/GRCh38.locus.v1.introns1.canon1.pkl
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v5
 
       - name: Install genome
         run: tauso setup-genome
@@ -123,11 +128,29 @@ jobs:
       - name: Cache mRNA Half Life
         uses: actions/cache@v4
         with:
-          path: ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.csv.gz
-          key: mrna-halflife-v1
+          path: ${{ env.TAUSO_DATA_DIR }}/mrna_half_life.parquet
+          key: mrna-halflife-v2
 
       - name: Setup mRNA half life
         run: tauso setup-mrna-halflife
+
+      - name: Cache ATtRACT RBP data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/attract
+          key: attract-zenodo-20366079
+
+      - name: Setup ATtRACT RBP data
+        run: tauso setup-attract
+
+      - name: Cache RiboSeq data
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/human_unselected_40S.RiboProElong.bw
+          key: riboseq-zenodo-20366983
+
+      - name: Setup RiboSeq data
+        run: tauso setup-riboseq
 
       - name: Cache DepMap Data
         id: cache-depmap
@@ -135,31 +158,24 @@ jobs:
         with:
           path: |
             ${{ env.TAUSO_DATA_DIR }}/Model.csv
-            ${{ env.TAUSO_DATA_DIR }}/Model.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv
-            ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv.sha256
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet
-            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.csv.sha256
+            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
             ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
-          key: depmap-25Q3-v2
+          key: depmap-25Q3-v3
 
       - name: Setup DepMap
         run: tauso setup-depmap
 
-      - name: Add Cell Cohorts
-        run: |
-          tauso add-cell \
-            HEPG2 SNU449 HELA A431 SKMEL28 SHSY5Y U251MG NCIH929 \
-            KMS11 NCIH460 SKNAS SKNSH KARPAS299 HEP3B217 THP1 \
-            LNCAPCLONEFGC T24 A549 VCAP HUH7 JURKAT SKOV3 K562 \
-            A172 PC3 MCF7 SW872 G361 HEK293 MM1S
+      - name: Cache human tGCN
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/human_tgcn_hsapi38.csv
+          key: human-tgcn-hsapi38-v1
 
-      - name: Build omics from cells
-        run: tauso build-omics
-
-      - name: Build cAI weights
-        run: tauso build-cai-weights
+      - name: Build cell context (default cohort + expression + CAI weights + tGCN)
+        run: tauso build-cell-context
 
       - name: Run tests
-        run: micromamba run -n tauso pytest -vvvs --durations=0 -n auto --dist=loadfile
+        run: micromamba run -n tauso pytest -vvvs --durations=0 --n-jobs 4

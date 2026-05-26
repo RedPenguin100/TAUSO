@@ -78,8 +78,14 @@ cd "src"
 
 echo "Building raccess with matrix-math optimizations..."
 
-export CXXFLAGS="-O3 -march=native -ffast-math -fno-rtti"
-export CFLAGS="-O3 -march=native -ffast-math"
+# -march defaults to 'native' (fastest, but the binary only runs on a CPU like
+# the build host's). On heterogeneous clusters where the build node and the run
+# node differ, native causes SIGILL (illegal instruction) at runtime — set
+# RACCESS_MARCH=x86-64-v2 (or another baseline) for a portable binary.
+RACCESS_MARCH="${RACCESS_MARCH:-native}"
+echo "Building raccess with -march=$RACCESS_MARCH"
+export CXXFLAGS="-O3 -march=$RACCESS_MARCH -ffast-math -fno-rtti"
+export CFLAGS="-O3 -march=$RACCESS_MARCH -ffast-math"
 export LDFLAGS=""
 
 make clean
@@ -93,11 +99,8 @@ cp "$BUILD_DIR/src/raccess/run_raccess" "$DATA_DIR/bin/run_raccess"
 
 echo "Successfully installed executable to: $DATA_DIR/bin/run_raccess"
 
-PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "$PACKAGE_DIR/bin"
-cp "$BUILD_DIR/src/raccess/run_raccess" "$PACKAGE_DIR/bin/"
-
-echo "Successfully copied executable to: $PACKAGE_DIR/bin/run_raccess"
-echo "It will now be auto-discovered by tauso."
+# NOTE: we deliberately do NOT copy the binary into the package tree.
+# raccess has a non-distribution license, so the built binary must live only
+# in the user's TAUSO_DATA_DIR and never be bundled/committed/redistributed.
 echo
 echo "Done."

@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 from notebooks.consts import SAVED_FEATURES
-from tauso.features.feature_extraction import save_feature_internal
+from tauso.populate.feature_cache import save_feature_internal
 
 
 def _get_saved_features_dir(version):

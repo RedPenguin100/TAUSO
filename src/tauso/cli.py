@@ -1,7 +1,4 @@
 import gzip
-import hashlib
-import io
-import itertools
 import json
 import logging
 import os
@@ -14,17 +11,28 @@ from importlib.resources import files
 from pathlib import Path
 
 import click
-import gdown
 import gffutils
 import pandas as pd
-import requests
 from gffutils.iterators import DataIterator
 from pyfaidx import Fasta
 
+from tauso.cli_utils import (
+    count_lines,
+    download_and_gunzip,
+    download_with_progress,
+    echo_err,
+    echo_ok,
+    echo_warn,
+    sha1_file,
+    sha256_file,
+    verify_hash_or_exit,
+)
 from tauso.data.data import get_data_dir, get_paths
-from tauso.features.codon_usage.cai import calc_CAI_weight
+from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_FILENAME, build_scorer_from_reference
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
-from tauso.genome.read_human_genome import get_locus_to_data_dict
+from tauso.features.codon_usage.tai import TGCNSource
+from tauso.features.context.mrna_halflife import HALFLIFE_SOURCE_COLUMNS
+from tauso.genome.read_human_genome import build_locus_cache, get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import (
     GeneCoordinateMapper,
     build_gene_sequence_registry,
@@ -44,187 +52,241 @@ def main():
     )
 
 
-def download_and_gunzip(url, dest_path, remove_gz=False):
-    if os.path.exists(dest_path):
-        click.echo(f"  File already exists: {os.path.basename(dest_path)}")
-        return
-
-    try:
-        click.echo(f"  Downloading {os.path.basename(url)}...")
-        temp_gz = dest_path + ".gz"
-
-        with requests.get(url, stream=True, timeout=30) as r:
-            r.raise_for_status()
-            total_size = int(r.headers.get("content-length", 0))
-
-            with open(temp_gz, "wb") as f:
-                with click.progressbar(length=total_size, label="    Downloading") as bar:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                        bar.update(len(chunk))
-
-        click.echo(f"  Unzipping to {os.path.basename(dest_path)}...")
-        with gzip.open(temp_gz, "rb") as f_in:
-            with open(dest_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        if remove_gz:
-            os.remove(temp_gz)
-    except Exception as e:
-        if os.path.exists(dest_path):
-            os.remove(dest_path)
-        if os.path.exists(temp_gz):
-            os.remove(temp_gz)
-        raise e
+# Zenodo-mirrored DepMap "Public 25Q3" snapshot. DepMap silently re-uploads files
+# under the same release name, so we pin to an immutable Zenodo record and verify
+# the SHA1 of each download.
+ZENODO_DEPMAP_RECORD = "20355477"
+DEPMAP_FILES_SHA1 = {
+    "Model.csv": "4e9805ecf79d187e1fb5d4c760312e5a40729e34",
+    "OmicsProfiles.csv": "fc5a1ed86ea89f805d56715f439e9738b3e28a72",
+    "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "22ac03aa45a6b9ef4f60e9ed8bb574e64dcb56f6",
+}
 
 
-def count_lines(filepath):
-    with open(filepath, "rb") as f:
-        return sum(1 for line in f if not line.startswith(b"#"))
+def _zenodo_file_url(record_id: str, filename: str) -> str:
+    return f"https://zenodo.org/records/{record_id}/files/{filename}"
 
 
-def batch_iterator(iterator, batch_size=1000):
-    while True:
-        batch = list(itertools.islice(iterator, batch_size))
-        if not batch:
-            break
-        yield batch
+def _ensure_depmap_file(filename: str, expected_sha1: str, data_dir: str, force: bool) -> bool:
+    """Ensure `filename` exists in `data_dir` with the pinned SHA1. Returns True if the file
+    was (re-)downloaded, False if an existing valid copy was reused."""
+    dest = os.path.join(data_dir, filename)
 
+    if os.path.exists(dest) and not force:
+        if sha1_file(dest) == expected_sha1:
+            echo_ok(f"{filename} exists (SHA1 verified).")
+            return False
+        echo_warn(f"SHA1 mismatch for {filename} — re-downloading.")
 
-def _sha256_file(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    url = _zenodo_file_url(ZENODO_DEPMAP_RECORD, filename)
+    click.echo(f"Downloading {filename} from Zenodo...")
+    download_with_progress(url, dest, label=f"    {filename}")
+    verify_hash_or_exit(dest, expected_sha1, algo="sha1")
+    echo_ok(f"Downloaded {filename} (SHA1 verified).")
+    return True
 
 
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
 def setup_depmap(force):
     """
-    Downloads DepMap Public 25Q3 data directly from the DepMap API.
-    Auto-fetches fresh signed URLs to ensure downloads work.
-    OmicsExpression is converted to Parquet after download; original CSV is deleted.
+    Downloads DepMap Public 25Q3 data from a pinned Zenodo mirror
+    (https://zenodo.org/records/20355477), verifying each file's SHA1.
+    The OmicsExpression CSV is converted to Parquet for fast loading and the
+    CSV is then removed — all consumers read the Parquet directly. A sidecar
+    `<parquet>.sha256` is written on conversion; future runs skip the 1.1 GB
+    CSV download iff the Parquet still matches that hash. A mismatch triggers
+    a fresh download + re-conversion.
     """
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
 
-    RELEASE = "DepMap Public 25Q3"
-    TARGET_FILES = {
-        "Model.csv": "Model.csv",
-        "OmicsProfiles.csv": "OmicsProfiles.csv",
-        "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv",
-    }
-    # These CSVs are converted to Parquet and the original CSV deleted afterwards.
-    CONVERT_TO_PARQUET = {"OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"}
+    click.echo("Initializing DepMap setup (Zenodo mirror of DepMap Public 25Q3)...")
 
-    click.echo(f"Initializing DepMap setup for: {RELEASE}")
+    omics_csv_name = "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
+    omics_csv = os.path.join(data_dir, omics_csv_name)
+    omics_parquet = omics_csv.replace(".csv", ".parquet")
+    omics_parquet_sha = omics_parquet + ".sha256"
+    parquet_already_built = os.path.exists(omics_parquet) and not force
 
-    # Check what needs downloading before hitting the API
-    to_download = {
-        remote: local
-        for remote, local in TARGET_FILES.items()
-        if force or not os.path.exists(os.path.join(data_dir, local))
-    }
+    # If we have both the Parquet and its sidecar hash, verify they agree.
+    # Mismatch (or missing sidecar with --force) means the Parquet is no longer
+    # the one we wrote → rebuild from a fresh CSV download.
+    if parquet_already_built and os.path.exists(omics_parquet_sha):
+        recorded = Path(omics_parquet_sha).read_text().strip()
+        if sha256_file(omics_parquet) != recorded:
+            echo_warn(f"{os.path.basename(omics_parquet)} hash mismatch — will re-download CSV and re-convert.")
+            os.remove(omics_parquet)
+            os.remove(omics_parquet_sha)
+            parquet_already_built = False
 
-    if not to_download:
-        click.echo("✓ All DepMap files already present.")
-        click.echo("\nDepMap setup complete.")
-        return
-
-    # Only fetch the index if we actually need to download something
-    click.echo("Fetching fresh download URLs from DepMap API...")
-
-    headers = {"User-Agent": "Mozilla/5.0"}
-    index_url = "https://depmap.org/portal/api/download/files"
-
-    try:
-        r = requests.get(index_url, headers=headers)
-        r.raise_for_status()
-        index_df = pd.read_csv(io.StringIO(r.text))
-    except Exception as e:
-        click.echo(click.style(f"❌ Error fetching DepMap index: {e}", fg="red"))
-        sys.exit(1)
-
-    release_df = index_df[index_df["release"] == RELEASE]
-    if release_df.empty:
-        click.echo(click.style(f"❌ Release '{RELEASE}' not found in API.", fg="red"))
-        click.echo(f"Available releases: {index_df['release'].unique()[:5]}...")
-        sys.exit(1)
-
-    # Check if the API provides checksums (column may be named 'md5', 'sha256', etc.)
-    checksum_col = next((c for c in release_df.columns if c.lower() in ("md5", "sha256", "checksum")), None)
-
-    for remote_name, local_name in TARGET_FILES.items():
-        dest = os.path.join(data_dir, local_name)
-        sha256_dest = dest + ".sha256"
-
-        if local_name in CONVERT_TO_PARQUET:
-            parquet_dest = dest.replace(".csv", ".parquet")
-            # Migration: CSV exists but parquet does not → convert and delete
-            if os.path.exists(dest) and not os.path.exists(parquet_dest):
-                click.echo(f"  Converting {local_name} to Parquet...")
-                pd.read_csv(dest).to_parquet(parquet_dest, index=False)
-                os.remove(dest)
-                click.echo(click.style(f"✓ Converted {local_name} → parquet, original deleted.", fg="green"))
-            if os.path.exists(parquet_dest) and not force:
-                click.echo(f"✓ {local_name} (parquet) exists.")
-                continue
-        else:
-            if os.path.exists(dest) and not force:
-                # Verify stored SHA256 if available
-                if os.path.exists(sha256_dest):
-                    with open(sha256_dest) as fh:
-                        stored = fh.read().strip()
-                    if _sha256_file(dest) != stored:
-                        click.echo(click.style(f"⚠ SHA256 mismatch for {local_name} — re-downloading.", fg="yellow"))
-                    else:
-                        click.echo(f"✓ {local_name} exists (SHA256 verified).")
-                        continue
-                else:
-                    click.echo(f"✓ {local_name} exists.")
-                    continue
-
-        file_row = release_df[release_df["filename"] == remote_name]
-        if file_row.empty:
-            click.echo(click.style(f"⚠ Warning: '{remote_name}' not found in {RELEASE}.", fg="yellow"))
+    for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
+        if filename == omics_csv_name and parquet_already_built:
+            echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
             continue
+        _ensure_depmap_file(filename, expected_sha1, data_dir, force)
 
-        download_url = file_row.iloc[0]["url"]
-        expected_checksum = file_row.iloc[0].get(checksum_col) if checksum_col else None
+    if not parquet_already_built:
+        click.echo("  Converting OmicsExpression CSV to Parquet...")
+        pd.read_csv(omics_csv).to_parquet(omics_parquet, index=False)
+        echo_ok("Converted to Parquet.")
 
-        click.echo(f"Downloading {local_name}...")
-        try:
-            subprocess.run(
-                ["wget", "-q", "--show-progress", "-U", "Mozilla/5.0", "-O", dest, download_url],
-                check=True,
-            )
-        except subprocess.CalledProcessError:
-            click.echo(click.style(f"❌ Failed to download {local_name}", fg="red"))
-            if os.path.exists(dest):
-                os.remove(dest)
-            continue
+    # Record (or refresh) the sidecar hash so future runs can detect tampering / bit rot.
+    if not os.path.exists(omics_parquet_sha):
+        Path(omics_parquet_sha).write_text(sha256_file(omics_parquet))
 
-        # SHA256 verification
-        actual_sha256 = _sha256_file(dest)
-        if expected_checksum and expected_checksum.lower() != actual_sha256:
-            click.echo(click.style(f"❌ Checksum mismatch for {local_name}! Deleting.", fg="red"))
-            os.remove(dest)
-            continue
-        with open(sha256_dest, "w") as fh:
-            fh.write(actual_sha256)
-        click.echo(click.style(f"✓ Downloaded {local_name} (SHA256 saved).", fg="green"))
-
-        if local_name in CONVERT_TO_PARQUET:
-            click.echo(f"  Converting {local_name} to Parquet...")
-            pd.read_csv(dest).to_parquet(parquet_dest, index=False)
-            os.remove(dest)
-            click.echo(click.style(f"✓ Converted to Parquet, original CSV deleted.", fg="green"))
+    # The CSV is dead weight once the Parquet exists — every consumer (production
+    # code in genome/transcriptome.py and features/expression/general_expression.py,
+    # plus tests) takes the CSV path but immediately swaps the suffix to .parquet.
+    if os.path.exists(omics_csv):
+        os.remove(omics_csv)
+        echo_ok(f"Removed {omics_csv_name} (Parquet supersedes it).")
 
     click.echo("\nDepMap setup complete.")
 
 
-import re
+@main.command(name="setup-omics")
+@click.option("--force", is_flag=True, help="Force redownload of all omics datasets.")
+@click.pass_context
+def setup_omics(ctx, force):
+    """
+    Set up all omics datasets: DepMap (cell-line metadata, profiles, expression),
+    mRNA half-life data, human tGCN (tAI), ATtRACT RBP motifs, and the ribo-seq
+    bigWig. Use 'build-cohort-expression' afterwards to derive per-cohort
+    expression files.
+    """
+    click.echo(click.style("=== setup-omics: DepMap ===", bold=True))
+    ctx.invoke(setup_depmap, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: mRNA half-life ===", bold=True))
+    ctx.invoke(setup_mrna_halflife, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: human tGCN ===", bold=True))
+    ctx.invoke(setup_tgcn, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: ATtRACT RBP ===", bold=True))
+    ctx.invoke(setup_attract, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-omics: ribo-seq ===", bold=True))
+    ctx.invoke(setup_riboseq, force=force)
+    click.echo()
+    echo_ok("Omics setup complete.")
+
+
+@main.command(name="setup-all")
+@click.option("--genome", default="GRCh38", help="Genome to set up (default: GRCh38).")
+@click.option("--force", is_flag=True, help="Force redownload of every dataset.")
+@click.option("--threads", "-t", default=1, help="Threads for bowtie index build (default: 1).")
+@click.option("--mem-per-thread", default=800, help="Max MB/thread for bowtie (default: 800).")
+@click.pass_context
+def setup_all(ctx, genome, force, threads, mem_per_thread):
+    """
+    End-to-end setup: genome + bowtie + omics + raccess. Idempotent — already-present
+    datasets are verified by hash and skipped unless --force is given.
+    """
+    click.echo(click.style("=== setup-all: genome ===", bold=True))
+    ctx.invoke(setup_genome, genome=genome, force=force, remove_gz=False)
+    click.echo()
+    click.echo(click.style("=== setup-all: bowtie ===", bold=True))
+    ctx.invoke(setup_bowtie, genome=genome, force=force, threads=threads, mem_per_thread=mem_per_thread)
+    click.echo()
+    click.echo(click.style("=== setup-all: omics ===", bold=True))
+    ctx.invoke(setup_omics, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-all: raccess ===", bold=True))
+    ctx.invoke(setup_raccess)
+    click.echo()
+    echo_ok("setup-all complete.")
+
+
+DEFAULT_COHORT_CELLS = (
+    "HEPG2",
+    "SNU449",
+    "HELA",
+    "A431",
+    "SKMEL28",
+    "SHSY5Y",
+    "U251MG",
+    "NCIH929",
+    "KMS11",
+    "NCIH460",
+    "SKNAS",
+    "SKNSH",
+    "KARPAS299",
+    "HEP3B217",
+    "THP1",
+    "LNCAPCLONEFGC",
+    "T24",
+    "A549",
+    "VCAP",
+    "HUH7",
+    "JURKAT",
+    "SKOV3",
+    "K562",
+    "A172",
+    "PC3",
+    "MCF7",
+    "SW872",
+    "G361",
+    "HEK293",
+    "MM1S",
+)
+
+
+@main.command(name="build-cell-context")
+@click.argument("cell_names", nargs=-1)
+@click.option("--reset", is_flag=True, help="Clear existing cohort before adding.")
+@click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
+@click.option("--cai/--no-cai", default=True, help="Build CAI weights (default: enabled).")
+@click.option("--force", is_flag=True, help="Force CAI weights recomputation.")
+@click.pass_context
+def build_cell_context(ctx, cell_names, reset, genome, cai, force):
+    """
+    Build all per-cell-line reference data needed by downstream feature
+    computation: register cells, extract per-cell expression files, and
+    (by default) compute CAI weights.
+
+    Bare invocation uses the default cohort. Pass cell names to use a
+    custom cohort; pass --reset to replace an existing cohort; pass
+    --no-cai to skip the CAI weight computation step.
+
+    Example:
+      tauso build-cell-context                            # default cohort, with CAI
+      tauso build-cell-context --no-cai                   # skip CAI
+      tauso build-cell-context HEPG2 SNU449 HELA          # custom cohort (append)
+      tauso build-cell-context --reset HEPG2 SNU449       # custom cohort (replace)
+    """
+    data_dir = get_data_dir()
+    cohort_exists = os.path.exists(os.path.join(data_dir, "cell_cohort.json"))
+
+    if cell_names:
+        cells_to_add = cell_names
+    elif reset:
+        echo_err("--reset requires at least one cell name.")
+        sys.exit(1)
+    elif not cohort_exists:
+        click.echo(f"No existing cohort; using {len(DEFAULT_COHORT_CELLS)} default cells.")
+        cells_to_add = DEFAULT_COHORT_CELLS
+    else:
+        cells_to_add = ()
+
+    if cells_to_add:
+        click.echo(click.style(f"=== build-cell-context: add-cell ({len(cells_to_add)} cells) ===", bold=True))
+        ctx.invoke(add_cell, cell_names=cells_to_add, reset=reset)
+        click.echo()
+
+    click.echo(click.style("=== build-cell-context: cohort expression ===", bold=True))
+    ctx.invoke(build_cohort_expression, genome=genome)
+    click.echo()
+    if cai:
+        click.echo(click.style("=== build-cell-context: CAI weights ===", bold=True))
+        ctx.invoke(build_cai_weights, top_n=300, top_n_generic=500, genome=genome, force=force)
+        click.echo()
+
+    click.echo(click.style("=== build-cell-context: human tGCN ===", bold=True))
+    ctx.invoke(setup_tgcn, force=force)
+    click.echo()
+    echo_ok("build-cell-context complete.")
 
 
 @main.command()
@@ -299,30 +361,25 @@ def add_cell(cell_names, reset):
 
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
-def build_omics(genome):
+def build_cohort_expression(genome):
     """
     Generates gene-level expression files for all cell lines in the cohort.
     Uses DepMap 'AllGenes' format (Gene Level Log2(TPM+1)).
     """
     if genome != "GRCh38":
         # While the logic is genome-agnostic now, we keep this guard if your downstream tools expect GRCh38
-        click.echo(
-            click.style(
-                f"⚠ Warning: This command is optimized for DepMap (Human GRCh38) data.",
-                fg="yellow",
-            )
-        )
+        echo_warn("This command is optimized for DepMap (Human GRCh38) data.")
 
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
     exp_path = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet")
 
     if not os.path.exists(manifest_path):
-        click.echo(click.style("❌ No cohort found. Use 'tauso add-cell' first.", fg="red"))
+        echo_err("No cohort found. Use 'tauso add-cell' first.")
         return
 
     if not os.path.exists(exp_path):
-        click.echo(click.style(f"❌ Expression parquet not found: {exp_path}", fg="red"))
+        echo_err(f"Expression parquet not found: {exp_path}")
         click.echo("Run 'tauso setup-depmap' to download and convert it.")
         return
 
@@ -372,13 +429,25 @@ def build_omics(genome):
     help="Genes per cell for Generic pool (Default: 500).",
 )
 @click.option("--genome", default="GRCh38", help="Genome version.")
+@click.option(
+    "--pseudocount",
+    default=CAI_DEFAULT_PSEUDOCOUNT,
+    show_default=True,
+    type=int,
+    help="Pseudocount added to codon counts before normalisation (codonbias). "
+    "0 matches the previous hand-rolled math; 1 (codonbias's own default) "
+    "smooths and avoids zero weights for unobserved codons.",
+)
 @click.option("--force", is_flag=True, help="Overwrite existing cai_weights.json if it exists.")
-def build_cai_weights(top_n, top_n_generic, genome, force):
+def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
     """
-    Generates CAI weight profiles for the cohort and a Generic fallback.
+    Generates CAI weight profiles for the cohort and a Generic fallback,
+    using codonbias.scores.CodonAdaptationIndex over the top-N highly
+    expressed CDS sequences per cell line. Saves {cell_line: {codon: weight}}
+    to cai_weights.json.
     """
     data_dir = get_data_dir()
-    out_path = os.path.join(data_dir, "cai_weights.json")
+    out_path = os.path.join(data_dir, CAI_WEIGHTS_FILENAME)
 
     if os.path.exists(out_path) and not force:
         click.echo(
@@ -438,8 +507,8 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
         cds_list = cds_list[:top_n]
 
         if len(cds_list) == top_n:
-            _, weights_flat = calc_CAI_weight(cds_list)
-            cai_weights_map[cell_name] = weights_flat
+            scorer = build_scorer_from_reference(cds_list, pseudocount=pseudocount)
+            cai_weights_map[cell_name] = scorer.weights.to_dict()
             click.echo(f"  ✓ {cell_name} weights ready ({len(cds_list)} genes).")
         else:
             click.echo(f"  ⚠ {cell_name} has insufficient sequences.")
@@ -447,18 +516,16 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
     # B. Generic Weights (Consensus Intersection)
     click.echo(f"\nCalculating Generic Weights (Intersection of Top {top_n_generic})...")
 
-    # Extract sequences for the consensus genes
     fallback_cds_list = [
         ref_registry[g]["cds_sequence"]
         for g in fallback_genes
         if g in ref_registry and ref_registry[g].get("cds_sequence")
     ]
-
     fallback_cds_list = fallback_cds_list[:top_n]
 
     if fallback_cds_list:
-        _, generic_weights = calc_CAI_weight(fallback_cds_list)
-        cai_weights_map["Generic"] = generic_weights
+        scorer = build_scorer_from_reference(fallback_cds_list)
+        cai_weights_map["Generic"] = scorer.weights.to_dict()
         click.echo(f"  ✓ Generic weights ready ({len(fallback_cds_list)} genes).")
     else:
         click.echo("  ⚠ Warning: No sequences found for fallback genes.")
@@ -470,114 +537,164 @@ def build_cai_weights(top_n, top_n_generic, genome, force):
     click.echo(click.style(f"\nSUCCESS: CAI weights saved to {out_path}", fg="green"))
 
 
-def calc_file_hash(fpath):
-    sha256_hash = hashlib.sha256()
-    with open(fpath, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
-
-
-def should_skip_download(file_path, force, expected_hash):
-    """Checks if file exists and matches hash. Returns True if we can skip."""
-    if not os.path.exists(file_path):
-        return False
-
-    if force:
-        click.echo(click.style("Force flag detected. Redownloading...", fg="yellow"))
-        return False
-
-    click.echo("File exists. Verifying hash...")
-    try:
-        current_hash = calc_file_hash(file_path)
-        if current_hash == expected_hash:
-            click.echo(click.style(f"✓ Hash matched. Skipping download.", fg="green"))
-            return True
-        else:
-            click.echo(
-                click.style(
-                    f"⚠ Hash mismatch on existing file. Redownload with --force",
-                    fg="red",
-                )
-            )
-            click.echo(f"Expected: {expected_hash}")
-            click.echo(f"Got:      {current_hash}")
-            sys.exit(1)
-    except Exception as e:
-        click.echo(
-            click.style(
-                f"⚠ Error reading existing file ({e}). Redownload with --force",
-                fg="red",
-            )
-        )
-        sys.exit(1)
-
-
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload if file exists.")
 def setup_mrna_halflife(force):
     """
-    Downloads the 'species_stability_no_threshold.csv.gz' dataset from the TTDB source.
+    Downloads the mRNA half-life dataset (TTDB) from Zenodo and converts it to a
+    lean Parquet (only the columns the loader needs) for fast loading.
     """
-    FILE_ID = "1GekvDui-B2tSAQ6wgO3tIXpKd54EGRbn"
+    # TTDB (Transcriptome Turnover Database) stability dataset — database as of
+    # 2026-05-24. Fetched from a Zenodo mirror, verified byte-identical (SHA256
+    # ec0c1f90...) to TTDB's official `species_stability_no_threshold.csv.gz`
+    # Google Drive download listed at https://sysbio.gzzoc.com/ttdb/download.html.
+    # Zenodo is used for a stable, immutable, DOI-backed HTTP download.
+    ZENODO_RECORD = "20368324"
+    GZ_NAME = "mrna_half_life.csv.gz"
     EXPECTED_SHA256 = "ec0c1f90eed96516de510c484a7a7dd4bbd10d253306710bb33e714f88c5c135"
 
-    url = f"https://drive.google.com/uc?id={FILE_ID}"
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
-    destination = os.path.join(data_dir, "mrna_half_life.csv.gz")
+    gz_path = os.path.join(data_dir, GZ_NAME)
+    parquet_path = os.path.join(data_dir, "mrna_half_life.parquet")
 
-    click.echo(f"Initializing Stability Data setup...")
-    click.echo(f"Target path: {destination}")
+    click.echo("Initializing mRNA half-life setup (TTDB via Zenodo)...")
+    click.echo(f"Target path: {parquet_path}")
 
-    # 1. Check if we can skip
-    if should_skip_download(destination, force, EXPECTED_SHA256):
+    if os.path.exists(parquet_path) and not force:
+        echo_ok(f"{os.path.basename(parquet_path)} already present. Skipping.")
         return
 
-    # 2. Perform Download
+    url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{GZ_NAME}/content"
     try:
-        click.echo("Contacting Google Drive via gdown...")
-        output = gdown.download(url, destination, quiet=False)
+        download_with_progress(url, gz_path, label=f"Downloading {GZ_NAME}")
+        verify_hash_or_exit(gz_path, EXPECTED_SHA256, algo="sha256")
+        echo_ok(f"Downloaded and verified: {gz_path}")
 
-        if not output:
-            raise Exception("Download failed (no output file).")
+        click.echo("  Converting to Parquet (loader columns only)...")
+        pd.read_csv(gz_path, compression="gzip", usecols=HALFLIFE_SOURCE_COLUMNS).to_parquet(parquet_path, index=False)
+        echo_ok(f"Converted to Parquet: {parquet_path}")
 
-        click.echo(click.style(f"✓ Download complete: {destination}", fg="green"))
+        # The gzip CSV is dead weight once the Parquet exists (re-downloadable from Zenodo/TTDB).
+        os.remove(gz_path)
+    except Exception as e:
+        echo_err(f"Error setting up mRNA half-life data: {e}")
+        sys.exit(1)
 
-        # 3. Verify Gzip Integrity
-        try:
-            with gzip.open(destination, "rb") as f:
-                f.read(1)
-            click.echo(click.style(f"✓ Integrity check passed (valid gzip).", fg="green"))
-        except Exception:
-            click.echo(
-                click.style(
-                    f"⚠ Warning: File is not a valid gzip (likely HTML error).",
-                    fg="red",
-                )
-            )
-            sys.exit(1)
 
-        # 4. Verify Hash (Post-Download)
-        click.echo("Verifying new file hash...")
-        new_hash = calc_file_hash(destination)
+@main.command(name="setup-tgcn")
+@click.option(
+    "--organism",
+    type=click.Choice(["human"], case_sensitive=False),
+    default="human",
+    show_default=True,
+    help="Organism whose tGCN to fetch. Available: human (GtRNAdb Hsapi38).",
+)
+@click.option("--force", is_flag=True, help="Force refetch if file exists.")
+def setup_tgcn(organism, force):
+    """
+    Fetch a tRNA gene copy number (tGCN) table from GtRNAdb and write it
+    to TAUSO_DATA_DIR. The tAI feature loads this table at first use;
+    without it, populate_tai cannot run.
+    """
+    from codonbias.scores import fetch_GCN_from_GtRNAdb
 
-        if new_hash != EXPECTED_SHA256:
-            click.echo(click.style(f"⚠ Hash mismatch!", fg="red"))
-            click.echo(f"Expected: {EXPECTED_SHA256}")
-            click.echo(f"Got:      {new_hash}")
-            click.echo(
-                click.style(
-                    "Please update EXPECTED_SHA256 with the 'Got' value above.",
-                    fg="yellow",
-                )
-            )
-            sys.exit(1)
+    src = TGCNSource[organism.upper()]
+    spec = src.value
 
-        click.echo(click.style(f"✓ Hash check passed.", fg="green"))
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+    destination = os.path.join(data_dir, spec.filename)
+
+    click.echo(f"Initializing {organism} tGCN setup (GtRNAdb {spec.gtrnadb_genome})...")
+    click.echo(f"Target path: {destination}")
+
+    if os.path.exists(destination) and not force:
+        verify_hash_or_exit(destination, spec.sha256, algo="sha256")
+        echo_ok("Existing file matches expected SHA256. Skipping download.")
+        return
+
+    try:
+        click.echo("Fetching tGCN from GtRNAdb (requires lxml)...")
+        df = fetch_GCN_from_GtRNAdb(genome=spec.gtrnadb_genome, domain=spec.gtrnadb_domain)
+        df = df.sort_values("anti_codon").reset_index(drop=True)
+        df.to_csv(destination, index=False)
+        verify_hash_or_exit(destination, spec.sha256, algo="sha256")
+        echo_ok(f"Fetched and verified: {destination} ({len(df)} anti-codons).")
 
     except Exception as e:
-        click.echo(click.style(f"Error downloading file: {e}", fg="red"))
+        echo_err(f"Error fetching tGCN: {e}")
+        sys.exit(1)
+
+
+@main.command(name="setup-attract")
+@click.option("--force", is_flag=True, help="Force redownload if files exist.")
+def setup_attract(force):
+    """
+    Downloads the ATtRACT RBP database files from Zenodo.
+
+    Source: https://zenodo.org/records/20366079 (DOI 10.5281/zenodo.20366079),
+    a frozen mirror of the ATtRACT DB. Installs into the 'attract' subfolder of
+    TAUSO_DATA_DIR.
+    """
+    ZENODO_RECORD = "20366079"
+    FILES = {
+        "RBS_motifs_Homo_sapiens.csv": "12927c0ca4655b4f040ea5e7e3406dc7",
+        "pwm.txt": "7ff45b94c14d1b992680f561e0a038a4",
+    }
+
+    dest_dir = os.path.join(get_data_dir(), "attract")
+    os.makedirs(dest_dir, exist_ok=True)
+    click.echo(f"Target directory: {dest_dir}")
+
+    for name, expected_md5 in FILES.items():
+        destination = os.path.join(dest_dir, name)
+
+        if os.path.exists(destination) and not force:
+            verify_hash_or_exit(destination, expected_md5, algo="md5")
+            echo_ok(f"Existing {name} matches expected MD5. Skipping download.")
+            continue
+
+        url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{name}/content"
+        try:
+            download_with_progress(url, destination, label=f"Downloading {name}")
+            verify_hash_or_exit(destination, expected_md5, algo="md5")
+            echo_ok(f"Downloaded and verified: {destination}")
+        except Exception as e:
+            echo_err(f"Error downloading {name}: {e}")
+            sys.exit(1)
+
+
+@main.command(name="setup-riboseq")
+@click.option("--force", is_flag=True, help="Force redownload if file exists.")
+def setup_riboseq(force):
+    """
+    Downloads the 40S ribosome-profiling bigWig from Zenodo.
+
+    Source: https://zenodo.org/records/20366983 (DOI 10.5281/zenodo.20366983),
+    an immutable mirror of the RiboSeq data. Installs into TAUSO_DATA_DIR.
+    """
+    ZENODO_RECORD = "20366983"
+    FILENAME = "human_unselected_40S.RiboProElong.bw"
+    EXPECTED_MD5 = "c1a06bf87fbee3d66f8422922dddd709"
+
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+    destination = os.path.join(data_dir, FILENAME)
+    click.echo(f"Target path: {destination}")
+
+    if os.path.exists(destination) and not force:
+        verify_hash_or_exit(destination, EXPECTED_MD5, algo="md5")
+        echo_ok(f"Existing {FILENAME} matches expected MD5. Skipping download.")
+        return
+
+    url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{FILENAME}/content"
+    try:
+        download_with_progress(url, destination, label=f"Downloading {FILENAME}")
+        verify_hash_or_exit(destination, EXPECTED_MD5, algo="md5")
+        echo_ok(f"Downloaded and verified: {destination}")
+    except Exception as e:
+        echo_err(f"Error downloading {FILENAME}: {e}")
         sys.exit(1)
 
 
@@ -808,6 +925,16 @@ def setup_genome(genome, force, remove_gz):
             annotation_path=gff_path, db_path=gff_db_path, db_success_path=gff_db_success, genome=genome, fmt="GFF"
         )
 
+        # Pre-build the coordinate-only locus pickle so populate runs (and SLURM
+        # tasks) skip the ~24s gff traversal and load it from cache instead.
+        click.echo("Building locus coordinate cache...")
+        try:
+            cache_path = build_locus_cache(genome=genome, include_introns=True, canonical_only=True)
+            click.echo(click.style(f"✓ Locus cache built at {cache_path}", fg="green"))
+        except Exception as e:
+            # Non-fatal: the cache is an optimization; populate falls back to the gff db.
+            click.echo(click.style(f"⚠ Could not build locus cache ({e}); will build on first use.", fg="yellow"))
+
 
 # --- NEW COMMAND: OFF-TARGET SEARCH ---
 @main.command()
@@ -920,7 +1047,14 @@ def setup_bowtie(genome, force, threads, mem_per_thread):
     is_flag=True,
     help="Force re-cloning of the raccess repository (passed to install_raccess.sh).",
 )
-def setup_raccess(ctx, force_clone):
+@click.option(
+    "--march",
+    default=None,
+    help="-march for the raccess build (default: native, or $RACCESS_MARCH). "
+    "Use 'x86-64-v2' for a portable binary that runs across heterogeneous "
+    "cluster CPUs (native can crash with SIGILL when build and run nodes differ).",
+)
+def setup_raccess(ctx, force_clone, march):
     """
     Run the raccess installation per their license.
     Installs into the configured TAUSO_DATA_DIR.
@@ -936,9 +1070,14 @@ def setup_raccess(ctx, force_clone):
     # Pass raccess_dir as the first argument to the script
     cmd = ["bash", str(script_path), raccess_dir] + forwarded_args
 
-    click.echo(f"+ {' '.join(cmd)}")
+    # --march flag wins, else inherit $RACCESS_MARCH, else the script's 'native' default
+    env = os.environ.copy()
+    if march:
+        env["RACCESS_MARCH"] = march
+
+    click.echo(f"+ {' '.join(cmd)} (RACCESS_MARCH={env.get('RACCESS_MARCH', 'native')})")
     try:
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, env=env)
     except subprocess.CalledProcessError as e:
         logger.error("install_raccess.sh failed, consider installing zlib1g-dev")
         sys.exit(1)

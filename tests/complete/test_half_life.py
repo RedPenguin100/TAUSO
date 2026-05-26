@@ -1,8 +1,6 @@
 import pytest
 
-from tauso.features.context.mrna_halflife import (
-    populate_mrna_halflife_features,
-)
+from tauso.populate.populate_mrna_halflife import populate_mrna_halflife_features
 
 
 @pytest.mark.parametrize("mini_sampled_data", [10000], indirect=True)

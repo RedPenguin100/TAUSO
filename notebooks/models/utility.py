@@ -56,10 +56,50 @@ def create_tauso_split(data: pd.DataFrame, val_frac: float = 0.15, test_frac: fl
     return data
 
 
-def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai"):
+def _apply_other_as_nan(final_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Re-encode the 'Other' delivery method as missing-data semantics rather than
+    a category. Where Other == 1:
+      - Set Gymnosis / Lipofection / Electroporation to NaN
+      - Add a single delivery_unknown flag (==1)
+      - Drop the Other column
+    For rows where Other == 0, delivery_unknown = 0 and the three indicators stay as-is.
+
+    Rationale: 'Other' bundles >5 distinct real delivery methods (free uptake, LNP,
+    in-vivo routes, etc). Treating it as one category lets the model overfit on
+    spurious patterns. Treating it as missing data forces the model to rely on
+    actual chemistry/expression features while keeping a single OOD flag.
+    """
+    if "Other" not in final_data.columns:
+        logger.info("'Other' column not present; skipping NaN re-encoding.")
+        return final_data
+
+    final_data = final_data.copy()
+    other_mask = final_data["Other"].astype(bool)
+    n_other = int(other_mask.sum())
+
+    for col in ("Gymnosis", "Lipofection", "Electroporation"):
+        if col in final_data.columns:
+            final_data[col] = final_data[col].astype("float64")
+            final_data.loc[other_mask, col] = np.nan
+
+    final_data["delivery_unknown"] = other_mask.astype(int)
+    final_data = final_data.drop(columns=["Other"])
+
+    logger.info("'Other' re-encoded as NaN | %d rows flagged as delivery_unknown=1", n_other)
+    return final_data
+
+
+def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai",
+                                 other_encoding="onehot"):
     """
     Loads features and metadata, ensures shared columns are identical,
     and returns the merged DataFrame along with the final feature list.
+
+    other_encoding:
+      - 'onehot' (default): keep Other as a 1/0 column alongside the others
+      - 'nan': when Other == 1, NaN out Gymnosis/Lipofection/Electroporation,
+               add delivery_unknown flag, drop Other column
     """
     index = f"index_{version}"
 
@@ -69,31 +109,18 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
         loaded_features = load_all_features(version=version, load_competition=load_competition)
     data = pd.read_csv(data_path)
 
-    # 2. Identify common columns to validate (excluding the join key)
-    # Based on your data: sense_start, sense_start_from_end, sense_length, etc.
-    common_cols = [
-        "sense_start",
-        "sense_start_from_end",
-        "sense_length",
-        "sense_exon",
-        "sense_intron",
-        "sense_utr",
-        "sense_type",
-    ]
+    # 2. Identify all columns that exist in both frames (other than the join key).
+    common_cols = sorted(set(loaded_features.columns) & set(data.columns) - {index})
 
-    # 3. Validation: Ensure both have the columns and they are identical
+    # 3. Validation: ensure every shared column has identical values across sources
     for col in common_cols:
-        if col not in loaded_features.columns or col not in data.columns:
-            raise KeyError(f"Column '{col}' missing from one of the dataframes.")
-
-        # Merge temporarily on index to align rows for comparison
         check_df = pd.merge(loaded_features[[index, col]], data[[index, col]], on=index)
-
         if not check_df[f"{col}_x"].equals(check_df[f"{col}_y"]):
             raise ValueError(f"Integrity Check Failed: '{col}' differs between sources.")
         del check_df
 
-    # 4. Merge: Drop redundant columns from 'data' first to avoid _x/_y
+    # 4. Drop the shared columns from `data` so the merge produces no _x/_y suffixes
+    logger.info(f"Merge dedup | {len(common_cols)} shared columns dropped from data: {common_cols}")
     data_to_merge = data.drop(columns=common_cols)
 
     final_data = pd.merge(loaded_features, data_to_merge, on=index)
@@ -104,6 +131,12 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
         final_data = create_tauso_split(final_data)
     elif split_source != "oligoai":
         raise ValueError(f"Unknown split_source '{split_source}'. Use 'oligoai' or 'tauso'.")
+
+    # 5b. Re-encode 'Other' delivery if requested
+    if other_encoding == "nan":
+        final_data = _apply_other_as_nan(final_data)
+    elif other_encoding != "onehot":
+        raise ValueError(f"Unknown other_encoding '{other_encoding}'. Use 'onehot' or 'nan'.")
 
     # 6. Define Final Feature List
     features_to_ignore = [index, INHIBITION, "inhibition_percent", "dosage", "split"]

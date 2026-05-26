@@ -1,10 +1,31 @@
 import logging
+import os
+import pickle
 from collections import defaultdict
 
-from ..data.data import load_genome, load_gff_db, load_gtf_db
+from ..data.data import get_paths, load_genome, load_gff_db, load_gtf_db
 from ..timer import Timer
 from ..util import get_antisense_u
-from .LocusInfo import GeneType, LocusInfo, StrandType
+from .LocusInfo import GeneType, LazyLocusInfo, LocusInfo, StrandType
+
+# Per-process FASTA handle cache, keyed by (genome, pid). pyfaidx handles are not
+# safe to share across forked workers (shared fd offset), so each process opens
+# its own; keying on pid makes this correct after a fork.
+_PROCESS_FASTA: dict = {}
+
+
+def fetch_full_mrna(genome, chrom, gene_start, gene_end, strand):
+    """Fetch a gene's full genomic span (introns included) from the FASTA and
+    apply the same strand transform as the eager loader. Used by LazyLocusInfo
+    to materialize `full_mrna` on demand."""
+    key = (genome, os.getpid())
+    fasta = _PROCESS_FASTA.get(key)
+    if fasta is None:
+        fasta = load_genome(genome)
+        _PROCESS_FASTA[key] = fasta
+    seq = str(fasta[chrom][gene_start:gene_end])
+    return get_antisense_u(seq) if strand == StrandType.NEG else seq.upper()
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +64,68 @@ def _get_gene_type_gff(gene):
     return "unannotated"
 
 
+# Bump when the LazyLocusInfo layout or the builder semantics change in a way
+# that makes previously-pickled dicts wrong. A mismatch (or any unpickling error)
+# falls back to a rebuild, so a stale cache never silently serves bad coordinates.
+_LOCUS_CACHE_VERSION = 1
+
+
+def _locus_cache_path(genome, include_introns, canonical_only):
+    fname = f"{genome}.locus.v{_LOCUS_CACHE_VERSION}.introns{int(include_introns)}.canon{int(canonical_only)}.pkl"
+    return os.path.join(get_paths(genome)["dir"], fname)
+
+
+def _load_locus_cache(cache_path, genome):
+    """Wishfully load the full {gene: LazyLocusInfo} dict from a pickle.
+
+    Returns None (so the caller rebuilds) if the pickle is missing, older than
+    the gff database it was derived from, or fails to unpickle for any reason
+    (e.g. a LazyLocusInfo layout change). Never raises.
+    """
+    try:
+        if not os.path.exists(cache_path):
+            return None
+        gff_db = get_paths(genome)["gff_db"]
+        if os.path.exists(gff_db) and os.path.getmtime(cache_path) < os.path.getmtime(gff_db):
+            logger.debug("[Get_Locus] Locus cache %s is older than gff db, rebuilding", cache_path)
+            return None
+        with open(cache_path, "rb") as fh:
+            locus_to_data = pickle.load(fh)
+        logger.debug("[Get_Locus] Loaded locus dict from cache %s", cache_path)
+        return locus_to_data
+    except Exception as e:
+        logger.warning("[Get_Locus] Could not load locus cache %s (%s); rebuilding", cache_path, e)
+        return None
+
+
+def _save_locus_cache(cache_path, locus_to_data):
+    """Atomically write the full locus dict to the pickle cache. Best-effort:
+    a write failure is logged, never fatal."""
+    try:
+        tmp = f"{cache_path}.tmp{os.getpid()}"
+        with open(tmp, "wb") as fh:
+            pickle.dump(locus_to_data, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, cache_path)
+        logger.debug("[Get_Locus] Saved locus dict to cache %s", cache_path)
+    except Exception as e:
+        logger.warning("[Get_Locus] Could not save locus cache %s (%s)", cache_path, e)
+
+
+def build_locus_cache(genome="GRCh38", include_introns=True, canonical_only=True):
+    """Build the full locus dict and persist it to the pickle cache.
+
+    Intended for `setup-genome` so downstream runs (and SLURM tasks) load the
+    coordinate dict from pickle instead of re-traversing the gff database. The
+    full-dict build inside `get_locus_to_data_dict` writes the cache itself; a
+    fresh gff db (e.g. `setup-genome --force`) is newer than any old pickle, so
+    the stale cache is bypassed and rewritten. Returns the cache path.
+    """
+    get_locus_to_data_dict(
+        include_introns=include_introns, gene_subset=None, genome=genome, canonical_only=canonical_only
+    )
+    return _locus_cache_path(genome, include_introns, canonical_only)
+
+
 def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh38", canonical_only=True):
     """GFF3-based genome loader. Builds a {gene_name: LocusInfo} dict.
 
@@ -52,6 +135,19 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     across all canonical chromosomes.  This is deterministic but not
     biologically motivated; such genes are generally not ASO targets.
     """
+    # Wishful load: the cache holds the FULL coordinate-only dict. A subset
+    # request is served by filtering it in memory (the global lowest-start dedup
+    # is independent of the subset, so this matches a fresh subset build).
+    cache_path = _locus_cache_path(genome, include_introns, canonical_only)
+    cached = _load_locus_cache(cache_path, genome)
+    if cached is not None:
+        if not gene_subset:
+            return cached
+        target_names = set(gene_subset)
+        subset = defaultdict(LazyLocusInfo)
+        subset.update({name: locus for name, locus in cached.items() if name in target_names})
+        return subset
+
     UTR_FEATURE_TYPES = (
         "five_prime_UTR",
         "three_prime_UTR",
@@ -66,11 +162,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
     db = load_gff_db(genome)
     logger.debug("[Get_Locus] Loaded annotation database.")
 
-    logger.debug("[Get_Locus] Loading fasta dict")
-    fasta_dict = load_genome(genome)
-    logger.debug("[Get_Locus] Loaded fasta dict.")
-
-    locus_to_data = defaultdict(LocusInfo)
+    locus_to_data = defaultdict(LazyLocusInfo)
     target_names = set(gene_subset) if gene_subset else None
     duplicate_counts: dict[str, int] = {}
 
@@ -92,12 +184,11 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         locus_info = locus_to_data[locus_tag]
         locus_info.strand = StrandType.from_string(gene.strand)
 
-        seq = str(fasta_dict[chrom][gene.start - 1 : gene.end])
-        seq = get_antisense_u(seq) if locus_info.strand == StrandType.NEG else seq.upper()
-
+        locus_info.chrom = chrom
+        locus_info.genome = genome
         locus_info.gene_start = gene.start - 1
         locus_info.gene_end = gene.end
-        locus_info.full_mrna = seq
+        # full_mrna is fetched lazily from the FASTA on first access (LazyLocusInfo).
         locus_info.gene_type = GeneType.from_string(_get_gene_type_gff(gene))
 
         if canonical_only:
@@ -188,6 +279,10 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             locus_info._3utr_indices.reverse()
             if include_introns:
                 locus_info._intron_indices.reverse()
+
+    # Only the full dict is a valid cache; a subset build is partial.
+    if not gene_subset:
+        _save_locus_cache(cache_path, locus_to_data)
 
     return locus_to_data
 

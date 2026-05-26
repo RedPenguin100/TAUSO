@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 
-from setuptools import find_packages, setup
+from setuptools import setup
 from setuptools.command.build_py import build_py
 from setuptools.command.egg_info import egg_info
 
@@ -95,16 +95,12 @@ class CustomEggInfo(egg_info):
         super().run()
 
 
+# All static metadata (name, version, packages, package-data, etc.) lives in
+# pyproject.toml. setup.py exists only to compile the bundled RISearch binary
+# at build time via the custom build hooks below.
 setup(
-    name="tauso",
-    version="1.0.0",
-    package_dir={"": "src"},
-    packages=find_packages(where="src"),
     cmdclass={
         "build_py": CustomBuild,
         "egg_info": CustomEggInfo,
     },
-    # Update package_data to include the 'out/' prefix
-    package_data={PACKAGE_NAME: [f"out/{BINARY_NAME}", f"features/context/*.bw"]},
-    include_package_data=True,
 )

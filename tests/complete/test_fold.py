@@ -3,33 +3,27 @@ import logging
 import pytest
 
 from tauso.populate.populate_fold import (
+    DEFAULT_SENSE_CONFIGURATION,
     populate_mfe_features,
-    populate_sense_accessibility_batch,
+    populate_sense_accessibility_multi,
 )
 from tests.complete.conftest import get_n_jobs
 
 
-ACCESS_CONFIGURATIONS = [
-    {"flank": 120, "access": 20, "seeds": [13]},
-    {"flank": 120, "access": 13, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 20, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 13, "seeds": [13, 26, 39]},
-]
-
-
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
-@pytest.mark.parametrize("config", ACCESS_CONFIGURATIONS)
-def test_access(mini_sampled_data, gene_to_data, config, dataframe_regression):
-    data, feature_name = populate_sense_accessibility_batch(
+def test_access(mini_sampled_data, gene_to_data, dataframe_regression):
+    data, feature_names = populate_sense_accessibility_multi(
         mini_sampled_data,
         gene_to_data,
+        configs=DEFAULT_SENSE_CONFIGURATION,
         batch_size=250,
-        flank_size=config["flank"],
-        access_size=config["access"],
-        seed_sizes=config["seeds"],
         n_jobs=get_n_jobs(),
     )
-    dataframe_regression.check(data[["index_oligo", feature_name]])
+    for idx, feature_name in enumerate(feature_names):
+        dataframe_regression.check(
+            data[["index_oligo", feature_name]],
+            basename=f"test_access_config{idx}_1000_",
+        )
 
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)

@@ -5,10 +5,21 @@ import pandas as pd
 import psutil
 from pympler import asizeof
 
-from ...data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
-from ...features.feature_extraction import save_feature_internal
-from ...features.names import *
+from ...data.consts import (
+    CANONICAL_GENE,
+    CELL_LINE_DEPMAP,
+    SENSE_3UTR,
+    SENSE_5UTR,
+    SENSE_EXON,
+    SENSE_INTRON,
+    SENSE_LENGTH,
+    SENSE_START,
+    SENSE_START_FROM_END,
+    SENSE_TYPE,
+    SENSE_UTR,
+)
 from ...timer import Timer
+from ..feature_cache import save_feature_internal
 from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
     populate_special_gene_expression,
@@ -189,15 +200,15 @@ class Calculator:
 
     def calculate_structure(self):
         expected_features = [
-            "sense_start",
-            "sense_start_from_end",
-            "sense_length",
+            SENSE_START,
+            SENSE_START_FROM_END,
+            SENSE_LENGTH,
             SENSE_EXON,
             SENSE_INTRON,
             SENSE_UTR,
             SENSE_3UTR,
             SENSE_5UTR,
-            "sense_type",
+            SENSE_TYPE,
             f"n_{SENSE_EXON}",
             f"n_{SENSE_INTRON}",
             f"n_{SENSE_3UTR}",
@@ -297,7 +308,7 @@ class Calculator:
         if missing:
             logger.info("Computing specific off-target features...")
 
-            from tauso.features.hybridization_off_target.off_target_specific_gene import (
+            from tauso.features.hybridization.off_target.off_target_specific_gene import (
                 off_target_specific_seq_pandarallel,
             )
 
@@ -306,11 +317,12 @@ class Calculator:
             cutoffs = [1200, 0]
             targets = ["RNASEH1", "ACTB"]
 
+            # All cutoffs for a gene come from ONE RIsearch pass per ASO batch.
             for target_gene in targets:
-                for cutoff in cutoffs:
-                    self.data, feature_name = off_target_specific_seq_pandarallel(
-                        self.data, target_gene, gene_to_data_full, cutoff=cutoff, n_jobs=self.cpus, verbose=True
-                    )
+                self.data, feature_names = off_target_specific_seq_pandarallel(
+                    self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus
+                )
+                for feature_name in feature_names:
                     self._save_calculated_feature(feature_name=feature_name)
         else:
             logger.info("All specific off-target features exist. Skipping.")
@@ -325,20 +337,19 @@ class Calculator:
         if missing:
             logger.info("Computing %d on-target hybridization features...", len(missing))
 
-            from tauso.features.hybridization_off_target.off_target_specific_gene import on_target_total_hybridization
+            from tauso.features.hybridization.off_target.off_target_specific_gene import on_target_total_hybridization
 
             # Optimization: We can reuse the lean dictionary because on-target
             # only evaluates against the canonical gene of each row.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-            for cutoff in cutoffs:
-                feature_name = f"on_target_total_hybridization_{cutoff}"
-                if feature_name in missing:
-                    self.data, generated_name = on_target_total_hybridization(
-                        self.data, gene_to_data, cutoff=cutoff, n_jobs=self.cpus, verbose=True
-                    )
-                    logger.debug("Generated name: %s", generated_name)
-                    logger.debug("Feature name: %s", feature_name)
+            # All cutoffs come from ONE RIsearch pass per (gene, ASO batch).
+            needed_cutoffs = [c for c in cutoffs if f"on_target_total_hybridization_{c}" in missing]
+            if needed_cutoffs:
+                self.data, generated_names = on_target_total_hybridization(
+                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
+                )
+                for feature_name in generated_names:
                     self._save_calculated_feature(feature_name=feature_name)
         else:
             logger.info("All on-target hybridization features exist. Skipping.")
@@ -353,8 +364,6 @@ class Calculator:
 
         missing = self._get_missing_features(expected_features)
 
-        from tauso.data.consts import SENSE_LENGTH, SENSE_START
-
         if missing:
             logger.info("Computing %d MFE features...", len(missing))
 
@@ -363,18 +372,17 @@ class Calculator:
             # Reuse the lean dictionary
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-            for setting in DEFAULT_SETTINGS:
-                f, w, s = setting
-                feature_name = f"mfe_win{w}_flank{f}_step{s}"
+            # Compute every missing setting in one pass: populate_mfe_features groups
+            # settings that share a (flank, window) so their folds are computed once,
+            # and the parallel dispatch is paid a single time instead of per setting.
+            missing_settings = [(f, w, s) for f, w, s in DEFAULT_SETTINGS if f"mfe_win{w}_flank{f}_step{s}" in missing]
 
-                # Only run the heavy computation if this specific setting is missing
-                if feature_name in missing:
-                    self.data, generated_features = populate_mfe_features(
-                        self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=[setting]
-                    )
+            self.data, generated_features = populate_mfe_features(
+                self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
+            )
 
-                    for feature in generated_features:
-                        self._save_calculated_feature(feature_name=feature)
+            for feature in generated_features:
+                self._save_calculated_feature(feature_name=feature)
         else:
             logger.info("All MFE features exist. Skipping.")
 
@@ -611,8 +619,6 @@ class Calculator:
 
         logger.info("Computing Codon Usage Bias (CUB) features...")
 
-        from tauso.data.consts import SENSE_START
-
         self._check_dependencies([SENSE_START])
 
         # 4. Load the shared heavy dependencies EXACTLY ONCE
@@ -649,8 +655,8 @@ class Calculator:
 
     def calculate_off_target_general(self):
         """Calculates general off-target hybridization scores."""
-        from tauso.features.hybridization_off_target.add_off_target_feat import AggregationMethod
-        from tauso.features.hybridization_off_target.off_target_feature import serialize_feature_name
+        from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
+        from tauso.populate.populate_off_target import serialize_feature_name
 
         # Define the parameter spaces
         methods = [AggregationMethod.ARTM, AggregationMethod.MECH]
@@ -665,7 +671,7 @@ class Calculator:
 
         if missing:
             logger.info("Computing %d general off-target features...", len(missing))
-            from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_general
+            from tauso.populate.populate_off_target import populate_off_target_general
 
             # Load the heavy dictionaries (happens instantly if already in memory)
             gene_to_data = self.cache.get_full_gene_data()
@@ -675,17 +681,23 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            for method, top_n, cutoff in configs:
-                feat_name = serialize_feature_name(method, top_n, cutoff, is_specific=False)
+            # All cutoffs for a given (method, top_n) come from ONE RIsearch pass per
+            # chunk, so group the work by (method, top_n) and derive every missing
+            # cutoff together instead of re-running RIsearch per cutoff.
+            for method in methods:
+                for top_n in top_ns:
+                    needed_cutoffs = [
+                        c for c in cutoffs if serialize_feature_name(method, top_n, c, is_specific=False) in missing
+                    ]
+                    if not needed_cutoffs:
+                        continue
 
-                # Only execute if this specific configuration is missing
-                if feat_name in missing:
                     self.data, generated_features = populate_off_target_general(
                         ASO_df=self.data,
                         gene_to_data=gene_to_data,
                         cell_line2data=transcriptomes,
                         top_n_list=[top_n],
-                        cutoff_list=[cutoff],
+                        cutoff_list=needed_cutoffs,
                         method=method,
                         n_jobs=self.cpus,
                     )
@@ -697,8 +709,8 @@ class Calculator:
 
     def calculate_off_target_specific(self):
         """Calculates cell-line specific off-target hybridization scores."""
-        from tauso.features.hybridization_off_target.add_off_target_feat import AggregationMethod
-        from tauso.features.hybridization_off_target.off_target_feature import serialize_feature_name
+        from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
+        from tauso.populate.populate_off_target import serialize_feature_name
 
         method = AggregationMethod.ARTM
         top_n_list = [50, 100, 200]
@@ -713,7 +725,7 @@ class Calculator:
 
         if missing:
             logger.info("Computing %d specific off-target features...", len(missing))
-            from tauso.features.hybridization_off_target.off_target_feature import populate_off_target_specific
+            from tauso.populate.populate_off_target import populate_off_target_specific
 
             gene_to_data = self.cache.get_full_gene_data()
             self._check_dependencies([CELL_LINE_DEPMAP])
@@ -721,23 +733,27 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
+            # All cutoffs for a given top_n come from ONE RIsearch pass per (cell_line,
+            # chunk, shard), so derive every missing cutoff together per top_n.
             for top_n in top_n_list:
-                for cutoff in cutoff_list:
-                    feat_name = serialize_feature_name(method, top_n, cutoff, is_specific=True)
+                needed_cutoffs = [
+                    c for c in cutoff_list if serialize_feature_name(method, top_n, c, is_specific=True) in missing
+                ]
+                if not needed_cutoffs:
+                    continue
 
-                    if feat_name in missing:
-                        self.data, generated_features = populate_off_target_specific(
-                            ASO_df=self.data,
-                            gene_to_data=gene_to_data,
-                            cell_line2data=transcriptomes,
-                            top_n_list=[top_n],
-                            cutoff_list=[cutoff],
-                            method=method,
-                            n_jobs=self.cpus,
-                        )
+                self.data, generated_features = populate_off_target_specific(
+                    ASO_df=self.data,
+                    gene_to_data=gene_to_data,
+                    cell_line2data=transcriptomes,
+                    top_n_list=[top_n],
+                    cutoff_list=needed_cutoffs,
+                    method=method,
+                    n_jobs=self.cpus,
+                )
 
-                        for feature in generated_features:
-                            self._save_calculated_feature(feature_name=feature)
+                for feature in generated_features:
+                    self._save_calculated_feature(feature_name=feature)
         else:
             logger.info("All specific off-target features exist. Skipping.")
 
@@ -754,7 +770,7 @@ class Calculator:
 
             self._check_dependencies([CANONICAL_GENE, CELL_LINE])
 
-            from tauso.features.context.mrna_halflife import populate_mrna_halflife_features
+            from tauso.populate.populate_mrna_halflife import populate_mrna_halflife_features
 
             # 1. Lazy load the provider
             provider = self.cache.get_halflife_provider()
@@ -865,7 +881,7 @@ class Calculator:
             import pandas as pd
             from pandas.errors import PerformanceWarning
 
-            from tauso.features.rbp.RBP_features import create_positional_sequence_columns
+            from tauso.features.rbp.rbp_features import create_positional_sequence_columns
 
             warnings.simplefilter(action="ignore", category=PerformanceWarning)
             warnings.simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)

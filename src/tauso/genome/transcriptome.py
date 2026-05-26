@@ -4,7 +4,7 @@ from pathlib import Path
 from ..common.gtf import filter_gtf_genes
 from ..data.data import get_data_dir, load_gtf_db
 from ..features.codon_usage.find_cai_reference import load_cell_line_gene_expression
-from ..features.hybridization_off_target.common import get_general_expression_of_genes
+from ..features.expression.general_expression import get_general_expression_of_genes
 
 
 def load_transcriptomes(cell_lines_depmap):
