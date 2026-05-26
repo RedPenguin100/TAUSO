@@ -1,14 +1,14 @@
 """TAUSO-side glue for PFRED.
 
 The tauso-FREE PFRED runner lives in the PFREDIntegration submodule
-(``notebooks/competitors/PFREDIntegration/integration/pfred_runner.py``). This module
+(``notebooks/competitors/PFRED/PFREDIntegration/integration/pfred_runner.py``). This module
 wires it to TAUSO: load the oligo dataset, score it via the runner, write the
 ``PFRED_SVM`` / ``PFRED_PLS`` features into the TAUSO feature store, and evaluate per
 cohort. The runner functions are re-exported here so callers import everything from one
-place (``notebooks.competitors.pfred_glue``).
+place (``notebooks.competitors.PFRED.pfred_glue``).
 
 If the import below fails, the submodule isn't initialized:
-    git submodule update --init notebooks/competitors/PFREDIntegration
+    git submodule update --init notebooks/competitors/PFRED/PFREDIntegration
 """
 
 import sys
@@ -21,7 +21,7 @@ _RUNNER_DIR = Path(__file__).resolve().parent / "PFREDIntegration" / "integratio
 if not (_RUNNER_DIR / "pfred_runner.py").exists():
     raise ImportError(
         "PFREDIntegration submodule not initialized — the PFRED runner is missing.\n"
-        "Run: git submodule update --init notebooks/competitors/PFREDIntegration"
+        "Run: git submodule update --init notebooks/competitors/PFRED/PFREDIntegration"
     )
 sys.path.insert(0, str(_RUNNER_DIR))
 from pfred_runner import populate_pfred, score_sequences, validate_docker_container  # noqa: E402,F401

@@ -5,5 +5,5 @@
 	path = notebooks/competitors/OligoAI/OligoAI
 	url = https://github.com/RedPenguin100/OligoAI
 [submodule "notebooks/competitors/PFREDIntegration"]
-	path = notebooks/competitors/PFREDIntegration
+	path = notebooks/competitors/PFRED/PFREDIntegration
 	url = https://github.com/RedPenguin100/PFREDIntegration.git
