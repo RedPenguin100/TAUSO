@@ -26,44 +26,42 @@ iGEM project.
 * Features include GC content, hybridization, RNA accessibility, folding, and toxicity heuristics.
 * Tool to download genomic sequences, annotations, and index them with `bowtie`.
 
-## Installation for python users
+## Getting Started
 
-The best way to use the library is with a separate conda environment
+**→ New users: See [Quick Start Guide](documentation/QUICKSTART.md) for step-by-step instructions.**
 
-* `conda env create -f environment.yml`
-* `conda activate tauso`
-* `pip install -e .`
+## Installation
 
-## Commands and setup
+```bash
+# One command - installs everything
+mamba env create -f environment-dev.yml
+mamba activate tauso
+```
 
-The tool allows you to install genomes easily and index them. Every command has a `--help` option.
+**→ Complete guide:** [Installation Guide](documentation/INSTALLATION.md)
 
-`tauso setup-raccess` - Install a folding prediction tool named raccess. Distribution of the code is prohibited, so
-the user has to install manually. **This command is necessary to run the tool**
+## Data Setup
 
-`tauso setup-genome` - download the genome and annotation files. Currently, GRCh38 and GRCm39 are supported. Can take
-5-10+ minutes. **This command is necessary to run the tool**
+Features are computed against a locally built genome, off-target index, and omics datasets — on the order of 10 GB,
+most of it the genome and the bowtie off-target index. The build is dominated by downloading the genome and indexing
+it; budget the better part of an hour.
 
-`tauso setup-bowtie` - after running `setup-genome`, you may run this command to index the genome. May take 30-60+
-minutes.
+```bash
+tauso setup-all              # genome, bowtie off-target index, omics, raccess
+tauso build-cell-context     # per-cell expression + CAI weights + tGCN
+```
 
-`tauso run-off-target` - After running both `setup-genome` and `setup-bowtie`, you may analyze off-targets and limit the
-mismatches, with useful annotation about each off-target (intergenic, exonic, intronic regions).
+**→ Complete guide:** [Data Setup Guide](documentation/DATA_SETUP.md)
 
-NOTE: In the future we plan to write an article about better off-target analysis, this will be posted in a separate
-paper.
+## Usage
 
-## Functions
+The pipeline ranks MOE (20-mer) and LNA (16-mer) candidates against a target, with a per-feature breakdown and
+off-target analysis. Feature computation is the bottleneck in this version — a full target can take tens of minutes —
+and performance work is ongoing.
 
-Our main function, the `design_asos` function. **NOTE** this function can be slow, with runtime over 30 min. Calculating
-the features is not quick in this version of the tool, stay tuned for the article.
-
-# TODO: Improve documentation for the design_asos function.
-
-
-* Set the `custom_sequence` variable to run an exogenous / mutated gene analysis.
-* With `include_details=True`, additional columns will appear with more thorough breakdown. On by default.
-* While the API is not settled, many features exist under `tauso.features`, ready to be explored by the user.
+The public API is not yet settled. Feature implementations live under `tauso.features` and can be explored directly.
+Pass a `custom_sequence` to analyze an exogenous or mutated target. A documented, stable entry point will accompany
+the article.
 
 ## Collaborations
 

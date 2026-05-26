@@ -40,7 +40,7 @@ cd "$REPO"
 
 if ! "$MM" env list | grep -q "$ENV"; then
   echo ">>> creating env '$ENV' from conda-linux-64-dev.lock (explicit, pinned)"
-  "$MM" create -y -n "$ENV" -f conda-linux-64-dev.lock
+  "$MM" create -y -n "$ENV" --file conda-linux-64-dev.lock
 else
   echo ">>> env '$ENV' already exists; skipping create"
 fi
