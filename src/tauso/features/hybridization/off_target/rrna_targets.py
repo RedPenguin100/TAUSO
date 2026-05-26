@@ -25,10 +25,7 @@ RRNA_ACCESSIONS = {
     "rRNA_5S": ("NR_023363.1", 119),
 }
 
-_EFETCH_URL = (
-    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-    "?db=nuccore&id={acc}&rettype=fasta&retmode=text"
-)
+_EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id={acc}&rettype=fasta&retmode=text"
 
 
 def reference_path() -> Path:
