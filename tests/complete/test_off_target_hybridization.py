@@ -70,11 +70,7 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_full, da
 
 @pytest.fixture(scope="session")
 def mini_seq_data():
-    """Lightweight 1000-oligo sample (sequence + index only) for rRNA scoring.
-
-    rRNA scoring needs only the ASO sequence, so this avoids the heavy structure/genome
-    fixtures (and the CPU they spend) used by the other regression tests.
-    """
+    """Lightweight 1000-oligo sample (sequence + index) — rRNA scoring needs only the sequence."""
     import pandas as pd
 
     from notebooks.consts import OLIGO_CSV_INDEXED
@@ -85,9 +81,7 @@ def mini_seq_data():
 
 
 def test_off_target_single_rrna_regression(mini_seq_data, dataframe_regression):
-    """Regression for the cytoplasmic rRNA off-target features + aggregated total across the
-    shipped cutoffs. Skips if the rRNA reference FASTA hasn't been fetched into the data dir.
-    """
+    """rRNA off-target features + aggregated total across the shipped cutoffs. Skips if FASTA absent."""
     from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS, get_rrna_loci
 
     try:
@@ -108,19 +102,14 @@ def test_off_target_single_rrna_regression(mini_seq_data, dataframe_regression):
         total_col = f"off_target_single_rRNA_total_c{cutoff}"
         data[total_col] = data[[f"off_target_single_{sp}_c{cutoff}" for sp in rrna_species]].sum(axis=1)
         feature_names.append(total_col)
-    # Tolerance mirrors test_off_target_specific_regression: parallel-thread aggregation
-    # (and parser internals) can produce floating-point differences ~1e-5.
+    # FP-tolerant (parallel aggregation / parser wobble ~1e-5), as in test_off_target_specific_regression.
     dataframe_regression.check(
         data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4}
     )
 
 
 def test_rrna_off_target_binder_vs_random():
-    """Fast deterministic guard for the rRNA off-target wiring: an ASO complementary to
-    18S scores > 0, a random one ~0. No heavy fixtures, runs in well under a second.
-
-    Skips if the rRNA reference FASTA hasn't been fetched into the data dir.
-    """
+    """Fast guard: an ASO complementary to 18S scores >0, a random one ~0. Skips if FASTA absent."""
     import pandas as pd
 
     from tauso.data.consts import SEQUENCE

@@ -294,16 +294,10 @@ class Calculator:
             logger.info("All RNase H features exist. Skipping.")
 
     def calculate_off_target_single(self):
-        """Calculates specific-gene off-target features: RNase H1 + cytoplasmic rRNA.
+        """Off-target features for RNase H1 + cytoplasmic rRNA (18S/5.8S/28S/5S) and their sum.
 
-        Targets the RNase H1 gene plus the mature cytoplasmic rRNA species
-        (18S/5.8S/28S/5S) and their aggregated sum (off_target_single_rRNA_total).
-        The rRNA targets capture the RiboGreen / total-RNA normalization confound:
-        18S+28S are absent from GRCh38 (the 45S rDNA repeat lives in the unassembled
-        acrocentric NORs) and all rRNA is ~zero-weighted by rRNA-depleted RNA-seq, so
-        the general/specific off-target features miss it entirely (see rrna_targets.py).
-        Scored across several cutoffs because the rRNA signal is strongest at low
-        cutoffs (~c800). ACTB was dropped (no clear biological rationale as a target).
+        rRNA captures the RiboGreen/total-RNA assay confound the transcriptome off-target
+        features miss (see rrna_targets.py). Needs the rRNA reference: run `tauso setup-rrna`.
         """
         from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS
 
@@ -321,12 +315,9 @@ class Calculator:
             from tauso.features.hybridization.off_target.off_target_specific_gene import (
                 off_target_specific_seq_pandarallel,
             )
-            from tauso.features.hybridization.off_target.rrna_targets import fetch_rrna_reference, get_rrna_loci
+            from tauso.features.hybridization.off_target.rrna_targets import get_rrna_loci
 
-            # Lazy load the BIG dictionary, then inject the rRNA RefSeq sequences as
-            # extra targets (they are not in GRCh38) without clobbering real genes.
-            # fetch_rrna_reference is idempotent — ensures the reference FASTA exists.
-            fetch_rrna_reference()
+            # rRNA species are not in GRCh38; inject their RefSeq loci without clobbering real genes.
             gene_to_data_full = self.cache.get_full_gene_data()
             for name, locus in get_rrna_loci().items():
                 gene_to_data_full.setdefault(name, locus)
@@ -338,8 +329,6 @@ class Calculator:
                     )
                     self._save_calculated_feature(feature_name=feature_name)
 
-            # Aggregated rRNA off-target burden: sum across the four species per cutoff.
-            # The per-species columns are present in self.data from the loop above.
             for cutoff in cutoffs:
                 total_col = f"off_target_single_rRNA_total_c{cutoff}"
                 species_cols = [f"off_target_single_{sp}_c{cutoff}" for sp in rrna_species]
