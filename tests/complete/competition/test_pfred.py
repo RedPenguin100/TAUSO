@@ -1,5 +1,5 @@
 import pytest
-from notebooks.competitors.pfred_utils import populate_pfred, validate_docker_container
+from notebooks.competitors.PFRED.pfred_glue import populate_pfred, validate_docker_container
 
 
 @pytest.fixture(scope="session")
