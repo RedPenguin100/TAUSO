@@ -13,11 +13,11 @@ from tests.complete.conftest import get_n_jobs
 
 SINGLE_TARGET_GENES = ["RNASEH1", "ACTB"]
 CUTOFFS = [0, 1200]
-# cutoff=0 emits every weak hit over the whole gene, so it dominates runtime (~26x
-# slower) while a loose 800 pass already exercises the multi-cutoff collapse. The
-# cutoff=0 parse path stays covered by test_on_target_hybridization_regression.
-SINGLE_OFF_TARGET_CUTOFFS = [800, 1200]
-RRNA_CUTOFFS = [0, 800, 1000, 1200, 1500]
+# Production off-target cutoffs (see calculator.calculate_off_target_single). cutoff=0 is
+# intentionally excluded: it emits every weak hit over the whole gene (~26x slower) for
+# little signal; its parse path stays covered by test_on_target_hybridization_regression.
+SINGLE_OFF_TARGET_CUTOFFS = [800, 1000, 1200]
+RRNA_CUTOFFS = [800, 1000, 1200]
 
 
 @pytest.fixture(scope="session")

@@ -301,7 +301,7 @@ class Calculator:
         """
         from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS
 
-        cutoffs = [0, 800, 1000, 1200, 1500]
+        cutoffs = [800, 1000, 1200]
         rrna_species = list(RRNA_ACCESSIONS)
         targets = ["RNASEH1"] + rrna_species
         rrna_total_features = [f"off_target_single_rRNA_total_c{c}" for c in cutoffs]
@@ -672,7 +672,7 @@ class Calculator:
         # Define the parameter spaces
         methods = [AggregationMethod.ARTM, AggregationMethod.MECH]
         top_ns = [25, 50, 100, 200]
-        cutoffs = [1200, 1000, 800]
+        cutoffs = [800, 1000, 1200]
 
         # Generate all combinations dynamically
         configs = [(m, n, c) for m in methods for n in top_ns for c in cutoffs]
