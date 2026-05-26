@@ -346,7 +346,7 @@ def parse_risearch_hits_pyarrow(
     ]
     read_opts = pacsv.ReadOptions(column_names=columns, use_threads=False, block_size=block_size)
     parse_opts = pacsv.ParseOptions(delimiter="\t")
-    type_map = {"trigger": pa.string(), "target": pa.string(), "energy": pa.float64()}
+    type_map = {"trigger": pa.string(), "target": pa.string(), "energy": pa.float64(), "score": pa.int64()}
     convert_opts = pacsv.ConvertOptions(
         include_columns=list(aggregation.columns),
         column_types={col: type_map[col] for col in aggregation.columns},
@@ -427,6 +427,70 @@ def _min_energy_by_pair() -> RisearchAggregation:
 MIN_ENERGY_BY_PAIR = _min_energy_by_pair()
 
 
+def min_energy_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
+    """Off-target score for several cutoffs from ONE loose RIsearch pass.
+
+    Run RIsearch at the loosest cutoff and, in the same streaming pass, keep the
+    min-energy hit per (trigger, target) *separately for each cutoff*, counting a
+    hit toward cutoff ``c`` only when ``score > c``. RIsearch's ``-s`` is exclusive
+    and its cutoffs are nested, so this reproduces N independent per-cutoff runs
+    bit-for-bit (see tests/complete/test_off_target_derivation_equivalence.py).
+
+    Returns ``{cutoff: {(trigger, target): min_energy}}``. Memory is bounded by the
+    number of distinct (cutoff, trigger, target) pairs, not the raw hit count.
+    """
+    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
+
+    def _empty():
+        import pyarrow as pa
+
+        return pa.table(
+            {
+                "cutoff": pa.array([], pa.int64()),
+                "trigger": pa.array([], pa.string()),
+                "target": pa.array([], pa.string()),
+                "energy": pa.array([], pa.float64()),
+            }
+        )
+
+    def combine(batch):
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
+        table = pa.Table.from_batches([batch])
+        parts = []
+        for c in sorted_cutoffs:
+            sub = table.filter(pc.greater(table.column("score"), c))
+            if sub.num_rows == 0:
+                continue
+            agg = (
+                sub.group_by(["trigger", "target"])
+                .aggregate([("energy", "min")])
+                .rename_columns(["trigger", "target", "energy"])
+            )
+            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
+            parts.append(agg.select(["cutoff", "trigger", "target", "energy"]))
+        return pa.concat_tables(parts) if parts else _empty()
+
+    def finalize(table):
+        final = (
+            table.group_by(["cutoff", "trigger", "target"])
+            .aggregate([("energy", "min")])
+            .rename_columns(["cutoff", "trigger", "target", "energy"])
+        )
+        result: dict = {c: {} for c in sorted_cutoffs}
+        for c, trig, tgt, e in zip(
+            final.column("cutoff").to_pylist(),
+            final.column("trigger").to_pylist(),
+            final.column("target").to_pylist(),
+            final.column("energy").to_pylist(),
+        ):
+            result[c][(trig, tgt)] = float(e)
+        return result
+
+    return RisearchAggregation(columns=("trigger", "target", "score", "energy"), combine=combine, finalize=finalize)
+
+
 def sum_exp_by_trigger(rt: float = 0.616) -> RisearchAggregation:
     """Single-target-gene score: Boltzmann-style sum of exp(-rt*energy) over every hit per trigger.
 
@@ -452,6 +516,64 @@ def sum_exp_by_trigger(rt: float = 0.616) -> RisearchAggregation:
         }
 
     return RisearchAggregation(columns=("trigger", "energy"), combine=combine, finalize=finalize)
+
+
+def sum_exp_by_trigger_multi_cutoff(cutoffs, rt: float = 0.616) -> RisearchAggregation:
+    """Single-target-gene score for several cutoffs from ONE loose RIsearch pass.
+
+    Like sum_exp_by_trigger (Boltzmann-style sum of exp(-rt*energy) over every hit per
+    trigger), but keeps that sum separately for each cutoff, counting a hit toward cutoff
+    ``c`` only when ``score > c``. RIsearch's ``-s`` is exclusive and its cutoffs are
+    nested, so this reproduces N independent per-cutoff runs (within FP rounding, since
+    the sum is float-order-dependent — same caveat as sum_exp_by_trigger).
+
+    Returns ``{cutoff: {trigger: sum_exp}}``.
+    """
+    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
+
+    def _empty():
+        import pyarrow as pa
+
+        return pa.table(
+            {
+                "cutoff": pa.array([], pa.int64()),
+                "trigger": pa.array([], pa.string()),
+                "_exp": pa.array([], pa.float64()),
+            }
+        )
+
+    def combine(batch):
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
+        exp_col = pc.exp(pc.multiply(batch.column("energy"), -rt))
+        base = pa.table({"trigger": batch.column("trigger"), "score": batch.column("score"), "_exp": exp_col})
+        parts = []
+        for c in sorted_cutoffs:
+            sub = base.filter(pc.greater(base.column("score"), c))
+            if sub.num_rows == 0:
+                continue
+            agg = sub.group_by("trigger").aggregate([("_exp", "sum")]).rename_columns(["trigger", "_exp"])
+            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
+            parts.append(agg.select(["cutoff", "trigger", "_exp"]))
+        return pa.concat_tables(parts) if parts else _empty()
+
+    def finalize(table):
+        final = (
+            table.group_by(["cutoff", "trigger"])
+            .aggregate([("_exp", "sum")])
+            .rename_columns(["cutoff", "trigger", "_exp"])
+        )
+        result: dict = {c: {} for c in sorted_cutoffs}
+        for c, trig, s in zip(
+            final.column("cutoff").to_pylist(),
+            final.column("trigger").to_pylist(),
+            final.column("_exp").to_pylist(),
+        ):
+            result[c][trig] = float(s)
+        return result
+
+    return RisearchAggregation(columns=("trigger", "score", "energy"), combine=combine, finalize=finalize)
 
 
 def _parse_mfe_scores_2(result):

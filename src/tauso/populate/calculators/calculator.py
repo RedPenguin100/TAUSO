@@ -317,11 +317,12 @@ class Calculator:
             cutoffs = [1200, 0]
             targets = ["RNASEH1", "ACTB"]
 
+            # All cutoffs for a gene come from ONE RIsearch pass per ASO batch.
             for target_gene in targets:
-                for cutoff in cutoffs:
-                    self.data, feature_name = off_target_specific_seq_pandarallel(
-                        self.data, target_gene, gene_to_data_full, cutoff=cutoff, n_jobs=self.cpus, verbose=True
-                    )
+                self.data, feature_names = off_target_specific_seq_pandarallel(
+                    self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus, verbose=True
+                )
+                for feature_name in feature_names:
                     self._save_calculated_feature(feature_name=feature_name)
         else:
             logger.info("All specific off-target features exist. Skipping.")
@@ -342,14 +343,13 @@ class Calculator:
             # only evaluates against the canonical gene of each row.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-            for cutoff in cutoffs:
-                feature_name = f"on_target_total_hybridization_{cutoff}"
-                if feature_name in missing:
-                    self.data, generated_name = on_target_total_hybridization(
-                        self.data, gene_to_data, cutoff=cutoff, n_jobs=self.cpus, verbose=True
-                    )
-                    logger.debug("Generated name: %s", generated_name)
-                    logger.debug("Feature name: %s", feature_name)
+            # All cutoffs come from ONE RIsearch pass per (gene, ASO batch).
+            needed_cutoffs = [c for c in cutoffs if f"on_target_total_hybridization_{c}" in missing]
+            if needed_cutoffs:
+                self.data, generated_names = on_target_total_hybridization(
+                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus, verbose=True
+                )
+                for feature_name in generated_names:
                     self._save_calculated_feature(feature_name=feature_name)
         else:
             logger.info("All on-target hybridization features exist. Skipping.")
@@ -681,17 +681,23 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            for method, top_n, cutoff in configs:
-                feat_name = serialize_feature_name(method, top_n, cutoff, is_specific=False)
+            # All cutoffs for a given (method, top_n) come from ONE RIsearch pass per
+            # chunk, so group the work by (method, top_n) and derive every missing
+            # cutoff together instead of re-running RIsearch per cutoff.
+            for method in methods:
+                for top_n in top_ns:
+                    needed_cutoffs = [
+                        c for c in cutoffs if serialize_feature_name(method, top_n, c, is_specific=False) in missing
+                    ]
+                    if not needed_cutoffs:
+                        continue
 
-                # Only execute if this specific configuration is missing
-                if feat_name in missing:
                     self.data, generated_features = populate_off_target_general(
                         ASO_df=self.data,
                         gene_to_data=gene_to_data,
                         cell_line2data=transcriptomes,
                         top_n_list=[top_n],
-                        cutoff_list=[cutoff],
+                        cutoff_list=needed_cutoffs,
                         method=method,
                         n_jobs=self.cpus,
                     )
@@ -727,23 +733,27 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
+            # All cutoffs for a given top_n come from ONE RIsearch pass per (cell_line,
+            # chunk, shard), so derive every missing cutoff together per top_n.
             for top_n in top_n_list:
-                for cutoff in cutoff_list:
-                    feat_name = serialize_feature_name(method, top_n, cutoff, is_specific=True)
+                needed_cutoffs = [
+                    c for c in cutoff_list if serialize_feature_name(method, top_n, c, is_specific=True) in missing
+                ]
+                if not needed_cutoffs:
+                    continue
 
-                    if feat_name in missing:
-                        self.data, generated_features = populate_off_target_specific(
-                            ASO_df=self.data,
-                            gene_to_data=gene_to_data,
-                            cell_line2data=transcriptomes,
-                            top_n_list=[top_n],
-                            cutoff_list=[cutoff],
-                            method=method,
-                            n_jobs=self.cpus,
-                        )
+                self.data, generated_features = populate_off_target_specific(
+                    ASO_df=self.data,
+                    gene_to_data=gene_to_data,
+                    cell_line2data=transcriptomes,
+                    top_n_list=[top_n],
+                    cutoff_list=needed_cutoffs,
+                    method=method,
+                    n_jobs=self.cpus,
+                )
 
-                        for feature in generated_features:
-                            self._save_calculated_feature(feature_name=feature)
+                for feature in generated_features:
+                    self._save_calculated_feature(feature_name=feature)
         else:
             logger.info("All specific off-target features exist. Skipping.")
 
