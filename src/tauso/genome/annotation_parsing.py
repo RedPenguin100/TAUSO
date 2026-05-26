@@ -1,42 +1,15 @@
+"""Standalone GTF/FASTA parsing helpers and a chromosome-name → accession map.
+
+Lightweight readers used to build cached genome annotations, independent of the main
+genome-loading path in this package.
+"""
+
 import logging
 import pickle
-from io import StringIO
 
-import pandas as pd
 from Bio import SeqIO
 
 logger = logging.getLogger(__name__)
-
-"""
-This file contains helper functions both getting the mRNA sequences and for off-target calculations
-"""
-
-
-def parse_risearch_output(output_str: str) -> pd.DataFrame:
-    columns = [
-        "trigger",
-        "trigger_start",
-        "trigger_end",
-        "target",
-        "target_start",
-        "target_end",
-        "score",
-        "energy",
-    ]
-    df = pd.read_csv(
-        StringIO(output_str.strip()),
-        sep="\t",
-        header=None,
-        names=columns,
-        dtype={"trigger": str},  # keep query IDs as strings for all downstream lookups
-    )
-    return df
-
-
-def aggregate_off_targets(df: pd.DataFrame) -> pd.DataFrame:
-    # Aggregate: sum score (if it's hybridization hits) and take minimum (strongest) energy
-    grouped = df.groupby("target", observed=True).agg({"score": "sum", "energy": "min"}).reset_index()
-    return grouped
 
 
 def parse_gtf(gtf_path, cache_path=None):
@@ -76,23 +49,16 @@ def parse_gtf(gtf_path, cache_path=None):
                     "feature_coords": [],  # will collect all coords for accurate span
                 }
 
-            # Add to appropriate list
             feature_map = {"exon": "exons", "CDS": "cds", "UTR": "utrs"}
             key = feature_map.get(feature)
             if key:
                 annotations[transcript_id][key].append((start, end))
 
-            # Collect for overall start/end calculation
             annotations[transcript_id]["feature_coords"].append((start, end))
-
-    # Now compute correct start/end from all features
 
     for coords in annotations.values():
         all_features = coords["feature_coords"]
-        # Start is the smallest of all 'start' values
         coords["start"] = min(f[0] for f in all_features)
-
-        # End is the largest of all 'end' values
         coords["end"] = max(f[1] for f in all_features)
 
     if cache_path:
