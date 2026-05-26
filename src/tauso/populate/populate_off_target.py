@@ -8,10 +8,7 @@ import pandas as pd
 
 from ..data.consts import CELL_LINE_DEPMAP
 from ..features.hybridization.fast_hybridization import TMP_PATH, dump_target_file
-from ..features.hybridization.off_target.add_off_target_feat import (
-    compute_group_batch,
-    compute_group_batch_multi_cutoff,
-)
+from ..features.hybridization.off_target.add_off_target_feat import compute_group_batch_multi_cutoff
 
 logger = logging.getLogger(__name__)
 
@@ -233,118 +230,5 @@ def populate_off_target_general(
         for _exp_map, target_path in top_n_data.values():
             if os.path.exists(target_path):
                 os.remove(target_path)
-
-    return ASO_df, feature_names
-
-
-def populate_off_target_specific_per_rank(
-    ASO_df,
-    gene_to_data,
-    cell_line2data,
-    max_rank,
-    cutoff_list,
-    method,
-    n_jobs=1,
-    stream=True,
-):
-    """
-    Enriches ASO_df with rank-specific off-target details relative to the specific cell line.
-
-    Instead of summing the Top N genes, this creates columns for the 1st, 2nd, ... Nth
-    highest expressed gene individually.
-
-    Returns 3 columns per Rank/Cutoff combo:
-      1. Score
-      2. Gene Name (String)
-      3. Expression Value (Float)
-
-    When n_jobs > 1, cell lines are processed concurrently.
-
-    stream=True (default) uses the streaming RIsearch parser inside
-    compute_group_batch so per-task peak memory stays bounded regardless of cutoff.
-    """
-    ASO_df = ASO_df.copy()
-    feature_names = []
-    accumulator: dict = {}
-
-    logger.info("Grouping by cell line to calculate specific ranks 1 to %d...", max_rank)
-    groups = list(ASO_df.groupby(CELL_LINE_DEPMAP, observed=True))
-
-    def _process_cell_line(cell_line, group_df):
-        """Returns partial {col_name: series} for one cell line."""
-        partial: dict = {}
-        if cell_line not in cell_line2data:
-            logger.warning("Warning! missing cell line: %s", cell_line)
-            return partial
-
-        specific_df = cell_line2data[cell_line].head(max_rank)
-        norm_col = next(
-            (c for c in specific_df.columns if "expression_norm" in c),
-            "expression_norm",
-        )
-
-        for rank_idx in range(max_rank):
-            logger.debug("Rank: %d", rank_idx)
-            if rank_idx >= len(specific_df):
-                continue
-
-            gene_row = specific_df.iloc[rank_idx]
-            gene_name = gene_row["Gene"].split()[0]
-            logger.debug("Analyzing gene: %s", gene_name)
-
-            if gene_name not in gene_to_data:
-                continue
-
-            exp_val_tuple = (
-                gene_row.get("expression_TPM", 0),
-                gene_row.get(norm_col, gene_row.get("expression_norm", 0)),
-            )
-            exp_val_scalar = exp_val_tuple[1]
-            single_seq_map = {gene_name: gene_to_data[gene_name].full_mrna}
-            single_exp_map = {gene_name: exp_val_tuple}
-            current_rank = rank_idx + 1
-
-            for cutoff in cutoff_list:
-                base_col = f"OT_Spec_Rank{current_rank}_c{cutoff}"
-                col_score = f"{base_col}_Score"
-                col_gene = f"{base_col}_Gene"
-                col_exp = f"{base_col}_Exp"
-
-                scores = compute_group_batch(group_df, single_seq_map, single_exp_map, cutoff, method, stream=stream)
-                partial.setdefault(col_score, []).append(scores)
-                partial.setdefault(col_gene, []).append(pd.Series([gene_name] * len(group_df), index=group_df.index))
-                partial.setdefault(col_exp, []).append(
-                    pd.Series([exp_val_scalar] * len(group_df), index=group_df.index)
-                )
-
-        return partial
-
-    if n_jobs > 1 and len(groups) > 1:
-        with ThreadPoolExecutor(max_workers=min(n_jobs, len(groups))) as pool:
-            futures = [pool.submit(_process_cell_line, cl, gdf) for cl, gdf in groups]
-            for fut in futures:
-                for col, series_list in fut.result().items():
-                    accumulator.setdefault(col, []).extend(series_list)
-    else:
-        for cell_line, group_df in groups:
-            for col, series_list in _process_cell_line(cell_line, group_df).items():
-                accumulator.setdefault(col, []).extend(series_list)
-
-    # Track feature names in rank/cutoff order (not cell_line order)
-    for rank_idx in range(max_rank):
-        current_rank = rank_idx + 1
-        for cutoff in cutoff_list:
-            base_col = f"OT_Spec_Rank{current_rank}_c{cutoff}"
-            for suffix in ("_Score", "_Gene", "_Exp"):
-                col = base_col + suffix
-                if col in accumulator:
-                    feature_names.append(col)
-
-    logger.debug("Reassembling chunks...")
-    for col_name, chunks in accumulator.items():
-        if chunks:
-            ASO_df[col_name] = pd.concat(chunks).reindex(ASO_df.index)
-        else:
-            ASO_df[col_name] = np.nan
 
     return ASO_df, feature_names

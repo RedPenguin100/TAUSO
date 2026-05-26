@@ -29,9 +29,8 @@ from tauso.features.hybridization.fast_hybridization import (
     TMP_PATH,
     Interaction,
     dump_target_file,
-    get_triggers_mfe_scores_batch,
+    risearch_hits_dataframe,
 )
-from tauso.features.hybridization.off_target.off_target_functions import parse_risearch_output
 from tauso.util import get_antisense
 
 LOOSE_CUTOFF = 800
@@ -41,19 +40,14 @@ _SORT_COLS = ["trigger", "target", "trigger_start", "target_start", "score", "en
 
 
 def _run(query_pairs, target_path, cutoff):
-    """One real RIsearch batch call -> parsed hit DataFrame (8 columns)."""
-    raw = get_triggers_mfe_scores_batch(
-        trigger_id_seq_pairs=query_pairs,
-        target_file_path=target_path,
+    """One real RIsearch batch call -> raw hit DataFrame (8 columns)."""
+    return risearch_hits_dataframe(
+        query_pairs,
+        target_path,
         minimum_score=cutoff,
         parsing_type="2",
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         transpose=True,
-    )
-    return (
-        parse_risearch_output(raw)
-        if raw.strip()
-        else pd.DataFrame(columns=parse_risearch_output("0\t0\t0\tx\t0\t0\t0\t0").columns)
     )
 
 

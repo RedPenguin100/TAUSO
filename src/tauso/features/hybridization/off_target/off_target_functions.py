@@ -1,42 +1,13 @@
 import logging
 import pickle
-from io import StringIO
 
-import pandas as pd
 from Bio import SeqIO
 
 logger = logging.getLogger(__name__)
 
 """
-This file contains helper functions both getting the mRNA sequences and for off-target calculations
+This file contains helper functions for getting the mRNA sequences (GTF/FASTA parsing).
 """
-
-
-def parse_risearch_output(output_str: str) -> pd.DataFrame:
-    columns = [
-        "trigger",
-        "trigger_start",
-        "trigger_end",
-        "target",
-        "target_start",
-        "target_end",
-        "score",
-        "energy",
-    ]
-    df = pd.read_csv(
-        StringIO(output_str.strip()),
-        sep="\t",
-        header=None,
-        names=columns,
-        dtype={"trigger": str},  # keep query IDs as strings for all downstream lookups
-    )
-    return df
-
-
-def aggregate_off_targets(df: pd.DataFrame) -> pd.DataFrame:
-    # Aggregate: sum score (if it's hybridization hits) and take minimum (strongest) energy
-    grouped = df.groupby("target", observed=True).agg({"score": "sum", "energy": "min"}).reset_index()
-    return grouped
 
 
 def parse_gtf(gtf_path, cache_path=None):
