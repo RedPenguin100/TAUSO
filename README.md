@@ -42,25 +42,26 @@ mamba activate tauso
 
 ## Data Setup
 
+Features are computed against a locally built genome, off-target index, and omics datasets — on the order of 10 GB,
+most of it the genome and the bowtie off-target index. The build is dominated by downloading the genome and indexing
+it; budget the better part of an hour.
+
 ```bash
-# Quick setup (1-2 hours)
-tauso setup-all              # Genome, bowtie, omics, raccess
-tauso build-cell-context     # Cell-line expression + CAI weights
+tauso setup-all              # genome, bowtie off-target index, omics, raccess
+tauso build-cell-context     # per-cell expression + CAI weights + tGCN
 ```
 
 **→ Complete guide:** [Data Setup Guide](documentation/DATA_SETUP.md)
 
-## Functions
+## Usage
 
-Our main function, the `design_asos` function. **NOTE** this function can be slow, with runtime over 30 min. Calculating
-the features is not quick in this version of the tool, stay tuned for the article.
+The pipeline ranks MOE (20-mer) and LNA (16-mer) candidates against a target, with a per-feature breakdown and
+off-target analysis. Feature computation is the bottleneck in this version — a full target can take tens of minutes —
+and performance work is ongoing.
 
-# TODO: Improve documentation for the design_asos function.
-
-
-* Set the `custom_sequence` variable to run an exogenous / mutated gene analysis.
-* With `include_details=True`, additional columns will appear with more thorough breakdown. On by default.
-* While the API is not settled, many features exist under `tauso.features`, ready to be explored by the user.
+The public API is not yet settled. Feature implementations live under `tauso.features` and can be explored directly.
+Pass a `custom_sequence` to analyze an exogenous or mutated target. A documented, stable entry point will accompany
+the article.
 
 ## Collaborations
 

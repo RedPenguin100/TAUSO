@@ -1,119 +1,37 @@
 # TAUSO Quick Start
 
-Get TAUSO running in under 5 minutes (plus data download time).
+The short path from a clean machine to a working TAUSO. For the reasoning behind each step, follow the linked guides.
 
----
-
-## 1. Install (2 minutes)
+## 1. Install
 
 ```bash
-# Create environment and install TAUSO
 mamba env create -f environment-dev.yml
 mamba activate tauso
-
-# Verify
-python -c "import tauso; print('✓ TAUSO installed')"
+python -c "import tauso; print(tauso.__file__)"
 ```
 
-**Need help?** → [Installation Guide](INSTALLATION.md)
+Building the environment downloads a large dependency set and takes several minutes. See [Installation](INSTALLATION.md) for the runtime-only and reproducible variants.
 
----
+## 2. Choose a data directory
 
-## 2. Set Data Directory (Optional)
+A full data setup is on the order of 10 GB. Decide where it lives **before** step 3, or it goes to `~/.local/share/tauso`:
 
 ```bash
-# Set custom location (environment-specific)
 mamba env config vars set TAUSO_DATA_DIR=/path/to/your/data
 mamba deactivate && mamba activate tauso
 ```
 
-**Default:** `~/.local/share/tauso`
-
----
-
-## 3. Download Data (1-2 hours)
+## 3. Download and build the data
 
 ```bash
-# One command - downloads everything
-tauso setup-all
-
-# Build cell context
-tauso build-cell-context
+tauso setup-all            # genome + bowtie off-target index + omics + raccess
+tauso build-cell-context   # per-cell expression, CAI weights, human tGCN
 ```
 
-**What this does:**
-- Downloads human genome (GRCh38) + annotations (~3 GB)
-- Builds bowtie index for off-target search (~4 GB)
-- Downloads omics data (DepMap, mRNA half-life, etc.) (~1 GB)
-- Installs raccess (RNA folding tool)
-- Builds cell-line expression profiles
+Most of the time here is the genome download and the off-target index build — expect the better part of an hour. Pass `-t $(nproc)` to `setup-all` to parallelize indexing. See [Data Setup](DATA_SETUP.md) for the step-by-step path and what each dataset is for.
 
-**Need step-by-step?** → [Data Setup Guide](DATA_SETUP.md)
+## Next
 
----
-
-## 4. Verify Setup
-
-```bash
-# Check data directory
-python -c "from tauso.data.data import get_data_dir; print('Data:', get_data_dir())"
-
-# Test off-target search
-tauso run-off-target ACGTACGTACGTACGTACGT
-
-# Should show genomic hits for this sequence
-```
-
----
-
-## 5. Start Using TAUSO
-
-### Off-Target Analysis
-```bash
-tauso run-off-target ACGTACGTACGTACGTACGT -m 3 -o results.csv
-```
-
-### Python API
-```python
-from tauso import design_asos
-
-# Design ASOs for a gene
-asos = design_asos(
-    gene_name="KRAS",
-    genome="GRCh38",
-    chemistry="MOE",
-    include_details=True
-)
-
-print(asos.head())
-```
-
----
-
-## Troubleshooting
-
-### "ModuleNotFoundError: No module named 'tauso'"
-```bash
-# Make sure environment is activated
-mamba activate tauso
-```
-
-### "No such file: GRCh38.fa"
-```bash
-# Run data setup first
-tauso setup-all
-```
-
-### Need more help?
-- Installation issues → [INSTALLATION.md](INSTALLATION.md)
-- Data setup issues → [DATA_SETUP.md](DATA_SETUP.md)
-- Command reference → [SETUP_REFERENCE.md](SETUP_REFERENCE.md)
-
----
-
-## What's Next?
-
-- **Calculate features** → See `notebooks/features/` for examples
-- **Train models** → See `notebooks/models/` for ML pipelines
-- **API docs** → Check docstrings in `src/tauso/`
-- **Production setup** → [Reproducible Setup](feature_run/ReproducibleSetup.md)
+- [Data Setup](DATA_SETUP.md) — install datasets selectively and verify them.
+- [Training Data](TRAINING_DATA.md) — prepare the dataset for model training.
+- [Setup Reference](SETUP_REFERENCE.md) — command, disk, and time cheat sheet.

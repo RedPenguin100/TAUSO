@@ -1,279 +1,156 @@
-# TAUSO Setup Quick Reference
+# TAUSO Setup Reference
 
-## Setting Custom Data Directory
+A command, disk, and time cheat sheet. For explanations, see [Data Setup](DATA_SETUP.md).
 
-### Method 1: Environment-Specific (Recommended)
+## Data directory
+
 ```bash
-# Activate environment
+# Per environment (persists, scoped to the tauso env)
 mamba activate tauso
-
-# Set variable for this environment only
 mamba env config vars set TAUSO_DATA_DIR=/path/to/your/data
-
-# Reactivate to apply
 mamba deactivate && mamba activate tauso
 
-# Verify
-echo $TAUSO_DATA_DIR
-```
+# Shell-wide
+echo 'export TAUSO_DATA_DIR=/path/to/your/data' >> ~/.bashrc   # or ~/.zshrc
 
-### Method 2: Shell-Wide
-```bash
-# For bash
-echo 'export TAUSO_DATA_DIR=/path/to/your/data' >> ~/.bashrc
-source ~/.bashrc
-
-# For zsh
-echo 'export TAUSO_DATA_DIR=/path/to/your/data' >> ~/.zshrc
-source ~/.zshrc
-```
-
-### Method 3: Temporary (Current Session)
-```bash
+# Current session only
 export TAUSO_DATA_DIR=/path/to/your/data
-```
 
-### Check Current Location
-```bash
+# Where is it now?
 python -c "from tauso.data.data import get_data_dir; print(get_data_dir())"
-```
 
-**Default location:** `~/.local/share/tauso`
-
-### Manage Environment Variables
-```bash
-# List all env vars for current environment
+# Manage env vars
 mamba env config vars list
-
-# Remove variable
 mamba env config vars unset TAUSO_DATA_DIR
 ```
 
----
+Default location: `~/.local/share/tauso`. Set this before the first `tauso setup-all`.
 
-## Setup Commands
+## Setup commands
 
-### All-in-One (Recommended for First-Time Users)
 ```bash
-tauso setup-all                    # Everything: genome + bowtie + omics + raccess
-tauso build-cell-context           # Cell context: cohort + expression + CAI
-```
+# Everything the package downloads/builds (see TODO in DATA_SETUP.md — omits the two below)
+tauso setup-all                          # genome + bowtie + omics + raccess
+tauso build-cell-context                 # cohort + per-cell expression + CAI + tGCN
 
-### Incremental (Recommended for Custom Setups)
+# Genome (required)
+tauso setup-genome [--genome GRCh38]     # genome FASTA + annotations + gffutils DB
+tauso setup-bowtie [-t THREADS]          # off-target alignment index
+tauso setup-raccess                      # RNA folding tool (compiled locally)
 
-#### 1. Core Genome Data (Required)
-```bash
-tauso setup-genome [--genome GRCh38]     # 5-10 min, ~3 GB
-tauso setup-bowtie [-t THREADS]          # 30-60 min, ~4 GB
-tauso setup-raccess                      # 2-5 min, ~50 MB
-```
+# Omics
+tauso setup-omics                        # all of the below
+tauso setup-depmap                       # cell-line expression
+tauso setup-mrna-halflife                # mRNA stability
+tauso setup-tgcn                         # tRNA gene copy numbers (for tAI)
+tauso setup-attract                      # RBP motifs
+tauso setup-riboseq                      # ribosome profiling
 
-#### 2. Omics Data (Required for Cell Features)
-```bash
-# All omics at once
-tauso setup-omics                        # 10-20 min, ~1 GB
+# Cell context
+tauso build-cell-context                 # default cohort
+tauso build-cell-context HEPG2 HELA A549 # custom cohort (append)
+tauso build-cell-context --reset HEPG2   # replace cohort
 
-# Or individually:
-tauso setup-depmap                       # Cell line expression (5-10 min, ~500 MB)
-tauso setup-mrna-halflife                # mRNA stability (1-2 min, ~50 MB)
-tauso setup-tgcn                         # tRNA gene counts (<1 min, <1 MB)
-tauso setup-attract                      # RBP motifs (1-2 min, ~10 MB)
-tauso setup-riboseq                      # Ribosome profiling (2-5 min, ~200 MB)
-```
-
-#### 3. Cell Context (Required for Per-Cell Features)
-```bash
-tauso build-cell-context                 # 5-10 min
-# Or with custom cells:
-tauso build-cell-context HEPG2 HELA A549
-tauso build-cell-context --reset HEPG2 HELA  # Replace existing cohort
-```
-
-#### 4. Training Data (Only if Training Models)
-```bash
+# Training data (only to train models / run tests — see TRAINING_DATA.md)
 python -m notebooks.data.OligoAI.assign_canonical_gene
 python -m notebooks.utils.data
+python -m notebooks.data.OligoAI.process_data
 ```
 
----
+## Command options
 
-## Command Options
-
-### Common Flags
 ```bash
---force              # Force redownload/rebuild
---help               # Show help for any command
+--force              # force redownload/rebuild
+--help               # help for any command
+
+# setup-genome
+--genome GRCh38      # GRCh38 (human); GRCm39 (mouse) is WIP, not fully supported
+--remove-gz          # delete compressed files after extraction
+
+# setup-bowtie
+-t, --threads N      # CPU threads (default 1)
+--mem-per-thread MB  # memory per thread (default 800)
+
+# setup-all
+--genome GRCh38
+-t, --threads N
+--mem-per-thread MB
+
+# build-cell-context
+CELL_NAMES...        # cell lines to add (e.g. HEPG2 HELA)
+--reset              # clear the cohort first
+--no-cai             # skip CAI weights
 ```
 
-### setup-genome
-```bash
---genome GRCh38      # Genome version (GRCh38, GRCm39)
---force              # Force redownload
---remove-gz          # Remove compressed files after extraction
-```
-
-### setup-bowtie
-```bash
--t, --threads N      # Number of CPU threads (default: 1)
---mem-per-thread MB  # Memory per thread (default: 800)
---force              # Force rebuild
-```
-
-### setup-all
-```bash
---genome GRCh38      # Genome version
--t, --threads N      # Threads for bowtie
---mem-per-thread MB  # Memory per thread for bowtie
---force              # Force redownload all
-```
-
-### build-cell-context
-```bash
-CELL_NAMES...        # Cell line names to add (e.g., HEPG2 HELA)
---reset              # Clear existing cohort before adding
---no-cai             # Skip CAI weight computation
---genome GRCh38      # Genome version
---force              # Force CAI recomputation
-```
-
----
-
-## Verification Commands
+## Verification
 
 ```bash
-# Check TAUSO version
+# Package
 python -c "import tauso; print(tauso.__file__)"
 
-# Check data directory
+# Data directory and contents
 python -c "from tauso.data.data import get_data_dir; print(get_data_dir())"
+ls -lh "$(python -c 'from tauso.data.data import get_data_dir; print(get_data_dir())')"
 
-# List downloaded files
-ls -lh $(python -c "from tauso.data.data import get_data_dir; print(get_data_dir())")
-
-# Test genome setup
-python -c "from tauso.data.data import load_gtf_db; db = load_gtf_db('GRCh38'); print('Genes:', db.count_features_of_type('gene'))"
-
-# Test off-target search
-tauso run-off-target ACGTACGTACGTACGTACGT
+# Genome / annotation DB loads
+python -c "from tauso.data.data import load_gtf_db; db = load_gtf_db('GRCh38'); print('genes:', db.count_features_of_type('gene'))"
 ```
 
----
+## Disk space (GRCh38)
 
-## Typical Workflows
+| Component | Size | Required for |
+|-----------|------|--------------|
+| Genome FASTA | ~3 GB | Everything |
+| Annotation DB (gffutils) | ~3 GB | Everything |
+| Bowtie index | ~3 GB | Off-target analysis |
+| DepMap | ~1 GB | Cell-expression features |
+| Ribo-seq | ~200 MB | Translation features |
+| mRNA half-life | ~150 MB | Stability features |
+| Processed expression | ~100 MB | Per-cell features |
+| ATtRACT / raccess / tGCN / CAI | <100 MB | Respective features |
+| **Total (full setup)** | **~10–12 GB** | All features |
 
-### Minimal Setup (Just Genome + Folding)
+The genome and the off-target index account for most of this — they are the cost of doing genome-wide off-target analysis.
+
+## Time estimates (typical hardware)
+
+| Step | Time | Bottleneck |
+|------|------|------------|
+| setup-genome | 5–10 min | Download |
+| setup-bowtie (1 thread) | 30–60 min | CPU |
+| setup-bowtie (16 threads) | 5–10 min | CPU |
+| setup-raccess | 2–5 min | Compilation |
+| setup-omics | 10–20 min | Download + conversion |
+| build-cell-context | 5–10 min | CAI computation |
+| **setup-all (16 threads)** | **~30–45 min** | Bowtie indexing |
+
+## Typical workflows
+
 ```bash
-export TAUSO_DATA_DIR=/data/tauso
+# Minimal: genome + folding only (basic features; no off-target, no cell-specific)
 tauso setup-genome
 tauso setup-raccess
-# Can now run basic features (no off-target, no cell-specific)
-```
 
-### Off-Target Analysis Setup
-```bash
-export TAUSO_DATA_DIR=/data/tauso
+# Off-target analysis
 tauso setup-genome
-tauso setup-bowtie -t $(nproc)  # Use all CPU cores
-# Can now run: tauso run-off-target SEQUENCE
-```
+tauso setup-bowtie -t $(nproc)
 
-### Full Feature Extraction Setup
-```bash
-export TAUSO_DATA_DIR=/data/tauso
+# Full feature extraction
 tauso setup-all -t $(nproc)
 tauso build-cell-context
-# Can now calculate all features
-```
 
-### ML Training Setup
-```bash
-export TAUSO_DATA_DIR=/data/tauso
+# Model training (adds the training data — see TRAINING_DATA.md)
 tauso setup-all -t $(nproc)
 tauso build-cell-context
 python -m notebooks.data.OligoAI.assign_canonical_gene
 python -m notebooks.utils.data
-# Can now train models
+python -m notebooks.data.OligoAI.process_data
 ```
 
----
+## See also
 
-## Disk Space Requirements
-
-| Component | Size | Required For |
-|-----------|------|--------------|
-| Genome (GRCh38) | ~3 GB | Everything |
-| Bowtie index | ~4 GB | Off-target analysis |
-| DepMap | ~500 MB | Cell expression features |
-| mRNA half-life | ~50 MB | Stability features |
-| ATtRACT RBP | ~10 MB | RBP features |
-| Ribo-seq | ~200 MB | Translation features |
-| tGCN | <1 MB | tAI features |
-| raccess | ~50 MB | Folding features |
-| Processed expression | ~100 MB | Per-cell features |
-| CAI weights | ~5 MB | CAI features |
-| **Total (full)** | **~8-10 GB** | All features |
-
----
-
-## Time Estimates (Typical Hardware)
-
-| Command | Time | Bottleneck |
-|---------|------|------------|
-| setup-genome | 5-10 min | Download speed |
-| setup-bowtie (1 thread) | 30-60 min | CPU |
-| setup-bowtie (16 threads) | 5-10 min | CPU |
-| setup-raccess | 2-5 min | Compilation |
-| setup-depmap | 5-10 min | Download + conversion |
-| setup-mrna-halflife | 1-2 min | Download |
-| setup-tgcn | <1 min | Network fetch |
-| setup-attract | 1-2 min | Download |
-| setup-riboseq | 2-5 min | Download |
-| build-cell-context | 5-10 min | CAI computation |
-| **setup-all (16 threads)** | **30-45 min** | Bowtie indexing |
-| **Full setup** | **45-60 min** | - |
-
----
-
-## Troubleshooting Quick Fixes
-
-### raccess won't compile
-```bash
-sudo apt-get install zlib1g-dev build-essential
-```
-
-### Bowtie out of memory
-```bash
-tauso setup-bowtie --mem-per-thread 400  # Reduce from 800
-```
-
-### Cell line not found
-```bash
-# Search is case-insensitive and fuzzy
-tauso add-cell "HepG2"    # Finds HEPG2
-tauso add-cell "HeLa"     # Finds HELA
-```
-
-### Wrong data directory
-```bash
-# Check where it's actually looking
-python -c "from tauso.data.data import get_data_dir; print(get_data_dir())"
-
-# Make sure TAUSO_DATA_DIR is set correctly
-echo $TAUSO_DATA_DIR
-```
-
-### Fresh start
-```bash
-# Remove everything and start over
-rm -rf $(python -c "from tauso.data.data import get_data_dir; print(get_data_dir())")
-tauso setup-all --force
-```
-
----
-
-## See Also
-
-- **Complete guide:** [DATA_SETUP.md](DATA_SETUP.md)
-- **Quick start:** [QUICKSTART.md](QUICKSTART.md)
-- **Installation:** [INSTALLATION.md](INSTALLATION.md)
-- **Production setup:** [feature_run/ReproducibleSetup.md](feature_run/ReproducibleSetup.md)
+- [Installation](INSTALLATION.md)
+- [Quick Start](QUICKSTART.md)
+- [Data Setup](DATA_SETUP.md)
+- [Training Data](TRAINING_DATA.md)
+- [Reproducible production setup](feature_run/ReproducibleSetup.md)

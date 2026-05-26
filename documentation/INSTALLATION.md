@@ -1,309 +1,103 @@
-# TAUSO Installation Guide
+# Installing TAUSO
 
-The complete guide to installing TAUSO for all use cases.
+TAUSO is distributed as a conda/pip package. Which environment you build depends on what you intend to do:
 
----
+- **Develop and run the models** — the full environment with development and analysis tooling. What most contributors want.
+- **Use and generate ASOs** — a minimal runtime environment.
+- **Reproduce a published result** — a pinned lock file.
 
-## Quick Start (Most Users)
-
-```bash
-# One command - installs everything you need
-mamba env create -f environment-dev.yml
-mamba activate tauso
-
-# Verify it worked
-python -c "import tauso; print('Installed:', tauso.__file__)"
-```
-
-**That's it!** This installs TAUSO with all dependencies (runtime + development tools). Continue to [Data Setup](DATA_SETUP.md).
-
----
-
-## Installation Methods
-
-Choose based on your use case:
-
-| Use Case | Method | Command |
-|----------|--------|---------|
-| **Development** (most users) | environment-dev.yml | `mamba env create -f environment-dev.yml` |
-| **Production** (minimal runtime) | environment.yml + pip | `mamba env create -f environment.yml` → `pip install -e .` |
-| **Reproducible research** | Lock file | `mamba create -n tauso --file conda-linux-64-dev.lock` → `pip install -e ".[dev]"` |
-
----
-
-## Method 1: Development Setup (Recommended)
-
-**Best for:** Daily use, contributing, running notebooks, training models
-
-```bash
-# Create environment with all dependencies
-mamba env create -f environment-dev.yml
-
-# Activate
-mamba activate tauso
-
-# Done! TAUSO is already installed with dev tools
-```
-
-**What you get:**
-- ✅ TAUSO installed in editable mode
-- ✅ All runtime dependencies (numpy, pandas, biopython, etc.)
-- ✅ Development tools (pytest, ruff, jupyterlab)
-- ✅ ML/analysis tools (matplotlib, seaborn, optuna, shap)
-- ✅ Fast installer (uv)
-
-**Next steps:** [Data Setup](DATA_SETUP.md)
-
----
-
-## Method 2: Production/Minimal Runtime
-
-**Best for:** Deployment, Docker containers, minimal installs
-
-```bash
-# Create minimal conda environment
-mamba env create -f environment.yml
-mamba activate tauso
-
-# Install TAUSO (runtime dependencies only)
-pip install -e .
-```
-
-**What you get:**
-- ✅ TAUSO installed in editable mode
-- ✅ Only runtime dependencies (smaller footprint)
-- ❌ No pytest, matplotlib, or other dev tools
-
-**To add dev tools later:**
-```bash
-pip install -e ".[dev]"
-```
-
----
-
-## Method 3: Reproducible Research
-
-**Best for:** Published papers, exact version matching, scientific reproducibility
-
-```bash
-# Create from lock file (exact versions)
-mamba create -n tauso --file conda-linux-64-dev.lock
-mamba activate tauso
-
-# Install TAUSO
-pip install -e ".[dev]"
-```
-
-**What you get:**
-- ✅ Exact package versions (bit-for-bit reproducible)
-- ✅ Verified hashes
-- ✅ Can recreate environment years later
-- ⚠️ Linux-only (macOS needs separate lock file)
-
-**For papers:** Document which lock file and git commit:
-```
-Environment: conda-linux-64-dev.lock from commit abc123
-Repository: https://github.com/RedPenguin100/TAUSO
-```
-
----
-
-## Understanding `[dev]` Extras
-
-TAUSO has optional development dependencies in `pyproject.toml`:
-
-```bash
-pip install -e .         # Runtime only (numpy, pandas, click, etc.)
-pip install -e ".[dev]"  # Runtime + dev (pytest, matplotlib, optuna, etc.)
-```
-
-**[dev] extras include:**
-- pytest, pytest-regressions, pytest-xdist (testing)
-- matplotlib, seaborn (plotting)
-- optuna (hyperparameter optimization)
-- shap (model interpretability)
-- pandas-stubs, scipy-stubs (type checking)
-
-**Note:** `environment-dev.yml` automatically includes `[dev]` - you don't need to install separately!
-
----
-
-## Setting Custom Data Directory
-
-By default, TAUSO stores data in `~/.local/share/tauso`. To use a custom location:
-
-### Option A: Environment-Specific (Recommended)
-
-Sets variable only when conda environment is active:
-
-```bash
-# Activate environment
-mamba activate tauso
-
-# Set custom data directory for this environment
-mamba env config vars set TAUSO_DATA_DIR=/path/to/your/data
-
-# Reactivate to apply
-mamba deactivate
-mamba activate tauso
-
-# Verify
-echo $TAUSO_DATA_DIR
-python -c "from tauso.data.data import get_data_dir; print(get_data_dir())"
-```
-
-**Benefits:**
-- ✅ Only active in this environment
-- ✅ Different data dirs for different envs
-- ✅ Persists across sessions
-- ✅ Clean and isolated
-
-**Manage variables:**
-```bash
-mamba env config vars list                    # View all
-mamba env config vars unset TAUSO_DATA_DIR    # Remove
-```
-
-### Option B: Shell-Wide
-
-Sets variable globally in your shell:
-
-```bash
-# For bash
-echo 'export TAUSO_DATA_DIR=/path/to/your/data' >> ~/.bashrc
-source ~/.bashrc
-
-# For zsh
-echo 'export TAUSO_DATA_DIR=/path/to/your/data' >> ~/.zshrc
-source ~/.zshrc
-```
-
----
-
-## Using `uv` (Faster Installer)
-
-`uv` is a fast Python package installer (10-100x faster than pip). It's included in `environment-dev.yml`.
-
-```bash
-# Standard pip
-pip install -e ".[dev]"
-
-# Faster uv (drop-in replacement)
-uv pip install -e ".[dev]"
-```
-
-Both produce identical results. Use whichever you prefer.
-
----
+Installation supports both `pip` and `uv`; the commands below use `pip`, and `uv pip ...` is a drop-in substitute.
 
 ## Prerequisites
 
-### Install Mamba (First-Time Setup)
-
-If you don't have conda/mamba:
+A conda-compatible package manager (we use `mamba`). If you don't have one, install Miniforge:
 
 ```bash
-# Download Miniforge (includes mamba)
 wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
-
-# Install
 bash Miniforge3-Linux-x86_64.sh
-
-# Follow prompts, then restart shell
+# restart your shell afterwards
 ```
 
-### System Dependencies
-
-For `raccess` (RNA folding tool):
+`raccess`, the RNA-folding tool used during data setup, is compiled from source and needs a C/C++ toolchain and zlib headers:
 
 ```bash
-# Ubuntu/Debian
-sudo apt-get install zlib1g-dev build-essential
-
+# Debian/Ubuntu
+sudo apt-get install build-essential zlib1g-dev
 # RHEL/CentOS
-sudo yum install zlib-devel gcc gcc-c++
+sudo yum install gcc gcc-c++ zlib-devel
 ```
 
----
+## Develop and run the models
 
-## Verification
-
-After installation, verify everything works:
+`environment-dev.yml` builds the conda environment and installs TAUSO in editable mode with the `[dev]` extras in a single step. Resolving and downloading the full dependency set takes several minutes, and longer on a cold conda cache.
 
 ```bash
-# Check TAUSO is installed
-python -c "import tauso; print('TAUSO:', tauso.__file__)"
-
-# Check CLI works
-tauso --help
-
-# Check data directory
-python -c "from tauso.data.data import get_data_dir; print('Data dir:', get_data_dir())"
-
-# If you installed [dev], check pytest
-pytest --version
-```
-
----
-
-## Troubleshooting
-
-### Import Error: No module named 'tauso'
-
-You need to install TAUSO:
-```bash
-pip install -e ".[dev]"
-```
-
-### ModuleNotFoundError: No module named 'pytest'
-
-You installed without `[dev]` extras:
-```bash
-pip install -e ".[dev]"
-```
-
-### environment-dev.yml installs but import still fails
-
-Make sure you activated the environment:
-```bash
+mamba env create -f environment-dev.yml
 mamba activate tauso
 ```
 
-### Different data directory not working
+Verify:
 
-Reactivate after setting the variable:
 ```bash
-mamba env config vars set TAUSO_DATA_DIR=/path
-mamba deactivate && mamba activate tauso
+python -c "import tauso; print(tauso.__file__)"
+tauso --help
+pytest --version
 ```
 
----
+## Use and generate ASOs
 
-## Comparison Table
+For the library at run time only, build the minimal environment and install TAUSO without the dev extras:
 
-| Feature | environment-dev.yml | environment.yml + pip | Lock file |
-|---------|-------------------|---------------------|-----------|
-| **Commands** | 1 command | 2 commands | 2 commands |
-| **TAUSO included** | ✅ Auto | ❌ Manual | ❌ Manual |
-| **Dev tools** | ✅ Yes | ⚠️ With [dev] | ⚠️ With [dev] |
-| **Reproducibility** | ⚠️ Approximate | ⚠️ Approximate | ✅ Exact |
-| **Cross-platform** | ✅ Yes | ✅ Yes | ❌ Linux-only |
-| **Install time** | Fast | Fast | Fastest |
-| **Disk usage** | ~2 GB | ~1 GB | ~2 GB |
-| **Best for** | Development | Production | Research papers |
+```bash
+mamba env create -f environment.yml
+mamba activate tauso
+pip install -e .
+```
 
----
+The development extras can be added later with `pip install -e ".[dev]"`.
 
-## What's Next?
+## Reproduce a published result
 
-After installation:
+The lock file pins exact package versions (with hashes) so the environment can be rebuilt identically — for example, years later from a paper's reported commit. The lock files are Linux-only; macOS needs its own.
 
-1. **Set up data** → [Data Setup Guide](DATA_SETUP.md)
-2. **Quick reference** → [Setup Reference](SETUP_REFERENCE.md)
-3. **Start using TAUSO** → See main [README](../README.md)
+```bash
+mamba create -n tauso --file conda-linux-64-dev.lock
+mamba activate tauso
+pip install -e ".[dev]"
+```
 
----
+When reporting an environment in a paper, record both the lock file and the git commit it came from.
 
-## Advanced: Production Deployment
+## The `[dev]` extras
 
-For HPC clusters or reproducible production pipelines, see [Reproducible Setup Guide](feature_run/ReproducibleSetup.md).
+The `[dev]` optional dependencies add the test suite and the analysis/plotting stack on top of the runtime requirements — for example `pytest`, `matplotlib`, and `pandas-stubs`. The full, current list is in `pyproject.toml`. `environment-dev.yml` already includes them, so a development environment needs no separate step.
+
+## Choosing a data directory
+
+TAUSO stores downloaded genomes and datasets in `~/.local/share/tauso` by default. A full setup is on the order of 10 GB (see [Data Setup](DATA_SETUP.md)), so decide where this should live **before** the first `tauso setup-all` — otherwise it populates the default location. To put it elsewhere, set `TAUSO_DATA_DIR`.
+
+Per environment (scoped to the `tauso` environment, persists across sessions):
+
+```bash
+mamba activate tauso
+mamba env config vars set TAUSO_DATA_DIR=/path/to/your/data
+mamba deactivate && mamba activate tauso        # reactivate to apply
+```
+
+Shell-wide:
+
+```bash
+echo 'export TAUSO_DATA_DIR=/path/to/your/data' >> ~/.bashrc   # or ~/.zshrc
+```
+
+Confirm the active location:
+
+```bash
+python -c "from tauso.data.data import get_data_dir; print(get_data_dir())"
+```
+
+## Next
+
+- [Data Setup](DATA_SETUP.md) — download genomes and datasets.
+- [Setup Reference](SETUP_REFERENCE.md) — command, disk, and time cheat sheet.
+- [Reproducible production setup](feature_run/ReproducibleSetup.md) — HPC and pipeline deployment.
