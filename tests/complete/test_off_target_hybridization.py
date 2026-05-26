@@ -1,15 +1,15 @@
 import pytest
 
-from tests.complete.conftest import get_n_jobs
 from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
-from tauso.populate.populate_off_target import (
-    populate_off_target_general,
-    populate_off_target_specific,
-)
 from tauso.features.hybridization.off_target.off_target_specific_gene import (
     off_target_specific_seq_pandarallel,
     on_target_total_hybridization,
 )
+from tauso.populate.populate_off_target import (
+    populate_off_target_general,
+    populate_off_target_specific,
+)
+from tests.complete.conftest import get_n_jobs
 
 SINGLE_TARGET_GENES = ["RNASEH1", "ACTB"]
 CUTOFFS = [0, 1200]
@@ -86,7 +86,6 @@ def test_on_target_multi_cutoff_matches_per_cutoff(mini_structure_data, gene_to_
 def mini_seq_data():
     """Lightweight 1000-oligo sample (sequence + index) — rRNA scoring needs only the sequence."""
     import pandas as pd
-
     from notebooks.consts import OLIGO_CSV_INDEXED
     from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
 
@@ -116,9 +115,7 @@ def test_off_target_single_rrna_regression(mini_seq_data, dataframe_regression):
         data[total_col] = data[[f"off_target_single_{sp}_c{cutoff}" for sp in rrna_species]].sum(axis=1)
         feature_names.append(total_col)
     # FP-tolerant (parallel aggregation / parser wobble ~1e-5), as in test_off_target_specific_regression.
-    dataframe_regression.check(
-        data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4}
-    )
+    dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
 
 
 def test_rrna_off_target_binder_vs_random():
