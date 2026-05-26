@@ -1,0 +1,27 @@
+FULL COVERAGE: 343 / 343 patents | rows 173191/173191 = 100.0%
+  (manual: 114, auto-classified: 229)
+
+== normalization_basis ==
+normalization_basis
+unknown                225
+total_RNA_ribogreen    109
+housekeeping_gene        9
+
+== confidence ==
+confidence
+medium    237
+high      101
+low         5
+
+== source ==
+source
+auto_classified    229
+manual_curation    114
+
+== used_actb ==
+used_actb
+no     342
+yes      1
+
+### ACTB-as-normalizer (full): 1 patent(s)
+  US20180273577A1 KRAS (n=2504, manual_curation)
