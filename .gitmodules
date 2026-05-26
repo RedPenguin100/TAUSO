@@ -6,4 +6,4 @@
 	url = https://github.com/RedPenguin100/OligoAI
 [submodule "notebooks/competitors/ClinASO"]
 	path = notebooks/competitors/ClinASO
-	url = https://github.com/wusuw/ClinASO
+	url = https://github.com/RedPenguin100/ClinASO.git
