@@ -1,5 +1,28 @@
 from pathlib import Path
 
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
+
+def read_fasta(file_path: str | Path) -> dict[str, str]:
+    """Parse a (multi-record) FASTA into {record_id: sequence}.
+
+    record_id is the first whitespace-delimited token of each header line.
+    """
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"FASTA file not found at: {path}")
+    return {record.id: str(record.seq) for record in SeqIO.parse(str(path), "fasta")}
+
+
+def write_fasta(records: dict[str, str], file_path: str | Path) -> None:
+    """Write {record_id: sequence} to a FASTA file (creating parent dirs)."""
+    path = Path(file_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    seq_records = [SeqRecord(Seq(seq), id=name, description="") for name, seq in records.items()]
+    SeqIO.write(seq_records, str(path), "fasta")
+
 
 def read_single_rna_fasta(file_path: str | Path) -> tuple[str, str]:
     """
