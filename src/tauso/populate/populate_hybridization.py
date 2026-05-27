@@ -14,7 +14,7 @@ from ..features.hybridization.hybridization_features import (
     get_ps_delta_dg,
     get_ps_dna_rna_dg,
 )
-from ..features.hybridization.md_weights import get_moe_md_baseline, get_moe_md_contribution
+from ..features.hybridization.md_weights import get_moe_md_contribution
 
 # Row-wise hybridization features. All dG values are kcal/mol at 37 C, summed 5'->3'.
 HYBR_ROWWISE_CALCULATION = {
@@ -27,18 +27,12 @@ HYBR_ROWWISE_CALCULATION = {
     # High-affinity sugar deltas.
     "hybr_lna_delta_dg": lambda row: calculate_lna(row[SEQUENCE], row[CHEMICAL_PATTERN]),
     "hybr_cet_delta_dg": lambda row: calculate_cet(row[SEQUENCE], row[CHEMICAL_PATTERN]),
-    # 2'-MOE MD contribution and its unmodified baseline (MOE oligos only).
+    # 2'-MOE MD contribution over the MOE-bearing dinucleotides (MOE oligos only).
     "hybr_moe_md_gb_dg": lambda row: get_moe_md_contribution(
         row[SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION], simul_type="gb"
     ),
     "hybr_moe_md_pb_dg": lambda row: get_moe_md_contribution(
         row[SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION], simul_type="pb"
-    ),
-    "hybr_moe_baseline_md_gb_dg": lambda row: get_moe_md_baseline(
-        row[SEQUENCE], row[MODIFICATION], simul_type="gb"
-    ),
-    "hybr_moe_baseline_md_pb_dg": lambda row: get_moe_md_baseline(
-        row[SEQUENCE], row[MODIFICATION], simul_type="pb"
     ),
     # DNA/RNA dG split across the gapmer architecture (5' wing / DNA gap / 3' wing).
     "hybr_dna_rna_dg_wing5": lambda row: get_dna_rna_dg_region(row[SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
