@@ -1,59 +1,15 @@
-# table from article: https://pubs.acs.org/doi/10.1021/acs.jpcb.4c08344
+# 2'-MOE nearest-neighbour weights from MD simulations of MOE-modified RNA duplexes.
+# Source: https://pubs.acs.org/doi/10.1021/acs.jpcb.4c08344
 from io import StringIO
 
 import pandas as pd
 
-md_psrna_table = """
-UU,-12.236,-36.3,-9.177,-26.829
-UA,3.294,11.9,-3.683,-9.928
-UC,-17.006,-49.9,-14.141,-40.854
-UG,-10.756,-29.2,-10.592,-29.163
-AU,-18.341,-55.1,-9.161,-26.622
-AA,-26.644,-83.1,-11.066,-33.188
-AC,-30.594,-92.5,-15.597,-44.868
-AG,-55.940,-171.6,-20.135,-59.740
-CU,-17.010,-51.0,-10.611,-30.532
-CA,6.019,22.192,-2.765,-5.005
-CC,-11.963,-31.9,-11.362,-29.464
-CG,-8.332,-20.5,-10.802,-28.878
-GC,-8.332,-20.5,-10.802,-28.878
-GU,-18.797,-57.0,-11.571,-33.046
-GA,5.456,19.1,-4.408,-11.399
-GG,-8.070,-19.7,-8.159,-19.940
-"""
-df = pd.read_csv(
-    StringIO(md_psrna_table),
-    header=None,
-    names=["nucleotide", "H_PB", "S_PB", "H_GB", "S_GB"],
-)
+from ...util import celsius_to_kelvin
 
-df["G_PB"] = (df["H_PB"] * 1000 - 310.15 * df["S_PB"]) / 1000
-df["G_GB"] = (df["H_GB"] * 1000 - 310.15 * df["S_GB"]) / 1000
+_BODY_TEMPERATURE_K = celsius_to_kelvin(37.0)
 
-md_psrna_weights_pb = df.set_index("nucleotide")["G_PB"].to_dict()
-md_psrna_weights_gb = df.set_index("nucleotide")["G_GB"].to_dict()
-
-
-def get_md_psrna_hybridization(seq: str, algo="gb") -> float:
-    if algo == "gb":
-        weights = md_psrna_weights_gb
-    elif algo == "pb":
-        weights = md_psrna_weights_pb
-    else:
-        raise ValueError("Unknown algorithm")
-
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        total_hybridization += weights[L + R]
-    return total_hybridization
-
-
-def get_md_psrna_hybridization_normalized(seq: str, algo="gb") -> float:
-    return get_md_psrna_hybridization(seq, algo) / len(seq)
-
-
-# note - top table is inside this table, but with slightly different format
+# Each dinucleotide carries a sugar marker: ' = unmodified, * = 2'-MOE.
+# Mixed-prime entries cover the MOE/unmodified junctions at the wing-gap boundary.
 md_moe_tables = """
 U'U',-12.236,-36.3,-9.177,-26.829
 U'A',3.294,11.9,-3.683,-9.928
@@ -127,74 +83,59 @@ df = pd.read_csv(
     names=["nucleotide", "H_PB", "S_PB", "H_GB", "S_GB"],
 )
 
-df["G_PB"] = (df["H_PB"] * 1000 - 310.15 * df["S_PB"]) / 1000
-df["G_GB"] = (df["H_GB"] * 1000 - 310.15 * df["S_GB"]) / 1000
+df["G_PB"] = df["H_PB"] - _BODY_TEMPERATURE_K * (df["S_PB"] / 1000.0)
+df["G_GB"] = df["H_GB"] - _BODY_TEMPERATURE_K * (df["S_GB"] / 1000.0)
 
 md_moe_weights_pb = df.set_index("nucleotide")["G_PB"].to_dict()
 md_moe_weights_gb = df.set_index("nucleotide")["G_GB"].to_dict()
 
 
-def get_2moe_md_diff(seq: str, chemical_pattern, modification, simul_type="gb"):
+def _moe_weights(simul_type: str) -> dict:
+    if simul_type == "gb":
+        return md_moe_weights_gb
+    if simul_type == "pb":
+        return md_moe_weights_pb
+    raise ValueError(f"Unknown simulation type: {simul_type}")
+
+
+def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type="gb"):
+    """Sum of MD nearest-neighbour weights over the 2'-MOE-bearing dinucleotides (kcal/mol).
+
+    Only defined for MOE oligos; returns 0 otherwise. Dinucleotides where both
+    sugars are unmodified are skipped, so this isolates the contribution of the
+    MOE wings and their junctions with the DNA gap.
+    """
     if "MOE" not in modification:
         return 0
 
     seq = seq.replace("T", "U")
+    weights = _moe_weights(simul_type)
 
-    total_hybridization = 0
+    total = 0.0
     for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        if chemical_pattern[i] == "M":
-            L += "*"
-        else:
-            L += "'"
-        if chemical_pattern[i + 1] == "M":
-            R += "*"
-        else:
-            R += "'"
-        if "'" in R and "'" in L:
+        L = seq[i] + ("*" if chemical_pattern[i] == "M" else "'")
+        R = seq[i + 1] + ("*" if chemical_pattern[i + 1] == "M" else "'")
+        if "'" in L and "'" in R:
             continue
-        if simul_type == "gb":
-            total_hybridization += md_moe_weights_gb[L + R]
-        if simul_type == "pb":
-            total_hybridization += md_moe_weights_pb[L + R]
-    return total_hybridization
+        total += weights[L + R]
+    return total
 
 
-def get_psdna_rna_md_total(seq: str, modification, simul_type="gb"):
+def get_moe_md_baseline(seq: str, modification, simul_type="gb"):
+    """Unmodified MD baseline dG for a MOE oligo (kcal/mol): every sugar treated as unmodified.
+
+    Only defined for MOE oligos; returns 0 otherwise. Pairs with
+    get_moe_md_contribution as the reference duplex it is measured against.
+    """
     if "MOE" not in modification:
         return 0
 
     seq = seq.replace("T", "U")
+    weights = _moe_weights(simul_type)
 
-    total_hybridization = 0
+    total = 0.0
     for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        L += "'"
-        R += "'"
-        if simul_type == "gb":
-            total_hybridization += md_moe_weights_gb[L + R]
-        if simul_type == "pb":
-            total_hybridization += md_moe_weights_pb[L + R]
-    return total_hybridization
-
-
-def get_md_2_moe_hybridization(seq: str, moe=None) -> float:
-    if moe is None:
-        moe = [0, 1, 2, 3, 4, 15, 16, 17, 18, 19]
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        if i in moe:
-            L += "*"
-        else:
-            L += "'"
-        if i + 1 in moe:
-            R += "*"
-        else:
-            R += "'"
-        total_hybridization += md_moe_weights_gb[L + R]
-    return total_hybridization
-
-
-def get_md_2_moe_hybridization_norm(seq, moe):
-    return get_md_2_moe_hybridization(seq, moe) / len(seq)
+        L = seq[i] + "'"
+        R = seq[i + 1] + "'"
+        total += weights[L + R]
+    return total

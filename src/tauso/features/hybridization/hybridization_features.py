@@ -1,58 +1,17 @@
 import logging
 
-from ...util import get_nucleotide_watson_crick
+from ...common.modifications import get_longest_dna_gap
+from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, get_nucleotide_watson_crick
+from ..hybridization.exp_weights import ps_delta_g37
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
 
 logger = logging.getLogger(__name__)
 
-# https://pmc.ncbi.nlm.nih.gov/articles/PMC9116672/#ack1
-
-# DNA/DNA - PSDNA/DNA at 50 degrees
-exp_ps_diff_weights_50 = {
-    "AA": -31,
-    "AU": -14,
-    "AC": -6,
-    "AG": -23,
-    "UA": -28,
-    "UU": -34,
-    "UC": -24,
-    "UG": -18,
-    "CA": -13,
-    "CU": -28,
-    "CC": -18,
-    "CG": -41,
-    "GA": -3,
-    "GU": -33,
-    "GC": -61,
-    "GG": -0,
-}
-
-# DNA/DNA - PSDNA/DNA at 37 degrees
-# calculated using (enthalpy_mean * 1000 - 310 * entropy_mean) / 1000
-
-exp_ps_diff_weights_37 = {
-    "AA": -40,
-    "AU": -14,
-    "AC": -1,
-    "AG": -30,
-    "UA": -37,
-    "UU": -34,
-    "UC": -26,
-    "UG": -17,
-    "CA": -10,
-    "CU": -34,
-    "CC": -18,
-    "CG": -48,
-    "GA": 2,
-    "GU": -39,
-    "GC": -84,
-    "GG": 8,
-}
-
-# DNA/RNA weights
-# https://pubs.acs.org/doi/10.1021/bi00035a029
-exp_rna_weights_37 = {
+# DNA/RNA hybrid nearest-neighbour free energies, dG37 in kcal/mol.
+# Source: Sugimoto et al., Biochemistry 1995. https://pubs.acs.org/doi/10.1021/bi00035a029
+# Tabulated values are dG37 * 100 (the integers below); they are divided to kcal/mol once.
+_DNA_RNA_DG37_CENTI = {
     "UU": -100,
     "GU": -210,
     "CU": -180,
@@ -70,138 +29,128 @@ exp_rna_weights_37 = {
     "CA": -160,
     "AA": -20,
 }
+DNA_RNA_DG37 = {pair: centi / 100.0 for pair, centi in _DNA_RNA_DG37_CENTI.items()}
 
 
-def get_exp_dna_rna_hybridization(seq: str, temp=37) -> float:
-    seq = seq.replace("T", "U")
+def _to_rna(seq: str) -> str:
+    return seq.upper().replace("T", "U")
 
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        if temp == 37:
-            total_hybridization += exp_rna_weights_37[L + R]
+
+def get_dna_rna_dg(seq: str) -> float:
+    """Unmodified DNA/RNA hybrid dG (kcal/mol), summed 5'->3' over overlapping dinucleotides."""
+    rna = _to_rna(seq)
+    total = sum(DNA_RNA_DG37[rna[i : i + 2]] for i in range(len(rna) - 1))
+    return round(total, 3)
+
+
+def get_ps_delta_dg(seq: str) -> float:
+    """Phosphorothioate backbone contribution (kcal/mol); positive = PS destabilises the duplex."""
+    rna = _to_rna(seq)
+    total = sum(ps_delta_g37[rna[i : i + 2]] for i in range(len(rna) - 1))
+    return round(total, 3)
+
+
+def get_ps_dna_rna_dg(seq: str) -> float:
+    """PS-modified DNA/RNA hybrid dG (kcal/mol): the DNA/RNA baseline plus the PS backbone contribution."""
+    return round(get_dna_rna_dg(seq) + get_ps_delta_dg(seq), 3)
+
+
+def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float:
+    """DNA/RNA hybrid dG (kcal/mol) restricted to one region of a gapmer.
+
+    The DNA gap is the longest run of 'd' in the chemical pattern; the 5' and 3'
+    wings flank it. Each overlapping dinucleotide is attributed to the region of
+    its 5' base, so the three regions partition the full DNA/RNA dG without
+    double counting. Returns 0.0 when the requested region is empty.
+    """
+    if not isinstance(chemical_pattern, str) or len(chemical_pattern) != len(seq):
+        return float("nan")
+
+    gap_start, gap_end, gap_len = get_longest_dna_gap(chemical_pattern)
+    if gap_len == 0:
+        gap_start, gap_end = len(seq), len(seq)
+
+    rna = _to_rna(seq)
+    total = 0.0
+    for i in range(len(rna) - 1):
+        if i < gap_start:
+            base_region = "wing5"
+        elif i < gap_end:
+            base_region = "gap"
         else:
-            total_hybridization = 0
-    return total_hybridization
+            base_region = "wing3"
+        if base_region == region:
+            total += DNA_RNA_DG37[rna[i : i + 2]]
+    return round(total, 3)
 
 
-def get_exp_psrna_hybridization_diff(seq: str, temp=37) -> float:
-    seq = seq.replace("T", "U")
+def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="L"):
+    """High-affinity sugar (LNA/cEt) delta dG (kcal/mol) summed 5'->3'.
 
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        if temp == 37:
-            total_hybridization += exp_ps_diff_weights_37[L + R]
-        else:
-            total_hybridization = 0
-    return total_hybridization
-
-
-def get_exp_psrna_hybridization(seq: str, temp=37) -> float:
-    seq = seq.replace("T", "U")
-
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        if temp == 37:
-            total_hybridization += exp_rna_weights_37[L + R] - exp_ps_diff_weights_37[L + R]
-        else:
-            total_hybridization = 0
-    return total_hybridization
-
-
-def get_exp_psrna_hybridization_normalized(seq: str, temp=50) -> float:
-    return get_exp_psrna_hybridization(seq, temp) / len(seq)
-
-
-def calculate_3rd_gen_diff(seq_3to5, fmt_3to5, params, temp_c=37.0, letter="L"):
-    # Reverse to 5'->3' for processing
-    seq = seq_3to5.upper()[::-1]
-    fmt = fmt_3to5.upper()[::-1]
+    ``params`` holds nearest-neighbour increments keyed by the modified-strand
+    dinucleotide ('+' marks a modified sugar) over the Watson-Crick complement.
+    Only dinucleotides that touch a modified sugar contribute; pure-DNA ('dd')
+    stacks are skipped.
+    """
+    seq = seq.upper()
+    fmt = fmt.upper()
 
     if len(seq) != len(fmt):
         return None
 
-    temp_k = temp_c + 273.15
+    temp_k = celsius_to_kelvin(temp_c)
 
     total_dH = 0.0
     total_dS = 0.0
 
-    # --- 1. Add Initiation Penalty (Once per strand) ---
-    # total_dH += INITIATION['dH']
-    # total_dS += INITIATION['dS']
-
-    # --- 2. Iterate Stacks ---
     for i in range(len(seq) - 1):
         b1, b2 = seq[i], seq[i + 1]
         m1, m2 = fmt[i], fmt[i + 1]
 
-        # Determine Lookup Key
         if m1 == "d" and m2 == "d":
             continue
+        if m1 == letter and m2 == letter:
+            top = f"+{b1}+{b2}"
+        elif m1 == "d" and m2 == letter:
+            top = f"{b1}+{b2}"
+        elif m1 == letter and m2 == "d":
+            top = f"+{b1}{b2}"
         else:
-            if m1 == letter and m2 == letter:
-                top = f"+{b1}+{b2}"
-            elif m1 == "d" and m2 == letter:
-                top = f"{b1}+{b2}"
-            elif m1 == letter and m2 == "d":
-                top = f"+{b1}{b2}"
-            else:
-                continue
+            continue
 
-            c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
-            key = f"{top}/{c1}{c2}"
+        c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
+        key = f"{top}/{c1}{c2}"
 
-            if key in params:
-                total_dH += params[key]["dH"]
-                total_dS += params[key]["dS"]
-            else:
-                logger.warning("Unknown key in weights table: %s", key)
+        if key in params:
+            total_dH += params[key]["dH"]
+            total_dS += params[key]["dS"]
+        else:
+            logger.warning("Unknown key in weights table: %s", key)
 
-    # Final dG calculation
     total_dG = total_dH - (temp_k * (total_dS / 1000.0))
     return round(total_dG, 3)
 
 
 def calculate_lna(antisense, chemical_pattern):
-    return calculate_3rd_gen_diff(
-        antisense,
-        chemical_pattern,
-        LNA_DNA_WEIGHTS,  # Your existing LNA Dict
-    )
+    return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L")
 
 
 def calculate_cet(antisense, chemical_pattern):
-    return calculate_3rd_gen_diff(
-        antisense,
-        chemical_pattern,
-        LNA_DNA_WEIGHTS,  # Your existing LNA Dict
-        letter="C",
-    )
+    return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C")
 
 
-def calculate_dna(antisense, temp_c=37.0):
-    # Reverse to 5'->3' for processing
-    seq = antisense.upper()[::-1]
-    seq = seq.replace("U", "T")
-
-    temp_k = temp_c + 273.15
+def calculate_dna(antisense, temp_c=BODY_TEMPERATURE_C):
+    """Unmodified DNA/DNA duplex dG (kcal/mol) summed 5'->3' (SantaLucia & Hicks 2004)."""
+    seq = antisense.upper().replace("U", "T")
+    temp_k = celsius_to_kelvin(temp_c)
 
     total_dH = 0.0
     total_dS = 0.0
 
-    # --- 1. Add Initiation Penalty (Once per strand) ---
-    # total_dH += INITIATION['dH']
-    # total_dS += INITIATION['dS']
-
-    # --- 2. Iterate Stacks ---
     for i in range(len(seq) - 1):
         b1, b2 = seq[i], seq[i + 1]
-
-        top = f"{b1}{b2}"
         c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
-        key = f"{top}/{c1}{c2}"
+        key = f"{b1}{b2}/{c1}{c2}"
 
         if key in DNA_DNA_WEIGHTS:
             total_dH += DNA_DNA_WEIGHTS[key]["dH"]
@@ -209,16 +158,5 @@ def calculate_dna(antisense, temp_c=37.0):
         else:
             logger.warning("Unknown key in weights table: %s", key)
 
-    # Final dG calculation
     total_dG = total_dH - (temp_k * (total_dS / 1000.0))
     return round(total_dG, 3)
-
-
-def calc_methylcytosines(sequence, modification):
-    if "methylcytosines" not in modification:
-        return 0
-    gap_count = 0
-    for base in sequence:
-        if base == "C":
-            gap_count += 1
-    return gap_count

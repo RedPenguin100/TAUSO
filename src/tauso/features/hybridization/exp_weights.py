@@ -1,7 +1,28 @@
+"""Nearest-neighbour parameters for phosphodiester (PO) and phosphorothioate (PS) DNA duplexes.
+
+Source: Hassan et al., Nucleic Acids Research 2022, PMC9116672.
+https://pmc.ncbi.nlm.nih.gov/articles/PMC9116672/
+
+Table 1 (PO/PO) and Table 3 (PS/PO) are transcribed verbatim below as
+``nucleotide, dG(50C), dH, dS`` with dG/dH in kcal/mol and dS in cal/(mol*K),
+adjusted to 1 M NaCl and 50 C. ``E`` rows are the paper's terminal-end
+parameters; they are retained for completeness and are simply never matched when
+summing over the A/C/G/U dinucleotides of a sequence.
+
+The phosphorothioate backbone effect used as a feature is the per-dinucleotide
+difference ``ps_po - po_po`` evaluated at 37 C (positive = PS destabilises the
+duplex relative to the unmodified phosphodiester).
+"""
+
 from io import StringIO
 
 import pandas as pd
 
+from ...util import celsius_to_kelvin
+
+_BODY_TEMPERATURE_K = celsius_to_kelvin(37.0)
+
+# Table 1 — phosphodiester / phosphodiester (PO/PO)
 po_po_table = """
 AA,-0.83,-8.10,-22.5
 UU,-0.83,-8.10,-22.5
@@ -29,20 +50,7 @@ CE,0.43,18.09,54.7
 EG,0.43,18.09,54.7
 """
 
-
-df_po_po = pd.read_csv(
-    StringIO(po_po_table),
-    header=None,
-    names=["nucleotide", "G_50", "H", "S"],
-)
-
-df_po_po["G_37"] = (df_po_po["H"] * 1000 - 310.15 * df_po_po["S"]) / 1000
-po_po_g37_raw = df_po_po.set_index("nucleotide")["G_37"]
-po_po_g37 = po_po_g37_raw.to_dict()
-po_po_g50_raw = df_po_po.set_index("nucleotide")["G_50"]
-po_po_g50 = po_po_g50_raw.to_dict()
-
-
+# Table 3 — phosphorothioate / phosphodiester (PS/PO)
 ps_po_table = """
 AA,-0.52,-5.81,-16.4
 AU,-0.42,-5.64,-16.2
@@ -71,19 +79,14 @@ GE,-0.44,14.65,46.7
 """
 
 
-df_ps_po = pd.read_csv(
-    StringIO(ps_po_table),
-    header=None,
-    names=["nucleotide", "G_50", "H", "S"],
-)
+def _gibbs_37(table: str) -> "pd.Series":
+    df = pd.read_csv(StringIO(table), header=None, names=["nucleotide", "G_50", "H", "S"])
+    df["G_37"] = df["H"] - _BODY_TEMPERATURE_K * (df["S"] / 1000.0)
+    return df.set_index("nucleotide")["G_37"]
 
 
-df_ps_po["G_37"] = (df_ps_po["H"] * 1000 - 310.15 * df_ps_po["S"]) / 1000
-ps_po_g37_raw = df_ps_po.set_index("nucleotide")["G_37"]
-ps_po_g37 = ps_po_g37_raw.to_dict()
-ps_po_g50_raw = df_ps_po.set_index("nucleotide")["G_50"]
-ps_po_g50 = ps_po_g50_raw.to_dict()
+po_po_g37 = _gibbs_37(po_po_table)
+ps_po_g37 = _gibbs_37(ps_po_table)
 
-
-ps_diff_g37 = (ps_po_g37_raw - po_po_g37_raw).to_dict()
-ps_diff_g50 = (ps_po_g50_raw - po_po_g50_raw).to_dict()
+# PS backbone contribution per dinucleotide at 37 C (kcal/mol).
+ps_delta_g37 = (ps_po_g37 - po_po_g37).to_dict()
