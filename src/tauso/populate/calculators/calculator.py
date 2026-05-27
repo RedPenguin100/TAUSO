@@ -371,7 +371,7 @@ class Calculator:
         from tauso.populate.populate_fold import DEFAULT_SETTINGS, populate_mfe_features
 
         # Dynamically generate the expected feature names from the settings tuples (flank, window, step)
-        expected_features = [f"mfe_win{w}_flank{f}_step{s}" for f, w, s in DEFAULT_SETTINGS]
+        expected_features = [f"fold_mfe_win{w}_flank{f}_step{s}" for f, w, s in DEFAULT_SETTINGS]
 
         missing = self._get_missing_features(expected_features)
 
@@ -386,7 +386,7 @@ class Calculator:
             # Compute every missing setting in one pass: populate_mfe_features groups
             # settings that share a (flank, window) so their folds are computed once,
             # and the parallel dispatch is paid a single time instead of per setting.
-            missing_settings = [(f, w, s) for f, w, s in DEFAULT_SETTINGS if f"mfe_win{w}_flank{f}_step{s}" in missing]
+            missing_settings = [(f, w, s) for f, w, s in DEFAULT_SETTINGS if f"fold_mfe_win{w}_flank{f}_step{s}" in missing]
 
             self.data, generated_features = populate_mfe_features(
                 self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
@@ -405,7 +405,7 @@ class Calculator:
         expected_features = []
         for config in DEFAULT_SENSE_CONFIGURATION:
             seeds_str = "-".join(map(str, config["seeds"]))
-            expected_features.append(f"access_{config['flank']}flank_{config['access']}access_{seeds_str}seed_sizes")
+            expected_features.append(f"fold_access_{config['flank']}flank_{config['access']}access_{seeds_str}seed_sizes")
 
         missing = self._get_missing_features(expected_features)
 

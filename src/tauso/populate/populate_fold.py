@@ -59,7 +59,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     for flank_size, window_size, step in settings:
         steps_by_window[(flank_size, window_size)].append(step)
 
-    feature_names = [f"mfe_win{w}_flank{f}_step{s}" for f, w, s in settings]
+    feature_names = [f"fold_mfe_win{w}_flank{f}_step{s}" for f, w, s in settings]
 
     def _process_row(row):
         gene_name = row[CANONICAL_GENE]
@@ -85,7 +85,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
                 steps=steps,
             )
             for step, value in step_to_value.items():
-                out[f"mfe_win{window_size}_flank{flank_size}_step{step}"] = value
+                out[f"fold_mfe_win{window_size}_flank{flank_size}_step{step}"] = value
         return out
 
     apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
@@ -133,7 +133,7 @@ DEFAULT_SENSE_CONFIGURATION = [
 
 def _build_feature_name(flank_size, access_size, seeds):
     """Stable column name for an accessibility config."""
-    return f"access_{flank_size}flank_{access_size}access_{'-'.join(map(str, seeds))}seed_sizes"
+    return f"fold_access_{flank_size}flank_{access_size}access_{'-'.join(map(str, seeds))}seed_sizes"
 
 
 def _lightweight_gene_to_data(genes, gene_to_data):
