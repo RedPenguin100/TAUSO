@@ -20,6 +20,10 @@ LNA_DNA_WEIGHTS = {
     "+T+C/AG": {"dH": -0.966, "dS": 0.665},  # Note: Positive entropy delta
     "+T+G/AC": {"dH": -1.546, "dS": 0.109},  # Note: Positive entropy delta
     "+T+T/AA": {"dH": -2.519, "dS": -5.483},
+    # The entries below are mismatched LNA pairs (modified base over a non-complementary
+    # base). The on-target calculation always pairs each base with its Watson-Crick
+    # complement, so it never looks these up; they are kept for future off-target /
+    # mismatch-tolerant scoring.
     # --- +A·A Mismatch ---
     "+A+A/AT": {"dH": 4.074, "dS": 9.091},
     "+A+C/AG": {"dH": 6.033, "dS": 15.078},

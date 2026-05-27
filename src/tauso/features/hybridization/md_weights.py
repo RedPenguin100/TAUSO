@@ -1,200 +1,61 @@
-# table from article: https://pubs.acs.org/doi/10.1021/acs.jpcb.4c08344
-from io import StringIO
+"""2'-MOE nearest-neighbour weights from MD simulations of MOE-modified RNA duplexes.
+
+Source: https://pubs.acs.org/doi/10.1021/acs.jpcb.4c08344
+The table lives next to this module as weights/moe_md.csv. Each dinucleotide key
+carries a sugar marker per base: ' = unmodified, * = 2'-MOE. Mixed-prime keys cover
+the MOE/unmodified junction at the boundary between a MOE wing and the DNA gap.
+"""
+
+from importlib.resources import files
 
 import pandas as pd
 
-md_psrna_table = """
-UU,-12.236,-36.3,-9.177,-26.829
-UA,3.294,11.9,-3.683,-9.928
-UC,-17.006,-49.9,-14.141,-40.854
-UG,-10.756,-29.2,-10.592,-29.163
-AU,-18.341,-55.1,-9.161,-26.622
-AA,-26.644,-83.1,-11.066,-33.188
-AC,-30.594,-92.5,-15.597,-44.868
-AG,-55.940,-171.6,-20.135,-59.740
-CU,-17.010,-51.0,-10.611,-30.532
-CA,6.019,22.192,-2.765,-5.005
-CC,-11.963,-31.9,-11.362,-29.464
-CG,-8.332,-20.5,-10.802,-28.878
-GC,-8.332,-20.5,-10.802,-28.878
-GU,-18.797,-57.0,-11.571,-33.046
-GA,5.456,19.1,-4.408,-11.399
-GG,-8.070,-19.7,-8.159,-19.940
-"""
-df = pd.read_csv(
-    StringIO(md_psrna_table),
-    header=None,
-    names=["nucleotide", "H_PB", "S_PB", "H_GB", "S_GB"],
-)
+from ...util import celsius_to_kelvin
 
-df["G_PB"] = (df["H_PB"] * 1000 - 310.15 * df["S_PB"]) / 1000
-df["G_GB"] = (df["H_GB"] * 1000 - 310.15 * df["S_GB"]) / 1000
-
-md_psrna_weights_pb = df.set_index("nucleotide")["G_PB"].to_dict()
-md_psrna_weights_gb = df.set_index("nucleotide")["G_GB"].to_dict()
+_BODY_TEMPERATURE_K = celsius_to_kelvin(37.0)
+_WEIGHTS = files("tauso.features.hybridization") / "weights"
 
 
-def get_md_psrna_hybridization(seq: str, algo="gb") -> float:
-    if algo == "gb":
-        weights = md_psrna_weights_gb
-    elif algo == "pb":
-        weights = md_psrna_weights_pb
-    else:
-        raise ValueError("Unknown algorithm")
-
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        total_hybridization += weights[L + R]
-    return total_hybridization
+def _gibbs_37_weights(table, h_col, s_col):
+    weights = {}
+    for _, row in table.iterrows():
+        weights[row["nucleotide"]] = row[h_col] - _BODY_TEMPERATURE_K * (row[s_col] / 1000.0)
+    return weights
 
 
-def get_md_psrna_hybridization_normalized(seq: str, algo="gb") -> float:
-    return get_md_psrna_hybridization(seq, algo) / len(seq)
+with (_WEIGHTS / "moe_md.csv").open() as _handle:
+    _moe_md = pd.read_csv(_handle, comment="#")
+
+MOE_MD_PB_WEIGHTS = _gibbs_37_weights(_moe_md, "H_PB", "S_PB")
+MOE_MD_GB_WEIGHTS = _gibbs_37_weights(_moe_md, "H_GB", "S_GB")
 
 
-# note - top table is inside this table, but with slightly different format
-md_moe_tables = """
-U'U',-12.236,-36.3,-9.177,-26.829
-U'A',3.294,11.9,-3.683,-9.928
-U'C',-17.006,-49.9,-14.141,-40.854
-U'G',-10.756,-29.2,-10.592,-29.163
-A'U',-18.341,-55.1,-9.161,-26.622
-A'A',-26.644,-83.1,-11.066,-33.188
-A'C',-30.594,-92.5,-15.597,-44.868
-A'G',-55.940,-171.6,-20.135,-59.740
-C'U',-17.010,-51.0,-10.611,-30.532
-C'A',6.019,22.192,-2.765,-5.005
-C'C',-11.963,-31.9,-11.362,-29.464
-C'G',-8.332,-20.5,-10.802,-28.878
-G'C',-8.332,-20.5,-10.802,-28.878
-G'U',-18.797,-57.0,-11.571,-33.046
-G'A',5.456,19.1,-4.408,-11.399
-G'G',-8.070,-19.7,-8.159,-19.940
-U*U*,-13.197,-38.522,-10.197,-29.334
-U*A*,0.748,5.169,-7.178,-19.883
-U*C*,-13.836,-40.640,-12.951,-37.043
-U*G*,1.174,8.139,-8.103,-21.419
-A*U*,-36.988,-114.552,-14.766,-44.017
-A*A*,-27.926,-87.554,-11.969,-35.803
-A*C*,-30.144,-92.846,-14.672,-42.225
-A*G*,-54.601,-167.433,-16.967,-50.091
-C*U*,-34.886,-104.971,-16.299,-46.473
-C*A*,7.400,27.243,-5.001,-11.724
-C*C*,-18.257,-51.179,-14.229,-37.762
-C*G*,-8.251,-19.359,-12.111,-31.949
-G*U*,-29.389,-88.678,-14.538,-40.775
-G*A*,-2.458,-3.483,-7.767,-20.284
-G*C*,-13.357,-37.507,-11.354,-30.247
-G*G*,-11.177,-29.053,-11.102,-28.826
-U'U*,1.325,6.813,-3.318,-8.226
-U*U',-31.435,-96.475,-17.202,-51.438
-U'A*,-10.973,-33.747,-8.194,-24.238
-U*A',-8.265,-23.494,-9.581,-27.505
-U'C*,-10.478,-30.064,-8.192,-21.946
-U*C',-12.129,-34.021,-11.955,-33.269
-U'G*,15.767,55.786,0.315,5.866
-U*G',-2.361,-2.792,-7.521,-19.337
-A'U*,-15.264,-46.691,-7.541,-21.785
-A*U',-18.669,-56.686,-11.950,-35.277
-A'A*,-35.646,-113.129,-13.465,-41.230
-A*A',-6.635,-20.559,-7.707,-22.527
-A'C*,-28.926,-89.170,-11.366,-31.809
-A*C',-11.385,-30.912,-10.415,-27.372
-A'G*,-44.283,-134.139,-11.453,-31.818
-A*G',-25.146,-73.206,-9.916,-26.762
-C'U*,-20.094,-59.512,-11.563,-32.280
-C*U',-33.462,-102.973,-18.146,-53.663
-C'A*,-5.417,-14.412,-5.520,-14.200
-C*A',0.679,4.410,-8.685,-24.384
-C'C*,-19.834,-55.738,-13.892,-36.240
-C*C',-7.682,-19.382,-11.920,-31.774
-C'G*,-2.920,-2.254,-7.831,-18.495
-C*G',-5.348,-11.898,-10.286,-27.751
-G'U*,-20.411,-62.158,-12.490,-35.618
-G*U',-39.433,-122.396,-21.365,-63.762
-G'A*,-31.476,-98.899,-17.502,-52.684
-G*A',-17.712,-52.825,-16.637,-49.383
-G'C*,-18.414,-53.866,-12.082,-32.511
-G*C',-19.899,-58.953,-16.506,-47.082
-G'G*,-1.205,2.013,-5.644,-11.944
-G*G',-13.769,-37.985,-9.114,-23.264
-"""
-
-df = pd.read_csv(
-    StringIO(md_moe_tables),
-    header=None,
-    names=["nucleotide", "H_PB", "S_PB", "H_GB", "S_GB"],
-)
-
-df["G_PB"] = (df["H_PB"] * 1000 - 310.15 * df["S_PB"]) / 1000
-df["G_GB"] = (df["H_GB"] * 1000 - 310.15 * df["S_GB"]) / 1000
-
-md_moe_weights_pb = df.set_index("nucleotide")["G_PB"].to_dict()
-md_moe_weights_gb = df.set_index("nucleotide")["G_GB"].to_dict()
+def _moe_weights(simul_type: str) -> dict:
+    if simul_type == "gb":
+        return MOE_MD_GB_WEIGHTS
+    if simul_type == "pb":
+        return MOE_MD_PB_WEIGHTS
+    raise ValueError(f"Unknown simulation type: {simul_type}")
 
 
-def get_2moe_md_diff(seq: str, chemical_pattern, modification, simul_type="gb"):
+def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type="gb"):
+    """Sum of MD nearest-neighbour weights over the 2'-MOE-bearing dinucleotides (kcal/mol).
+
+    Only defined for MOE oligos; returns 0 otherwise. Dinucleotides where both sugars
+    are unmodified are skipped, so this isolates the contribution of the 2'-MOE wings
+    and their junctions with the central DNA gap.
+    """
     if "MOE" not in modification:
         return 0
 
     seq = seq.replace("T", "U")
+    weights = _moe_weights(simul_type)
 
-    total_hybridization = 0
+    total = 0.0
     for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        if chemical_pattern[i] == "M":
-            L += "*"
-        else:
-            L += "'"
-        if chemical_pattern[i + 1] == "M":
-            R += "*"
-        else:
-            R += "'"
-        if "'" in R and "'" in L:
+        L = seq[i] + ("*" if chemical_pattern[i] == "M" else "'")
+        R = seq[i + 1] + ("*" if chemical_pattern[i + 1] == "M" else "'")
+        if "'" in L and "'" in R:
             continue
-        if simul_type == "gb":
-            total_hybridization += md_moe_weights_gb[L + R]
-        if simul_type == "pb":
-            total_hybridization += md_moe_weights_pb[L + R]
-    return total_hybridization
-
-
-def get_psdna_rna_md_total(seq: str, modification, simul_type="gb"):
-    if "MOE" not in modification:
-        return 0
-
-    seq = seq.replace("T", "U")
-
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        L += "'"
-        R += "'"
-        if simul_type == "gb":
-            total_hybridization += md_moe_weights_gb[L + R]
-        if simul_type == "pb":
-            total_hybridization += md_moe_weights_pb[L + R]
-    return total_hybridization
-
-
-def get_md_2_moe_hybridization(seq: str, moe=None) -> float:
-    if moe is None:
-        moe = [0, 1, 2, 3, 4, 15, 16, 17, 18, 19]
-    total_hybridization = 0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        if i in moe:
-            L += "*"
-        else:
-            L += "'"
-        if i + 1 in moe:
-            R += "*"
-        else:
-            R += "'"
-        total_hybridization += md_moe_weights_gb[L + R]
-    return total_hybridization
-
-
-def get_md_2_moe_hybridization_norm(seq, moe):
-    return get_md_2_moe_hybridization(seq, moe) / len(seq)
+        total += weights[L + R]
+    return total
