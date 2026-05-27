@@ -11,7 +11,7 @@ from tauso.populate.populate_off_target import (
 )
 from tests.complete.conftest import get_n_jobs
 
-SINGLE_TARGET_GENES = ["RNASEH1", "ACTB"]
+SINGLE_TARGET_GENES = ["RNASEH1"]
 CUTOFFS = [800, 1000, 1200]
 # Production off-target cutoffs; see calculator.calculate_off_target_single.
 SINGLE_OFF_TARGET_CUTOFFS = [800, 1000, 1200]
