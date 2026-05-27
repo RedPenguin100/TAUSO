@@ -37,7 +37,7 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "int8"
     elif filename.startswith("tAI_") or filename.startswith("CAI_") or filename.startswith("ENC_"):
         feat_type = "float64"
-    elif filename.startswith("access_") or filename.startswith("mfe"):
+    elif filename.startswith("fold_"):
         feat_type = "float64"
     elif filename.startswith("off_target_score_") or filename.startswith("off_target_single_"):
         feat_type = "float64"
