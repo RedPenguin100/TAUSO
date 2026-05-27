@@ -1,13 +1,22 @@
 import logging
 import os
+from collections import namedtuple
 
 import numpy as np
 import pandas as pd
-from scipy.stats import gmean
 
 logger = logging.getLogger(__name__)
 
 from ...data.data import get_data_dir
+
+# Cell-line tokens that carry no usable identity. They skip the exact (Tier-1)
+# lookup and resolve to the gene-level estimate, so a missing/unknown cell line
+# never matches TTDB's catch-all "Unknown" cell type by accident.
+MISSING_CELL_TOKENS = {"", "nan", "none", "na", "unknown", "generic"}
+
+# Result of a half-life query. `source` records which tier supplied the value
+# (cell-specific measurement, gene-level geometric mean, or absent -> NaN).
+HalfLifeResult = namedtuple("HalfLifeResult", ["half_life", "source"])
 
 # Columns the loader needs from the raw TTDB dataset. The full file (21 columns,
 # distributed as csv.gz on Zenodo) is converted to a lean Parquet of just these
@@ -98,125 +107,50 @@ class HalfLifeProvider:
         df_map = pd.DataFrame([{"gene": k[0], "cell": k[1], "hl": v} for k, v in mapping.items()])
 
         # --- Tier 2 (Gene Stats) ---
-        # Paper: "Geometric mean of that clipped gene’s half-life across all available cell-lines"
-
-        # We group by gene and aggregate using gmean (and std/count for metadata)
-        # Note: We use ddof=1 for std dev to estimate sample standard deviation
-        # geom_mean is computed vectorized as exp(mean(log(hl))) to avoid the
-        # per-group scipy gmean call (same result, far faster).
+        # Gene-level estimate: geometric mean of the gene's clipped half-life
+        # across all available cell lines. Computed vectorized as exp(mean(log))
+        # to avoid the per-group scipy gmean call.
         df_map["_log_hl"] = np.log(df_map["hl"])
-        gene_grp = df_map.groupby("gene", observed=True)
-        gene_stats_df = gene_grp["hl"].agg(count="count", std="std")
-        gene_stats_df["geom_mean"] = np.exp(gene_grp["_log_hl"].mean())
-        # Convert to dict for O(1) lookup: gene -> {stats}
-        self.gene_stats = gene_stats_df.to_dict(orient="index")
+        gene_geom = np.exp(df_map.groupby("gene", observed=True)["_log_hl"].mean())
+        self.gene_geom_mean = gene_geom.to_dict()  # gene -> geometric-mean half-life
 
-        # --- Tier 3 (Global Fallback) ---
-        # Paper: "Global geometric mean of the clipped dataset"
-        all_values = df_map["hl"].values
-
-        if len(all_values) > 0:
-            self.global_val = gmean(all_values)
-            self.global_std = np.std(all_values, ddof=1)
-        else:
-            self.global_val = 0.0
-            self.global_std = 0.0
-
-        self.global_count = len(all_values)
-
-        logger.info("Provider ready. Global Geometric Mean: %.2fh (N=%d)", self.global_val, self.global_count)
+        logger.info("Provider ready. %d genes with a gene-level estimate.", len(self.gene_geom_mean))
 
     def get_halflife(self, gene, cell_line):
         """
-        Retrieves half-life with hierarchical fallback.
+        Resolves a half-life with a two-tier fallback.
+
+        Tier 1: cell-specific TTDB measurement.
+        Tier 2: gene-level geometric mean across cell lines.
+        Absent: gene not in TTDB -> NaN, so the model treats it as missing
+        rather than being handed a near-constant global mean.
         """
         g = str(gene).upper().strip()
         c = str(cell_line).strip()
 
-        # Tier 1: Exact Match (Specific Measurement)
-        if (g, c) in self.exact_map:
-            return self.exact_map[(g, c)], "Experimental (Specific)", 1, 0.0
+        # Tier 1: cell-specific measurement (skipped for missing/placeholder cells)
+        if c.lower() not in MISSING_CELL_TOKENS and (g, c) in self.exact_map:
+            return HalfLifeResult(self.exact_map[(g, c)], "Experimental (Specific)")
 
-        # Tier 2: Gene Estimate (Gene-Level)
-        if g in self.gene_stats:
-            stats = self.gene_stats[g]
-            # RETURNING GEOMETRIC MEAN NOW
-            return (
-                stats["geom_mean"],
-                "Imputed (Gene GeomMean)",
-                int(stats["count"]),
-                stats["std"],
-            )
+        # Tier 2: gene-level geometric mean across cell lines
+        if g in self.gene_geom_mean:
+            return HalfLifeResult(self.gene_geom_mean[g], "Imputed (Gene GeomMean)")
 
-        # Tier 3: Global Baseline
-        return self.global_val, "Imputed (Global GeomMean)", 0, self.global_std
+        # Absent: gene unknown to TTDB
+        return HalfLifeResult(np.nan, "Absent")
 
 
-# We map cell lines from the data to their closest relatives in the mRNA half life database.
-
+# Maps a dataset cell-line name to a TTDB cell type only when the SAME line is
+# present in TTDB under WT conditions (mirroring the same-line-or-nothing policy
+# of CELL_LINE_TO_DEPMAP_PROXY_DICT). Names absent here pass through unchanged,
+# fail the exact lookup, and resolve to the gene-level estimate — we prefer a
+# gene-level value over a cross-lineage proxy. The entries below differ from the
+# TTDB strings only in casing/punctuation.
 cell_line_mapping = {
-    # --- Direct / Strong Matches ---
     "HepG2": "HepG2",
     "HeLa": "Hela",
     "Hela": "Hela",
-    "MCF7": "MCF-7",  # Breast -> Breast
-    "K-562": "K562",  # CML -> CML
-    "nan": "Unknown",  # Handling missing values
-    # --- Liver (Hepatocellular Carcinoma) ---
-    # Target: HepG2
-    "Hep3B": "HepG2",
-    "HepB3": "HepG2",  # Likely typo for Hep3B
-    "HepG2/Hep3B": "HepG2",
-    "Huh7": "HepG2",
-    "HepaRG": "HepG2",
-    "SNU-449": "HepG2",
-    # --- Prostate ---
-    # Target: C4-2 (LNCaP derivative)
-    "LNCaP": "C4-2",  # C4-2 is a subline of LNCaP
-    "VCaP": "C4-2",  # Prostate cancer proxy
-    "PC3": "C4-2",  # Prostate cancer proxy
-    # --- Kidney ---
-    # Target: HEK293
-    "HK-2": "HEK293",  # Kidney Proximal Tubule -> Embryonic Kidney
-    # --- Lung ---
-    # Target: MRC5VA (Lung Fibroblast)
-    # Following your precedent of mapping Lung Cancer -> Lung Fibroblast
-    "A549": "MRC5VA",
-    "A-549": "MRC5VA",
-    "A459": "MRC5VA",  # Likely typo for A549
-    "NCI-H460": "MRC5VA",
-    # --- Skin / Melanoma ---
-    # Target: N/TERT-1_keratinocytes
-    "SK-MEL-28": "N/TERT-1_keratinocytes",
-    "G-361": "N/TERT-1_keratinocytes",
-    "A431": "N/TERT-1_keratinocytes",
-    "A-431": "N/TERT-1_keratinocytes",
-    # --- Blood / Immune / Leukemia ---
-    # Target: K562, U937, T_cells
-    "MM.1R": "K562",  # Myeloma -> Leukemia proxy (per your previous logic)
-    "THP-1": "U937",  # AML/Monocyte -> Lymphoma/Monocyte (Very similar suspension lines)
-    "Jurkat": "T_cells",  # T-cell Leukemia -> T_cells
-    "T24": "Hela",  # Bladder Carcinoma -> Hela (Generic Epithelial proxy due to no bladder target)
-    "T-24": "Hela",
-    # --- Brain / Neuronal ---
-    # Target: neural_precursor_cells
-    "SH-SY5Y": "neural_precursor_cells",
-    "SH-SY-5Y": "neural_precursor_cells",
-    "U251": "neural_precursor_cells",
-    "A172": "neural_precursor_cells",  # Glioblastoma
-    # --- Mesenchymal / Stromal / Muscle / Endothelial ---
-    # Target: MRC5VA (Fibroblast as general mesenchymal proxy)
-    "hSKMc": "MRC5VA",  # Skeletal Muscle
-    "hSKM": "MRC5VA",
-    "HuVEC": "MRC5VA",  # Endothelial
-    "HUVEC": "MRC5VA",
-    "SCA2-04": "MRC5VA",  # Likely patient-derived fibroblast
-    "differentiated human adipocytes": "MRC5VA",  # Adipocytes are mesenchymal
-    "SW872": "MRC5VA",  # Liposarcoma
-    # --- Ovarian ---
-    "SKOV3": "Hela",  # Ovarian Adenocarcinoma -> Hela (Generic Epithelial proxy)
-    # --- Other / Unmapped High Specificity ---
-    # These are highly differentiated and don't map well to cancer lines or fibroblasts.
-    "iCell cardiomyocytes2": "Unknown",
-    "iCell cardiomyocytes (R1017)": "Unknown",
+    "MCF7": "MCF-7",
+    "K-562": "K562",
+    "HEK293T": "HEK293T",
 }
