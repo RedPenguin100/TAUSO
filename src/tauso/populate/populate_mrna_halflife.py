@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..data.consts import CANONICAL_GENE, CELL_LINE
-from ..features.context.mrna_halflife import cell_line_mapping
+from ..features.context.ttdb_cell_names import cell_name_to_ttdb
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ def populate_mrna_halflife_features(all_data, provider):
       HalfLife_Source      human-readable provenance string
       Mapped_Cell_Proxy    the TTDB cell type the lookup used
     """
-    logger.info("Calculating stability features for %d rows...", len(all_data))
+    logger.info(f"Calculating stability features for {len(all_data)} rows...")
 
     features = ["mRNA_HalfLife", "HalfLife_Source", "Mapped_Cell_Proxy"]
 
@@ -27,15 +27,15 @@ def populate_mrna_halflife_features(all_data, provider):
         gene = row[CANONICAL_GENE]
         cell = row[CELL_LINE]
 
-        # Map to a TTDB cell type; unknown names pass through and resolve to gene-level.
-        proxy_cell = cell_line_mapping.get(cell, cell)
+        # Fix the cell name to TTDB's spelling; unknown names pass through and resolve to gene-level.
+        ttdb_cell = cell_name_to_ttdb(cell)
 
-        res = provider.get_halflife(gene, proxy_cell)
+        res = provider.get_halflife(gene, ttdb_cell)
 
         # Standardize max duration to 48h, preserving NaN for absent genes.
         hl_final = min(res.half_life, 48.0) if np.isfinite(res.half_life) else np.nan
 
-        return pd.Series([hl_final, res.source, proxy_cell], index=features)
+        return pd.Series([hl_final, res.source, ttdb_cell], index=features)
 
     features_df = all_data.apply(_get_halflife_features, axis=1)
 

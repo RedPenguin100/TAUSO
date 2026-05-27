@@ -41,7 +41,7 @@ def load_halflife_mapping():
     data_dir = get_data_dir()
     path = os.path.join(data_dir, "mrna_half_life.parquet")
 
-    logger.info("Loading half-life data from %s...", path)
+    logger.info(f"Loading half-life data from {path}...")
 
     if not os.path.exists(path):
         raise FileNotFoundError(f"Data file not found at {path}. Run 'tauso setup-mrna-halflife' first.")
@@ -94,7 +94,7 @@ def load_halflife_mapping():
     # 9. Convert to Dictionary
     mapping = df_clean.to_dict()
 
-    logger.info("Successfully loaded %d specific (Gene+Cell) stability profiles.", len(mapping))
+    logger.info(f"Successfully loaded {len(mapping)} specific (Gene+Cell) stability profiles.")
     return mapping
 
 
@@ -114,7 +114,7 @@ class HalfLifeProvider:
         gene_geom = np.exp(df_map.groupby("gene", observed=True)["_log_hl"].mean())
         self.gene_geom_mean = gene_geom.to_dict()  # gene -> geometric-mean half-life
 
-        logger.info("Provider ready. %d genes with a gene-level estimate.", len(self.gene_geom_mean))
+        logger.info(f"Provider ready. {len(self.gene_geom_mean)} genes with a gene-level estimate.")
 
     def get_halflife(self, gene, cell_line):
         """
@@ -138,19 +138,3 @@ class HalfLifeProvider:
 
         # Absent: gene unknown to TTDB
         return HalfLifeResult(np.nan, "Absent")
-
-
-# Maps a dataset cell-line name to a TTDB cell type only when the SAME line is
-# present in TTDB under WT conditions (mirroring the same-line-or-nothing policy
-# of CELL_LINE_TO_DEPMAP_PROXY_DICT). Names absent here pass through unchanged,
-# fail the exact lookup, and resolve to the gene-level estimate — we prefer a
-# gene-level value over a cross-lineage proxy. The entries below differ from the
-# TTDB strings only in casing/punctuation.
-cell_line_mapping = {
-    "HepG2": "HepG2",
-    "HeLa": "Hela",
-    "Hela": "Hela",
-    "MCF7": "MCF-7",
-    "K-562": "K562",
-    "HEK293T": "HEK293T",
-}
