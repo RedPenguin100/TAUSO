@@ -22,11 +22,8 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoffs, n_jobs=1):
     )
 
 
-def off_target_specific_seq_pandarallel(aso_df, gene_name, gene_to_data, cutoffs, n_jobs=1):
-    """Score each oligo against a single fixed gene, one feature per cutoff.
-
-    (The ``_pandarallel`` suffix is a legacy name — this path uses threads, not pandarallel.)
-    """
+def off_target_single_gene_hybridization(aso_df, gene_name, gene_to_data, cutoffs, n_jobs=1):
+    """Score each oligo against a single fixed gene, one feature per cutoff."""
     return dispatch_gene_chunk_scores(
         aso_df=aso_df,
         gene_to_data=gene_to_data,

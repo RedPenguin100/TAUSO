@@ -196,6 +196,9 @@ def setup_all(ctx, genome, force, threads, mem_per_thread):
     click.echo(click.style("=== setup-all: raccess ===", bold=True))
     ctx.invoke(setup_raccess)
     click.echo()
+    click.echo(click.style("=== setup-all: rRNA ===", bold=True))
+    ctx.invoke(setup_rrna, force=force)
+    click.echo()
     echo_ok("setup-all complete.")
 
 
@@ -579,6 +582,40 @@ def setup_mrna_halflife(force):
         os.remove(gz_path)
     except Exception as e:
         echo_err(f"Error setting up mRNA half-life data: {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.option("--force", is_flag=True, help="Force refetch if file exists.")
+def setup_rrna(force):
+    """Fetch the cytoplasmic rRNA reference FASTA (RefSeq 18S/5.8S/28S/5S) into the data dir."""
+    from io import StringIO
+
+    from Bio import SeqIO
+
+    from tauso.data.ncbi import fetch_nuccore_fasta
+    from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS, reference_path
+    from tauso.genome.fasta import write_fasta
+
+    path = reference_path()
+    if path.exists() and not force:
+        echo_ok(f"{path.name} already present. Skipping.")
+        return
+    try:
+        # NOTE: download orchestration lives here for now; refactor into a fetch module later.
+        sequences = {}
+        for name, (acc, expected_len) in RRNA_ACCESSIONS.items():
+            click.echo(f"Fetching {name} ({acc}) from NCBI...")
+            seq = str(SeqIO.read(StringIO(fetch_nuccore_fasta(acc)), "fasta").seq)
+            if not seq:
+                raise RuntimeError(f"Empty sequence fetched for {name} ({acc}).")
+            if abs(len(seq) - expected_len) > 5:
+                click.echo(f"  warning: {name} ({acc}) length {len(seq)} differs from expected ~{expected_len} nt.")
+            sequences[name] = seq
+        write_fasta(sequences, path)
+        echo_ok(f"Fetched {len(sequences)} rRNA sequences: {path}")
+    except Exception as e:
+        echo_err(f"Error fetching rRNA reference: {e}")
         sys.exit(1)
 
 

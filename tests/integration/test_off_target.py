@@ -4,9 +4,10 @@ from pandarallel import pandarallel
 
 from tauso.data.consts import SEQUENCE
 from tauso.features.hybridization.off_target.off_target_specific_gene import (
-    off_target_specific_seq_pandarallel,
+    off_target_single_gene_hybridization,
 )
 from tests.conftest import SHORT_GENE
+
 
 @pytest.mark.integration
 def test_off_target_regression(small_gene_to_data, dataframe_regression, data_regression):
@@ -80,8 +81,8 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
 
     # 2. Execution
     pandarallel.initialize(nb_workers=1, verbose=0)
-    result_df, feat_name = off_target_specific_seq_pandarallel(
-        aso_df, SHORT_GENE, small_gene_to_data, cutoff=800, n_jobs=1
+    result_df, feat_name = off_target_single_gene_hybridization(
+        aso_df, SHORT_GENE, small_gene_to_data, cutoffs=[800], n_jobs=1
     )
 
     # 3. Regression Checks
