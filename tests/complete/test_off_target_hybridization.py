@@ -13,9 +13,7 @@ from tests.complete.conftest import get_n_jobs
 
 SINGLE_TARGET_GENES = ["RNASEH1", "ACTB"]
 CUTOFFS = [800, 1000, 1200]
-# Production off-target cutoffs (see calculator.calculate_off_target_single). cutoff=0 is
-# intentionally excluded: it emits every weak hit over the whole gene (~26x slower) for
-# little signal; its parse path stays covered by test_on_target_hybridization_regression.
+# Production off-target cutoffs; see calculator.calculate_off_target_single.
 SINGLE_OFF_TARGET_CUTOFFS = [800, 1000, 1200]
 RRNA_CUTOFFS = [800, 1000, 1200]
 
@@ -75,7 +73,7 @@ def test_on_target_multi_cutoff_matches_per_cutoff(mini_structure_data, gene_to_
     (within FP rounding of the order-dependent exp-sum)."""
     import pandas as pd
 
-    cutoffs = [600, 1200]  # cutoff=0 is very slow (huge output), so use a tighter loose bound
+    cutoffs = [800, 1000, 1200]
     multi, _ = on_target_total_hybridization(
         mini_structure_data.copy(), gene_to_data, cutoffs=cutoffs, n_jobs=get_n_jobs()
     )
