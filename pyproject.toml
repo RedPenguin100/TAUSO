@@ -58,6 +58,7 @@ include-package-data = true
     "patches/*.patch"
 ]
 "tauso.features.rnase_motifs" = ["weights/*.json"]
+"tauso.features.hybridization" = ["weights/*.csv"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

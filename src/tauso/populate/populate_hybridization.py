@@ -6,69 +6,90 @@ from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
 from ..features.hybridization.hybridization_features import (
-    calc_methylcytosines,
     calculate_cet,
     calculate_dna,
     calculate_lna,
-    get_exp_dna_rna_hybridization,
-    get_exp_psrna_hybridization,
-    get_exp_psrna_hybridization_diff,
+    get_dna_rna_dg,
+    get_dna_rna_dg_region,
+    get_ps_delta_dg,
+    get_ps_dna_rna_dg,
 )
-from ..features.hybridization.md_weights import get_2moe_md_diff, get_psdna_rna_md_total
+from ..features.hybridization.md_weights import get_moe_md_contribution
 
-# Logic can be a lambda (row-wise) or None (for vectorized post-processing)
-HYBR_FEATURE_TO_CALCULATION = {
-    "MOE_DIFF_37_MD_GB_HYBR": lambda row: get_2moe_md_diff(
+# Row-wise hybridization features. All dG values are kcal/mol at 37 C, summed 5'->3'.
+HYBR_ROWWISE_CALCULATION = {
+    # DNA/RNA hybrid baseline and its phosphorothioate-modified counterpart.
+    "hybr_dna_rna_dg": lambda row: get_dna_rna_dg(row[SEQUENCE]),
+    "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[SEQUENCE]),
+    "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[SEQUENCE]),
+    # DNA/DNA duplex (SantaLucia & Hicks 2004).
+    "hybr_dna_dna_dg": lambda row: calculate_dna(row[SEQUENCE]),
+    # High-affinity sugar deltas.
+    "hybr_lna_delta_dg": lambda row: calculate_lna(row[SEQUENCE], row[CHEMICAL_PATTERN]),
+    "hybr_cet_delta_dg": lambda row: calculate_cet(row[SEQUENCE], row[CHEMICAL_PATTERN]),
+    # 2'-MOE MD contribution over the MOE-bearing dinucleotides (MOE oligos only).
+    "hybr_moe_md_gb_dg": lambda row: get_moe_md_contribution(
         row[SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION], simul_type="gb"
     ),
-    "MOE_DIFF_37_MD_PB_HYBR": lambda row: get_2moe_md_diff(
+    "hybr_moe_md_pb_dg": lambda row: get_moe_md_contribution(
         row[SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION], simul_type="pb"
     ),
-    "PSDNA_RNA_MD_37_GB_TOTAL_HYBR": lambda row: get_psdna_rna_md_total(
-        row[SEQUENCE], row[MODIFICATION], simul_type="gb"
-    ),
-    "PSDNA_RNA_MD_37_PB_TOTAL_HYBR": lambda row: get_psdna_rna_md_total(
-        row[SEQUENCE], row[MODIFICATION], simul_type="pb"
-    ),
-    "METHYL_CYTOSINES": lambda row: calc_methylcytosines(row[SEQUENCE], row[CHEMICAL_PATTERN]),
-    "LNA_DIFF_37_HYBR": lambda row: calculate_lna(row[SEQUENCE], row[CHEMICAL_PATTERN]),
-    "CET_DIFF_37_HYBR": lambda row: calculate_cet(row[SEQUENCE], row[CHEMICAL_PATTERN]),
-    "TOTAL_PSDNA_HYBR": lambda row: get_exp_psrna_hybridization(row[SEQUENCE]) / 1000,
-    "PSDNA_DIFF_37_HYBR": lambda row: get_exp_psrna_hybridization_diff(row[SEQUENCE]) / 1000,
-    "TOTAL_DNA_HYBR": lambda row: calculate_dna(row[SEQUENCE]),
-    "TOTAL_DNA_RNA_HYBR": lambda row: get_exp_dna_rna_hybridization(row[SEQUENCE]),
-    # Derived features (Calculated via vectorization later)
-    "DNA_HYBR_DIFF": None,
+    # DNA/RNA dG split across the gapmer architecture (5' wing / DNA gap / 3' wing).
+    "hybr_dna_rna_dg_wing5": lambda row: get_dna_rna_dg_region(row[SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
+    "hybr_dna_rna_dg_gap": lambda row: get_dna_rna_dg_region(row[SEQUENCE], row[CHEMICAL_PATTERN], "gap"),
+    "hybr_dna_rna_dg_wing3": lambda row: get_dna_rna_dg_region(row[SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
+}
+
+# Vectorized features derived from the row-wise ones.
+HYBR_DERIVED_FEATURES = [
+    "hybr_dna_rna_selectivity_dg",  # DNA/DNA minus DNA/RNA: preference for a DNA over an RNA target
+    "hybr_dna_rna_dg_per_nt",
+    "hybr_dna_dna_dg_per_nt",
+    "hybr_ps_dna_rna_dg_per_nt",
+]
+
+HYBR_FEATURE_TO_CALCULATION = {
+    **HYBR_ROWWISE_CALCULATION,
+    **{name: None for name in HYBR_DERIVED_FEATURES},
 }
 
 
 def populate_hybridization(df, n_cores=1, features_to_run=None):
-    """
-    Populates hybridization features using the HYBR_FEATURE_TO_CALCULATION registry.
-    """
+    """Populates hybridization features using the HYBR_FEATURE_TO_CALCULATION registry."""
     all_data = df.copy()
 
-    # Default to all features in registry if none specified
     if features_to_run is None:
         features_to_run = list(HYBR_FEATURE_TO_CALCULATION.keys())
 
-    # 1. Setup Parallel Engine
     nb_workers = n_cores if n_cores is not None else multiprocessing.cpu_count()
     apply_func = make_apply_fn(all_data, n_jobs=nb_workers)
 
-    # 2. Run Row-wise Calculations (Parallelized)
+    # 1. Row-wise calculations (parallelized).
     for feature in features_to_run:
-        logic = HYBR_FEATURE_TO_CALCULATION.get(feature)
-
-        # Only run if logic is a function/lambda
+        logic = HYBR_ROWWISE_CALCULATION.get(feature)
         if callable(logic):
             logger.debug("Calculating feature: %s...", feature)
             all_data[feature] = apply_func(logic, axis=1)
 
-    # 3. Run Vectorized Calculations (Fast Post-processing)
-    # This avoids redundant function calls for simple arithmetic
-    if "DNA_HYBR_DIFF" in features_to_run:
-        logger.debug("Calculating vectorized feature: DNA_HYBR_DIFF...")
-        all_data["DNA_HYBR_DIFF"] = all_data["TOTAL_DNA_HYBR"] - all_data["TOTAL_DNA_RNA_HYBR"]
+    # 2. Vectorized derived features.
+    def _have(*cols):
+        missing = [c for c in cols if c not in all_data.columns]
+        if missing:
+            logger.warning("Skipping derived feature; missing dependencies: %s", missing)
+            return False
+        return True
+
+    if "hybr_dna_rna_selectivity_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
+        all_data["hybr_dna_rna_selectivity_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
+
+    seq_len = all_data[SEQUENCE].str.len()
+    normalized = {
+        "hybr_dna_rna_dg_per_nt": "hybr_dna_rna_dg",
+        "hybr_dna_dna_dg_per_nt": "hybr_dna_dna_dg",
+        "hybr_ps_dna_rna_dg_per_nt": "hybr_ps_dna_rna_dg",
+    }
+    for norm_name, source in normalized.items():
+        if norm_name in features_to_run and _have(source):
+            all_data[norm_name] = all_data[source] / seq_len
 
     return all_data, features_to_run

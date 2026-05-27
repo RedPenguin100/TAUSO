@@ -493,10 +493,8 @@ class Calculator:
         """Calculates hybridization features."""
         from tauso.populate.populate_hybridization import HYBR_FEATURE_TO_CALCULATION
 
-        # Dynamically grab expected features
+        # Dynamically grab expected features (row-wise + derived)
         expected_features = list(HYBR_FEATURE_TO_CALCULATION.keys())
-        if "DNA_HYBR_DIFF" not in expected_features:
-            expected_features.append("DNA_HYBR_DIFF")
 
         missing = self._get_missing_features(expected_features)
 

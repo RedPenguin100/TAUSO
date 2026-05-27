@@ -53,20 +53,7 @@ def get_dtype_for_feature(filename, index_col_name):
 
     elif filename.startswith("Modification_"):
         feat_type = "float64"
-    elif filename in [
-        "MOE_DIFF_37_MD_GB_HYBR.csv",
-        "MOE_DIFF_37_MD_PB_HYBR.csv",
-        "METHYL_CYTOSINES.csv",
-        "LNA_DIFF_37_HYBR.csv",
-        "CET_DIFF_37_HYBR.csv",
-        "DNA_HYBR_DIFF.csv",
-        "PSDNA_RNA_MD_37_GB_TOTAL_HYBR.csv",
-        "PSDNA_RNA_MD_37_PB_TOTAL_HYBR.csv",
-        "PSDNA_DIFF_37_HYBR.csv",
-        "TOTAL_DNA_HYBR.csv",
-        "TOTAL_DNA_RNA_HYBR.csv",
-        "TOTAL_PSDNA_HYBR.csv",
-    ]:
+    elif filename.startswith("hybr_"):
         feat_type = "float64"
     elif filename.startswith("Sequence_"):
         feat_type = "float64"

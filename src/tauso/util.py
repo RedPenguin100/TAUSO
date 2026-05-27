@@ -58,6 +58,19 @@ def get_antisense_u(seq: str) -> str:
     return seq.translate(COMP_U_TABLE)[::-1]
 
 
+ZERO_CELSIUS_IN_KELVIN = 273.15
+# Physiological reference temperature for the nearest-neighbour dG calculations.
+BODY_TEMPERATURE_C = 37.0
+
+
+def celsius_to_kelvin(temp_c: float) -> float:
+    return temp_c + ZERO_CELSIUS_IN_KELVIN
+
+
+def kelvin_to_celsius(temp_k: float) -> float:
+    return temp_k - ZERO_CELSIUS_IN_KELVIN
+
+
 @njit
 def get_nucleotide_watson_crick(nucleotide):
     if nucleotide == "A":

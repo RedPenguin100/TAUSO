@@ -1,0 +1,21 @@
+# DNA/RNA hybrid duplex nearest-neighbour free energies, dG37 in kcal/mol.
+# Source: Sugimoto N et al. "Thermodynamic Parameters To Predict Stability of RNA/DNA
+# Hybrid Duplexes." Biochemistry 1995. https://pubs.acs.org/doi/10.1021/bi00035a029
+# Dinucleotide written on the DNA strand 5'->3' (T spelled as U).
+nucleotide,dG37
+UU,-1.00
+GU,-2.10
+CU,-1.80
+AU,-0.90
+UG,-0.90
+GG,-2.10
+CG,-1.70
+AG,-0.90
+UC,-1.30
+GC,-2.70
+CC,-2.90
+AC,-1.10
+UA,-0.60
+GA,-1.50
+CA,-1.60
+AA,-0.20

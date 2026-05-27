@@ -23,6 +23,8 @@ def _process_chemistry(mod_str):
                 pattern_chars.append("M")
             elif m_up == "CET":
                 pattern_chars.append("C")
+            elif m_up == "LNA":
+                pattern_chars.append("L")
             elif m_up == "DNA":
                 pattern_chars.append("d")
         pattern = "".join(pattern_chars)
@@ -30,13 +32,16 @@ def _process_chemistry(mod_str):
         # 2. Determine the MODIFICATION label
         has_moe = "MOE" in mod_set
         has_cet = "CET" in mod_set
+        has_lna = "LNA" in mod_set
 
-        if has_moe and has_cet:
+        if sum([has_moe, has_cet, has_lna]) > 1:
             label = "mixmer"
         elif has_moe:
             label = "MOE/5-methylcytosines/deoxy"
         elif has_cet:
             label = "cEt/5-methylcytosines/deoxy"
+        elif has_lna:
+            label = "LNA/5-methylcytosines/deoxy"
         else:
             label = "DNA"
 
