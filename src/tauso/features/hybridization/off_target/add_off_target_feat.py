@@ -11,7 +11,6 @@ import logging
 import os
 import uuid
 
-import numpy as np
 import pandas as pd
 
 from ....data.consts import CANONICAL_GENE, SEQUENCE
@@ -26,70 +25,34 @@ logger = logging.getLogger(__name__)
 
 
 class AggregationMethod:
-    ARTM_log = "ARTM_log"
     ARTM = "ARTM"
-    ARTM_weighted = "ARTM_weighted"
-    GEO = "GEO"
-    RANKED = "RANKED"
-    MECH = "MECH"
 
 
 def aggregate_energies(energy_dict, expression_dict, method):
-    """Combine per-gene off-target energies into a single score, weighted by expression.
+    """Combine per-gene off-target energies into one expression-weighted score.
 
     energy_dict: {gene: energy} for the off-target genes a trigger binds.
     expression_dict: {gene: (TPM, normalised)}.
-    method: an AggregationMethod choosing how energy and expression are combined.
+    method: an AggregationMethod. Only ARTM is supported: sum of energy * TPM-fraction
+    over off-targets the trigger actually binds (energy < 0) and that are expressed.
     """
+    if method != AggregationMethod.ARTM:
+        raise ValueError(f"Unsupported aggregation method: {method}")
     if not energy_dict:
         return 0.0
 
-    RT = 0.616
-    score = 0.0
-
     valid_targets = []
     for gene, energy in energy_dict.items():
-        expr_tpm = expression_dict[gene][0]
-        if method != AggregationMethod.ARTM_log:
-            expr_tpm = expr_tpm / 1e6
+        expr_tpm = expression_dict[gene][0] / 1e6
         if energy < 0 and expr_tpm > 0:
             valid_targets.append((gene, energy, expr_tpm))
-
-    if not valid_targets:
-        return 0.0
 
     # Sort by gene name so summation order is identical regardless of dict/thread ordering.
     valid_targets.sort(key=lambda x: x[0])
 
-    if method == AggregationMethod.ARTM_log:
-        for gene, energy in sorted(energy_dict.items()):
-            expr_log = expression_dict.get(gene, 0)[1]
-            if energy < 0 and expr_log > 0:
-                score += energy * expr_log
-
-    elif method == AggregationMethod.ARTM:
-        for _, energy, expr_tpm in valid_targets:
-            score += energy * expr_tpm
-
-    elif method == AggregationMethod.ARTM_weighted:
-        for _, energy, expr_tpm in valid_targets:
-            score += energy * (expr_tpm**2)
-
-    elif method == AggregationMethod.GEO:
-        for _, energy, expr_tpm in valid_targets:
-            score += expr_tpm * np.log(-energy)
-
-    elif method == AggregationMethod.RANKED:
-        valid_targets.sort(key=lambda x: x[2], reverse=True)
-        for rank, (_, energy, expr_tpm) in enumerate(valid_targets, start=1):
-            batch = (rank - 1) // 10
-            weight = 10 / (2**batch)
-            score += energy * expr_tpm * weight
-
-    elif method == AggregationMethod.MECH:
-        for _, energy, expr_tpm in valid_targets:
-            score += expr_tpm * np.exp(-energy / RT)
-
+    score = 0.0
+    for _, energy, expr_tpm in valid_targets:
+        score += energy * expr_tpm
     return score
 
 

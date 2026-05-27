@@ -670,7 +670,7 @@ class Calculator:
         from tauso.populate.populate_off_target import serialize_feature_name
 
         # Define the parameter spaces
-        methods = [AggregationMethod.ARTM, AggregationMethod.MECH]
+        methods = [AggregationMethod.ARTM]
         top_ns = [25, 50, 100, 200]
         cutoffs = [800, 1000, 1200]
 
