@@ -313,7 +313,7 @@ class Calculator:
             logger.info("Computing %d specific off-target features...", len(missing))
 
             from tauso.features.hybridization.off_target.off_target_specific_gene import (
-                off_target_specific_seq_pandarallel,
+                off_target_single_gene_hybridization,
             )
             from tauso.features.hybridization.off_target.rrna_targets import get_rrna_loci
 
@@ -324,7 +324,7 @@ class Calculator:
 
             # All cutoffs for a gene come from ONE RIsearch pass per ASO batch.
             for target_gene in targets:
-                self.data, feature_names = off_target_specific_seq_pandarallel(
+                self.data, feature_names = off_target_single_gene_hybridization(
                     self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus
                 )
                 for feature_name in feature_names:

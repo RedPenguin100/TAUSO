@@ -2,7 +2,7 @@ import pytest
 
 from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
 from tauso.features.hybridization.off_target.off_target_specific_gene import (
-    off_target_specific_seq_pandarallel,
+    off_target_single_gene_hybridization,
     on_target_total_hybridization,
 )
 from tauso.populate.populate_off_target import (
@@ -60,7 +60,7 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_full, da
     data = mini_structure_data.copy()
     feature_names = []
     for target_gene in SINGLE_TARGET_GENES:
-        data, fnames = off_target_specific_seq_pandarallel(
+        data, fnames = off_target_single_gene_hybridization(
             data, target_gene, gene_to_data_full, cutoffs=SINGLE_OFF_TARGET_CUTOFFS, n_jobs=get_n_jobs()
         )
         feature_names += fnames
@@ -84,18 +84,8 @@ def test_on_target_multi_cutoff_matches_per_cutoff(mini_structure_data, gene_to_
         pd.testing.assert_series_equal(multi[sfeats[0]], single[sfeats[0]])
 
 
-@pytest.fixture(scope="session")
-def mini_seq_data():
-    """Lightweight 1000-oligo sample (sequence + index) — rRNA scoring needs only the sequence."""
-    import pandas as pd
-    from notebooks.consts import OLIGO_CSV_INDEXED
-    from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
-
-    df = standardize_oligo_ai_data(pd.read_csv(OLIGO_CSV_INDEXED))
-    return df.sample(n=min(1000, len(df)), random_state=42).copy()
-
-
-def test_off_target_single_rrna_regression(mini_seq_data, dataframe_regression):
+@pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)
+def test_off_target_single_rrna_regression(mini_structure_data, dataframe_regression):
     """rRNA off-target features + aggregated total across the shipped cutoffs. Skips if FASTA absent."""
     from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS, get_rrna_loci
 
@@ -104,11 +94,11 @@ def test_off_target_single_rrna_regression(mini_seq_data, dataframe_regression):
     except FileNotFoundError:
         pytest.skip("rRNA reference FASTA not present; run rrna_targets fetch to enable.")
 
-    data = mini_seq_data.copy()
+    data = mini_structure_data.copy()
     rrna_species = list(RRNA_ACCESSIONS)
     feature_names = []
     for target_gene in rrna_species:
-        data, fnames = off_target_specific_seq_pandarallel(
+        data, fnames = off_target_single_gene_hybridization(
             data, target_gene, rrna_loci, cutoffs=RRNA_CUTOFFS, n_jobs=get_n_jobs()
         )
         feature_names += fnames
@@ -137,7 +127,7 @@ def test_rrna_off_target_binder_vs_random():
     binder = get_antisense(seq_18s[200:220])  # antisense of an 18S 20-mer -> binds 18S
     df = pd.DataFrame({SEQUENCE: [binder, "ACGTACGTACGTACGTACGT"]})
 
-    df, feats = off_target_specific_seq_pandarallel(df, "rRNA_18S", loci, cutoffs=[1200], n_jobs=1)
+    df, feats = off_target_single_gene_hybridization(df, "rRNA_18S", loci, cutoffs=[1200], n_jobs=1)
     feat = feats[0]
     assert df[feat].iloc[0] > 0.0, "designed 18S binder should hybridize to 18S"
     assert df[feat].iloc[1] == 0.0, "random oligo should not strongly hybridize to 18S"
