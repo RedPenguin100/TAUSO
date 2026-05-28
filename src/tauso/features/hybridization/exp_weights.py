@@ -40,9 +40,7 @@ PS_PO_G37_WEIGHTS = _gibbs_37_weights(_load("ps_po_dna_dna.csv"))  # Wang et al.
 # unmodified DNA/RNA hybrid baseline (DNA/DNA PO-vs-PS shift assumed transferable to the RNA-bound
 # context). Positive = PS destabilises relative to the unmodified duplex.
 PS_DELTA_DG37_WEIGHTS = {
-    pair: PS_PO_G37_WEIGHTS[pair] - PO_PO_G37_WEIGHTS[pair]
-    for pair in PO_PO_G37_WEIGHTS
-    if pair in PS_PO_G37_WEIGHTS
+    pair: PS_PO_G37_WEIGHTS[pair] - PO_PO_G37_WEIGHTS[pair] for pair in PO_PO_G37_WEIGHTS if pair in PS_PO_G37_WEIGHTS
 }
 
 # Sugimoto et al., DNA/RNA hybrid; tabulated directly as dG37 (kcal/mol).
