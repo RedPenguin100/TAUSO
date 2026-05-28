@@ -15,6 +15,12 @@ notebooks/external
 /src/tauso/out/
 /build/
 
+# Feature caches: large + regeneratable, distributed via Zenodo (`tauso setup-features`)
+# and resolved from TAUSO_DATA_DIR/features/<run>/ -- never tracked in the repo.
+/notebooks/saved_features_oligo/
+/notebooks/saved_features_v2/
+/notebooks/saved_features_oligo_old/
+
 *aso_inhibitions_with_canonical_gene.csv
 *aso_inhibitions_with_canonical_gene.csv.gz
 *aso_inhibitions_with_canonical_gene_indexed.csv
