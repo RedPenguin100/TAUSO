@@ -38,7 +38,10 @@ fi
 
 cd "$REPO"
 
-if ! "$MM" env list | grep -q "$ENV"; then
+# Check by env prefix dir, NOT `env list | grep $ENV` — that one is fooled when $ENV
+# is a substring of $MAMBA_ROOT_PREFIX's path (env list prints the root prefix path),
+# which silently skips creation and later fails with "given prefix does not exist".
+if [ ! -d "$MAMBA_ROOT_PREFIX/envs/$ENV" ]; then
   echo ">>> creating env '$ENV' from conda-linux-64-dev.lock (explicit, pinned)"
   "$MM" create -y -n "$ENV" --file conda-linux-64-dev.lock
 else
