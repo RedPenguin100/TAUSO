@@ -55,7 +55,7 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif filename.startswith("hybr_"):
         feat_type = "float64"
-    elif filename.startswith("Sequence_"):
+    elif filename.startswith("seq_"):
         feat_type = "float64"
     elif filename.startswith("SeqChem_"):
         feat_type = "float64"

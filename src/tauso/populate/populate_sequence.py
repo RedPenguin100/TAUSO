@@ -17,48 +17,48 @@ logger = logging.getLogger(__name__)
 FEATURE_SPECS: list[tuple[str, callable]] = [
     # Terminal Clamps
     # Returns 1 if 5' end is G/C, else 0
-    ("Sequence_5_prime_clamp", lambda x: 1.0 if x and x[0].upper() in "GC" else 0.0),
+    ("seq_5_prime_clamp", lambda x: 1.0 if x and x[0].upper() in "GC" else 0.0),
     # Returns 1 if 3' end is G/C, else 0
-    ("Sequence_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in "GC" else 0.0),
+    ("seq_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in "GC" else 0.0),
     # ASO sequence energy
-    ("Sequence_self_energy", self_energy),
-    ("Sequence_internal_fold", internal_fold),
+    ("seq_self_energy", self_energy),
+    ("seq_internal_fold", internal_fold),
     # Basic Composition Features
-    ("Sequence_purine_content", purine_content),
-    ("Sequence_gc_content", gc_fraction),
-    ("Sequence_ggg_counts", count_g_runs),
-    ("Sequence_a_count", lambda x: x.upper().count("A")),
-    ("Sequence_c_count", lambda x: x.upper().count("C")),
-    ("Sequence_g_count", lambda x: x.upper().count("G")),
-    ("Sequence_t_count", lambda x: x.upper().count("T") + x.upper().count("U")),  # In case the sequence is with U for some reason.
+    ("seq_purine_content", purine_content),
+    ("seq_gc_content", gc_fraction),
+    ("seq_ggg_counts", count_g_runs),
+    ("seq_a_count", lambda x: x.upper().count("A")),
+    ("seq_c_count", lambda x: x.upper().count("C")),
+    ("seq_g_count", lambda x: x.upper().count("G")),
+    ("seq_t_count", lambda x: x.upper().count("T") + x.upper().count("U")),  # In case the sequence is with U for some reason.
     # Palindromes and Entropy
-    ("Sequence_4_palindromic", lambda x: palindromic_fraction(x, 4)),
-    ("Sequence_6_palindromic", lambda x: palindromic_fraction(x, 6)),
-    ("Sequence_entropy", seq_entropy),
-    ("Sequence_dinucleotide_entropy", dinucleotide_entropy),
-    ("Sequence_dinucleotide_diversity", dinucleotide_diversity),
+    ("seq_4_palindromic", lambda x: palindromic_fraction(x, 4)),
+    ("seq_6_palindromic", lambda x: palindromic_fraction(x, 6)),
+    ("seq_entropy", seq_entropy),
+    ("seq_dinucleotide_entropy", dinucleotide_entropy),
+    ("seq_dinucleotide_diversity", dinucleotide_diversity),
     # Structure and Energy (Hairpins/Motifs)
-    ("Sequence_hairpin_score", hairpin_score),
-    ("Sequence_hairpin_dG_energy", hairpin_dG_energy),
-    ("Sequence_hairpin_tm", hairpin_tm),
+    ("seq_hairpin_score", hairpin_score),
+    ("seq_hairpin_dG_energy", hairpin_dG_energy),
+    ("seq_hairpin_tm", hairpin_tm),
     # Repeats and Skews
-    ("Sequence_tandem_repeats_score", tandem_repeats_score),
-    ("Sequence_dispersed_repeats_score", dispersed_repeats_score),
-    ("Sequence_gc_skew", gc_skew),
-    ("Sequence_gc_skew_ends", gc_skew_ends),
-    ("Sequence_at_skew", at_skew),
+    ("seq_tandem_repeats_score", tandem_repeats_score),
+    ("seq_dispersed_repeats_score", dispersed_repeats_score),
+    ("seq_gc_skew", gc_skew),
+    ("seq_gc_skew_ends", gc_skew_ends),
+    ("seq_at_skew", at_skew),
     # Advanced Region Scores
-    ("Sequence_flexible_dinucleotide_fraction", flexible_dinucleotide_fraction),
-    ("Sequence_cg_dinucleotide_fraction", cg_dinucleotide_fraction),
-    ("Sequence_ta_dinucleotide_fraction", ta_dinucleotide_fraction),
-    ("Sequence_poly_pyrimidine_stretch", poly_pyrimidine_stretch),
-    ("Sequence_gc_block_length", gc_block_length),
-    ("Sequence_at_rich_region_score", at_rich_region_score),
-    ("Sequence_gc_content_3prime_end", gc_content_3prime_end),
-    ("Sequence_homooligo_count", homooligo_count),
-    ("Sequence_absolute_terminal_gc", absolute_terminal_gc),
-    ("Sequence_keto_amino_skew", keto_amino_skew),
-    ("Sequence_ry_transition_fraction", ry_transition_fraction),
+    ("seq_flexible_dinucleotide_fraction", flexible_dinucleotide_fraction),
+    ("seq_cg_dinucleotide_fraction", cg_dinucleotide_fraction),
+    ("seq_ta_dinucleotide_fraction", ta_dinucleotide_fraction),
+    ("seq_poly_pyrimidine_stretch", poly_pyrimidine_stretch),
+    ("seq_gc_block_length", gc_block_length),
+    ("seq_at_rich_region_score", at_rich_region_score),
+    ("seq_gc_content_3prime_end", gc_content_3prime_end),
+    ("seq_homooligo_count", homooligo_count),
+    ("seq_absolute_terminal_gc", absolute_terminal_gc),
+    ("seq_keto_amino_skew", keto_amino_skew),
+    ("seq_ry_transition_fraction", ry_transition_fraction),
 ]
 
 

@@ -2,7 +2,7 @@
 Signal test for two candidate sequence features, run univariately against Inhibition(%):
 
   1. ASO self G-quadruplex propensity (G4Hunter) -- hypothesis: flags POOR performers
-     better than the existing Sequence_ggg_counts. Evaluated as poor-performer detection.
+     better than the existing seq_ggg_counts. Evaluated as poor-performer detection.
   2. Modification-weighted self-structure ("stem-in-wing"): fold the ASO, ask how much of
      the predicted stem sits in the high-affinity wings. Evaluated as median per-cohort
      (custom_id) Spearman, the ASO-selection metric.
@@ -142,8 +142,8 @@ def main():
 
     # ---- (1) G4 vs poor performers, head-to-head with the existing ggg feature ----
     g4_cols = ["g4h_mean", "g4h_max5", "n_gtract3", "g4_canon", "g4_relax"]
-    if "Sequence_ggg_counts" in df.columns:
-        g4_cols.append("Sequence_ggg_counts")
+    if "seq_ggg_counts" in df.columns:
+        g4_cols.append("seq_ggg_counts")
     poor_performer_report(df, g4_cols, poor_q=0.25)
     poor_performer_report(df, g4_cols, poor_q=0.10)
 
@@ -151,8 +151,8 @@ def main():
     logger.info("\n=== MEDIAN PER-COHORT SPEARMAN vs Inhibition (cohorts >= %d rows) ===", MIN_COHORT)
     logger.info("%-18s %10s %10s %8s", "feature", "median_rho", "mean_rho", "n_coh")
     ss_cols = ["selfstruct_wing", "stem_wing_frac", "internal_mfe", "paired_frac"]
-    if "Sequence_internal_fold" in df.columns:
-        ss_cols.append("Sequence_internal_fold")
+    if "seq_internal_fold" in df.columns:
+        ss_cols.append("seq_internal_fold")
     for c in ss_cols:
         med, mean, ncoh = median_cohort_spearman(df, c)
         logger.info("%-18s %10.4f %10.4f %8d", c, med, mean, ncoh)
