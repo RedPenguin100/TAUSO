@@ -1,10 +1,9 @@
 """Populates sequence-derived toxicity / liability features (the tox_* family).
 
-These cover distinct ASO safety liabilities (hepatotoxicity, TLR9 immunostimulation,
-G-quadruplex aggregation, acute neurotoxicity). They are NOT efficacy predictors: a local
-diagnostic over the full dataset shows ~random correlation with Inhibition(%), with flagged
-oligos no less effective. They are kept as an explicit toxicity axis (and that null result is
-itself a reportable conclusion). See tauso.features.sequence.toxicity_features for citations.
+Flags distinct ASO safety liabilities (hepatotoxicity, TLR9 immunostimulation,
+G-quadruplex aggregation, acute neurotoxicity). Toxicity is a separate axis from efficacy;
+whether these correlate with Inhibition(%) is an empirical question. See
+tauso.features.sequence.toxicity_features for the per-mechanism citations.
 """
 
 import logging
@@ -33,7 +32,8 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("tox_hepatotox_gap_tcc_tgc", lambda s, p: hepatotox_gap_motif_count(s, p)),
     # TLR9 immunostimulation: CpG dinucleotide count (Krieg et al. 1995).
     ("tox_cpg_count", lambda s, p: cpg_count(s)),
-    # TLR9: human-optimal CpG hexamer GTCGTT (Krieg et al. 1995); rare, but a clean flag for the few it hits.
+    # TLR9: human-optimal CpG-B hexamer GTCGTT (Hartmann & Krieg 2000); the canonical
+    # human-stimulatory motif, also carried by CpG ODN 2006.
     ("tox_tlr9_gtcgtt", lambda s, p: tlr9_human_motif_count(s)),
     # G-quadruplex propensity: max windowed G4Hunter score (Bedrat et al. 2016).
     ("tox_g4hunter_max", lambda s, p: g4hunter_max(s)),

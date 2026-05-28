@@ -57,8 +57,15 @@ def hepatotox_motif_count(seq: str) -> int:
 
 # --- Immunostimulation via TLR9 ------------------------------------------------------------
 # Krieg AM, Yi AK, Matson S, et al. "CpG motifs in bacterial DNA trigger direct B-cell
-# activation." Nature 1995;374(6522):546-549. doi:10.1038/374546a0. Unmethylated CpG in an
-# RR-CG-YY context is stimulatory; the human-optimal hexamer is GTCGTT.
+# activation." Nature 1995;374(6522):546-549. doi:10.1038/374546a0. Identified unmethylated
+# CpG in an RR-CG-YY context as the broad stimulatory consensus in mouse B cells; the four
+# most stimulatory hexamers were GACGTC, GACGTT, AACGTC, AACGTT, vs the least stimulatory
+# TCCGGA, TCCGGG, CCCGGA, CCCGGG.
+#
+# Hartmann G, Krieg AM. "Mechanism and function of a newly identified CpG DNA motif in
+# human primary B cells." J Immunol 2000;164(2):944-953. doi:10.4049/jimmunol.164.2.944.
+# Identified GTCGTT (and TTCGTT, AACGTT) as the human-optimal CpG-B hexamer; CpG ODN 2006
+# (agatolimod) carries three GTCGTT motifs.
 _TLR9_HUMAN_HEXAMER = re.compile(r"GTCGTT")
 
 
@@ -72,9 +79,9 @@ def cpg_count(seq: str) -> int:
 
 
 def tlr9_human_motif_count(seq: str) -> int:
-    """Count of the human-optimal CpG immunostimulatory hexamer GTCGTT.
+    """Count of the human-optimal CpG-B hexamer GTCGTT.
 
-    Source: Krieg et al. 1995, Nature 374(6522):546, doi:10.1038/374546a0.
+    Source: Hartmann & Krieg 2000, J Immunol 164(2):944, doi:10.4049/jimmunol.164.2.944.
     """
     return len(_TLR9_HUMAN_HEXAMER.findall(_to_dna(seq)))
 
