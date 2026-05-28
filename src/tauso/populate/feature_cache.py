@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 
 # Per run: the wide cache parquet on Zenodo + the index column it uses. Add a new entry
 # (e.g. "oligo_v2") to ship a new version; runs can share `index_col` across versions.
-ZENODO_FEATURES_RECORD = "20420643"
+ZENODO_FEATURES_RECORD = "20431707"
 FEATURE_CACHE_FILES = {
     "oligo": {
         "filename": "oligo_features.parquet",
-        "md5": "5978c7eae34aff7125d89839c16614e5",
+        "md5": "1f9c2a7f71093d80c7b00eda45144b66",
         "index_col": "index_oligo",
     },
 }
