@@ -27,21 +27,20 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("Sequence_purine_content", purine_content),
     ("Sequence_gc_content", gc_fraction),
     ("Sequence_ggg_counts", count_g_runs),
-    ("Sequence_a_count", lambda x: x.count("A")),
-    ("Sequence_c_count", lambda x: x.count("C")),
-    ("Sequence_g_count", lambda x: x.count("G")),
-    ("Sequence_t_count", lambda x: x.count("T") + x.count("U")),  # In case the sequence is with U for some reason.
+    ("Sequence_a_count", lambda x: x.upper().count("A")),
+    ("Sequence_c_count", lambda x: x.upper().count("C")),
+    ("Sequence_g_count", lambda x: x.upper().count("G")),
+    ("Sequence_t_count", lambda x: x.upper().count("T") + x.upper().count("U")),  # In case the sequence is with U for some reason.
     # Palindromes and Entropy
     ("Sequence_4_palindromic", lambda x: palindromic_fraction(x, 4)),
     ("Sequence_6_palindromic", lambda x: palindromic_fraction(x, 6)),
     ("Sequence_entropy", seq_entropy),
     ("Sequence_dinucleotide_entropy", dinucleotide_entropy),
-    ("Sequence_nucleotide_diversity", nucleotide_diversity),
+    ("Sequence_dinucleotide_diversity", dinucleotide_diversity),
     # Structure and Energy (Hairpins/Motifs)
     ("Sequence_hairpin_score", hairpin_score),
     ("Sequence_hairpin_dG_energy", hairpin_dG_energy),
     ("Sequence_hairpin_tm", hairpin_tm),
-    ("Sequence_toxic_motif_count", toxic_motif_count),
     # Repeats and Skews
     ("Sequence_tandem_repeats_score", tandem_repeats_score),
     ("Sequence_dispersed_repeats_score", dispersed_repeats_score),
@@ -50,7 +49,6 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("Sequence_at_skew", at_skew),
     # Advanced Region Scores
     ("Sequence_flexible_dinucleotide_fraction", flexible_dinucleotide_fraction),
-    ("Sequence_stop_codon_count", stop_codon_count),
     ("Sequence_cg_dinucleotide_fraction", cg_dinucleotide_fraction),
     ("Sequence_ta_dinucleotide_fraction", ta_dinucleotide_fraction),
     ("Sequence_poly_pyrimidine_stretch", poly_pyrimidine_stretch),

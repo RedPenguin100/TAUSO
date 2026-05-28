@@ -11,6 +11,7 @@ from ..features.hybridization.hybridization_features import (
     calculate_lna,
     get_dna_rna_dg,
     get_dna_rna_dg_region,
+    get_dna_rna_tm,
     get_ps_delta_dg,
     get_ps_dna_rna_dg,
 )
@@ -20,6 +21,8 @@ from ..features.hybridization.md_weights import get_moe_md_contribution
 HYBR_ROWWISE_CALCULATION = {
     # DNA/RNA hybrid baseline and its phosphorothioate-modified counterpart.
     "hybr_dna_rna_dg": lambda row: get_dna_rna_dg(row[SEQUENCE]),
+    # Unmodified DNA/RNA hybrid melting temperature (C), Sugimoto 1995 dH/dS.
+    "hybr_dna_rna_tm": lambda row: get_dna_rna_tm(row[SEQUENCE]),
     "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[SEQUENCE]),
     "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[SEQUENCE]),
     # DNA/DNA duplex (SantaLucia & Hicks 2004).
