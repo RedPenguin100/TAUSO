@@ -735,6 +735,29 @@ def setup_riboseq(force):
         sys.exit(1)
 
 
+@main.command(name="setup-features")
+@click.option("--run", default="oligo", show_default=True, help="Feature-set run to download.")
+@click.option("--force", is_flag=True, help="Force redownload even if present.")
+def setup_features(run, force):
+    """
+    Download the frozen feature cache (one wide parquet) from Zenodo into
+    TAUSO_DATA_DIR/features/<run>/.
+
+    This is the index-keyed cache for the original ASO dataset -- an OPTIONAL fast path so
+    modeling/notebooks don't recompute the full feature matrix. Computing features for new
+    inputs goes through the calculators and does not need it. The cache sits in the store
+    folder alongside any per-feature dev shards.
+    """
+    from tauso.populate.feature_cache import ensure_cache
+
+    try:
+        dest = ensure_cache(run, force=force)
+    except FileNotFoundError as e:
+        echo_err(str(e))
+        sys.exit(1)
+    echo_ok(f"Feature cache ready: {dest}")
+
+
 GENCODE_HUMAN_RELEASE = "38"
 
 
