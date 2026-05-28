@@ -22,21 +22,24 @@ def validate_cols_in_df(df, cols):
         raise ValueError(f"Missing columns in DataFrame: {missing_cols}")
 
 
+# MFE grid — trimmed for parsimony. Drops near-redundant configs in the
+# flank=30/step=7 group (was windows 45/50/55/60/65 → keep 45/65) and the
+# redundant flank=240 mid-window (was both 45/7 and 90/15 → keep 90/15
+# only, which covers the long-range case). Net: 15 → 10 configs.
 DEFAULT_SETTINGS = [
-    (30, 45, 7),
-    (30, 50, 7),
-    (30, 55, 7),
-    (30, 60, 7),
-    (30, 65, 7),
-    (30, 55, 15),
-    (30, 65, 15),
-    (60, 55, 7),
-    (120, 55, 7),
-    (120, 65, 7),
+    # Tight local (flank=30) — fine step + spread of window sizes
     (30, 20, 4),
     (30, 30, 7),
+    (30, 45, 7),
+    (30, 65, 7),
+    (30, 65, 15),
     (30, 90, 15),
-    (240, 45, 7),
+    # Medium context
+    (60, 55, 7),
+    # Wide context
+    (120, 55, 7),
+    (120, 65, 7),
+    # Global context (one config for long-range stems)
     (240, 90, 15),
 ]
 
@@ -103,7 +106,22 @@ SEED_SIZES = [13, 26, 39]
 ACCESS_WIN_SIZE = 80
 
 
+# raccess grid — adds small-flank configs (15/30/60) for local stem-loop
+# occlusion signal that the previous single-flank (120) grid couldn't capture.
+# Capped at flank=120 because raccess is O(L²)/O(L³) in window length and
+# flank=240 would be prohibitive. Existing flank=120 configs kept unchanged
+# for back-compat / comparison.
 DEFAULT_SENSE_CONFIGURATION = [
+    # NEW: tight local (flank=15) — immediate stem-loop occlusion
+    {"flank": 15,  "access": 8,  "seeds": [4, 6, 8]},
+    {"flank": 15,  "access": 13, "seeds": [4, 6, 8]},
+    # NEW: local (flank=30) — short-range context
+    {"flank": 30,  "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 30,  "access": 20, "seeds": [4, 6, 8]},
+    # NEW: short regional (flank=60)
+    {"flank": 60,  "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 60,  "access": 20, "seeds": [4, 6, 8]},
+    # EXISTING: wider (flank=120) — unchanged
     {"flank": 120, "access": 6, "seeds": [4, 6]},
     {"flank": 120, "access": 8, "seeds": [4, 6, 8]},
     {"flank": 120, "access": 10, "seeds": [4, 6, 8]},
