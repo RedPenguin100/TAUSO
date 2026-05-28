@@ -5,9 +5,10 @@ import subprocess
 import tempfile
 import uuid
 from contextlib import contextmanager
-from importlib.resources import files
 from pathlib import Path
 from typing import Callable, Dict, List, NamedTuple, Tuple
+
+import risearch_tauso
 
 from ...util import get_antisense_rna
 from .interaction import Interaction
@@ -28,10 +29,7 @@ def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
 
 
 def get_risearch_path() -> str:
-    binary_path = files("tauso") / "out" / "risearch_executable"
-    if not binary_path.is_file():
-        raise FileNotFoundError(f"Binary missing at {binary_path}")
-    return str(binary_path)
+    return risearch_tauso.executable_path()
 
 
 def _interaction_mode(interaction_type: Interaction) -> str:
