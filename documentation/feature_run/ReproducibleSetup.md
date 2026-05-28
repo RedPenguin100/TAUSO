@@ -71,8 +71,8 @@ git rev-parse HEAD
 git submodule status             # both submodules present, no leading -/+
 ```
 
-Submodules (public, HTTPS): `external/risearch`,
-`notebooks/competitors/OligoAI/OligoAI`. No git-LFS.
+Submodules (public, HTTPS): `notebooks/competitors/OligoAI/OligoAI`,
+`notebooks/competitors/PFRED/PFREDIntegration`. No git-LFS.
 
 ---
 
