@@ -84,12 +84,26 @@ def get_partition_dir(main_feature_dir: Path, k: int, n: int) -> Path:
     return main_feature_dir.parent / f"{main_feature_dir.name}_p{k}of{n}"
 
 
+def _read_shard(path: Path) -> pd.DataFrame:
+    if path.suffix == ".parquet":
+        return pd.read_parquet(path)
+    return pd.read_csv(path)
+
+
+def _write_shard(df: pd.DataFrame, path: Path) -> None:
+    if path.suffix == ".parquet":
+        df.to_parquet(path, index=False)
+    else:
+        df.to_csv(path, index=False)
+
+
 def merge_partitions(main_feature_dir: Path, n_partitions: int, index_col: str, n_jobs: int = 1) -> None:
     """Merge all partition feature directories into main_feature_dir.
 
-    For each feature CSV (union of filenames across partitions), read every partition's
-    copy, ``pd.concat`` + ``drop_duplicates`` on ``index_col``, write the master once.
-    Per-feature work is independent; ``n_jobs > 1`` parallelizes via joblib threading.
+    For each per-feature shard (``.parquet`` or ``.csv``; union of filenames across partitions),
+    read every partition's copy, ``pd.concat`` + ``drop_duplicates`` on ``index_col``, write the
+    master once in the same format. Empty (0-byte) shards are skipped with a warning. Per-feature
+    work is independent; ``n_jobs > 1`` parallelizes via joblib threading.
     """
     main_feature_dir.mkdir(parents=True, exist_ok=True)
 
@@ -102,14 +116,23 @@ def merge_partitions(main_feature_dir: Path, n_partitions: int, index_col: str, 
         logger.warning("No partition dirs found; nothing to merge.")
         return
 
-    feat_names = sorted({p.name for d in part_dirs for p in d.glob("*.csv")})
+    feat_names = sorted({p.name for d in part_dirs for p in d.glob("*.parquet")}
+                       | {p.name for d in part_dirs for p in d.glob("*.csv")})
 
     def _merge_one(name: str):
-        dfs = [pd.read_csv(d / name) for d in part_dirs if (d / name).exists()]
+        dfs = []
+        for d in part_dirs:
+            p = d / name
+            if not p.exists():
+                continue
+            if p.stat().st_size == 0:
+                logger.warning("Empty shard %s; skipping.", p)
+                continue
+            dfs.append(_read_shard(p))
         if not dfs:
             return name, 0
         out = pd.concat(dfs, ignore_index=True).drop_duplicates(subset=[index_col])
-        out.to_csv(main_feature_dir / name, index=False)
+        _write_shard(out, main_feature_dir / name)
         return name, len(out)
 
     if n_jobs and n_jobs > 1:

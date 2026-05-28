@@ -12,7 +12,8 @@ python -m notebooks.features.pack_features --run oligo \
     --out feature_pack_build
 ```
 
-Input: a directory of per-feature CSVs keyed on `index_<run>`.
+Input: a directory of per-feature shards (`.parquet` from current `save_feature_internal`,
+or legacy `.csv`) keyed on `index_<run>`. Empty shards are skipped with a warning.
 Output: `<run>_features.parquet` (+ its md5, printed to stdout).
 
 After uploading the parquet to Zenodo, set `ZENODO_FEATURES_RECORD` and the matching
