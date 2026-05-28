@@ -30,7 +30,10 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("seq_a_count", lambda x: x.upper().count("A")),
     ("seq_c_count", lambda x: x.upper().count("C")),
     ("seq_g_count", lambda x: x.upper().count("G")),
-    ("seq_t_count", lambda x: x.upper().count("T") + x.upper().count("U")),  # In case the sequence is with U for some reason.
+    (
+        "seq_t_count",
+        lambda x: x.upper().count("T") + x.upper().count("U"),
+    ),  # In case the sequence is with U for some reason.
     # Palindromes and Entropy
     ("seq_4_palindromic", lambda x: palindromic_fraction(x, 4)),
     ("seq_6_palindromic", lambda x: palindromic_fraction(x, 6)),
