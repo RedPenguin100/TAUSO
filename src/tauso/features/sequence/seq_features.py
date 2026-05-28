@@ -1,12 +1,10 @@
 import math
-import re
-from collections import Counter, defaultdict
+from collections import Counter
 
-import numpy as np
 import pandas as pd
 import primer3
 import ViennaRNA as RNA
-from numba import njit
+from Bio.SeqUtils import gc_fraction
 from primer3 import calc_hairpin
 
 from ...util import get_antisense
@@ -65,17 +63,21 @@ def self_energy(seq: str) -> float:
 
 
 def internal_fold(seq: str) -> float:
+    """Self-structure ΔG (kcal/mol) of the ASO via ViennaRNA.
+
+    ViennaRNA has no DNA or modified-sugar energy model, so the oligo is folded with RNA
+    parameters as a proxy for its self-complementarity. The value is the unmodified-RNA
+    self-fold, not the true chemically-modified self-structure energy.
+    """
     return RNA.fold(seq)[1]
 
 
 def hairpin_dG_energy(seq: str):
     """
-    Returns the raw ΔG (Gibbs free energy) of predicted hairpin structure,
-    divided by sequence length.
+    Returns the raw ΔG (Gibbs free energy, primer3 units) of the predicted hairpin structure.
 
-    This value is NOT normalized to [0,1].
-    Positive values suggest unstable/no structure.
-    Negative values indicate stronger/stable hairpins that may interfere with ASO activity.
+    Not normalized. Returns 0 when no structure is found; negative values indicate
+    stronger/more stable hairpins that may interfere with ASO activity.
     """
     hairpin = calc_hairpin(seq)
 
@@ -116,8 +118,6 @@ def homooligo_count(seq: str) -> float:
         if seq[i] == seq[i - 1]:
             current_run += 1
         else:
-            # Your original code used 'if len(curr_seq) > 1', which meant
-            # a run had to be at least 3 characters long to be counted.
             if current_run > 2:
                 tot_count += current_run
             current_run = 1
@@ -126,7 +126,6 @@ def homooligo_count(seq: str) -> float:
     if current_run > 2:
         tot_count += current_run
 
-    # Your original code divided by the length of (seq + '$')
     return tot_count / (seq_len + 1)
 
 
@@ -141,10 +140,9 @@ def seq_entropy(seq: str) -> float:
         count = seq.count(base)
         if count > 0:
             p = count / seq_len
-            # Scipy's default entropy uses natural log (base e)
-            ent -= p * math.log(p)
+            ent -= p * math.log2(p)
 
-    return ent / 2.0
+    return ent / 2.0  # normalize to [0, 1]: max entropy over 4 bases is log2(4) = 2
 
 
 def count_g_runs(seq: str, min_run_length: int = 4) -> float:
@@ -205,23 +203,18 @@ def gc_skew(seq: str) -> float:
     return (G_counts - C_counts) / (G_counts + C_counts)
 
 
-@njit
 def get_gc_content(seq: str) -> float:
-    gc_count = 0
-    for i in range(len(seq)):
-        if seq[i] in "GCgc":
-            gc_count += 1
-
-    return gc_count / len(seq)
+    """GC fraction in [0, 1] via Biopython; 0.0 for an empty sequence."""
+    if not seq:
+        return 0.0
+    return gc_fraction(seq)
 
 
 def gc_content_3prime_end(aso_sequence: str, window: int = 5) -> float:
     """Calculate the GC content at the 3' end of the ASO sequence."""
     if len(aso_sequence) < window:
         return 0.0
-    three_prime_end = aso_sequence[-window:]
-    gc_count = three_prime_end.count("G") + three_prime_end.count("C")
-    return gc_count / window
+    return get_gc_content(aso_sequence[-window:])
 
 
 def gc_skew_ends(seq: str, window: int = 5) -> float:
@@ -279,47 +272,11 @@ def at_skew(seq: str) -> float:
     return (A_counts - T_counts) / total_AT
 
 
-def toxic_motif_count(aso_sequence, motifs=None) -> float:
-    """
-    Counts the number of toxic motif appearances in the ASO.
-    Returns normalized count (0–1) based on max possible motif hits.
-
-    Parameters:
-        aso_sequence (str): DNA or RNA ASO sequence
-        motifs (list of str): known toxic motifs (excluding 'GGGG' to avoid overlap with G-runs)
-
-    Returns:
-        float: normalized toxic motif count
-    """
-    if motifs is None:
-        motifs = ["UGU", "GGTGG", "TGGT", "GGGU"]
-    sequence = aso_sequence.upper()
-    total = 0
-    for motif in motifs:
-        total += len(re.findall(motif, sequence))
-
-    max_possible = len(sequence)  # conservative upper bound
-    return min(total / max_possible, 1.0)
-
-
-def nucleotide_diversity(seq: str) -> float:
-    # checking the nucleotide diversity of the ASO sequence and normalize it by the
-    # max value 16
+def dinucleotide_diversity(seq: str) -> float:
+    # fraction of the 16 possible dinucleotides present in the ASO sequence
     nucs = [seq[i : i + 2] for i in range(len(seq) - 1)]
     unique = set(nucs)
     return len(unique) / 16
-
-
-def stop_codon_count(seq: str, codons=("TAA", "TAG", "TGA")) -> float:
-    """
-    Counts occurrences of stop codons (TAA, TAG, TGA) in the sequence.
-    Returns a normalized value (count per length).
-    Returns:
-        float: normalized count of stop codons
-    """
-    seq = seq.upper()
-    count = sum(seq.count(codon) for codon in codons)
-    return count / len(seq)
 
 
 def tandem_repeats_score(seq: str, min_unit=2, max_unit=6) -> float:
@@ -534,89 +491,6 @@ def purine_content(seq):
     if len(seq) == 0:
         return 0.0
     return count / len(seq)
-
-
-#################################################################
-def Niv_ENC(seq: str, strict: bool = False) -> float:
-    """
-    Calculates the Effective Number of Codons (ENC) for a DNA sequence.
-
-    If strict=True, uses the original Wright (1990) formula strictly,
-    requiring all four F-values (F2, F3, F4, F6). Otherwise, uses only the
-    available families to compute a partial ENC approximation.
-
-    Args:
-        seq (str): DNA sequence (assumed uppercase A/C/G/T)
-        strict (bool): Whether to enforce full Wright formula (default: False)
-
-    Returns:
-        float: Normalized ENC in [0, 1] (0 = max bias, 1 = no bias)
-    """
-    seq = seq.upper()
-    seq = seq[: len(seq) - (len(seq) % 3)]  # Trim to full codons
-    codons = [seq[i : i + 3] for i in range(0, len(seq), 3)]
-    codon_counts = defaultdict(int)
-    for codon in codons:
-        codon_counts[codon] += 1
-
-    FAMILY_GROUPS = {
-        2: [
-            ["TTT", "TTC"],
-            ["TAT", "TAC"],
-            ["CAT", "CAC"],
-            ["CAA", "CAG"],
-            ["AAT", "AAC"],
-            ["AAA", "AAG"],
-            ["GAT", "GAC"],
-            ["GAA", "GAG"],
-            ["TGT", "TGC"],
-        ],
-        3: [["ATT", "ATC", "ATA"]],
-        4: [
-            ["CCT", "CCC", "CCA", "CCG"],
-            ["ACT", "ACC", "ACA", "ACG"],
-            ["GCT", "GCC", "GCA", "GCG"],
-            ["GTT", "GTC", "GTA", "GTG"],
-            ["GGT", "GGC", "GGA", "GGG"],
-        ],
-        6: [
-            ["TTA", "TTG", "CTT", "CTC", "CTA", "CTG"],
-            ["TCT", "TCC", "TCA", "TCG", "AGT", "AGC"],
-            ["CGT", "CGC", "CGA", "CGG", "AGA", "AGG"],
-        ],
-    }
-
-    F_values = {}
-    for k, families in FAMILY_GROUPS.items():
-        F_list = []
-        for family in families:
-            counts = [codon_counts[c] for c in family]
-            total = sum(counts)
-            if total == 0:
-                continue
-            freqs = [count / total for count in counts]
-            F_aa = sum(f**2 for f in freqs)
-            F_list.append(F_aa)
-        if F_list:
-            F_values[k] = np.mean(F_list)
-
-    try:
-        weights = {2: 9, 3: 1, 4: 5, 6: 3}
-
-        if strict:
-            # Require all four F-values to compute full ENC
-            if not all(k in F_values for k in [2, 3, 4, 6]):
-                return 0.0  # Not enough info to compute strict ENC
-            ENC = 2 + 9 / F_values[2] + 1 / F_values[3] + 5 / F_values[4] + 3 / F_values[6]
-        else:
-            # Use only available F-values (partial ENC)
-            ENC = 2 + sum(weights[k] / F_values[k] for k in F_values)
-
-        normalized_enc = (ENC - 20) / (61 - 20)
-        return max(0.0, min(1.0, normalized_enc))
-
-    except ZeroDivisionError:
-        return 1.0  # fallback if unexpected division by 0
 
 
 ########################################################################################################

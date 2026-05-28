@@ -1,8 +1,7 @@
 """Binary RNase H1 motif presence on the DNA gap of a gapmer ASO.
 
-Sister to :func:`seq_features.toxic_motif_count` — both are sequence-pattern
-presence checks. Motifs are scanned on the DNA ASO strand (Kiełpiński 2017
-convention, PMC5728404). Add new motifs to ``_RNASEH1_MOTIFS`` below.
+Motifs are scanned on the DNA ASO strand (Kiełpiński 2017 convention, PMC5728404).
+Add new motifs to ``_RNASEH1_MOTIFS`` below.
 """
 
 import pandas as pd
