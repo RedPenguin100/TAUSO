@@ -493,6 +493,24 @@ class Calculator:
         else:
             logger.info("All sequence chemistry features exist. Skipping.")
 
+    def calculate_toxicity(self):
+        """Calculates sequence-derived toxicity / liability features (tox_* family)."""
+        from tauso.populate.populate_toxicity import FEATURE_SPECS as TOX_SPECS
+
+        expected_features = [name for name, _ in TOX_SPECS]
+        missing = self._get_missing_features(expected_features)
+
+        if missing:
+            logger.info("Computing %d toxicity features...", len(missing))
+            from tauso.populate.populate_toxicity import populate_toxicity_features
+
+            self.data, generated_features = populate_toxicity_features(self.data, features=missing, cpus=self.cpus)
+
+            for feature in generated_features:
+                self._save_calculated_feature(feature_name=feature)
+        else:
+            logger.info("All toxicity features exist. Skipping.")
+
     def calculate_hybridization(self):
         """Calculates hybridization features."""
         from tauso.populate.populate_hybridization import HYBR_FEATURE_TO_CALCULATION
@@ -968,6 +986,7 @@ class Calculator:
             self.calculate_sense_accessibility,
             self.calculate_sequence_one_hot,
             self.calculate_sequence_chemistry,
+            self.calculate_toxicity,
             self.calculate_modification,
             self.calculate_hybridization,
             self.calculate_backbone_features,

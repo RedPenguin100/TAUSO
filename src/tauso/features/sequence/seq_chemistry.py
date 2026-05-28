@@ -1,24 +1,24 @@
+from .seq_features import get_gc_content
+
+# High-affinity sugar wings of a gapmer: 'M' = 2'-MOE, 'C' = cEt, 'L' = LNA.
+_WING_MARKERS = "MCL"
+
+
 def gap_gc_content(seq: str, pattern: str) -> float:
     """Calculates GC content strictly within the DNA gap ('d')."""
-    gap_bases = [base.upper() for base, pat in zip(seq, pattern) if pat == "d"]
-    if not gap_bases:
-        return 0.0
-    gc_count = sum(1 for b in gap_bases if b in "GC")
-    return gc_count / len(gap_bases)
+    gap_bases = "".join(base for base, pat in zip(seq, pattern) if pat == "d")
+    return get_gc_content(gap_bases)
 
 
 def wing_gap_gc_delta(seq: str, pattern: str) -> float:
     """
-    Calculates the difference in GC content between the wings ('M', 'C')
-    and the central gap ('d').
+    Calculates the difference in GC content between the high-affinity wings
+    ('M' = 2'-MOE, 'C' = cEt, 'L' = LNA) and the central DNA gap ('d').
     """
-    wing_bases = [base.upper() for base, pat in zip(seq, pattern) if pat in "MC"]
-    gap_bases = [base.upper() for base, pat in zip(seq, pattern) if pat == "d"]
+    wing_bases = "".join(base for base, pat in zip(seq, pattern) if pat in _WING_MARKERS)
+    gap_bases = "".join(base for base, pat in zip(seq, pattern) if pat == "d")
 
     if not wing_bases or not gap_bases:
         return 0.0
 
-    wing_gc = sum(1 for b in wing_bases if b in "GC") / len(wing_bases)
-    gap_gc = sum(1 for b in gap_bases if b in "GC") / len(gap_bases)
-
-    return wing_gc - gap_gc
+    return get_gc_content(wing_bases) - get_gc_content(gap_bases)
