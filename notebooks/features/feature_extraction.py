@@ -1,9 +1,11 @@
+import concurrent.futures
 import os
 
 import pandas as pd
 import pyarrow.parquet as pq
 
 from tauso.populate.feature_cache import (
+    FEATURE_CACHE_FILES,
     cache_path,
     ensure_cache,
     feature_store_dir,
@@ -124,99 +126,109 @@ def get_dtype_for_feature(filename, index_col_name):
     return {index_col_name: "int32"}
 
 
-def load_all_features(filenames=None, light=True, verbose=False, version="oligo", load_competition=False):
-    feature_dir = feature_store_dir(version)
-    index_col = f"index_{version}"
+def _index_col(version):
+    if version in FEATURE_CACHE_FILES:
+        return FEATURE_CACHE_FILES[version]["index_col"]
+    return f"index_{version}"
 
-    # The wide frozen cache is just another parquet in the folder; fetch it if it isn't here yet.
-    cache_file = cache_path(version)
-    if not os.path.exists(cache_file):
-        try:
-            ensure_cache(version)
-        except FileNotFoundError:
-            # No published cache and no local copy: fall back to dev shards, if any exist.
-            if not any(f.endswith(".parquet") for f in os.listdir(feature_dir)):
-                raise
 
-    parquet_files = sorted(os.path.join(feature_dir, f) for f in os.listdir(feature_dir) if f.endswith(".parquet"))
-    if not parquet_files:
-        raise FileNotFoundError(f"No parquet features found in {feature_dir}")
+def _maybe_fetch_cache(version):
+    """If `version` is a registered run, ensure the wide cache is present locally; return its path."""
+    if version not in FEATURE_CACHE_FILES:
+        return None
+    path = cache_path(version)
+    if not os.path.exists(path):
+        ensure_cache(version)
+    return path
 
+
+def _feature_name(path):
+    return os.path.basename(path).removesuffix(".parquet").removesuffix(".csv")
+
+
+def _keep_filter(light, load_competition, wanted):
     excluded = set() if load_competition else set(COMPETITION)
     if light:
         excluded.add("Smiles")
-    wanted = set(filenames) if filenames else None
+    wanted_set = set(wanted) if wanted else None
+    return lambda name: name not in excluded and (wanted_set is None or name in wanted_set)
 
-    def keep_name(name):
-        return name not in excluded and (wanted is None or name in wanted)
 
-    # Loose per-feature dev shards take precedence over the cache on a name clash.
-    frames = []
-    overridden = set()
-    for path in parquet_files:
-        if path == cache_file:
-            continue
-        name = os.path.basename(path).removesuffix(".parquet")
-        if not keep_name(name):
-            continue
-        frames.append(pd.read_parquet(path).set_index(index_col))
-        overridden.add(name)
+def _list_shards(feature_dir, cache_file):
+    """All per-feature shards (.csv or .parquet) in `feature_dir`, excluding the wide cache."""
+    cache_name = os.path.basename(cache_file) if cache_file else None
+    return sorted(
+        os.path.join(feature_dir, f)
+        for f in os.listdir(feature_dir)
+        if (f.endswith(".csv") or f.endswith(".parquet")) and not f.startswith(".") and f != cache_name
+    )
 
-    # Read the cache (if present), skipping excluded / shard-overridden / unwanted columns.
-    if os.path.exists(cache_file):
-        cache_cols = [c for c in pq.read_schema(cache_file).names if c != index_col]
-        keep = [c for c in cache_cols if keep_name(c) and c not in overridden]
-        if keep:
-            frames.append(pd.read_parquet(cache_file, columns=[index_col] + keep).set_index(index_col))
+
+def _read_shard(path, index_col):
+    """Read a per-feature shard (CSV or Parquet) as a DataFrame indexed by `index_col`."""
+    if path.endswith(".csv"):
+        return pd.read_csv(
+            path,
+            index_col=index_col,
+            dtype=get_dtype_for_feature(os.path.basename(path), index_col),
+            engine="pyarrow",
+            dtype_backend="pyarrow",
+        )
+    return pd.read_parquet(path).set_index(index_col)
+
+
+def _read_cache(cache_file, index_col, excluded_cols, keep_name):
+    """Read the wide cache, skipping columns covered by shards or filtered out."""
+    cols = [c for c in pq.read_schema(cache_file).names if c != index_col and keep_name(c) and c not in excluded_cols]
+    if not cols:
+        return None
+    return pd.read_parquet(cache_file, columns=[index_col] + cols).set_index(index_col)
+
+
+def load_all_features(filenames=None, light=True, verbose=False, version="oligo", load_competition=False):
+    feature_dir = _get_saved_features_dir(version)
+    cache_file = _maybe_fetch_cache(version)
+
+    keep = _keep_filter(light=light, load_competition=load_competition, wanted=filenames)
+    shards = [p for p in _list_shards(feature_dir, cache_file) if keep(_feature_name(p))]
+    idx = _index_col(version)
+
+    with concurrent.futures.ThreadPoolExecutor() as ex:
+        frames = list(ex.map(lambda p: _read_shard(p, idx), shards))
+
+    if cache_file:
+        shard_cols = {c for f in frames for c in f.columns}
+        cache_frame = _read_cache(cache_file, idx, excluded_cols=shard_cols, keep_name=keep)
+        if cache_frame is not None:
+            frames.append(cache_frame)
 
     if not frames:
-        raise FileNotFoundError(f"No matching features found in {feature_dir}")
-
-    merged_df = pd.concat(frames, axis=1, join="outer", copy=False).reset_index()
+        raise FileNotFoundError(f"No features found in {feature_dir}")
+    merged = pd.concat(frames, axis=1, join="outer", copy=False).reset_index()
     if verbose:
-        print(
-            f"Loaded {merged_df.shape[1] - 1} feature columns from {feature_dir} ({len(overridden)} dev shard(s) + cache)"
-        )
-    return merged_df
+        print(f"Loaded {merged.shape[1] - 1} feature columns from {feature_dir}")
+    return merged
 
 
 def iter_all_features(batch_size=5000, light=True, version="oligo", load_competition=False, filenames=None):
-    """Stream the merged feature matrix in row batches, for low peak memory on small machines.
+    """Stream the merged feature matrix in row batches via pyarrow (peak ~ one batch).
 
-    Yields DataFrames of up to ``batch_size`` rows with the same columns as load_all_features.
-    The wide cache is read row-group by row-group via pyarrow (peak ~= one batch); the small
-    per-feature dev shards are held in full and sliced per batch (and still override the cache).
-    Requires the cache to be present (the cache is the large thing worth streaming).
+    Requires a registered cache for `version`; loose dev shards are sliced per batch.
     """
-    feature_dir = feature_store_dir(version)
-    index_col = f"index_{version}"
-    cache_file = cache_path(version)
-    if not os.path.exists(cache_file):
-        ensure_cache(version)
+    feature_dir = _get_saved_features_dir(version)
+    cache_file = _maybe_fetch_cache(version)
+    if cache_file is None:
+        raise FileNotFoundError(f"iter_all_features needs a registered cache for run '{version}'")
 
-    excluded = set() if load_competition else set(COMPETITION)
-    if light:
-        excluded.add("Smiles")
-    wanted = set(filenames) if filenames else None
+    keep = _keep_filter(light=light, load_competition=load_competition, wanted=filenames)
+    idx = _index_col(version)
+    shard_paths = [p for p in _list_shards(feature_dir, cache_file) if keep(_feature_name(p))]
+    shards = {_feature_name(p): _read_shard(p, idx)[_feature_name(p)] for p in shard_paths}
 
-    def keep_name(name):
-        return name not in excluded and (wanted is None or name in wanted)
-
-    # Dev shards are small (one column each): load fully, slice per batch; they override the cache.
-    shards = {}
-    for f in sorted(os.listdir(feature_dir)):
-        path = os.path.join(feature_dir, f)
-        if f.endswith(".parquet") and path != cache_file:
-            name = f.removesuffix(".parquet")
-            if keep_name(name):
-                shards[name] = pd.read_parquet(path).set_index(index_col)[name]
-
-    cache_cols = [c for c in pq.read_schema(cache_file).names if c != index_col]
-    keep = [c for c in cache_cols if keep_name(c) and c not in shards]
-
+    cols = [c for c in pq.read_schema(cache_file).names if c != idx and keep(c) and c not in shards]
     parquet = pq.ParquetFile(cache_file)
-    for batch in parquet.iter_batches(batch_size=batch_size, columns=[index_col] + keep):
-        bdf = batch.to_pandas().set_index(index_col)
+    for batch in parquet.iter_batches(batch_size=batch_size, columns=[idx] + cols):
+        bdf = batch.to_pandas().set_index(idx)
         for name, col in shards.items():
             bdf[name] = col.reindex(bdf.index)
         yield bdf.reset_index()
