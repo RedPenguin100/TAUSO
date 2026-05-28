@@ -1,3 +1,12 @@
+"""Ribo-seq features per ASO target site.
+
+Two GWIPS-viz tracks from Wagner et al. 2020 (HEK293T, Sel-TCP-seq, GSE139131):
+40S unselected scanning footprints and 80S unselected elongation footprints.
+Same cell line for both. See ``tauso setup-riboseq``.
+
+Column prefixes: ``ribo_40s_*`` / ``ribo_80s_*``.
+"""
+
 import logging
 import time
 from pathlib import Path
@@ -10,25 +19,46 @@ from ...data.data import get_data_dir
 
 logger = logging.getLogger(__name__)
 
-parent = Path(__file__).parent
+
+_TRACKS = {
+    "40s": ("human_unselected_40S.RiboProElong.bw", "ribo_40s"),  # scanning / pre-initiation
+    "80s": ("human_unselected_80S.RiboCov.bw", "ribo_80s"),  # elongation footprints
+}
 
 
-def get_ribo_40s_human_data():
-    """Resolve the path to the ribo-seq bigWig in TAUSO_DATA_DIR."""
-    bw_path = Path(get_data_dir()) / "human_unselected_40S.RiboProElong.bw"
+def get_ribo_bigwig_path(track="40s"):
+    """Resolve the path to a ribo-seq bigWig in TAUSO_DATA_DIR.
+
+    track="40s" returns the Wagner20 40S scanning track (back-compat default).
+    track="80s" returns the Wagner20 80S elongation footprint track.
+    """
+    if track not in _TRACKS:
+        raise ValueError(f"unknown ribo-seq track {track!r}; choose from {sorted(_TRACKS)}")
+    filename, _prefix = _TRACKS[track]
+    bw_path = Path(get_data_dir()) / filename
     if not bw_path.exists():
         raise FileNotFoundError(f"Ribo-seq bigWig not found at {bw_path}. Run 'tauso setup-riboseq' to download it.")
     return str(bw_path)
 
 
-def feature_names(flanks, how):
+def get_ribo_40s_human_data():
+    """Deprecated: use ``get_ribo_bigwig_path("40s")``."""
+    return get_ribo_bigwig_path("40s")
+
+
+def get_feature_prefix(track):
+    """Return the column-name prefix for a given track."""
+    return _TRACKS[track][1]
+
+
+def feature_names(flanks, how, prefix="ribo_40s"):
     """Return the ordered list of ribo-seq feature column names for given flanks and reduction."""
-    names = [f"ribo_gene_{how}"]
+    names = [f"{prefix}_gene_{how}"]
     for f in flanks:
-        names.append(f"ribo_f{f}_{how}")
+        names.append(f"{prefix}_f{f}_{how}")
         if f > 0:
-            names.append(f"ribo_upstream_{f}_{how}")
-            names.append(f"ribo_downstream_{f}_{how}")
+            names.append(f"{prefix}_upstream_{f}_{how}")
+            names.append(f"{prefix}_downstream_{f}_{how}")
     return names
 
 
@@ -44,6 +74,8 @@ def reduce_values(values, how):
     elif how == "nz_mean":
         nz = values[values > 0]
         return nz.mean() if nz.size > 0 else 0.0
+    elif how == "nz_frac":
+        return float((values > 0).sum()) / values.size
     raise ValueError(f"No reducing logic for value: {how}")
 
 
@@ -56,27 +88,27 @@ def _query_bw(bw, chrom, start, end, chrom_len):
     return np.nan_to_num(np.array(bw.values(chrom, s, e), dtype=float), nan=0.0)
 
 
-def _row_target_features(ts, te, strand, bw, chrom, chrom_len, flanks, how):
+def _row_target_features(ts, te, strand, bw, chrom, chrom_len, flanks, how, prefix="ribo_40s"):
     """Compute all flank-based features for a single target position (ts, te)."""
     feat = {}
     for f in flanks:
         arr = _query_bw(bw, chrom, ts - f, te + f, chrom_len)
-        feat[f"ribo_f{f}_{how}"] = reduce_values(arr, how) if arr is not None else 0.0
+        feat[f"{prefix}_f{f}_{how}"] = reduce_values(arr, how) if arr is not None else 0.0
         if f > 0:
             arr_left = _query_bw(bw, chrom, ts - f, ts, chrom_len)
             arr_right = _query_bw(bw, chrom, te, te + f, chrom_len)
             val_left = reduce_values(arr_left, how) if arr_left is not None else 0.0
             val_right = reduce_values(arr_right, how) if arr_right is not None else 0.0
             if strand == "+":
-                feat[f"ribo_upstream_{f}_{how}"] = val_left
-                feat[f"ribo_downstream_{f}_{how}"] = val_right
+                feat[f"{prefix}_upstream_{f}_{how}"] = val_left
+                feat[f"{prefix}_downstream_{f}_{how}"] = val_right
             else:
-                feat[f"ribo_upstream_{f}_{how}"] = val_right
-                feat[f"ribo_downstream_{f}_{how}"] = val_left
+                feat[f"{prefix}_upstream_{f}_{how}"] = val_right
+                feat[f"{prefix}_downstream_{f}_{how}"] = val_left
     return feat
 
 
-def process_gene_group(bw_path, gene_rows, flanks, how):
+def process_gene_group(bw_path, gene_rows, flanks, how, prefix="ribo_40s"):
     """
     Process all rows for one gene using a private BigWig handle (thread-safe).
 
@@ -99,13 +131,13 @@ def process_gene_group(bw_path, gene_rows, flanks, how):
         # Compute gene-level value once for the whole group
         gene_arr = _query_bw(bw, chrom, gene_start, gene_end, chrom_len)
         gene_val = reduce_values(gene_arr, how) if gene_arr is not None else 0.0
-        gene_key = f"ribo_gene_{how}"
+        gene_key = f"{prefix}_gene_{how}"
 
         results = {}
         for idx, row in gene_rows.iterrows():
             ts, te = int(row["target_start"]), int(row["target_end"])
             feat = {gene_key: gene_val}
-            feat.update(_row_target_features(ts, te, row["strand"], bw, chrom, chrom_len, flanks, how))
+            feat.update(_row_target_features(ts, te, row["strand"], bw, chrom, chrom_len, flanks, how, prefix))
             results[idx] = feat
         return results
     finally:
@@ -146,8 +178,9 @@ def add_genomic_coordinates(aso_df, mapper):
     L = out[SENSE_START].astype(float)
     k = out[SENSE_LENGTH].astype(float)
 
-    t_start_plus = out["gene_start"] + (L - 1)
-    t_start_minus = out["gene_start"] + (gene_len - L - k + 1)
+    # SENSE_START is 0-based (from pre_mrna.find(sense)); gene_start/end are 0-based half-open.
+    t_start_plus = out["gene_start"] + L
+    t_start_minus = out["gene_start"] + (gene_len - L - k)
     t_start = np.where(out["strand"] == "+", t_start_plus, t_start_minus)
 
     out["target_start"] = np.where(valid, t_start, np.nan)

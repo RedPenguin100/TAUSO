@@ -9,14 +9,15 @@ import pandas as pd
 from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
 from ..features.context.ribo_seq import (
     feature_names,
-    get_ribo_40s_human_data,
+    get_feature_prefix,
+    get_ribo_bigwig_path,
     process_gene_group,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs):
+def _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs, prefix="ribo"):
     """
     Dispatch process_gene_group over all (gene, gene_rows) pairs.
 
@@ -29,7 +30,7 @@ def _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs):
 
     def _collect(gene, gene_rows):
         try:
-            return gene, process_gene_group(bw_path, gene_rows, flanks, how), None
+            return gene, process_gene_group(bw_path, gene_rows, flanks, how, prefix), None
         except KeyError as exc:
             return gene, {}, str(exc).strip("'\"")
 
@@ -54,14 +55,15 @@ def _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs):
     return results, skipped
 
 
-def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean", n_jobs=1):
+def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean", n_jobs=1, track="40s"):
     if organism != "human":
         raise ValueError("Unsupported organism for ribo_seq feature")
-    if how not in {"sum", "mean", "max", "nz_mean"}:
+    if how not in {"sum", "mean", "max", "nz_mean", "nz_frac"}:
         raise ValueError(how)
 
-    bw_path = str(get_ribo_40s_human_data())
-    feat_cols = feature_names(flanks, how)
+    bw_path = str(get_ribo_bigwig_path(track))
+    prefix = get_feature_prefix(track)  # "ribo_40s" or "ribo_80s"
+    feat_cols = feature_names(flanks, how, prefix=prefix)
 
     for col in feat_cols:
         aso_df[col] = np.nan
@@ -72,7 +74,8 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     n_genes = valid_df[CANONICAL_GENE].nunique()
 
     logger.info(
-        "populate_ribo_seq: %d valid rows across %d genes × %d features (n_jobs=%d)",
+        "populate_ribo_seq[%s]: %d valid rows across %d genes × %d features (n_jobs=%d)",
+        track,
         n_valid,
         n_genes,
         len(feat_cols),
@@ -82,7 +85,7 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     gene_groups = list(valid_df.groupby(CANONICAL_GENE))
 
     t0 = time.perf_counter()
-    results, skipped = _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs)
+    results, skipped = _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs, prefix=prefix)
     elapsed = time.perf_counter() - t0
 
     logger.info(

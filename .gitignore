@@ -30,3 +30,6 @@ bulk_input_*
 CLAUDE.md
 # Trained model artifacts (regenerable via train_model.py)
 notebooks/models/SimpleModels/
+
+# Per-feature CSVs (regenerable from bigWigs + ASO data via tauso populate / notebooks/features/feature_extraction)
+notebooks/saved_features_oligo/
