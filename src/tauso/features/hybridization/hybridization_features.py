@@ -1,15 +1,8 @@
 import logging
-import math
 
 from ...common.modifications import get_longest_dna_gap
 from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, get_nucleotide_watson_crick
-from ..hybridization.exp_weights import (
-    DNA_RNA_DG37_WEIGHTS,
-    DNA_RNA_DH_WEIGHTS,
-    DNA_RNA_DS_WEIGHTS,
-    DNA_RNA_INIT,
-    PS_DELTA_DG37_WEIGHTS,
-)
+from ..hybridization.exp_weights import DNA_RNA_DG37_WEIGHTS, PS_DELTA_DG37_WEIGHTS
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
 
@@ -28,32 +21,6 @@ def get_dna_rna_dg(seq: str) -> float:
         L, R = seq[i], seq[i + 1]
         total += DNA_RNA_DG37_WEIGHTS[L + R]
     return total
-
-
-# Two-state melting temperature, non-self-complementary form: Tm = dH / (dS + R*ln(C_T/4)),
-# evaluated at a fixed total strand concentration. R in cal/(mol*K).
-_TM_GAS_CONSTANT = 1.987
-_TM_TOTAL_STRAND_CONC_M = 4e-6
-
-
-def get_dna_rna_tm(seq: str) -> float:
-    """Melting temperature (C) of the unmodified DNA/RNA hybrid duplex (Sugimoto 1995).
-
-    Sums the per-dinucleotide dH/dS over the ASO 5'->3', adds the helix-initiation factor,
-    and applies the non-self-complementary two-state formula at a fixed total strand
-    concentration. This is the unmodified hybrid Tm; it carries no PS or 2'-sugar contribution.
-    """
-    seq = _to_rna(seq)
-    if len(seq) < 2:
-        return float("nan")
-    dH = DNA_RNA_INIT["dH"]
-    dS = DNA_RNA_INIT["dS"]
-    for i in range(len(seq) - 1):
-        nn = seq[i] + seq[i + 1]
-        dH += DNA_RNA_DH_WEIGHTS[nn]
-        dS += DNA_RNA_DS_WEIGHTS[nn]
-    tm_kelvin = (dH * 1000.0) / (dS + _TM_GAS_CONSTANT * math.log(_TM_TOTAL_STRAND_CONC_M / 4.0))
-    return tm_kelvin - 273.15
 
 
 def get_ps_delta_dg(seq: str) -> float:

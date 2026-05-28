@@ -4,8 +4,8 @@
   "Developing predictive hybridization models for phosphorothioate
   oligonucleotides using high-resolution melting" (PMC9116672). Reported as
   dG(50 C), dH, dS; the Gibbs free energy at 37 C is derived below.
-- DNA/RNA hybrid: Sugimoto et al., Biochemistry 1995. dG37 (kcal/mol) plus the
-  per-nearest-neighbour dH/dS behind it (used for melting-temperature calculations).
+- DNA/RNA hybrid: Sugimoto et al., Biochemistry 1995, reported directly as
+  dG37 (kcal/mol).
 
 The tables live next to this module as CSV files (see weights/*.csv).
 """
@@ -45,9 +45,6 @@ PS_DELTA_DG37_WEIGHTS = {
     if pair in PS_PO_G37_WEIGHTS
 }
 
-# Sugimoto et al., DNA/RNA hybrid: dG37 (kcal/mol) and the dH/dS behind it.
+# Sugimoto et al., DNA/RNA hybrid; tabulated directly as dG37 (kcal/mol).
 _dna_rna = _load("dna_rna.csv")
 DNA_RNA_DG37_WEIGHTS = dict(zip(_dna_rna["nucleotide"], _dna_rna["dG37"]))
-DNA_RNA_DH_WEIGHTS = dict(zip(_dna_rna["nucleotide"], _dna_rna["dH"]))  # kcal/mol
-DNA_RNA_DS_WEIGHTS = dict(zip(_dna_rna["nucleotide"], _dna_rna["dS"]))  # cal/(mol*K)
-DNA_RNA_INIT = {"dH": 1.9, "dS": -3.9}  # Sugimoto helix-initiation factor (dH kcal/mol, dS cal/mol/K)

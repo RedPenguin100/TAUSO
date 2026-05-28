@@ -1,22 +1,21 @@
+# DNA/RNA hybrid duplex nearest-neighbour free energies, dG37 in kcal/mol.
 # Source: Sugimoto N et al. "Thermodynamic Parameters To Predict Stability of RNA/DNA
 # Hybrid Duplexes." Biochemistry 1995. https://pubs.acs.org/doi/10.1021/bi00035a029
 # Dinucleotide written on the DNA strand 5'->3' (T spelled as U).
-# Columns: dG37 (kcal/mol), dH (kcal/mol), dS (cal/mol/K). dH/dS from Sugimoto via Biopython R_DNA_NN1;
-# helix-initiation factor dH=1.9 kcal/mol, dS=-3.9 cal/mol/K (applied in the Tm calc, not the dG sum).
-nucleotide,dG37,dH,dS
-UU,-1.00,-7.8,-21.9
-GU,-2.10,-5.9,-12.3
-CU,-1.80,-9.1,-23.5
-AU,-0.90,-8.3,-23.9
-UG,-0.90,-9.0,-26.1
-GG,-2.10,-9.3,-23.2
-CG,-1.70,-16.3,-47.1
-AG,-0.90,-7.0,-19.7
-UC,-1.30,-5.5,-13.5
-GC,-2.70,-8.0,-17.1
-CC,-2.90,-12.8,-31.9
-AC,-1.10,-7.8,-21.6
-UA,-0.60,-7.8,-23.2
-GA,-1.50,-8.6,-22.9
-CA,-1.60,-10.4,-28.4
-AA,-0.20,-11.5,-36.4
+nucleotide,dG37
+UU,-1.00
+GU,-2.10
+CU,-1.80
+AU,-0.90
+UG,-0.90
+GG,-2.10
+CG,-1.70
+AG,-0.90
+UC,-1.30
+GC,-2.70
+CC,-2.90
+AC,-1.10
+UA,-0.60
+GA,-1.50
+CA,-1.60
+AA,-0.20
