@@ -21,7 +21,6 @@ SLURM note: run with `python -u` or set PYTHONUNBUFFERED=1 for live log output.
 """
 import argparse
 import logging
-import shutil
 import sys
 from pathlib import Path
 
@@ -85,27 +84,44 @@ def get_partition_dir(main_feature_dir: Path, k: int, n: int) -> Path:
     return main_feature_dir.parent / f"{main_feature_dir.name}_p{k}of{n}"
 
 
-def merge_partitions(main_feature_dir: Path, n_partitions: int, index_col: str) -> None:
-    """Merge all partition feature directories into main_feature_dir."""
+def merge_partitions(main_feature_dir: Path, n_partitions: int, index_col: str, n_jobs: int = 1) -> None:
+    """Merge all partition feature directories into main_feature_dir.
+
+    For each feature CSV (union of filenames across partitions), read every partition's
+    copy, ``pd.concat`` + ``drop_duplicates`` on ``index_col``, write the master once.
+    Per-feature work is independent; ``n_jobs > 1`` parallelizes via joblib threading.
+    """
     main_feature_dir.mkdir(parents=True, exist_ok=True)
-    for k in range(n_partitions):
-        part_dir = get_partition_dir(main_feature_dir, k, n_partitions)
-        if not part_dir.exists():
-            logger.warning("Partition dir %s not found, skipping.", part_dir)
-            continue
-        for csv_file in sorted(part_dir.glob("*.csv")):
-            dest = main_feature_dir / csv_file.name
-            if not dest.exists():
-                shutil.copy2(csv_file, dest)
-                logger.info("Merged %s from partition %d.", csv_file.stem, k)
-            else:
-                existing_idx = pd.read_csv(dest, usecols=[index_col])[index_col]
-                new_df = pd.read_csv(csv_file)
-                new_rows = new_df[~new_df[index_col].isin(existing_idx)]
-                if not new_rows.empty:
-                    new_rows.to_csv(dest, mode='a', header=False, index=False)
-                    logger.info("Appended %d rows for %s from partition %d.", len(new_rows), csv_file.stem, k)
-    logger.info("Merge complete into %s.", main_feature_dir)
+
+    part_dirs = [get_partition_dir(main_feature_dir, k, n_partitions) for k in range(n_partitions)]
+    for d in part_dirs:
+        if not d.exists():
+            logger.warning("Partition dir %s not found, skipping.", d)
+    part_dirs = [d for d in part_dirs if d.exists()]
+    if not part_dirs:
+        logger.warning("No partition dirs found; nothing to merge.")
+        return
+
+    feat_names = sorted({p.name for d in part_dirs for p in d.glob("*.csv")})
+
+    def _merge_one(name: str):
+        dfs = [pd.read_csv(d / name) for d in part_dirs if (d / name).exists()]
+        if not dfs:
+            return name, 0
+        out = pd.concat(dfs, ignore_index=True).drop_duplicates(subset=[index_col])
+        out.to_csv(main_feature_dir / name, index=False)
+        return name, len(out)
+
+    if n_jobs and n_jobs > 1:
+        from joblib import Parallel, delayed
+        results = Parallel(n_jobs=n_jobs, backend="threading")(delayed(_merge_one)(n) for n in feat_names)
+    else:
+        results = [_merge_one(n) for n in feat_names]
+
+    for name, n_rows in results:
+        logger.debug("Merged %s: %d rows.", name, n_rows)
+    logger.info("Merge complete into %s (%d features, %d partitions).",
+                main_feature_dir, len(results), len(part_dirs))
 
 
 def main():
@@ -126,6 +142,8 @@ def main():
                         help='Run gene partition K of N (0-indexed). Saves to a partition-specific dir.')
     parser.add_argument('--merge', type=int, metavar='N',
                         help='Merge N partition directories into the main feature directory.')
+    parser.add_argument('--merge-jobs', type=int, default=8, metavar='J',
+                        help='Threads for per-feature merge (default: 8). 1 = sequential.')
     parser.add_argument('--log-level', default='INFO',
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                         help='Logging verbosity (default: INFO). Use DEBUG for full output.')
@@ -147,8 +165,8 @@ def main():
     index_col = f"index_{config['version']}"
 
     if args.merge:
-        logger.info("Merging %d partitions into %s ...", args.merge, main_feature_dir)
-        merge_partitions(main_feature_dir, n_partitions=args.merge, index_col=index_col)
+        logger.info("Merging %d partitions into %s (jobs=%d) ...", args.merge, main_feature_dir, args.merge_jobs)
+        merge_partitions(main_feature_dir, n_partitions=args.merge, index_col=index_col, n_jobs=args.merge_jobs)
         return
 
     steps = config['steps']
