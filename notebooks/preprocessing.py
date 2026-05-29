@@ -85,12 +85,12 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
     # 7. Add standard cell line column
     if not CELL_LINE_DEPMAP_PROXY in valid_data.columns:
         print("Adding cell line depmap name proxy")
-        valid_data[CELL_LINE_DEPMAP_PROXY] = valid_data[CELL_LINE].map(CELL_LINE_TO_DEPMAP_PROXY_DICT)
+        valid_data[CELL_LINE_DEPMAP_PROXY] = valid_data[CELL_LINE].map(resolve_depmap_proxy)
 
     # 8. Add Depmap cell lines
     if not CELL_LINE_DEPMAP in valid_data.columns:
         print("Adding a depmap column")
-        valid_data[CELL_LINE_DEPMAP] = valid_data[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP)
+        valid_data[CELL_LINE_DEPMAP] = valid_data[CELL_LINE].map(resolve_depmap_id)
 
     print(f"Preprocessing complete. Final valid rows: {len(valid_data)}")
     return valid_data
@@ -229,8 +229,8 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     # ---------------------------------------------------------
     # 5. Map Cell Lines to DepMap Contexts
     # ---------------------------------------------------------
-    data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(CELL_LINE_TO_DEPMAP_PROXY_DICT)
-    data[CELL_LINE_DEPMAP] = data[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP)
+    data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(resolve_depmap_proxy)
+    data[CELL_LINE_DEPMAP] = data[CELL_LINE].map(resolve_depmap_id)
 
     # ---------------------------------------------------------
     # 6. Print Summary Report

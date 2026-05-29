@@ -5,10 +5,10 @@ from tauso.data.consts import (
     CELL_LINE,
     CELL_LINE_DEPMAP,
     CELL_LINE_DEPMAP_PROXY,
-    CELL_LINE_TO_DEPMAP,
-    CELL_LINE_TO_DEPMAP_PROXY_DICT,
     SENSE_START,
     SEQUENCE,
+    resolve_depmap_id,
+    resolve_depmap_proxy,
 )
 from tauso.util import get_antisense_u
 
@@ -16,10 +16,8 @@ from tauso.util import get_antisense_u
 def standardize_cell_line(df: pd.DataFrame) -> pd.DataFrame:
     return df.assign(
         **{
-            # 1. Map the proxy column using the original dataframe
-            CELL_LINE_DEPMAP_PROXY: df[CELL_LINE].map(CELL_LINE_TO_DEPMAP_PROXY_DICT),
-            # 2. Use a lambda to map the final column based on the newly created proxy column
-            CELL_LINE_DEPMAP: lambda x: x[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP),
+            CELL_LINE_DEPMAP_PROXY: df[CELL_LINE].map(resolve_depmap_proxy),
+            CELL_LINE_DEPMAP: df[CELL_LINE].map(resolve_depmap_id),
         }
     )
 

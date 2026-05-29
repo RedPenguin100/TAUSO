@@ -10,13 +10,13 @@ from tauso.data.consts import (
     CELL_LINE_DEPMAP,
     CELL_LINE_DEPMAP_PROXY,
     CELL_LINE_ORGANISM,
-    CELL_LINE_TO_DEPMAP,
-    CELL_LINE_TO_DEPMAP_PROXY_DICT,
     CHEMICAL_PATTERN,
     MODIFICATION,
     PS_PATTERN,
     SENSE_LENGTH,
     SEQUENCE,
+    resolve_depmap_id,
+    resolve_depmap_proxy,
 )
 from tauso.data.data import get_paths
 from tauso.genome.read_human_genome import get_locus_to_data_dict
@@ -114,8 +114,8 @@ def generate_stub_data(
     data[CHEMICAL_PATTERN] = data_config.standard_chemical_pattern
 
     data[CELL_LINE] = data_config.cell_line  # TODO: handle empty case
-    data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(CELL_LINE_TO_DEPMAP_PROXY_DICT)
-    data[CELL_LINE_DEPMAP] = data[CELL_LINE_DEPMAP_PROXY].map(CELL_LINE_TO_DEPMAP)
+    data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(resolve_depmap_proxy)
+    data[CELL_LINE_DEPMAP] = data[CELL_LINE].map(resolve_depmap_id)
 
     data[PS_PATTERN] = data_config.standard_ps_pattern
 
