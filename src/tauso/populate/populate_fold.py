@@ -109,14 +109,14 @@ ACCESS_WIN_SIZE = 80
 # in window length and flank=240 would be prohibitive.
 DEFAULT_SENSE_CONFIGURATION = [
     # Tight local (flank=15) — immediate stem-loop occlusion
-    {"flank": 15,  "access": 8,  "seeds": [4, 6, 8]},
-    {"flank": 15,  "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 15, "access": 8, "seeds": [4, 6, 8]},
+    {"flank": 15, "access": 13, "seeds": [4, 6, 8]},
     # Local (flank=30) — short-range context
-    {"flank": 30,  "access": 13, "seeds": [4, 6, 8]},
-    {"flank": 30,  "access": 20, "seeds": [4, 6, 8]},
+    {"flank": 30, "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 30, "access": 20, "seeds": [4, 6, 8]},
     # Short regional (flank=60)
-    {"flank": 60,  "access": 13, "seeds": [4, 6, 8]},
-    {"flank": 60,  "access": 20, "seeds": [4, 6, 8]},
+    {"flank": 60, "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 60, "access": 20, "seeds": [4, 6, 8]},
     # Wider (flank=120)
     {"flank": 120, "access": 6, "seeds": [4, 6]},
     {"flank": 120, "access": 8, "seeds": [4, 6, 8]},
