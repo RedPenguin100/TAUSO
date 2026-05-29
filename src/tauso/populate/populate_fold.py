@@ -22,21 +22,22 @@ def validate_cols_in_df(df, cols):
         raise ValueError(f"Missing columns in DataFrame: {missing_cols}")
 
 
+# MFE grid: (flank, window, step). Spans tight-local (flank=30) through
+# medium (60), wide (120), and global (240) folding contexts.
 DEFAULT_SETTINGS = [
-    (30, 45, 7),
-    (30, 50, 7),
-    (30, 55, 7),
-    (30, 60, 7),
-    (30, 65, 7),
-    (30, 55, 15),
-    (30, 65, 15),
-    (60, 55, 7),
-    (120, 55, 7),
-    (120, 65, 7),
+    # Tight local (flank=30)
     (30, 20, 4),
     (30, 30, 7),
+    (30, 45, 7),
+    (30, 65, 7),
+    (30, 65, 15),
     (30, 90, 15),
-    (240, 45, 7),
+    # Medium context
+    (60, 55, 7),
+    # Wide context
+    (120, 55, 7),
+    (120, 65, 7),
+    # Global context — captures long-range stems
     (240, 90, 15),
 ]
 
@@ -103,7 +104,20 @@ SEED_SIZES = [13, 26, 39]
 ACCESS_WIN_SIZE = 80
 
 
+# raccess grid: (flank, access, seeds). Spans tight-local (flank=15) through
+# wide (flank=120). Capped at flank=120 because raccess scales O(L²)/O(L³)
+# in window length and flank=240 would be prohibitive.
 DEFAULT_SENSE_CONFIGURATION = [
+    # Tight local (flank=15) — immediate stem-loop occlusion
+    {"flank": 15, "access": 8, "seeds": [4, 6, 8]},
+    {"flank": 15, "access": 13, "seeds": [4, 6, 8]},
+    # Local (flank=30) — short-range context
+    {"flank": 30, "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 30, "access": 20, "seeds": [4, 6, 8]},
+    # Short regional (flank=60)
+    {"flank": 60, "access": 13, "seeds": [4, 6, 8]},
+    {"flank": 60, "access": 20, "seeds": [4, 6, 8]},
+    # Wider (flank=120)
     {"flank": 120, "access": 6, "seeds": [4, 6]},
     {"flank": 120, "access": 8, "seeds": [4, 6, 8]},
     {"flank": 120, "access": 10, "seeds": [4, 6, 8]},
@@ -269,24 +283,56 @@ def populate_sense_accessibility_multi(
     access_win_size=ACCESS_WIN_SIZE,
     n_jobs=1,
 ):
-    """Populate one accessibility feature column per config via a shared raccess call.
+    """Populate one accessibility feature column per config.
 
-    All configs must share `flank` so the flanked windows are cut once per batch
-    and reused across configs. Returns (df, feature_names) aligned to `configs`.
+    Configs sharing the same ``flank`` are processed in a single pass: the
+    flank-padded window is cut once per batch and ONE raccess call covers the
+    union of seed sizes; each config then takes its own access-window slice.
+    Configs with different flanks are processed in separate per-flank passes
+    (one raccess call per (batch, flank)). The returned ``feature_names`` list
+    mirrors the order of ``configs``.
     """
     if not configs:
         return aso_dataframe.copy(), []
 
-    flank_sizes = {c["flank"] for c in configs}
-    if len(flank_sizes) != 1:
-        raise ValueError(f"All configs must share the same flank_size; got {sorted(flank_sizes)}")
-    flank_size = next(iter(flank_sizes))
+    # Group by flank, preserving the input order so feature_names mirrors it.
+    flank_groups = defaultdict(list)
+    for idx, cfg in enumerate(configs):
+        flank_groups[cfg["flank"]].append((idx, cfg))
 
+    df_out = aso_dataframe.copy()
+    name_by_idx = {}
+    for indexed_cfgs in flank_groups.values():
+        orig_idxs, group_cfgs = zip(*indexed_cfgs)
+        group_names = _populate_single_flank_accessibility(
+            df_out,
+            gene_to_data,
+            list(group_cfgs),
+            batch_size=batch_size,
+            access_win_size=access_win_size,
+            n_jobs=n_jobs,
+        )
+        for idx, fn in zip(orig_idxs, group_names):
+            name_by_idx[idx] = fn
+
+    feature_names = [name_by_idx[i] for i in range(len(configs))]
+    return df_out, feature_names
+
+
+def _populate_single_flank_accessibility(
+    df_out,
+    gene_to_data,
+    configs,
+    batch_size,
+    access_win_size,
+    n_jobs,
+):
+    """Add per-config accessibility columns to ``df_out`` in place; all configs must share ``flank``."""
+    flank_size = configs[0]["flank"]
     union_seeds = sorted({s for c in configs for s in c["seeds"]})
     min_access = min(c["access"] for c in configs)
     feature_names = [_build_feature_name(c["flank"], c["access"], c["seeds"]) for c in configs]
 
-    df_out = aso_dataframe.copy()
     df_out["_temp_id"] = range(len(df_out))
 
     valid_mask = df_out[SENSE_START] != -1
@@ -294,7 +340,7 @@ def populate_sense_accessibility_multi(
         for fn in feature_names:
             df_out[fn] = np.nan
         df_out.drop(columns=["_temp_id"], inplace=True)
-        return df_out, feature_names
+        return feature_names
 
     valid_df = df_out.loc[valid_mask, ["_temp_id", SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
     lightweight_gene_to_data = _lightweight_gene_to_data(valid_df[CANONICAL_GENE].unique(), gene_to_data)
@@ -326,7 +372,7 @@ def populate_sense_accessibility_multi(
     for fn in feature_names:
         _assign_feature_column(df_out, [br[fn] for br in batch_results], fn)
     df_out.drop(columns=["_temp_id"], inplace=True)
-    return df_out, feature_names
+    return feature_names
 
 
 def populate_sense_accessibility_batch(
