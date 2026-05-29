@@ -44,7 +44,7 @@ tauso setup-depmap                       # cell-line expression
 tauso setup-mrna-halflife                # mRNA stability
 tauso setup-tgcn                         # tRNA gene copy numbers (for tAI)
 tauso setup-attract                      # RBP motifs
-tauso setup-riboseq                      # ribosome profiling
+tauso setup-riboseq                      # 40S scanning + 80S elongation (Wagner 2020)
 
 # Cell context
 tauso build-cell-context                 # default cohort
@@ -104,7 +104,7 @@ python -c "from tauso.data.data import load_gtf_db; db = load_gtf_db('GRCh38'); 
 | Annotation DB (gffutils) | ~3 GB | Everything |
 | Bowtie index | ~3 GB | Off-target analysis |
 | DepMap | ~1 GB | Cell-expression features |
-| Ribo-seq | ~200 MB | Translation features |
+| Ribo-seq (40S + 80S) | ~20 MB | Translation features |
 | mRNA half-life | ~150 MB | Stability features |
 | Processed expression | ~100 MB | Per-cell features |
 | ATtRACT / raccess / tGCN / CAI | <100 MB | Respective features |

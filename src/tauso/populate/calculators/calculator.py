@@ -606,28 +606,39 @@ class Calculator:
             logger.info("All backbone features exist. Skipping.")
 
     def calculate_ribo_seq(self):
-        """Calculates ribosome profiling (Ribo-seq) features."""
+        """Calculates ribosome profiling (Ribo-seq) features for both 40S and 80S subunits."""
         flanks = (0, 10, 20, 50, 100, 125, 150)
         how = "mean"
+        tracks = ("40s", "80s")
 
-        from ...features.context.ribo_seq import add_genomic_coordinates, feature_names
+        from ...features.context.ribo_seq import add_genomic_coordinates, feature_names, get_feature_prefix
         from ..populate_context import populate_ribo_seq
 
-        expected_features = feature_names(flanks, how)
+        expected_features = []
+        for track in tracks:
+            expected_features.extend(feature_names(flanks, how, prefix=get_feature_prefix(track)))
         missing = self._get_missing_features(expected_features)
 
-        if missing:
-            logger.info("Computing %d Ribo-seq features...", len(missing))
-            mapper = self.cache.get_gene_mapper()
-            self.data = add_genomic_coordinates(self.data, mapper)
+        if not missing:
+            logger.info("All Ribo-seq features exist. Skipping.")
+            return
+
+        logger.info("Computing %d Ribo-seq features across %d tracks...", len(missing), len(tracks))
+        mapper = self.cache.get_gene_mapper()
+        self.data = add_genomic_coordinates(self.data, mapper)
+
+        for track in tracks:
             self.data, generated_features = populate_ribo_seq(
-                "human", self.data, flanks=flanks, how=how, n_jobs=self.cpus
+                "human",
+                self.data,
+                flanks=flanks,
+                how=how,
+                n_jobs=self.cpus,
+                track=track,
             )
             for feature in generated_features:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All Ribo-seq features exist. Skipping.")
 
     def calculate_cub(self):
         """Calculates all Codon Usage Bias (CUB) features: tAI, CAI, and ENC."""

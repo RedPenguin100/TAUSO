@@ -61,7 +61,7 @@ tauso setup-depmap         # DepMap cell-line expression (Public 25Q3), CSV → 
 tauso setup-mrna-halflife  # mRNA half-life (TTDB)
 tauso setup-tgcn           # tRNA gene copy numbers (GtRNAdb), used for tAI
 tauso setup-attract        # ATtRACT RNA-binding-protein motifs
-tauso setup-riboseq        # 40S ribosome-profiling track
+tauso setup-riboseq        # 40S scanning + 80S elongation tracks (Wagner 2020)
 ```
 
 ### Cell context (required for per-cell features)
@@ -91,7 +91,7 @@ python -c "from tauso.data.data import get_data_dir; print(get_data_dir())"
 ls -lh "$(python -c 'from tauso.data.data import get_data_dir; print(get_data_dir())')"
 ```
 
-A complete GRCh38 setup contains, among others, `GRCh38.fa`, `GRCh38.gtf.db`, `GRCh38_bowtie_index/`, the DepMap Parquet files, the mRNA half-life and tGCN tables, `attract/`, the ribo-seq track, `processed_expression/`, `cell_cohort.json`, and `cai_weights.json`.
+A complete GRCh38 setup contains, among others, `GRCh38.fa`, `GRCh38.gtf.db`, `GRCh38_bowtie_index/`, the DepMap Parquet files, the mRNA half-life and tGCN tables, `attract/`, the two ribo-seq bigWigs (`human_unselected_40S.RiboProElong.bw` + `human_unselected_80S.RiboCov.bw` — Wagner et al. 2020, HEK293T Sel-TCP-seq, GSE139131, mirrored at Zenodo 10.5281/zenodo.20435808), `processed_expression/`, `cell_cohort.json`, and `cai_weights.json`.
 
 ## Training data
 
