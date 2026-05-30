@@ -6,6 +6,43 @@ cluster. None of these are urgent enough to block running the current
 pipeline — they're investments that pay back if we end up running ≫ 184 ASOs
 or want to publish the protocol.
 
+## 0. Add `--bind-to none` to every `mpirun` 🔴 *(empirically required — 2026-05-30)*
+
+**Problem.** On the first batch (KLKB1_K1, 5 PDBs on `power-general-shared-pool`),
+**3 out of 5** jobs died at the very first `mpirun` (min1) with:
+
+```
+A request was made to bind that would require binding processes to more
+cpus than are available in your allocation:
+   Application: sander.MPI    #processes: 32    Binding policy: CORE
+```
+
+The SLURM allocation requested `--ntasks-per-node=32` and `mpirun -np 32`
+asks OpenMPI to bind 32 ranks to 32 cores — but on some nodes in the
+`power-general-shared-pool` partition, the cpuset given to the job has
+fewer bindable cores than 32 (HT siblings, partition policy, or a shared
+node with another job already pinning cores). The 2 jobs that landed on
+"clean" nodes (compute-0-338, compute-0-381) ran fine.
+
+**Fix.** Add `--bind-to none` to every `mpirun` in `amber_pipe_new_KLKB1.sh`:
+
+```bash
+mpirun --bind-to none -np ${total_procs} "$amber_exec".MPI -i ...
+```
+
+OpenMPI then spawns the ranks without trying to pin them to specific cores;
+the Linux scheduler handles placement. Throughput cost is negligible for a
+sander.MPI run of this size (it's bottlenecked by MPI comm and per-step
+work, not by L1/L2 locality). This is the cheapest, most robust fix.
+
+**Even better:** also drop `-np` to 8 or 16 (see §7) so the binding can't
+hit the limit even on a constrained node.
+
+**Status.** Mirrored in this repo's working copy under
+`/tamir2/kovaliov/amber/amber_pipe_new_KLKB1_v2.sh` and used by
+`jobs_req_new_Server_KLKB1_P_v2.sh` (not in `upstream_scripts/` — those are
+verbatim from Ariella). Worth proposing upstream.
+
 ## 1. Add a success/failure marker per ASO 🟢 *(small change, big payoff)*
 
 **Problem.** Today, the only signal that a job finished is the presence of
@@ -186,6 +223,7 @@ in Ariella's `amber25` env should be pinned in this README (or an
 
 | # | Improvement | Effort | Impact | Risk |
 |---|---|---|---|---|
+| 0 | `--bind-to none` on mpirun | 2 min | **Required** *(60% job failure rate without it on the first batch)* | None |
 | 1 | `.done`/`.failed` markers | 5 min | High | None |
 | 2 | Resume-from-stage | 15 min | High | Low |
 | 3 | Right-size memory | 10 min + 1 bench job | Medium-High | None |
