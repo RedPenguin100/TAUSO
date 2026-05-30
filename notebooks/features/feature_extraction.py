@@ -82,11 +82,11 @@ def get_dtype_for_feature(filename, index_col_name):
     elif filename in ["on_target_total_hybridization_0.csv", "on_target_total_hybridization_1200.csv"]:
         feat_type = "float64"
     elif filename in [
-        "target_expression.csv",
-        "rnase_expression.csv",
-        "stab2_expression.csv",
-        "mrc1_expression.csv",
-        "msr1_expression.csv",
+        "expr_target.csv",
+        "expr_rnase.csv",
+        "expr_stab2.csv",
+        "expr_mrc1.csv",
+        "expr_msr1.csv",
     ]:
         feat_type = "float64"
     elif filename in ["max_consecutive_PO.csv", "ps_end_score.csv"]:
