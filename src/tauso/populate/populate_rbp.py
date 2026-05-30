@@ -14,6 +14,12 @@ from tauso.features.rbp.rbp_features import get_background_probs
 
 
 @njit(fastmath=True)
+def _occupancy_from_log2_odds(score):
+    """Bound a per-window PWM log2-odds score to its [0,1] occupancy probability."""
+    return 1.0 / (1.0 + 2.0 ** (-score))
+
+
+@njit(fastmath=True)
 def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
     seq_len = len(seq_indices)
     motif_len = pwm_matrix.shape[0]
@@ -37,9 +43,8 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
 
             score += weights[pos, base_idx]
 
-        # Occupancy: sum over windows of the bound-probability (logistic of the log2-odds score).
         if valid_window:
-            total_score += 1.0 / (1.0 + 2.0 ** (-score))
+            total_score += _occupancy_from_log2_odds(score)
 
     return total_score
 

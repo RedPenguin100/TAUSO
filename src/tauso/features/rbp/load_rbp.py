@@ -34,25 +34,25 @@ def _rank_matrices_per_gene(df, pwms):
     """
     score = pd.to_numeric(df["Score"].astype(str).str.replace("*", "", regex=False), errors="coerce")
     q = (
-        pd.DataFrame({"gene": df["Gene_name"], "mid": df["Matrix_id"], "score": score, "db": df["Database"]})
-        .groupby(["gene", "mid"], observed=True)
+        pd.DataFrame({"gene": df["Gene_name"], "matrix_id": df["Matrix_id"], "score": score, "db": df["Database"]})
+        .groupby(["gene", "matrix_id"], observed=True)
         .agg(score=("score", "max"), db=("db", "first"))
         .reset_index()
     )
-    pwm_ic = {mid: _pwm_total_ic(m) for mid, m in pwms.items()}
+    pwm_ic = {matrix_id: _pwm_total_ic(pwm) for matrix_id, pwm in pwms.items()}
     rbp_to_matrices = {}
     for gene, sub in q.groupby("gene", observed=True):
         ranked = []
         for _, row in sub.iterrows():
-            mid = row["mid"]
-            if mid not in pwms:
+            matrix_id = row["matrix_id"]
+            if matrix_id not in pwms:
                 continue
-            ic = pwm_ic[mid]
+            ic = pwm_ic[matrix_id]
             if ic < _MIN_TOTAL_IC:
                 continue
-            length = pwms[mid].shape[0]
+            length = pwms[matrix_id].shape[0]
             sc = -1.0 if pd.isna(row["score"]) else float(row["score"])
-            ranked.append((ic, length >= _MIN_MOTIF_LEN, sc, _DB_RANK.get(row["db"], 0), length, mid))
+            ranked.append((ic, length >= _MIN_MOTIF_LEN, sc, _DB_RANK.get(row["db"], 0), length, matrix_id))
         if not ranked:
             continue
         ranked.sort(reverse=True)
