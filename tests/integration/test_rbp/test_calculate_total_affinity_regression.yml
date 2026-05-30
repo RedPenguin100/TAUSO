@@ -39,47 +39,6 @@ A1CF:
   short_seq_default_bg: 0.0
   srsf_rich_custom_bg: 3.951e-05
   srsf_rich_default_bg: 1.145e-05
-ACO1:
-  alternating_ry_custom_bg: 0.46251549
-  alternating_ry_default_bg: 0.41188395
-  au_rich_element_custom_bg: 0.32235041
-  au_rich_element_default_bg: 0.88114086
-  cug_repeat_custom_bg: 0.66620444
-  cug_repeat_default_bg: 0.40628871
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 3.33923572
-  dna_version_default_bg: 2.77980313
-  empty_seq_custom_bg: 0.0
-  empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 3.33923572
-  fox_overlap_default_bg: 2.77980313
-  gc_rich_hairpin_custom_bg: 3.48646985
-  gc_rich_hairpin_default_bg: 2.09524627
-  hnrnp_rich_custom_bg: 3.97212622
-  hnrnp_rich_default_bg: 4.22953689
-  lowercase_seq_custom_bg: 1.25823144
-  lowercase_seq_default_bg: 1.64424314
-  mixed_complex_1_custom_bg: 1.8347769
-  mixed_complex_1_default_bg: 1.68430285
-  mixed_complex_2_custom_bg: 2.56741524
-  mixed_complex_2_default_bg: 2.17378447
-  nan_seq_custom_bg: 0.0
-  nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 1.27949358
-  poly_A_default_bg: 3.26709051
-  poly_C_custom_bg: 0.29527959
-  poly_C_default_bg: 0.07854666
-  poly_G_custom_bg: 3.89934944
-  poly_G_default_bg: 1.26479141
-  poly_U_custom_bg: 0.03587974
-  poly_U_default_bg: 0.1066298
-  pumilio_motif_custom_bg: 1.99687602
-  pumilio_motif_default_bg: 3.0348854
-  short_seq_custom_bg: 0.0
-  short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 4.12676071
-  srsf_rich_default_bg: 3.23286606
 ADAR:
   alternating_ry_custom_bg: 0.00620682
   alternating_ry_default_bg: 0.00686335
@@ -327,46 +286,46 @@ CELF1:
   srsf_rich_custom_bg: 1.0e-08
   srsf_rich_default_bg: 0.0
 CELF2:
-  alternating_ry_custom_bg: 0.00105971
-  alternating_ry_default_bg: 0.00093758
-  au_rich_element_custom_bg: 2.96214682
-  au_rich_element_default_bg: 3.71462003
-  cug_repeat_custom_bg: 0.12419447
-  cug_repeat_default_bg: 0.07397477
+  alternating_ry_custom_bg: 0.01551116
+  alternating_ry_default_bg: 0.01372535
+  au_rich_element_custom_bg: 4.06419272
+  au_rich_element_default_bg: 4.891742
+  cug_repeat_custom_bg: 0.6372446
+  cug_repeat_default_bg: 0.48306607
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.01529678
-  dna_version_default_bg: 0.01348071
+  dna_version_custom_bg: 0.00625248
+  dna_version_default_bg: 0.00689701
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.01529678
-  fox_overlap_default_bg: 0.01348071
-  gc_rich_hairpin_custom_bg: 0.36629584
-  gc_rich_hairpin_default_bg: 0.43377756
-  hnrnp_rich_custom_bg: 0.18555051
-  hnrnp_rich_default_bg: 0.24523673
-  lowercase_seq_custom_bg: 1.06227539
-  lowercase_seq_default_bg: 1.21458115
-  mixed_complex_1_custom_bg: 0.83744332
-  mixed_complex_1_default_bg: 0.81777907
-  mixed_complex_2_custom_bg: 0.00972942
-  mixed_complex_2_default_bg: 0.01766949
+  fox_overlap_custom_bg: 0.00625248
+  fox_overlap_default_bg: 0.00689701
+  gc_rich_hairpin_custom_bg: 0.20917208
+  gc_rich_hairpin_default_bg: 0.24286241
+  hnrnp_rich_custom_bg: 0.30194002
+  hnrnp_rich_default_bg: 0.48306607
+  lowercase_seq_custom_bg: 0.15297914
+  lowercase_seq_default_bg: 0.24456075
+  mixed_complex_1_custom_bg: 0.2216876
+  mixed_complex_1_default_bg: 0.24287925
+  mixed_complex_2_custom_bg: 0.00346538
+  mixed_complex_2_default_bg: 0.00434901
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 4.0e-08
-  poly_A_default_bg: 1.2e-07
-  poly_C_custom_bg: 0.0
-  poly_C_default_bg: 0.0
-  poly_G_custom_bg: 14.20753663
-  poly_G_default_bg: 12.36832937
-  poly_U_custom_bg: 14.62500579
-  poly_U_default_bg: 14.87229176
-  pumilio_motif_custom_bg: 2.72290301
-  pumilio_motif_default_bg: 3.1552744
+  poly_A_custom_bg: 5.4e-07
+  poly_A_default_bg: 1.35e-06
+  poly_C_custom_bg: 4.11e-06
+  poly_C_default_bg: 1.35e-06
+  poly_G_custom_bg: 0.00041506
+  poly_G_default_bg: 0.00013601
+  poly_U_custom_bg: 12.45998598
+  poly_U_default_bg: 14.36036671
+  pumilio_motif_custom_bg: 1.75267182
+  pumilio_motif_default_bg: 1.96153467
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.15595976
-  srsf_rich_default_bg: 0.09243668
+  srsf_rich_custom_bg: 0.00011632
+  srsf_rich_default_bg: 8.551e-05
 CELF4:
   alternating_ry_custom_bg: 0.07627093
   alternating_ry_default_bg: 0.08004987
@@ -1024,42 +983,42 @@ EIF4B:
   srsf_rich_custom_bg: 1.34137718
   srsf_rich_default_bg: 0.73742647
 ELAVL1:
-  alternating_ry_custom_bg: 0.00017035
-  alternating_ry_default_bg: 0.00011613
-  au_rich_element_custom_bg: 5.17129886
-  au_rich_element_default_bg: 5.80730123
-  cug_repeat_custom_bg: 1.71e-06
-  cug_repeat_default_bg: 7.7e-07
+  alternating_ry_custom_bg: 7.105e-05
+  alternating_ry_default_bg: 5.562e-05
+  au_rich_element_custom_bg: 1.15014316
+  au_rich_element_default_bg: 2.04448
+  cug_repeat_custom_bg: 0.0
+  cug_repeat_default_bg: 0.0
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 8.518e-05
-  dna_version_default_bg: 5.807e-05
+  dna_version_custom_bg: 2.842e-05
+  dna_version_default_bg: 2.225e-05
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 8.518e-05
-  fox_overlap_default_bg: 5.807e-05
-  gc_rich_hairpin_custom_bg: 1.7e-06
-  gc_rich_hairpin_default_bg: 1.15e-06
-  hnrnp_rich_custom_bg: 5.065e-05
-  hnrnp_rich_default_bg: 7.743e-05
-  lowercase_seq_custom_bg: 0.11424446
-  lowercase_seq_default_bg: 0.16550739
-  mixed_complex_1_custom_bg: 1.41e-06
-  mixed_complex_1_default_bg: 1.15e-06
-  mixed_complex_2_custom_bg: 0.00168718
-  mixed_complex_2_default_bg: 0.00386439
+  fox_overlap_custom_bg: 2.842e-05
+  fox_overlap_default_bg: 2.225e-05
+  gc_rich_hairpin_custom_bg: 0.0
+  gc_rich_hairpin_default_bg: 0.0
+  hnrnp_rich_custom_bg: 1.0e-08
+  hnrnp_rich_default_bg: 1.0e-08
+  lowercase_seq_custom_bg: 4.27e-06
+  lowercase_seq_default_bg: 1.123e-05
+  mixed_complex_1_custom_bg: 1.0e-07
+  mixed_complex_1_default_bg: 1.1e-07
+  mixed_complex_2_custom_bg: 2.8e-07
+  mixed_complex_2_default_bg: 3.3e-07
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
   poly_A_custom_bg: 0.0
-  poly_A_default_bg: 2.0e-08
+  poly_A_default_bg: 0.0
   poly_C_custom_bg: 0.0
   poly_C_default_bg: 0.0
   poly_G_custom_bg: 0.0
   poly_G_default_bg: 0.0
-  poly_U_custom_bg: 9.51398339
-  poly_U_default_bg: 11.42158848
-  pumilio_motif_custom_bg: 0.00284565
-  pumilio_motif_default_bg: 0.0097562
+  poly_U_custom_bg: 5.06195383
+  poly_U_default_bg: 8.27773099
+  pumilio_motif_custom_bg: 0.00047718
+  pumilio_motif_default_bg: 0.00226715
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
   srsf_rich_custom_bg: 0.0
@@ -1106,42 +1065,42 @@ ELAVL2:
   srsf_rich_custom_bg: 0.0
   srsf_rich_default_bg: 0.0
 ELAVL3:
-  alternating_ry_custom_bg: 0.08566165
-  alternating_ry_default_bg: 0.09043011
-  au_rich_element_custom_bg: 3.74505461
-  au_rich_element_default_bg: 7.93561263
-  cug_repeat_custom_bg: 0.00093025
-  cug_repeat_default_bg: 0.00065274
+  alternating_ry_custom_bg: 0.00045656
+  alternating_ry_default_bg: 0.00037227
+  au_rich_element_custom_bg: 2.21940609
+  au_rich_element_default_bg: 2.87834152
+  cug_repeat_custom_bg: 5.43e-06
+  cug_repeat_default_bg: 2.95e-06
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 1.443e-05
-  dna_version_default_bg: 1.275e-05
+  dna_version_custom_bg: 2.74e-06
+  dna_version_default_bg: 2.23e-06
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 1.443e-05
-  fox_overlap_default_bg: 1.275e-05
-  gc_rich_hairpin_custom_bg: 0.04859257
-  gc_rich_hairpin_default_bg: 0.05142039
-  hnrnp_rich_custom_bg: 0.00041149
-  hnrnp_rich_default_bg: 0.00065274
-  lowercase_seq_custom_bg: 0.02194256
-  lowercase_seq_default_bg: 0.05167689
-  mixed_complex_1_custom_bg: 9.674e-05
-  mixed_complex_1_default_bg: 0.00014226
-  mixed_complex_2_custom_bg: 0.00014727
-  mixed_complex_2_default_bg: 0.00038991
+  fox_overlap_custom_bg: 2.74e-06
+  fox_overlap_default_bg: 2.23e-06
+  gc_rich_hairpin_custom_bg: 1.46e-06
+  gc_rich_hairpin_default_bg: 7.9e-07
+  hnrnp_rich_custom_bg: 0.00016234
+  hnrnp_rich_default_bg: 0.00029781
+  lowercase_seq_custom_bg: 0.21633385
+  lowercase_seq_default_bg: 0.43172689
+  mixed_complex_1_custom_bg: 9.253e-05
+  mixed_complex_1_default_bg: 7.594e-05
+  mixed_complex_2_custom_bg: 0.00010187
+  mixed_complex_2_default_bg: 0.00014964
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
   poly_A_custom_bg: 0.0
   poly_A_default_bg: 0.0
-  poly_C_custom_bg: 1.0e-08
+  poly_C_custom_bg: 0.0
   poly_C_default_bg: 0.0
-  poly_G_custom_bg: 1.0e-08
+  poly_G_custom_bg: 0.0
   poly_G_default_bg: 0.0
-  poly_U_custom_bg: 13.99624298
-  poly_U_default_bg: 13.99895128
-  pumilio_motif_custom_bg: 0.03455356
-  pumilio_motif_default_bg: 0.09043011
+  poly_U_custom_bg: 10.17841061
+  poly_U_default_bg: 10.85844345
+  pumilio_motif_custom_bg: 0.00194552
+  pumilio_motif_default_bg: 0.00791311
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
   srsf_rich_custom_bg: 0.0
@@ -1393,46 +1352,46 @@ F2:
   srsf_rich_custom_bg: 9.43020253
   srsf_rich_default_bg: 8.31292939
 FMR1:
-  alternating_ry_custom_bg: 0.08566165
-  alternating_ry_default_bg: 0.09043011
-  au_rich_element_custom_bg: 3.74505461
-  au_rich_element_default_bg: 7.93561263
-  cug_repeat_custom_bg: 0.00093025
-  cug_repeat_default_bg: 0.00065274
+  alternating_ry_custom_bg: 0.0
+  alternating_ry_default_bg: 0.0
+  au_rich_element_custom_bg: 0.0
+  au_rich_element_default_bg: 0.0
+  cug_repeat_custom_bg: 0.0
+  cug_repeat_default_bg: 0.0
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 1.443e-05
-  dna_version_default_bg: 1.275e-05
+  dna_version_custom_bg: 0.0
+  dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 1.443e-05
-  fox_overlap_default_bg: 1.275e-05
-  gc_rich_hairpin_custom_bg: 0.04859257
-  gc_rich_hairpin_default_bg: 0.05142039
-  hnrnp_rich_custom_bg: 0.00041149
-  hnrnp_rich_default_bg: 0.00065274
-  lowercase_seq_custom_bg: 0.02194256
-  lowercase_seq_default_bg: 0.05167689
-  mixed_complex_1_custom_bg: 9.674e-05
-  mixed_complex_1_default_bg: 0.00014226
-  mixed_complex_2_custom_bg: 0.00014727
-  mixed_complex_2_default_bg: 0.00038991
+  fox_overlap_custom_bg: 0.0
+  fox_overlap_default_bg: 0.0
+  gc_rich_hairpin_custom_bg: 0.0
+  gc_rich_hairpin_default_bg: 0.0
+  hnrnp_rich_custom_bg: 1.0e-08
+  hnrnp_rich_default_bg: 2.0e-08
+  lowercase_seq_custom_bg: 0.0
+  lowercase_seq_default_bg: 0.0
+  mixed_complex_1_custom_bg: 1.0e-08
+  mixed_complex_1_default_bg: 1.0e-08
+  mixed_complex_2_custom_bg: 0.0
+  mixed_complex_2_default_bg: 0.0
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
   poly_A_custom_bg: 0.0
   poly_A_default_bg: 0.0
-  poly_C_custom_bg: 1.0e-08
+  poly_C_custom_bg: 0.0
   poly_C_default_bg: 0.0
-  poly_G_custom_bg: 1.0e-08
-  poly_G_default_bg: 0.0
-  poly_U_custom_bg: 13.99624298
-  poly_U_default_bg: 13.99895128
-  pumilio_motif_custom_bg: 0.03455356
-  pumilio_motif_default_bg: 0.09043011
+  poly_G_custom_bg: 0.00064029
+  poly_G_default_bg: 4.4e-05
+  poly_U_custom_bg: 0.0
+  poly_U_default_bg: 0.0
+  pumilio_motif_custom_bg: 0.0
+  pumilio_motif_default_bg: 0.0
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.0
-  srsf_rich_default_bg: 0.0
+  srsf_rich_custom_bg: 0.03339576
+  srsf_rich_default_bg: 0.01170308
 FUS:
   alternating_ry_custom_bg: 0.08566165
   alternating_ry_default_bg: 0.09043011
@@ -1680,12 +1639,12 @@ GRSF1:
   srsf_rich_custom_bg: 2.66173157
   srsf_rich_default_bg: 1.77461738
 HNRNPA0:
-  alternating_ry_custom_bg: 2.62e-06
-  alternating_ry_default_bg: 2.31e-06
-  au_rich_element_custom_bg: 0.0022761
-  au_rich_element_default_bg: 0.00678167
-  cug_repeat_custom_bg: 0.00028546
-  cug_repeat_default_bg: 0.00016837
+  alternating_ry_custom_bg: 0.00026422
+  alternating_ry_default_bg: 0.00023376
+  au_rich_element_custom_bg: 1.84761365
+  au_rich_element_default_bg: 1.96965208
+  cug_repeat_custom_bg: 8.31e-06
+  cug_repeat_default_bg: 4.9e-06
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.01502673
@@ -1694,73 +1653,73 @@ HNRNPA0:
   empty_seq_default_bg: 0.0
   fox_overlap_custom_bg: 0.01502673
   fox_overlap_default_bg: 0.01330012
-  gc_rich_hairpin_custom_bg: 0.00042996
-  gc_rich_hairpin_default_bg: 0.00020074
-  hnrnp_rich_custom_bg: 4.8122902
-  hnrnp_rich_default_bg: 4.85723648
-  lowercase_seq_custom_bg: 0.15024446
-  lowercase_seq_default_bg: 0.25872544
-  mixed_complex_1_custom_bg: 0.28716964
-  mixed_complex_1_default_bg: 0.26204958
-  mixed_complex_2_custom_bg: 0.01125479
-  mixed_complex_2_default_bg: 0.00684868
+  gc_rich_hairpin_custom_bg: 0.00507693
+  gc_rich_hairpin_default_bg: 0.00671499
+  hnrnp_rich_custom_bg: 0.00037323
+  hnrnp_rich_default_bg: 0.00049531
+  lowercase_seq_custom_bg: 0.20944518
+  lowercase_seq_default_bg: 0.26534068
+  mixed_complex_1_custom_bg: 0.20517504
+  mixed_complex_1_default_bg: 0.25550038
+  mixed_complex_2_custom_bg: 0.24619719
+  mixed_complex_2_default_bg: 0.50408734
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 0.00016588
-  poly_A_default_bg: 0.00049531
+  poly_A_custom_bg: 0.01673567
+  poly_A_default_bg: 0.04986196
   poly_C_custom_bg: 1.9e-07
   poly_C_default_bg: 5.0e-08
-  poly_G_custom_bg: 0.18844512
-  poly_G_default_bg: 0.04986196
-  poly_U_custom_bg: 1.64e-06
-  poly_U_default_bg: 4.9e-06
-  pumilio_motif_custom_bg: 0.00567655
-  pumilio_motif_default_bg: 0.01349531
+  poly_G_custom_bg: 1.9e-07
+  poly_G_default_bg: 5.0e-08
+  poly_U_custom_bg: 0.01673567
+  poly_U_default_bg: 0.04986196
+  pumilio_motif_custom_bg: 0.49897167
+  pumilio_motif_default_bg: 1.0213695
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 4.91507847
-  srsf_rich_default_bg: 4.85740157
+  srsf_rich_custom_bg: 8.31e-06
+  srsf_rich_default_bg: 4.9e-06
 HNRNPA1:
   alternating_ry_custom_bg: 0.0
   alternating_ry_default_bg: 0.0
-  au_rich_element_custom_bg: 0.0
-  au_rich_element_default_bg: 2.0e-08
-  cug_repeat_custom_bg: 0.0
-  cug_repeat_default_bg: 0.0
+  au_rich_element_custom_bg: 1.0e-08
+  au_rich_element_default_bg: 1.2e-07
+  cug_repeat_custom_bg: 2.0e-08
+  cug_repeat_default_bg: 1.0e-08
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.0002739
-  dna_version_default_bg: 0.00022334
+  dna_version_custom_bg: 0.0
+  dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.0002739
-  fox_overlap_default_bg: 0.00022334
-  gc_rich_hairpin_custom_bg: 0.0
-  gc_rich_hairpin_default_bg: 0.0
-  hnrnp_rich_custom_bg: 3.42e-06
-  hnrnp_rich_default_bg: 5.16e-06
-  lowercase_seq_custom_bg: 1.08e-06
-  lowercase_seq_default_bg: 2.22e-06
-  mixed_complex_1_custom_bg: 5.0e-08
-  mixed_complex_1_default_bg: 4.0e-08
-  mixed_complex_2_custom_bg: 1.98e-06
-  mixed_complex_2_default_bg: 1.5e-06
+  fox_overlap_custom_bg: 0.0
+  fox_overlap_default_bg: 0.0
+  gc_rich_hairpin_custom_bg: 3.3e-07
+  gc_rich_hairpin_default_bg: 1.1e-07
+  hnrnp_rich_custom_bg: 1.895e-05
+  hnrnp_rich_default_bg: 3.337e-05
+  lowercase_seq_custom_bg: 6.32e-06
+  lowercase_seq_default_bg: 1.113e-05
+  mixed_complex_1_custom_bg: 1.421e-05
+  mixed_complex_1_default_bg: 1.112e-05
+  mixed_complex_2_custom_bg: 3.1e-07
+  mixed_complex_2_default_bg: 2.2e-07
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 0.01334283
-  poly_A_default_bg: 0.08209829
+  poly_A_custom_bg: 0.0
+  poly_A_default_bg: 0.0
   poly_C_custom_bg: 0.0
   poly_C_default_bg: 0.0
-  poly_G_custom_bg: 7.5e-07
-  poly_G_default_bg: 8.0e-08
+  poly_G_custom_bg: 0.0014566
+  poly_G_default_bg: 0.00010011
   poly_U_custom_bg: 0.0
-  poly_U_default_bg: 0.0
-  pumilio_motif_custom_bg: 1.84e-05
-  pumilio_motif_default_bg: 7.594e-05
+  poly_U_default_bg: 1.0e-08
+  pumilio_motif_custom_bg: 5.0e-08
+  pumilio_motif_default_bg: 2.2e-07
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.08131742
-  srsf_rich_default_bg: 0.02985614
+  srsf_rich_custom_bg: 9.594e-05
+  srsf_rich_default_bg: 3.338e-05
 HNRNPA1L2:
   alternating_ry_custom_bg: 0.00034008
   alternating_ry_default_bg: 0.00024805
@@ -2582,46 +2541,46 @@ IGF2BP2:
   srsf_rich_custom_bg: 0.00539563
   srsf_rich_default_bg: 0.00357407
 IGF2BP3:
-  alternating_ry_custom_bg: 0.3514196
-  alternating_ry_default_bg: 0.367099
-  au_rich_element_custom_bg: 0.08622705
-  au_rich_element_default_bg: 0.2955226
-  cug_repeat_custom_bg: 0.00720389
-  cug_repeat_default_bg: 0.00354937
+  alternating_ry_custom_bg: 0.21475918
+  alternating_ry_default_bg: 0.19828646
+  au_rich_element_custom_bg: 2.63746157
+  au_rich_element_default_bg: 3.53121098
+  cug_repeat_custom_bg: 0.00539419
+  cug_repeat_default_bg: 0.00375648
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 2.53539833
-  dna_version_default_bg: 2.20183539
+  dna_version_custom_bg: 2.84035063
+  dna_version_default_bg: 2.77187639
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 2.53539833
-  fox_overlap_default_bg: 2.20183539
-  gc_rich_hairpin_custom_bg: 0.01144598
-  gc_rich_hairpin_default_bg: 0.00727161
-  hnrnp_rich_custom_bg: 0.00991134
-  hnrnp_rich_default_bg: 0.01343662
-  lowercase_seq_custom_bg: 0.04040702
-  lowercase_seq_default_bg: 0.06099947
-  mixed_complex_1_custom_bg: 0.11243223
-  mixed_complex_1_default_bg: 0.10510282
-  mixed_complex_2_custom_bg: 0.58421103
-  mixed_complex_2_default_bg: 0.99606436
+  fox_overlap_custom_bg: 2.84035063
+  fox_overlap_default_bg: 2.77187639
+  gc_rich_hairpin_custom_bg: 0.69162084
+  gc_rich_hairpin_default_bg: 0.75937179
+  hnrnp_rich_custom_bg: 0.09631866
+  hnrnp_rich_default_bg: 0.13234923
+  lowercase_seq_custom_bg: 1.24758711
+  lowercase_seq_default_bg: 1.40865639
+  mixed_complex_1_custom_bg: 1.42217486
+  mixed_complex_1_default_bg: 1.38770704
+  mixed_complex_2_custom_bg: 0.06347635
+  mixed_complex_2_default_bg: 0.08890156
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 13.64980946
-  poly_A_default_bg: 13.90047351
-  poly_C_custom_bg: 8.64206173
-  poly_C_default_bg: 3.53864812
-  poly_G_custom_bg: 9.8e-07
-  poly_G_default_bg: 2.1e-07
-  poly_U_custom_bg: 0.00087853
-  poly_U_default_bg: 0.00314742
-  pumilio_motif_custom_bg: 0.10362181
-  pumilio_motif_default_bg: 0.24997225
+  poly_A_custom_bg: 0.00181178
+  poly_A_default_bg: 0.00375648
+  poly_C_custom_bg: 0.00916817
+  poly_C_default_bg: 0.00375648
+  poly_G_custom_bg: 9.082e-05
+  poly_G_default_bg: 3.72e-05
+  poly_U_custom_bg: 0.18106023
+  poly_U_default_bg: 0.371202
+  pumilio_motif_custom_bg: 1.08575794
+  pumilio_motif_default_bg: 1.47482116
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.00155197
-  srsf_rich_default_bg: 0.00104017
+  srsf_rich_custom_bg: 0.00219085
+  srsf_rich_default_bg: 0.00134989
 IGHMBP2:
   alternating_ry_custom_bg: 0.0
   alternating_ry_default_bg: 0.0
@@ -3115,46 +3074,46 @@ NOVA1:
   srsf_rich_custom_bg: 0.0
   srsf_rich_default_bg: 0.0
 NOVA2:
-  alternating_ry_custom_bg: 0.0
-  alternating_ry_default_bg: 0.0
-  au_rich_element_custom_bg: 0.0
-  au_rich_element_default_bg: 0.0
-  cug_repeat_custom_bg: 0.00110956
-  cug_repeat_default_bg: 0.00052575
+  alternating_ry_custom_bg: 1.463e-05
+  alternating_ry_default_bg: 1.432e-05
+  au_rich_element_custom_bg: 1.0e-08
+  au_rich_element_default_bg: 6.0e-08
+  cug_repeat_custom_bg: 2.9e-07
+  cug_repeat_default_bg: 9.0e-08
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 1.798e-05
-  dna_version_default_bg: 1.401e-05
+  dna_version_custom_bg: 6.0e-08
+  dna_version_default_bg: 6.0e-08
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 1.798e-05
-  fox_overlap_default_bg: 1.401e-05
-  gc_rich_hairpin_custom_bg: 0.11868752
-  gc_rich_hairpin_default_bg: 0.02622833
-  hnrnp_rich_custom_bg: 0.00049122
-  hnrnp_rich_default_bg: 0.00052575
-  lowercase_seq_custom_bg: 0.00012483
-  lowercase_seq_default_bg: 0.0001334
-  mixed_complex_1_custom_bg: 0.00028855
-  mixed_complex_1_default_bg: 0.00014226
-  mixed_complex_2_custom_bg: 0.05954941
-  mixed_complex_2_default_bg: 0.0133085
+  fox_overlap_custom_bg: 6.0e-08
+  fox_overlap_default_bg: 6.0e-08
+  gc_rich_hairpin_custom_bg: 1.3e-07
+  gc_rich_hairpin_default_bg: 6.0e-08
+  hnrnp_rich_custom_bg: 0.0
+  hnrnp_rich_default_bg: 0.0
+  lowercase_seq_custom_bg: 1.3e-06
+  lowercase_seq_default_bg: 2.86e-06
+  mixed_complex_1_custom_bg: 4.49e-06
+  mixed_complex_1_default_bg: 2.95e-06
+  mixed_complex_2_custom_bg: 1.151e-05
+  mixed_complex_2_default_bg: 8.65e-06
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
   poly_A_custom_bg: 0.0
   poly_A_default_bg: 0.0
-  poly_C_custom_bg: 1.0e-08
-  poly_C_default_bg: 0.0
-  poly_G_custom_bg: 13.99978005
-  poly_G_default_bg: 13.99895128
+  poly_C_custom_bg: 0.00033335
+  poly_C_default_bg: 2.864e-05
+  poly_G_custom_bg: 0.0
+  poly_G_default_bg: 0.0
   poly_U_custom_bg: 0.0
   poly_U_default_bg: 0.0
-  pumilio_motif_custom_bg: 6.0e-08
-  pumilio_motif_default_bg: 1.5e-07
+  pumilio_motif_custom_bg: 0.0
+  pumilio_motif_default_bg: 0.0
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 7.42163286
-  srsf_rich_default_bg: 5.71945604
+  srsf_rich_custom_bg: 0.0
+  srsf_rich_default_bg: 0.0
 NUDT21:
   alternating_ry_custom_bg: 0.00936675
   alternating_ry_default_bg: 0.00693068
@@ -3484,46 +3443,46 @@ PABPN1:
   srsf_rich_custom_bg: 1.62717626
   srsf_rich_default_bg: 0.9862348
 PCBP1:
-  alternating_ry_custom_bg: 3.486e-05
-  alternating_ry_default_bg: 2.961e-05
-  au_rich_element_custom_bg: 0.00023642
-  au_rich_element_default_bg: 0.0010162
-  cug_repeat_custom_bg: 3.5e-07
-  cug_repeat_default_bg: 2.0e-07
+  alternating_ry_custom_bg: 0.00573297
+  alternating_ry_default_bg: 0.00448893
+  au_rich_element_custom_bg: 0.0
+  au_rich_element_default_bg: 0.0
+  cug_repeat_custom_bg: 9.6e-07
+  cug_repeat_default_bg: 3.3e-07
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.00175924
-  dna_version_default_bg: 0.00149433
+  dna_version_custom_bg: 0.0
+  dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.00175924
-  fox_overlap_default_bg: 0.00149433
-  gc_rich_hairpin_custom_bg: 1.245e-05
-  gc_rich_hairpin_default_bg: 1.011e-05
-  hnrnp_rich_custom_bg: 4.3e-07
-  hnrnp_rich_default_bg: 6.4e-07
-  lowercase_seq_custom_bg: 1.044e-05
-  lowercase_seq_default_bg: 1.505e-05
-  mixed_complex_1_custom_bg: 0.00118448
-  mixed_complex_1_default_bg: 0.00100614
-  mixed_complex_2_custom_bg: 0.00020183
-  mixed_complex_2_default_bg: 0.00052283
+  fox_overlap_custom_bg: 0.0
+  fox_overlap_default_bg: 0.0
+  gc_rich_hairpin_custom_bg: 0.00321935
+  gc_rich_hairpin_default_bg: 0.00112234
+  hnrnp_rich_custom_bg: 0.0
+  hnrnp_rich_default_bg: 0.0
+  lowercase_seq_custom_bg: 0.0
+  lowercase_seq_default_bg: 0.0
+  mixed_complex_1_custom_bg: 1.4e-07
+  mixed_complex_1_default_bg: 1.1e-07
+  mixed_complex_2_custom_bg: 0.0
+  mixed_complex_2_default_bg: 0.0
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 0.00150641
-  poly_A_default_bg: 0.00647479
-  poly_C_custom_bg: 3.79e-06
-  poly_C_default_bg: 6.4e-07
+  poly_A_custom_bg: 0.0
+  poly_A_default_bg: 0.0
+  poly_C_custom_bg: 5.60536667
+  poly_C_default_bg: 0.91717873
   poly_G_custom_bg: 0.0
   poly_G_default_bg: 0.0
-  poly_U_custom_bg: 1.5e-07
-  poly_U_default_bg: 6.4e-07
-  pumilio_motif_custom_bg: 0.00035797
-  pumilio_motif_default_bg: 0.00102582
+  poly_U_custom_bg: 0.0
+  poly_U_default_bg: 0.0
+  pumilio_motif_custom_bg: 0.0
+  pumilio_motif_default_bg: 0.0
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 3.5e-07
-  srsf_rich_default_bg: 2.0e-07
+  srsf_rich_custom_bg: 0.0
+  srsf_rich_default_bg: 0.0
 PCBP2:
   alternating_ry_custom_bg: 0.00054781
   alternating_ry_default_bg: 0.00044668
@@ -3894,46 +3853,46 @@ PUM2:
   srsf_rich_custom_bg: 0.00010021
   srsf_rich_default_bg: 4.441e-05
 QKI:
-  alternating_ry_custom_bg: 0.00026422
-  alternating_ry_default_bg: 0.00023376
-  au_rich_element_custom_bg: 0.40996814
-  au_rich_element_default_bg: 1.02120538
-  cug_repeat_custom_bg: 0.02811407
-  cug_repeat_default_bg: 0.01662069
+  alternating_ry_custom_bg: 7.0e-07
+  alternating_ry_default_bg: 5.5e-07
+  au_rich_element_custom_bg: 5.02e-06
+  au_rich_element_default_bg: 4.472e-05
+  cug_repeat_custom_bg: 1.0e-08
+  cug_repeat_default_bg: 0.0
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.00752574
-  dna_version_default_bg: 0.00997632
+  dna_version_custom_bg: 2.842e-05
+  dna_version_default_bg: 2.225e-05
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.00752574
-  fox_overlap_default_bg: 0.00997632
-  gc_rich_hairpin_custom_bg: 0.00256993
-  gc_rich_hairpin_default_bg: 0.00336011
-  hnrnp_rich_custom_bg: 1.01221533
-  hnrnp_rich_default_bg: 1.25988567
-  lowercase_seq_custom_bg: 0.00620913
-  lowercase_seq_default_bg: 0.01336355
-  mixed_complex_1_custom_bg: 0.00025806
-  mixed_complex_1_default_bg: 0.00023344
-  mixed_complex_2_custom_bg: 0.00130633
-  mixed_complex_2_default_bg: 0.00355659
+  fox_overlap_custom_bg: 2.842e-05
+  fox_overlap_default_bg: 2.225e-05
+  gc_rich_hairpin_custom_bg: 0.0
+  gc_rich_hairpin_default_bg: 0.0
+  hnrnp_rich_custom_bg: 1.9e-07
+  hnrnp_rich_default_bg: 3.3e-07
+  lowercase_seq_custom_bg: 8.0e-08
+  lowercase_seq_default_bg: 2.2e-07
+  mixed_complex_1_custom_bg: 1.43e-05
+  mixed_complex_1_default_bg: 1.123e-05
+  mixed_complex_2_custom_bg: 2.4e-07
+  mixed_complex_2_default_bg: 2.2e-07
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 0.01673567
-  poly_A_default_bg: 0.04986196
-  poly_C_custom_bg: 1.871e-05
-  poly_C_default_bg: 4.9e-06
-  poly_G_custom_bg: 1.9e-07
-  poly_G_default_bg: 5.0e-08
-  poly_U_custom_bg: 0.00016588
-  poly_U_default_bg: 0.00049531
-  pumilio_motif_custom_bg: 0.49229822
-  pumilio_motif_default_bg: 1.00810698
+  poly_A_custom_bg: 1.1e-07
+  poly_A_default_bg: 9.9e-07
+  poly_C_custom_bg: 0.0
+  poly_C_default_bg: 0.0
+  poly_G_custom_bg: 0.0
+  poly_G_default_bg: 0.0
+  poly_U_custom_bg: 1.1e-07
+  poly_U_default_bg: 9.9e-07
+  pumilio_motif_custom_bg: 0.01901597
+  pumilio_motif_default_bg: 0.10303131
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.00028271
-  srsf_rich_default_bg: 0.00016676
+  srsf_rich_custom_bg: 0.0
+  srsf_rich_default_bg: 0.0
 RALY:
   alternating_ry_custom_bg: 0.08075839
   alternating_ry_default_bg: 0.07715262
@@ -3976,46 +3935,46 @@ RALY:
   srsf_rich_custom_bg: 5.0e-07
   srsf_rich_default_bg: 2.6e-07
 RBFOX1:
-  alternating_ry_custom_bg: 5.54e-06
-  alternating_ry_default_bg: 4.9e-06
-  au_rich_element_custom_bg: 0.00225453
-  au_rich_element_default_bg: 0.00671725
-  cug_repeat_custom_bg: 0.00055986
-  cug_repeat_default_bg: 0.00033022
+  alternating_ry_custom_bg: 0.0008458
+  alternating_ry_default_bg: 0.00089792
+  au_rich_element_custom_bg: 0.00028781
+  au_rich_element_default_bg: 0.00103119
+  cug_repeat_custom_bg: 0.08989296
+  cug_repeat_default_bg: 0.06395798
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 3.89861953
-  dna_version_default_bg: 3.88578887
+  dna_version_custom_bg: 3.9786927
+  dna_version_default_bg: 3.96996201
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 3.89861953
-  fox_overlap_default_bg: 3.88578887
-  gc_rich_hairpin_custom_bg: 0.03740223
-  gc_rich_hairpin_default_bg: 0.01336357
-  hnrnp_rich_custom_bg: 0.01253674
-  hnrnp_rich_default_bg: 0.01662392
-  lowercase_seq_custom_bg: 1.12109375
-  lowercase_seq_default_bg: 1.22678224
-  mixed_complex_1_custom_bg: 0.99996217
-  mixed_complex_1_default_bg: 0.99990852
-  mixed_complex_2_custom_bg: 0.48670327
-  mixed_complex_2_default_bg: 0.25882418
+  fox_overlap_custom_bg: 3.9786927
+  fox_overlap_default_bg: 3.96996201
+  gc_rich_hairpin_custom_bg: 0.05311237
+  gc_rich_hairpin_default_bg: 0.0259693
+  hnrnp_rich_custom_bg: 0.00040675
+  hnrnp_rich_default_bg: 0.00064771
+  lowercase_seq_custom_bg: 1.00539759
+  lowercase_seq_default_bg: 1.01284753
+  mixed_complex_1_custom_bg: 0.66695833
+  mixed_complex_1_default_bg: 0.57962623
+  mixed_complex_2_custom_bg: 0.00104652
+  mixed_complex_2_default_bg: 0.00064391
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 0.00016588
-  poly_A_default_bg: 0.00049531
-  poly_C_custom_bg: 1.871e-05
-  poly_C_default_bg: 4.9e-06
-  poly_G_custom_bg: 0.00188929
-  poly_G_default_bg: 0.00049531
-  poly_U_custom_bg: 1.64e-06
-  poly_U_default_bg: 4.9e-06
-  pumilio_motif_custom_bg: 0.00567623
-  pumilio_motif_default_bg: 0.01349466
+  poly_A_custom_bg: 5.0e-08
+  poly_A_default_bg: 1.8e-07
+  poly_C_custom_bg: 8.4e-07
+  poly_C_default_bg: 1.8e-07
+  poly_G_custom_bg: 8.479e-05
+  poly_G_default_bg: 1.778e-05
+  poly_U_custom_bg: 0.00050118
+  poly_U_default_bg: 0.00179566
+  pumilio_motif_custom_bg: 0.0003245
+  pumilio_motif_default_bg: 0.00077596
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 1.81755097
-  srsf_rich_default_bg: 1.25988729
+  srsf_rich_custom_bg: 0.00072508
+  srsf_rich_default_bg: 0.00051317
 RBFOX2:
   alternating_ry_custom_bg: 0.00026422
   alternating_ry_default_bg: 0.00023376
@@ -4221,47 +4180,6 @@ RBM28:
   short_seq_default_bg: 0.0
   srsf_rich_custom_bg: 4.81543206
   srsf_rich_default_bg: 4.60617424
-RBM3:
-  alternating_ry_custom_bg: 0.00187718
-  alternating_ry_default_bg: 0.00137729
-  au_rich_element_custom_bg: 0.07090359
-  au_rich_element_default_bg: 0.24595734
-  cug_repeat_custom_bg: 0.48619281
-  cug_repeat_default_bg: 0.24507946
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.23679089
-  dna_version_default_bg: 0.24376615
-  empty_seq_custom_bg: 0.0
-  empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.23679089
-  fox_overlap_default_bg: 0.24376615
-  gc_rich_hairpin_custom_bg: 0.06287005
-  gc_rich_hairpin_default_bg: 0.02985981
-  hnrnp_rich_custom_bg: 1.67793907
-  hnrnp_rich_default_bg: 2.27121168
-  lowercase_seq_custom_bg: 0.18547772
-  lowercase_seq_default_bg: 0.35970084
-  mixed_complex_1_custom_bg: 1.08204156
-  mixed_complex_1_default_bg: 1.01454093
-  mixed_complex_2_custom_bg: 0.4342568
-  mixed_complex_2_default_bg: 0.64725468
-  nan_seq_custom_bg: 0.0
-  nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 8.64734928
-  poly_A_default_bg: 11.93775669
-  poly_C_custom_bg: 0.00177857
-  poly_C_default_bg: 0.00037303
-  poly_G_custom_bg: 0.31669308
-  poly_G_default_bg: 0.06762427
-  poly_U_custom_bg: 0.00053698
-  poly_U_default_bg: 0.00192391
-  pumilio_motif_custom_bg: 1.68579435
-  pumilio_motif_default_bg: 2.32898128
-  short_seq_custom_bg: 0.0
-  short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 3.50026519
-  srsf_rich_default_bg: 2.44038428
 RBM4:
   alternating_ry_custom_bg: 0.01137554
   alternating_ry_default_bg: 0.01159314
@@ -4591,87 +4509,87 @@ RBMS1:
   srsf_rich_custom_bg: 0.00483765
   srsf_rich_default_bg: 0.00229
 RBMS3:
-  alternating_ry_custom_bg: 0.16573278
-  alternating_ry_default_bg: 0.17568345
-  au_rich_element_custom_bg: 3.79361514
-  au_rich_element_default_bg: 5.47798153
-  cug_repeat_custom_bg: 0.00338046
-  cug_repeat_default_bg: 0.00160183
+  alternating_ry_custom_bg: 0.69465268
+  alternating_ry_default_bg: 0.5063544
+  au_rich_element_custom_bg: 2.14740315
+  au_rich_element_default_bg: 3.3782955
+  cug_repeat_custom_bg: 0.00402293
+  cug_repeat_default_bg: 0.00192736
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.30128026
-  dna_version_default_bg: 0.26909485
+  dna_version_custom_bg: 0.65950005
+  dna_version_default_bg: 0.5192569
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.30128026
-  fox_overlap_default_bg: 0.26909485
-  gc_rich_hairpin_custom_bg: 0.02923469
-  gc_rich_hairpin_default_bg: 0.0307155
-  hnrnp_rich_custom_bg: 0.07197607
-  hnrnp_rich_default_bg: 0.11082231
-  lowercase_seq_custom_bg: 2.22593687
-  lowercase_seq_default_bg: 2.73980001
-  mixed_complex_1_custom_bg: 0.042693
-  mixed_complex_1_default_bg: 0.03684027
-  mixed_complex_2_custom_bg: 2.57300158
-  mixed_complex_2_default_bg: 2.59995271
+  fox_overlap_custom_bg: 0.65950005
+  fox_overlap_default_bg: 0.5192569
+  gc_rich_hairpin_custom_bg: 0.02974776
+  gc_rich_hairpin_default_bg: 0.03134626
+  hnrnp_rich_custom_bg: 0.01393844
+  hnrnp_rich_default_bg: 0.01968784
+  lowercase_seq_custom_bg: 1.52025341
+  lowercase_seq_default_bg: 1.89389743
+  mixed_complex_1_custom_bg: 0.17291354
+  mixed_complex_1_default_bg: 0.15997694
+  mixed_complex_2_custom_bg: 2.97372852
+  mixed_complex_2_default_bg: 2.99100639
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 1.24759591
-  poly_A_default_bg: 3.63385676
-  poly_C_custom_bg: 8.021e-05
-  poly_C_default_bg: 1.682e-05
-  poly_G_custom_bg: 5.71e-05
-  poly_G_default_bg: 1.197e-05
-  poly_U_custom_bg: 0.36782348
-  poly_U_default_bg: 1.23421417
-  pumilio_motif_custom_bg: 2.51179972
-  pumilio_motif_default_bg: 3.07070337
+  poly_A_custom_bg: 0.25613703
+  poly_A_default_bg: 0.87636763
+  poly_C_custom_bg: 0.00144966
+  poly_C_default_bg: 0.00030404
+  poly_G_custom_bg: 2.848e-05
+  poly_G_default_bg: 5.97e-06
+  poly_U_custom_bg: 0.02669582
+  poly_U_default_bg: 0.09518708
+  pumilio_motif_custom_bg: 0.99735569
+  pumilio_motif_default_bg: 1.94638592
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.00277631
-  srsf_rich_default_bg: 0.00139388
+  srsf_rich_custom_bg: 0.00066681
+  srsf_rich_default_bg: 0.00034204
 RBMX:
-  alternating_ry_custom_bg: 0.03030585
-  alternating_ry_default_bg: 0.02682419
-  au_rich_element_custom_bg: 4.501e-05
-  au_rich_element_default_bg: 0.00013439
-  cug_repeat_custom_bg: 0.0005626
-  cug_repeat_default_bg: 0.00033184
+  alternating_ry_custom_bg: 0.0
+  alternating_ry_default_bg: 0.0
+  au_rich_element_custom_bg: 0.0
+  au_rich_element_default_bg: 0.0
+  cug_repeat_custom_bg: 0.0
+  cug_repeat_default_bg: 0.0
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.00752574
-  dna_version_default_bg: 0.00997632
+  dna_version_custom_bg: 0.00059113
+  dna_version_default_bg: 0.00057835
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.00752574
-  fox_overlap_default_bg: 0.00997632
-  gc_rich_hairpin_custom_bg: 0.00660984
-  gc_rich_hairpin_default_bg: 0.00365532
-  hnrnp_rich_custom_bg: 2.48e-06
-  hnrnp_rich_default_bg: 3.29e-06
-  lowercase_seq_custom_bg: 7.129e-05
-  lowercase_seq_default_bg: 0.00010006
-  mixed_complex_1_custom_bg: 0.01198803
-  mixed_complex_1_default_bg: 0.01007407
-  mixed_complex_2_custom_bg: 0.01262926
-  mixed_complex_2_default_bg: 0.00684738
+  fox_overlap_custom_bg: 0.00059113
+  fox_overlap_default_bg: 0.00057835
+  gc_rich_hairpin_custom_bg: 0.0
+  gc_rich_hairpin_default_bg: 0.0
+  hnrnp_rich_custom_bg: 5.2e-06
+  hnrnp_rich_default_bg: 1.146e-05
+  lowercase_seq_custom_bg: 0.00013135
+  lowercase_seq_default_bg: 0.00028913
+  mixed_complex_1_custom_bg: 7.36e-06
+  mixed_complex_1_default_bg: 5.76e-06
+  mixed_complex_2_custom_bg: 1.8e-07
+  mixed_complex_2_default_bg: 1.4e-07
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 1.64e-06
-  poly_A_default_bg: 4.9e-06
-  poly_C_custom_bg: 8.4354694
-  poly_C_default_bg: 3.77965207
-  poly_G_custom_bg: 1.9e-07
-  poly_G_default_bg: 5.0e-08
-  poly_U_custom_bg: 1.64e-06
-  poly_U_default_bg: 4.9e-06
-  pumilio_motif_custom_bg: 6.707e-05
-  pumilio_motif_default_bg: 0.00013374
+  poly_A_custom_bg: 0.00038923
+  poly_A_default_bg: 0.00289132
+  poly_C_custom_bg: 0.0
+  poly_C_default_bg: 0.0
+  poly_G_custom_bg: 0.00033335
+  poly_G_default_bg: 2.864e-05
+  poly_U_custom_bg: 0.0
+  poly_U_default_bg: 0.0
+  pumilio_motif_custom_bg: 5.9e-07
+  pumilio_motif_default_bg: 2.92e-06
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 2.83e-06
-  srsf_rich_default_bg: 1.67e-06
+  srsf_rich_custom_bg: 0.18885186
+  srsf_rich_default_bg: 0.08515385
 RBMY1A1:
   alternating_ry_custom_bg: 2.1e-07
   alternating_ry_default_bg: 1.8e-07
@@ -4878,46 +4796,46 @@ SART3:
   srsf_rich_custom_bg: 0.17828485
   srsf_rich_default_bg: 0.12685288
 SF1:
-  alternating_ry_custom_bg: 0.00126851
-  alternating_ry_default_bg: 0.00089792
-  au_rich_element_custom_bg: 0.01448408
-  au_rich_element_default_bg: 0.05142293
-  cug_repeat_custom_bg: 0.00090616
-  cug_repeat_default_bg: 0.00064137
+  alternating_ry_custom_bg: 0.0
+  alternating_ry_default_bg: 0.0
+  au_rich_element_custom_bg: 3.932e-05
+  au_rich_element_default_bg: 0.00029208
+  cug_repeat_custom_bg: 0.0
+  cug_repeat_default_bg: 0.0
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.00072851
-  dna_version_default_bg: 0.00051694
+  dna_version_custom_bg: 5.85e-06
+  dna_version_default_bg: 5.73e-06
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.00072851
-  fox_overlap_default_bg: 0.00051694
-  gc_rich_hairpin_custom_bg: 0.00042518
-  gc_rich_hairpin_default_bg: 0.00013592
-  hnrnp_rich_custom_bg: 0.04034945
-  hnrnp_rich_default_bg: 0.06395168
-  lowercase_seq_custom_bg: 0.00551911
-  lowercase_seq_default_bg: 0.01292496
-  mixed_complex_1_custom_bg: 0.00049095
-  mixed_complex_1_default_bg: 0.00039118
-  mixed_complex_2_custom_bg: 0.00014574
-  mixed_complex_2_default_bg: 0.00026546
+  fox_overlap_custom_bg: 5.85e-06
+  fox_overlap_default_bg: 5.73e-06
+  gc_rich_hairpin_custom_bg: 1.0e-07
+  gc_rich_hairpin_default_bg: 3.0e-08
+  hnrnp_rich_custom_bg: 5.9e-06
+  hnrnp_rich_default_bg: 8.7e-06
+  lowercase_seq_custom_bg: 0.00013137
+  lowercase_seq_default_bg: 0.00028916
+  mixed_complex_1_custom_bg: 2.95e-06
+  mixed_complex_1_default_bg: 2.89e-06
+  mixed_complex_2_custom_bg: 1.1e-07
+  mixed_complex_2_default_bg: 9.0e-08
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 0.00050118
-  poly_A_default_bg: 0.00179566
-  poly_C_custom_bg: 8.479e-05
-  poly_C_default_bg: 1.778e-05
-  poly_G_custom_bg: 1.0e-08
+  poly_A_custom_bg: 0.00038923
+  poly_A_default_bg: 0.00289132
+  poly_C_custom_bg: 0.0
+  poly_C_default_bg: 0.0
+  poly_G_custom_bg: 0.0
   poly_G_default_bg: 0.0
-  poly_U_custom_bg: 4.96e-06
-  poly_U_default_bg: 1.778e-05
-  pumilio_motif_custom_bg: 0.01270846
-  pumilio_motif_default_bg: 0.03863013
+  poly_U_custom_bg: 0.0
+  poly_U_default_bg: 0.0
+  pumilio_motif_custom_bg: 0.00586545
+  pumilio_motif_default_bg: 0.02839317
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 1.359e-05
-  srsf_rich_default_bg: 6.41e-06
+  srsf_rich_custom_bg: 0.0
+  srsf_rich_default_bg: 0.0
 SFPQ:
   alternating_ry_custom_bg: 2.2e-07
   alternating_ry_default_bg: 1.4e-07
@@ -5001,46 +4919,46 @@ SNRNP70:
   srsf_rich_custom_bg: 0.06867217
   srsf_rich_default_bg: 0.03261632
 SNRPA:
-  alternating_ry_custom_bg: 4.101e-05
-  alternating_ry_default_bg: 3.483e-05
-  au_rich_element_custom_bg: 3.51e-06
-  au_rich_element_default_bg: 1.51e-05
-  cug_repeat_custom_bg: 0.00527374
-  cug_repeat_default_bg: 0.00199249
+  alternating_ry_custom_bg: 0.0
+  alternating_ry_default_bg: 0.0
+  au_rich_element_custom_bg: 8.0e-07
+  au_rich_element_default_bg: 5.94e-06
+  cug_repeat_custom_bg: 3.69e-06
+  cug_repeat_default_bg: 1.6e-06
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.00177649
-  dna_version_default_bg: 0.00150899
+  dna_version_custom_bg: 0.0003876
+  dna_version_default_bg: 0.00037729
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.00177649
-  fox_overlap_default_bg: 0.00150899
-  gc_rich_hairpin_custom_bg: 0.08168015
-  gc_rich_hairpin_default_bg: 0.04793745
-  hnrnp_rich_custom_bg: 1.564e-05
-  hnrnp_rich_default_bg: 1.993e-05
-  lowercase_seq_custom_bg: 5.21e-06
-  lowercase_seq_default_bg: 9.97e-06
-  mixed_complex_1_custom_bg: 0.0009921
-  mixed_complex_1_default_bg: 0.00100619
-  mixed_complex_2_custom_bg: 0.08361191
-  mixed_complex_2_default_bg: 0.04842569
+  fox_overlap_custom_bg: 0.0003876
+  fox_overlap_default_bg: 0.00037729
+  gc_rich_hairpin_custom_bg: 0.01173667
+  gc_rich_hairpin_default_bg: 0.00512282
+  hnrnp_rich_custom_bg: 2.83075342
+  hnrnp_rich_default_bg: 3.36807457
+  lowercase_seq_custom_bg: 0.00853313
+  lowercase_seq_default_bg: 0.01859471
+  mixed_complex_1_custom_bg: 0.00023733
+  mixed_complex_1_default_bg: 0.00015588
+  mixed_complex_2_custom_bg: 0.00014047
+  mixed_complex_2_default_bg: 0.00016552
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 1.5e-07
-  poly_A_default_bg: 6.4e-07
-  poly_C_custom_bg: 0.00038229
-  poly_C_default_bg: 6.414e-05
-  poly_G_custom_bg: 4.0e-08
-  poly_G_default_bg: 1.0e-08
-  poly_U_custom_bg: 1.5e-07
-  poly_U_default_bg: 6.4e-07
-  pumilio_motif_custom_bg: 0.01725463
-  pumilio_motif_default_bg: 0.04791791
+  poly_A_custom_bg: 1.0e-08
+  poly_A_default_bg: 4.0e-08
+  poly_C_custom_bg: 0.0
+  poly_C_default_bg: 0.0
+  poly_G_custom_bg: 1.42819257
+  poly_G_default_bg: 0.14110182
+  poly_U_custom_bg: 0.0
+  poly_U_default_bg: 0.0
+  pumilio_motif_custom_bg: 0.00169995
+  pumilio_motif_default_bg: 0.00559277
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 6.5e-07
-  srsf_rich_default_bg: 2.5e-07
+  srsf_rich_custom_bg: 1.67261578
+  srsf_rich_default_bg: 1.06165732
 SNRPB2:
   alternating_ry_custom_bg: 5.42e-06
   alternating_ry_default_bg: 4.42e-06
@@ -5739,12 +5657,12 @@ SUPV3L1:
   srsf_rich_custom_bg: 5.57e-06
   srsf_rich_default_bg: 3.29e-06
 SYNCRIP:
-  alternating_ry_custom_bg: 0.0
-  alternating_ry_default_bg: 0.0
-  au_rich_element_custom_bg: 4.96e-06
-  au_rich_element_default_bg: 1.778e-05
-  cug_repeat_custom_bg: 0.0
-  cug_repeat_default_bg: 0.0
+  alternating_ry_custom_bg: 0.08566165
+  alternating_ry_default_bg: 0.09043011
+  au_rich_element_custom_bg: 3.74505461
+  au_rich_element_default_bg: 7.93561263
+  cug_repeat_custom_bg: 0.00093025
+  cug_repeat_default_bg: 0.00065274
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
@@ -5753,32 +5671,32 @@ SYNCRIP:
   empty_seq_default_bg: 0.0
   fox_overlap_custom_bg: 1.443e-05
   fox_overlap_default_bg: 1.275e-05
-  gc_rich_hairpin_custom_bg: 0.0
-  gc_rich_hairpin_default_bg: 0.0
+  gc_rich_hairpin_custom_bg: 0.04859257
+  gc_rich_hairpin_default_bg: 0.05142039
   hnrnp_rich_custom_bg: 0.00041149
   hnrnp_rich_default_bg: 0.00065274
-  lowercase_seq_custom_bg: 6.92e-06
-  lowercase_seq_default_bg: 1.144e-05
-  mixed_complex_1_custom_bg: 9.89e-06
-  mixed_complex_1_default_bg: 1.024e-05
-  mixed_complex_2_custom_bg: 0.00387736
-  mixed_complex_2_default_bg: 0.0133085
+  lowercase_seq_custom_bg: 0.02194256
+  lowercase_seq_default_bg: 0.05167689
+  mixed_complex_1_custom_bg: 9.674e-05
+  mixed_complex_1_default_bg: 0.00014226
+  mixed_complex_2_custom_bg: 0.00014727
+  mixed_complex_2_default_bg: 0.00038991
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 13.99624298
-  poly_A_default_bg: 13.99895128
+  poly_A_custom_bg: 0.0
+  poly_A_default_bg: 0.0
   poly_C_custom_bg: 1.0e-08
   poly_C_default_bg: 0.0
   poly_G_custom_bg: 1.0e-08
   poly_G_default_bg: 0.0
-  poly_U_custom_bg: 0.0
-  poly_U_default_bg: 0.0
-  pumilio_motif_custom_bg: 0.00045013
-  pumilio_motif_default_bg: 0.0011607
+  poly_U_custom_bg: 13.99624298
+  poly_U_default_bg: 13.99895128
+  pumilio_motif_custom_bg: 0.03455356
+  pumilio_motif_default_bg: 0.09043011
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.00075173
-  srsf_rich_default_bg: 0.00052575
+  srsf_rich_custom_bg: 0.0
+  srsf_rich_default_bg: 0.0
 TARDBP:
   alternating_ry_custom_bg: 5.684e-05
   alternating_ry_default_bg: 4.449e-05
@@ -5911,38 +5829,38 @@ TRA2A:
   cug_repeat_default_bg: 0.0
   dirty_seq_custom_bg: 0.0
   dirty_seq_default_bg: 0.0
-  dna_version_custom_bg: 0.0
-  dna_version_default_bg: 0.0
+  dna_version_custom_bg: 4.2e-07
+  dna_version_default_bg: 3.3e-07
   empty_seq_custom_bg: 0.0
   empty_seq_default_bg: 0.0
-  fox_overlap_custom_bg: 0.0
-  fox_overlap_default_bg: 0.0
+  fox_overlap_custom_bg: 4.2e-07
+  fox_overlap_default_bg: 3.3e-07
   gc_rich_hairpin_custom_bg: 0.0
   gc_rich_hairpin_default_bg: 0.0
-  hnrnp_rich_custom_bg: 0.00396288
-  hnrnp_rich_default_bg: 0.00871392
-  lowercase_seq_custom_bg: 0.0
-  lowercase_seq_default_bg: 0.0
-  mixed_complex_1_custom_bg: 6.0e-08
-  mixed_complex_1_default_bg: 5.0e-08
-  mixed_complex_2_custom_bg: 0.0
-  mixed_complex_2_default_bg: 0.0
+  hnrnp_rich_custom_bg: 3.8e-07
+  hnrnp_rich_default_bg: 6.6e-07
+  lowercase_seq_custom_bg: 1.0e-07
+  lowercase_seq_default_bg: 2.2e-07
+  mixed_complex_1_custom_bg: 2.4e-07
+  mixed_complex_1_default_bg: 2.2e-07
+  mixed_complex_2_custom_bg: 1.0e-08
+  mixed_complex_2_default_bg: 1.0e-08
   nan_seq_custom_bg: 0.0
   nan_seq_default_bg: 0.0
-  poly_A_custom_bg: 0.55767604
-  poly_A_default_bg: 3.04991096
+  poly_A_custom_bg: 5.06195383
+  poly_A_default_bg: 8.27773099
   poly_C_custom_bg: 0.0
   poly_C_default_bg: 0.0
   poly_G_custom_bg: 0.0
   poly_G_default_bg: 0.0
   poly_U_custom_bg: 0.0
   poly_U_default_bg: 0.0
-  pumilio_motif_custom_bg: 0.0
-  pumilio_motif_default_bg: 0.0
+  pumilio_motif_custom_bg: 1.0e-07
+  pumilio_motif_default_bg: 4.4e-07
   short_seq_custom_bg: 0.0
   short_seq_default_bg: 0.0
-  srsf_rich_custom_bg: 0.02997245
-  srsf_rich_default_bg: 0.01307088
+  srsf_rich_custom_bg: 0.00965803
+  srsf_rich_default_bg: 0.00336702
 TRA2B:
   alternating_ry_custom_bg: 0.0
   alternating_ry_default_bg: 0.0

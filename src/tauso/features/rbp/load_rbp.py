@@ -13,11 +13,25 @@ logger = logging.getLogger(__name__)
 _DATA_DIR = os.path.join(get_data_dir(), "attract")
 
 _MIN_MOTIF_LEN = 6
+_MIN_TOTAL_IC = 6.0  # bits; drops PWMs whose log-odds signal is too weak to be informative
 _DB_RANK = {"S": 3, "R": 2, "C": 1}
 
 
+def _pwm_total_ic(pwm):
+    """Total information content (bits) of a PWM against a uniform background."""
+    eps = 1e-9
+    p = pwm + eps
+    p = p / p.sum(axis=1, keepdims=True)
+    return float(np.sum(p * np.log2(p / 0.25), axis=1).sum())
+
+
 def _rank_matrices_per_gene(df, pwms):
-    """Map Gene_name -> matrix IDs ordered best-first (Score, length >= _MIN_MOTIF_LEN, assay)."""
+    """Map Gene_name -> matrix IDs ordered best-first.
+
+    Filters out PWMs below `_MIN_TOTAL_IC` bits, then ranks survivors by
+    (total_IC, length >= _MIN_MOTIF_LEN, Score, DB tier, length).
+    Genes whose best matrix is below the IC threshold are dropped entirely.
+    """
     score = pd.to_numeric(df["Score"].astype(str).str.replace("*", "", regex=False), errors="coerce")
     q = (
         pd.DataFrame({"gene": df["Gene_name"], "mid": df["Matrix_id"], "score": score, "db": df["Database"]})
@@ -25,6 +39,7 @@ def _rank_matrices_per_gene(df, pwms):
         .agg(score=("score", "max"), db=("db", "first"))
         .reset_index()
     )
+    pwm_ic = {mid: _pwm_total_ic(m) for mid, m in pwms.items()}
     rbp_to_matrices = {}
     for gene, sub in q.groupby("gene", observed=True):
         ranked = []
@@ -32,9 +47,12 @@ def _rank_matrices_per_gene(df, pwms):
             mid = row["mid"]
             if mid not in pwms:
                 continue
+            ic = pwm_ic[mid]
+            if ic < _MIN_TOTAL_IC:
+                continue
             length = pwms[mid].shape[0]
             sc = -1.0 if pd.isna(row["score"]) else float(row["score"])
-            ranked.append((length >= _MIN_MOTIF_LEN, sc, _DB_RANK.get(row["db"], 0), length, mid))
+            ranked.append((ic, length >= _MIN_MOTIF_LEN, sc, _DB_RANK.get(row["db"], 0), length, mid))
         if not ranked:
             continue
         ranked.sort(reverse=True)
@@ -56,8 +74,6 @@ def load_attract_data():
         raise FileNotFoundError(f"ATtRACT files not found in {_DATA_DIR}. Run 'tauso setup-attract' to download them.")
 
     logger.info("Loading RBP metadata from %s...", csv_path)
-
-    # NOTE: We now read the CSV created by setup_attract (comma-separated)
     df = pd.read_csv(csv_path)
 
     logger.info("Loading PWM matrices from %s...", pwm_path)
