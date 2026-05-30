@@ -118,39 +118,29 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         gene_length = float(locus_info.gene_end - locus_info.gene_start)
         if gene_length > 0:
             out_start_norm[v_row_idxs] = v_idxs.astype(np.float32) / gene_length
-            out_start_end_norm[v_row_idxs] = (
-                (gene_length - v_idxs).astype(np.float32) / gene_length
-            )
+            out_start_end_norm[v_row_idxs] = (gene_length - v_idxs).astype(np.float32) / gene_length
 
         # Genomic distance from the ASO center to the nearest canonical /
         # any-transcript stop or start codon. NaN for genes with no codon
         # annotation (lncRNAs etc). Distance is in genomic bp (intron-inclusive);
         # mRNA-distance variants live below.
         if locus_info.stop_codons:
-            stop_mids = np.array(
-                [(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64
-            )
+            stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64)
             out_dist_canonical_stop[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - stop_mids[None, :]), axis=1
             ).astype(np.float32)
         if locus_info.all_stop_codons:
-            all_stop_mids = np.array(
-                [(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64
-            )
+            all_stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64)
             out_dist_closest_stop[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - all_stop_mids[None, :]), axis=1
             ).astype(np.float32)
         if locus_info.start_codons:
-            start_mids = np.array(
-                [(s + e) / 2.0 for s, e in locus_info.start_codons], dtype=np.float64
-            )
+            start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.start_codons], dtype=np.float64)
             out_dist_canonical_start[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - start_mids[None, :]), axis=1
             ).astype(np.float32)
         if locus_info.all_start_codons:
-            all_start_mids = np.array(
-                [(s + e) / 2.0 for s, e in locus_info.all_start_codons], dtype=np.float64
-            )
+            all_start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_start_codons], dtype=np.float64)
             out_dist_closest_start[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - all_start_mids[None, :]), axis=1
             ).astype(np.float32)
@@ -167,9 +157,9 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
             running = 0
             for i, (s, e) in enumerate(sorted_exons):
                 cum_pre[i] = running
-                running += (e - s)
+                running += e - s
 
-            def _gen_to_mrna(coords):
+            def _gen_to_mrna(coords, sorted_exons=sorted_exons, cum_pre=cum_pre, locus_info=locus_info):
                 """Vectorized: genomic coords → mRNA positions (NaN if intronic)."""
                 out_mrna = np.full(len(coords), np.nan, dtype=np.float64)
                 for (s, e), pre in zip(sorted_exons, cum_pre):
@@ -185,9 +175,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
             aso_mrna = _gen_to_mrna(gen_coords.astype(np.float64))
 
             if locus_info.stop_codons:
-                stop_mids_arr = np.array(
-                    [(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64
-                )
+                stop_mids_arr = np.array([(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64)
                 stop_mrna = _gen_to_mrna(stop_mids_arr)
                 # min over stops, NaN-aware
                 valid_stops = stop_mrna[~np.isnan(stop_mrna)]
@@ -195,9 +183,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
                     dists = np.min(np.abs(aso_mrna[:, None] - valid_stops[None, :]), axis=1)
                     out_mrna_dist_canonical_stop[v_row_idxs] = dists.astype(np.float32)
             if locus_info.all_stop_codons:
-                all_stop_mids_arr = np.array(
-                    [(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64
-                )
+                all_stop_mids_arr = np.array([(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64)
                 all_stop_mrna = _gen_to_mrna(all_stop_mids_arr)
                 valid_all_stops = all_stop_mrna[~np.isnan(all_stop_mrna)]
                 if len(valid_all_stops) > 0:
