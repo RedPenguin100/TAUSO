@@ -14,9 +14,10 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-from ..data.consts import CHEMICAL_PATTERN, SEQUENCE
+from ..data.consts import CHEMICAL_PATTERN, PS_PATTERN, SEQUENCE
 from ..features.sequence.toxicity_features import (
     cpg_count,
+    cpg_ps_count,
     g4hunter_max,
     gggg_motif_count,
     hepatotox_gap_motif_count,
@@ -27,32 +28,37 @@ from ..features.sequence.toxicity_features import (
 from ..parallel_utils import make_apply_fn
 from ..timer import Timer
 
-# Each feature receives (sequence, chemical_pattern); sequence-only ones ignore the pattern.
+# Each feature receives (sequence, chemical_pattern, ps_pattern); features that only need a
+# subset just ignore the rest. Keeps the dispatcher signature uniform.
 FEATURE_SPECS: list[tuple[str, callable]] = [
     # Hepatotoxicity: TCC/TGC in the deoxy gap (Burdick et al. 2014).
-    ("tox_hepatotox_gap_tcc_tgc", lambda s, p: hepatotox_gap_motif_count(s, p)),
+    ("tox_hepatotox_gap_tcc_tgc", lambda s, p, b: hepatotox_gap_motif_count(s, p)),
     # TLR9 immunostimulation: CpG dinucleotide count (Krieg et al. 1995).
-    ("tox_cpg_count", lambda s, p: cpg_count(s)),
+    ("tox_cpg_count", lambda s, p, b: cpg_count(s)),
+    # TLR9 amplified by PS backbone: CpG dinucleotides whose bond is PS, the modality used
+    # clinically (Krieg 2002; Henry et al. 1997). Targets PS-CpG specifically, which is
+    # orders of magnitude more immunostimulatory than the same motif on PO.
+    ("tox_cpg_ps_count", lambda s, p, b: cpg_ps_count(s, b)),
     # TLR9: human-optimal CpG-B hexamer GTCGTT (Hartmann & Krieg 2000); the canonical
     # human-stimulatory motif, also carried by CpG ODN 2006.
-    ("tox_tlr9_gtcgtt", lambda s, p: tlr9_human_motif_count(s)),
+    ("tox_tlr9_gtcgtt", lambda s, p, b: tlr9_human_motif_count(s)),
     # G-quadruplex propensity: max windowed G4Hunter score (Bedrat et al. 2016).
-    ("tox_g4hunter_max", lambda s, p: g4hunter_max(s)),
+    ("tox_g4hunter_max", lambda s, p, b: g4hunter_max(s)),
     # Literal 4+ G-tract count — catches isolated GGGG runs that G4Hunter's
     # windowed mean can underweight.
-    ("tox_gggg_motif_count", lambda s, p: gggg_motif_count(s)),
+    ("tox_gggg_motif_count", lambda s, p, b: gggg_motif_count(s)),
     # Acute neurotoxicity: 3'-end G content and 3'-terminal G-free stretch (Hagedorn et al. 2022).
-    ("tox_3prime_g_fraction", lambda s, p: three_prime_g_fraction(s)),
-    ("tox_3prime_g_free_len", lambda s, p: three_prime_g_free_length(s)),
+    ("tox_3prime_g_fraction", lambda s, p, b: three_prime_g_fraction(s)),
+    ("tox_3prime_g_free_len", lambda s, p, b: three_prime_g_free_length(s)),
 ]
 
 
 def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False) -> None:
-    """Computes a feature from the sequence and chemical pattern (parallel if cpus > 1)."""
+    """Computes a feature from the sequence, chemical pattern, and PS pattern (parallel if cpus > 1)."""
     start_time = time.time()
     logger.debug("Starting %s...", col_name)
     apply_fn = make_apply_fn(df, n_jobs=cpus, progress_bar=verbose, verbose=0, use_memory_fs=False)
-    df[col_name] = apply_fn(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
+    df[col_name] = apply_fn(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN], row[PS_PATTERN]), axis=1)
     logger.debug("Finished %s | Time: %.2fs", col_name, time.time() - start_time)
 
 

@@ -78,6 +78,37 @@ def cpg_count(seq: str) -> int:
     return sum(1 for i in range(len(s) - 1) if s[i : i + 2] == "CG")
 
 
+def cpg_ps_count(seq: str, ps_pattern: str) -> int:
+    """Number of CpG dinucleotides whose inter-nucleotide bond is phosphorothioate.
+
+    PS-modified CpG is dramatically more immunostimulatory than the same CpG on a
+    natural phosphodiester backbone: PS-CpG ODNs activate TLR9 several orders of
+    magnitude more potently and resist nuclease degradation, prolonging exposure.
+    Counting only PS-CpGs (rather than all CpGs) targets the modality that
+    actually matters in the modern gapmer / phosphorothioate-backbone setting.
+
+    Sources:
+      - Henry SP et al. "Activation of the alternative pathway of complement by
+        a phosphorothioate oligonucleotide: potential mechanism of action."
+        J Pharmacol Exp Ther 1997;281(2):810-816. PMID: 9152392. PS backbone
+        is required for sustained TLR9 / immune effects in vivo.
+      - Krieg AM. "CpG motifs in bacterial DNA and their immune effects."
+        Annu Rev Immunol 2002;20:709-760. doi:10.1146/annurev.immunol.20.100301.064842.
+        Review establishing that PS-modified CpG ODNs are the immunostimulatory
+        modality used clinically; natural PO-CpG is rapidly degraded and far less
+        active.
+
+    PS_PATTERN has one character per inter-nucleotide bond ('*' = PS, 'd' = PO),
+    so it has length len(seq) - 1 for a regular oligo. The CG dinucleotide at
+    sequence positions i, i+1 has its bond at PS_PATTERN[i].
+    """
+    if not isinstance(seq, str) or not isinstance(ps_pattern, str):
+        return 0
+    s = _to_dna(seq)
+    n = min(len(s) - 1, len(ps_pattern))
+    return sum(1 for i in range(n) if s[i : i + 2] == "CG" and ps_pattern[i] == "*")
+
+
 def tlr9_human_motif_count(seq: str) -> int:
     """Count of the human-optimal CpG-B hexamer GTCGTT.
 

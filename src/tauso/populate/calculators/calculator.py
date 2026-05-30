@@ -1,6 +1,7 @@
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 import psutil
 from pympler import asizeof
@@ -152,35 +153,112 @@ class Calculator:
         """Calculates fast boolean/categorical and transfection features with dependency checking."""
 
         # ==========================================
-        # 1. Basic Chemistry & Cell Line Features
+        # 1. Basic Chemistry Features (chem_*_gen generation flags)
         # ==========================================
-        expected_basic = ["is_hepa", "chem_2nd_gen", "chem_3rd_gen"]
+        # chem_1st_gen completes the {1st, 2nd, 3rd}-generation triple: 1st-gen is a pure
+        # DNA/PS oligo (no sugar mods); 2nd-gen has 2'-MOE; 3rd-gen has LNA or cEt. They're
+        # not mutually exclusive in general but are in this dataset's gapmer chemistries.
+        expected_basic = ["chem_1st_gen", "chem_2nd_gen", "chem_3rd_gen"]
         missing_basic = self._get_missing_features(expected_basic)
 
         if missing_basic:
             logger.info("Computing %d basic features...", len(missing_basic))
 
-            # Check dependencies BEFORE attempting to compute
-            from tauso.data.consts import CELL_LINE_DEPMAP_PROXY, HEPA_PROXIES, MODIFICATION
+            from tauso.data.consts import MODIFICATION
 
-            self._check_dependencies([CELL_LINE_DEPMAP_PROXY, MODIFICATION])
+            self._check_dependencies([MODIFICATION])
 
-            if "is_hepa" in missing_basic:
-                self.data["is_hepa"] = self.data[CELL_LINE_DEPMAP_PROXY].isin(HEPA_PROXIES).astype(int)
+            has_moe = self.data[MODIFICATION].str.contains("MOE", na=False)
+            has_high_aff = self.data[MODIFICATION].str.contains("LNA|cEt", na=False)
 
+            if "chem_1st_gen" in missing_basic:
+                self.data["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(int)
             if "chem_2nd_gen" in missing_basic:
-                self.data["chem_2nd_gen"] = self.data[MODIFICATION].str.contains("MOE", na=False).astype(int)
-
+                self.data["chem_2nd_gen"] = has_moe.astype(int)
             if "chem_3rd_gen" in missing_basic:
-                self.data["chem_3rd_gen"] = self.data[MODIFICATION].str.contains("LNA|cEt", na=False).astype(int)
+                self.data["chem_3rd_gen"] = has_high_aff.astype(int)
 
             for feature in missing_basic:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("All basic chemistry/hepa features exist. Skipping.")
+            logger.info("All basic chemistry features exist. Skipping.")
 
         # ==========================================
-        # 2. Transfection Features
+        # 2. Gapmer Architecture Features
+        # ==========================================
+        # Lengths of the 5' wing, central deoxy gap, and 3' wing (extracted from the
+        # chemical pattern). arch_wing5_len / arch_wing3_len are NaN on non-gapmer rows
+        # (no wings to measure); arch_gap_len + arch_is_gapmer are meaningful for all
+        # chemistries.
+        expected_arch = ["arch_wing5_len", "arch_gap_len", "arch_wing3_len", "arch_is_gapmer"]
+        missing_arch = self._get_missing_features(expected_arch)
+
+        if missing_arch:
+            logger.info("Computing %d gapmer architecture features...", len(missing_arch))
+
+            from tauso.common.modifications import get_longest_dna_gap
+            from tauso.data.consts import CHEMICAL_PATTERN
+
+            self._check_dependencies([CHEMICAL_PATTERN])
+
+            def _arch_lens(pat):
+                if not isinstance(pat, str) or not pat:
+                    return 0, 0, 0
+                start, end, gap_len = get_longest_dna_gap(pat)
+                if gap_len == 0:
+                    return 0, 0, 0
+                return start, gap_len, len(pat) - end
+
+            arch_tuples = self.data[CHEMICAL_PATTERN].map(_arch_lens)
+            is_gapmer = arch_tuples.map(lambda t: t[0] > 0 and t[1] > 0 and t[2] > 0)
+            if "arch_gap_len" in missing_arch:
+                self.data["arch_gap_len"] = arch_tuples.map(lambda t: t[1]).astype(int)
+            if "arch_is_gapmer" in missing_arch:
+                self.data["arch_is_gapmer"] = is_gapmer.astype(int)
+            if "arch_wing5_len" in missing_arch:
+                wing5 = arch_tuples.map(lambda t: float(t[0]))
+                self.data["arch_wing5_len"] = wing5.where(is_gapmer, np.nan)
+            if "arch_wing3_len" in missing_arch:
+                wing3 = arch_tuples.map(lambda t: float(t[2]))
+                self.data["arch_wing3_len"] = wing3.where(is_gapmer, np.nan)
+
+            for feature in missing_arch:
+                self._save_calculated_feature(feature_name=feature)
+        else:
+            logger.info("All gapmer architecture features exist. Skipping.")
+
+        # ==========================================
+        # 3. 5'-Terminal Nucleotide Features (term5p_*)
+        # ==========================================
+        # 5'-terminal base identity. RNase H1 has a documented sequence preference at the
+        # cleavage site (Wu & Lima, JBC 2004; Lima et al., JBC 2004) and the 5' base of
+        # the ASO drives that preference. Stored as DNA letters so seq[0] == 'U' is also
+        # accepted as 'T' in term5p_is_t.
+        expected_term5p = ["term5p_is_purine", "term5p_is_g", "term5p_is_t"]
+        missing_term5p = self._get_missing_features(expected_term5p)
+
+        if missing_term5p:
+            logger.info("Computing %d 5'-terminal base features...", len(missing_term5p))
+
+            from tauso.data.consts import SEQUENCE
+
+            self._check_dependencies([SEQUENCE])
+
+            seq_5p = self.data[SEQUENCE].str[0]
+            if "term5p_is_purine" in missing_term5p:
+                self.data["term5p_is_purine"] = seq_5p.isin(["A", "G"]).astype(int)
+            if "term5p_is_g" in missing_term5p:
+                self.data["term5p_is_g"] = (seq_5p == "G").astype(int)
+            if "term5p_is_t" in missing_term5p:
+                self.data["term5p_is_t"] = seq_5p.isin(["T", "U"]).astype(int)
+
+            for feature in missing_term5p:
+                self._save_calculated_feature(feature_name=feature)
+        else:
+            logger.info("All 5'-terminal base features exist. Skipping.")
+
+        # ==========================================
+        # 4. Transfection Features
         # ==========================================
         expected_transfection = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
         missing_transfection = self._get_missing_features(expected_transfection)
@@ -560,26 +638,36 @@ class Calculator:
             logger.info("All modification features exist. Skipping.")
 
     def calculate_backbone_features(self):
-        """Calculates features derived from the PS_PATTERN backbone."""
-        expected_features = ["is_all_ps", "po_percentage", "ps_end_score", "max_consecutive_PO"]
+        """Calculates features derived from the PS_PATTERN backbone (ps_* family).
+
+        PS_PATTERN encodes one inter-nucleotide BOND per character ('*' = PS,
+        'd' = PO), so it has length len(CHEMICAL_PATTERN) - 1 for a regular
+        oligo. Each bond is attributed to the region of its 5' nucleotide,
+        matching the convention used in get_dna_rna_dg_region.
+        """
+        expected_features = [
+            "ps_po_percentage",
+            "ps_end_score",
+            "ps_max_consecutive_po",
+            "ps_wing5_count",
+            "ps_gap_count",
+            "ps_wing3_count",
+            "ps_frac_mod",
+            "ps_frac_dna",
+        ]
         missing = self._get_missing_features(expected_features)
 
         if missing:
             logger.info("Computing %d backbone features...", len(missing))
             import re
 
-            from tauso.data.consts import PS_PATTERN
+            from tauso.common.modifications import get_longest_dna_gap
+            from tauso.data.consts import CHEMICAL_PATTERN, PS_PATTERN
 
-            # Ensure assign_chemistry/assign_backbone has populated PS_PATTERN
             self._check_dependencies([PS_PATTERN])
 
-            if "is_all_ps" in missing:
-                self.data["is_all_ps"] = self.data[PS_PATTERN].apply(
-                    lambda x: 1 if isinstance(x, str) and x and x.replace("*", "") == "" else 0
-                )
-
-            if "max_consecutive_PO" in missing:
-                self.data["max_consecutive_PO"] = self.data[PS_PATTERN].apply(
+            if "ps_max_consecutive_po" in missing:
+                self.data["ps_max_consecutive_po"] = self.data[PS_PATTERN].apply(
                     lambda x: max((len(chunk) for chunk in x.split("*")), default=0) if isinstance(x, str) else 0
                 )
 
@@ -592,16 +680,87 @@ class Calculator:
                     )
                 )
 
-            if "po_percentage" in missing:
-                # Compute intermediates securely without cluttering self.data
+            if "ps_po_percentage" in missing:
                 total_po = self.data[PS_PATTERN].apply(lambda x: x.count("d") if isinstance(x, str) else 0)
                 total_ps = self.data[PS_PATTERN].apply(lambda x: x.count("*") if isinstance(x, str) else 0)
                 backbone_length = total_po + total_ps
+                self.data["ps_po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
 
-                # Safe division, avoids ZeroDivisionError
-                import pandas as pd
+            need_placement = any(c in missing for c in ("ps_wing5_count", "ps_gap_count", "ps_wing3_count"))
+            need_interaction = any(c in missing for c in ("ps_frac_mod", "ps_frac_dna"))
 
-                self.data["po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
+            if need_placement or need_interaction:
+                self._check_dependencies([CHEMICAL_PATTERN])
+
+            # Routing flag: a row is a "real" gapmer iff it has both flanks AND a deoxy gap.
+            # ps_wing5/3_count and ps_frac_mod are NaN on non-gapmer rows because their
+            # value is 0 by construction there, which would leak zero-variance noise into
+            # split selection.
+            def _is_gapmer_pat(pat):
+                if not isinstance(pat, str) or not pat:
+                    return False
+                start, end, gap_len = get_longest_dna_gap(pat)
+                return gap_len > 0 and start > 0 and end < len(pat)
+
+            is_gapmer_series = (
+                self.data[CHEMICAL_PATTERN].map(_is_gapmer_pat) if need_placement or need_interaction else None
+            )
+
+            if need_placement:
+
+                def _ps_placement(chem_pat, ps_pat):
+                    if not isinstance(chem_pat, str) or not isinstance(ps_pat, str):
+                        return 0, 0, 0
+                    gap_start, gap_end, gap_len = get_longest_dna_gap(chem_pat)
+                    if gap_len == 0:
+                        return 0, 0, 0
+                    return (
+                        ps_pat[:gap_start].count("*"),
+                        ps_pat[gap_start:gap_end].count("*"),
+                        ps_pat[gap_end:].count("*"),
+                    )
+
+                triples = self.data.apply(lambda r: _ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1)
+                if "ps_gap_count" in missing:
+                    # Meaningful for all chemistries (= total PS for all-DNA, 0 for all-modified)
+                    self.data["ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
+                if "ps_wing5_count" in missing:
+                    wing5 = triples.map(lambda t: float(t[0]))
+                    self.data["ps_wing5_count"] = wing5.where(is_gapmer_series, np.nan)
+                if "ps_wing3_count" in missing:
+                    wing3 = triples.map(lambda t: float(t[2]))
+                    self.data["ps_wing3_count"] = wing3.where(is_gapmer_series, np.nan)
+
+            if need_interaction:
+
+                def _frac_with_ps(chem_pat, ps_pat, marker_chars):
+                    if not isinstance(chem_pat, str) or not isinstance(ps_pat, str):
+                        return 0.0
+                    # Each PS_PATTERN bond is attributed to the region of its 5' nucleotide
+                    n = min(len(chem_pat), len(ps_pat))
+                    qualifying, ps = 0, 0
+                    for i in range(n):
+                        if chem_pat[i] in marker_chars:
+                            qualifying += 1
+                            if ps_pat[i] == "*":
+                                ps += 1
+                    return ps / qualifying if qualifying else 0.0
+
+                if "ps_frac_mod" in missing:
+                    # Fraction of high-affinity-sugar positions (M/C/L) that carry a PS bond
+                    # on their 3' side. NaN on non-gapmer rows (no mods or no wings).
+                    raw = self.data.apply(
+                        lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}),
+                        axis=1,
+                    ).astype(float)
+                    self.data["ps_frac_mod"] = raw.where(is_gapmer_series, np.nan)
+                if "ps_frac_dna" in missing:
+                    # Fraction of deoxy ('d') positions that carry a PS bond on their 3' side.
+                    # Meaningful for all chemistries (pure-DNA = total PS / total bonds).
+                    self.data["ps_frac_dna"] = self.data.apply(
+                        lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}),
+                        axis=1,
+                    ).astype(float)
 
             for feature in missing:
                 self._save_calculated_feature(feature_name=feature)
