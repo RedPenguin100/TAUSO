@@ -67,7 +67,7 @@ def _get_gene_type_gff(gene):
 # Bump when the LazyLocusInfo layout or the builder semantics change in a way
 # that makes previously-pickled dicts wrong. A mismatch (or any unpickling error)
 # falls back to a rebuild, so a stale cache never silently serves bad coordinates.
-_LOCUS_CACHE_VERSION = 1
+_LOCUS_CACHE_VERSION = 3  # v3: + start_codons + all_start_codons
 
 
 def _locus_cache_path(genome, include_introns, canonical_only):
@@ -156,7 +156,10 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         "UTR",
     )
 
-    child_feature_types = ("exon",) + UTR_FEATURE_TYPES
+    # stop_codon / start_codon are included here so canonical-transcript stops
+    # and starts land in locus_info.stop_codons / .start_codons. All-transcript
+    # versions are fetched separately below.
+    child_feature_types = ("exon", "stop_codon", "start_codon") + UTR_FEATURE_TYPES
 
     logger.debug("Loading database")
     db = load_gff_db(genome)
@@ -225,6 +228,14 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
             if ft == "exon":
                 exons_collected.append((feature.start - 1, feature.end))
 
+            elif ft == "stop_codon":
+                # Canonical-transcript stop codons (since this iterator filters
+                # to canonical transcripts when canonical_only=True).
+                locus_info.stop_codons.append((feature.start - 1, feature.end))
+
+            elif ft == "start_codon":
+                locus_info.start_codons.append((feature.start - 1, feature.end))
+
             elif ft in ("five_prime_UTR", "five_prime_utr"):
                 locus_info.add_5utr_indices(feature.start - 1, feature.end)
                 locus_info.utr_indices.append((feature.start - 1, feature.end))
@@ -242,6 +253,24 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
 
             else:
                 logger.debug(f"[Get_Locus] Unexpected feature type: {ft}")
+
+        # All-transcript stop / start codons (regardless of canonical_only) — used to
+        # compute distance to the nearest stop / start codon across any isoform.
+        all_stops_seen = set()
+        for stop_feat in db.children(gene, featuretype="stop_codon", order_by="start"):
+            key = (stop_feat.start, stop_feat.end)
+            if key in all_stops_seen:
+                continue
+            all_stops_seen.add(key)
+            locus_info.all_stop_codons.append((stop_feat.start - 1, stop_feat.end))
+
+        all_starts_seen = set()
+        for start_feat in db.children(gene, featuretype="start_codon", order_by="start"):
+            key = (start_feat.start, start_feat.end)
+            if key in all_starts_seen:
+                continue
+            all_starts_seen.add(key)
+            locus_info.all_start_codons.append((start_feat.start - 1, start_feat.end))
 
         if duplicates_skipped:
             logger.debug(f"[Get_Locus] {locus_tag}: skipped {duplicates_skipped} duplicate features")

@@ -65,6 +65,19 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_n_utr = np.zeros(n_rows, dtype=np.int8)
     out_n_cds = np.zeros(n_rows, dtype=np.int8)
 
+    # Normalized sense positions and codon-distance features.
+    # NaN for unmapped rows (no gene match), for rows on genes without codon
+    # annotations (lncRNAs), and for mRNA-distance features on rows whose
+    # genomic coord lies in an intron (no mRNA position exists there).
+    out_start_norm = np.full(n_rows, np.nan, dtype=np.float32)
+    out_start_end_norm = np.full(n_rows, np.nan, dtype=np.float32)
+    out_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float32)
+    out_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float32)
+    out_dist_canonical_start = np.full(n_rows, np.nan, dtype=np.float32)
+    out_dist_closest_start = np.full(n_rows, np.nan, dtype=np.float32)
+    out_mrna_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float32)
+    out_mrna_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float32)
+
     all_data["__temp_idx"] = np.arange(n_rows)
 
     for gene_name, group in all_data.groupby(CANONICAL_GENE, observed=True):
@@ -104,6 +117,98 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         else:
             # Map the center to the positive strand's absolute genomic coordinate
             gen_coords = locus_info.gene_start + v_idxs + center_offsets
+
+        # Normalized positions: sense_start / gene_length, sense_start_from_end / gene_length.
+        # Range [0, 1]; tells the model "how far into the pre-mRNA is the target?"
+        # length-invariant across genes (PSD3 ~640k vs APOL1 ~15k).
+        gene_length = float(locus_info.gene_end - locus_info.gene_start)
+        if gene_length > 0:
+            out_start_norm[v_row_idxs] = v_idxs.astype(np.float32) / gene_length
+            out_start_end_norm[v_row_idxs] = (
+                (gene_length - v_idxs).astype(np.float32) / gene_length
+            )
+
+        # Genomic distance from the ASO center to the nearest canonical /
+        # any-transcript stop or start codon. NaN for genes with no codon
+        # annotation (lncRNAs etc). Distance is in genomic bp (intron-inclusive);
+        # mRNA-distance variants live below.
+        if locus_info.stop_codons:
+            stop_mids = np.array(
+                [(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64
+            )
+            out_dist_canonical_stop[v_row_idxs] = np.min(
+                np.abs(gen_coords[:, None] - stop_mids[None, :]), axis=1
+            ).astype(np.float32)
+        if locus_info.all_stop_codons:
+            all_stop_mids = np.array(
+                [(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64
+            )
+            out_dist_closest_stop[v_row_idxs] = np.min(
+                np.abs(gen_coords[:, None] - all_stop_mids[None, :]), axis=1
+            ).astype(np.float32)
+        if locus_info.start_codons:
+            start_mids = np.array(
+                [(s + e) / 2.0 for s, e in locus_info.start_codons], dtype=np.float64
+            )
+            out_dist_canonical_start[v_row_idxs] = np.min(
+                np.abs(gen_coords[:, None] - start_mids[None, :]), axis=1
+            ).astype(np.float32)
+        if locus_info.all_start_codons:
+            all_start_mids = np.array(
+                [(s + e) / 2.0 for s, e in locus_info.all_start_codons], dtype=np.float64
+            )
+            out_dist_closest_start[v_row_idxs] = np.min(
+                np.abs(gen_coords[:, None] - all_start_mids[None, :]), axis=1
+            ).astype(np.float32)
+
+        # mRNA-distance variants for stop codons. Walk the canonical exon set in
+        # 5'->3' order and map a genomic coord to its position in the spliced
+        # mRNA. Intronic positions return NaN (no mRNA position exists).
+        if locus_info.stop_codons or locus_info.all_stop_codons:
+            sorted_exons = sorted(
+                locus_info._exon_indices,
+                key=(lambda x: -x[0]) if locus_info.strand == StrandType.NEG else (lambda x: x[0]),
+            )
+            cum_pre = np.zeros(len(sorted_exons), dtype=np.int64)
+            running = 0
+            for i, (s, e) in enumerate(sorted_exons):
+                cum_pre[i] = running
+                running += (e - s)
+
+            def _gen_to_mrna(coords):
+                """Vectorized: genomic coords → mRNA positions (NaN if intronic)."""
+                out_mrna = np.full(len(coords), np.nan, dtype=np.float64)
+                for (s, e), pre in zip(sorted_exons, cum_pre):
+                    mask = (coords >= s) & (coords < e)
+                    if not np.any(mask):
+                        continue
+                    if locus_info.strand == StrandType.NEG:
+                        out_mrna[mask] = pre + (e - 1 - coords[mask])
+                    else:
+                        out_mrna[mask] = pre + (coords[mask] - s)
+                return out_mrna
+
+            aso_mrna = _gen_to_mrna(gen_coords.astype(np.float64))
+
+            if locus_info.stop_codons:
+                stop_mids_arr = np.array(
+                    [(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64
+                )
+                stop_mrna = _gen_to_mrna(stop_mids_arr)
+                # min over stops, NaN-aware
+                valid_stops = stop_mrna[~np.isnan(stop_mrna)]
+                if len(valid_stops) > 0:
+                    dists = np.min(np.abs(aso_mrna[:, None] - valid_stops[None, :]), axis=1)
+                    out_mrna_dist_canonical_stop[v_row_idxs] = dists.astype(np.float32)
+            if locus_info.all_stop_codons:
+                all_stop_mids_arr = np.array(
+                    [(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64
+                )
+                all_stop_mrna = _gen_to_mrna(all_stop_mids_arr)
+                valid_all_stops = all_stop_mrna[~np.isnan(all_stop_mrna)]
+                if len(valid_all_stops) > 0:
+                    dists_all = np.min(np.abs(aso_mrna[:, None] - valid_all_stops[None, :]), axis=1)
+                    out_mrna_dist_closest_stop[v_row_idxs] = dists_all.astype(np.float32)
 
         # Much cleaner interval checking
         is_exon = _in_intervals(gen_coords, locus_info._exon_indices)
@@ -165,6 +270,16 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[f"n_{SENSE_5UTR}"] = out_n_5utr
     all_data[f"n_{SENSE_UTR}"] = out_n_utr
     all_data[f"n_{SENSE_CDS}"] = out_n_cds
+
+    # Normalized positions + codon distances (genomic + mRNA)
+    all_data[SENSE_START_NORM] = out_start_norm
+    all_data[SENSE_START_FROM_END_NORM] = out_start_end_norm
+    all_data[SENSE_DIST_TO_CANONICAL_STOP] = out_dist_canonical_stop
+    all_data[SENSE_DIST_TO_CLOSEST_STOP] = out_dist_closest_stop
+    all_data[SENSE_DIST_TO_CANONICAL_START] = out_dist_canonical_start
+    all_data[SENSE_DIST_TO_CLOSEST_START] = out_dist_closest_start
+    all_data[SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out_mrna_dist_canonical_stop
+    all_data[SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out_mrna_dist_closest_stop
 
     all_data.drop(columns=["__temp_idx", "__temp_sense"], inplace=True)
     return all_data
