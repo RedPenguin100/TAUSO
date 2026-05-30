@@ -89,9 +89,15 @@ def get_dtype_for_feature(filename, index_col_name):
         "expr_msr1.csv",
     ]:
         feat_type = "float64"
-    elif filename in ["max_consecutive_PO.csv", "ps_end_score.csv"]:
+    elif filename in [
+        "max_consecutive_PO.csv",
+        "ps_end_score.csv",
+        "ps_wing5_count.csv",
+        "ps_gap_count.csv",
+        "ps_wing3_count.csv",
+    ]:
         feat_type = "int"
-    elif filename == "po_percentage.csv":
+    elif filename in ["po_percentage.csv", "frac_mod_with_ps.csv", "frac_dna_with_ps.csv"]:
         feat_type = "float64"
     elif filename in [
         "chem_1st_gen.csv",

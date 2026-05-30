@@ -606,15 +606,33 @@ class Calculator:
             logger.info("All modification features exist. Skipping.")
 
     def calculate_backbone_features(self):
-        """Calculates features derived from the PS_PATTERN backbone."""
-        expected_features = ["po_percentage", "ps_end_score", "max_consecutive_PO"]
+        """Calculates features derived from the PS_PATTERN backbone.
+
+        PS_PATTERN encodes one inter-nucleotide BOND per character ('*' = PS,
+        'd' = PO), so it has length len(CHEMICAL_PATTERN) - 1 for a regular
+        oligo. Each bond is attributed to the region of its 5' nucleotide,
+        matching the convention used in get_dna_rna_dg_region.
+        """
+        expected_features = [
+            "po_percentage",
+            "ps_end_score",
+            "max_consecutive_PO",
+            "ps_wing5_count",
+            "ps_gap_count",
+            "ps_wing3_count",
+            "frac_mod_with_ps",
+            "frac_dna_with_ps",
+        ]
         missing = self._get_missing_features(expected_features)
 
         if missing:
             logger.info("Computing %d backbone features...", len(missing))
             import re
 
-            from tauso.data.consts import PS_PATTERN
+            import pandas as pd
+
+            from tauso.common.modifications import get_longest_dna_gap
+            from tauso.data.consts import CHEMICAL_PATTERN, PS_PATTERN
 
             # Ensure assign_chemistry/assign_backbone has populated PS_PATTERN
             self._check_dependencies([PS_PATTERN])
@@ -639,10 +657,65 @@ class Calculator:
                 total_ps = self.data[PS_PATTERN].apply(lambda x: x.count("*") if isinstance(x, str) else 0)
                 backbone_length = total_po + total_ps
 
-                # Safe division, avoids ZeroDivisionError
-                import pandas as pd
-
                 self.data["po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
+
+            need_placement = any(c in missing for c in ("ps_wing5_count", "ps_gap_count", "ps_wing3_count"))
+            need_interaction = any(c in missing for c in ("frac_mod_with_ps", "frac_dna_with_ps"))
+
+            if need_placement or need_interaction:
+                self._check_dependencies([CHEMICAL_PATTERN])
+
+            if need_placement:
+
+                def _ps_placement(chem_pat, ps_pat):
+                    if not isinstance(chem_pat, str) or not isinstance(ps_pat, str):
+                        return 0, 0, 0
+                    gap_start, gap_end, gap_len = get_longest_dna_gap(chem_pat)
+                    if gap_len == 0:
+                        return 0, 0, 0
+                    return (
+                        ps_pat[:gap_start].count("*"),
+                        ps_pat[gap_start:gap_end].count("*"),
+                        ps_pat[gap_end:].count("*"),
+                    )
+
+                triples = self.data.apply(
+                    lambda r: _ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1
+                )
+                if "ps_wing5_count" in missing:
+                    self.data["ps_wing5_count"] = triples.map(lambda t: t[0]).astype(int)
+                if "ps_gap_count" in missing:
+                    self.data["ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
+                if "ps_wing3_count" in missing:
+                    self.data["ps_wing3_count"] = triples.map(lambda t: t[2]).astype(int)
+
+            if need_interaction:
+
+                def _frac_with_ps(chem_pat, ps_pat, marker_chars):
+                    if not isinstance(chem_pat, str) or not isinstance(ps_pat, str):
+                        return 0.0
+                    # Each PS_PATTERN bond is attributed to the region of its 5' nucleotide
+                    n = min(len(chem_pat), len(ps_pat))
+                    qualifying, ps = 0, 0
+                    for i in range(n):
+                        if chem_pat[i] in marker_chars:
+                            qualifying += 1
+                            if ps_pat[i] == "*":
+                                ps += 1
+                    return ps / qualifying if qualifying else 0.0
+
+                if "frac_mod_with_ps" in missing:
+                    # Any high-affinity sugar marker: 'M' = 2'-MOE, 'C' = cEt, 'L' = LNA
+                    self.data["frac_mod_with_ps"] = self.data.apply(
+                        lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}),
+                        axis=1,
+                    ).astype(float)
+                if "frac_dna_with_ps" in missing:
+                    # 'd' = deoxynucleotide in CHEMICAL_PATTERN (and also 'd' = PO bond in PS_PATTERN -- separate alphabet)
+                    self.data["frac_dna_with_ps"] = self.data.apply(
+                        lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}),
+                        axis=1,
+                    ).astype(float)
 
             for feature in missing:
                 self._save_calculated_feature(feature_name=feature)
