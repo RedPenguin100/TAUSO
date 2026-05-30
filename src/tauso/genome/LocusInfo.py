@@ -55,6 +55,9 @@ class LocusInfo:
         "_5utr_indices",
         "_3utr_indices",
         "stop_codons",
+        "all_stop_codons",
+        "start_codons",
+        "all_start_codons",
         "five_prime_utr",
         "three_prime_utr",
         "full_mrna",
@@ -71,6 +74,9 @@ class LocusInfo:
         self._5utr_indices = []
         self._3utr_indices = []
         self.stop_codons = []
+        self.all_stop_codons = []
+        self.start_codons = []
+        self.all_start_codons = []
         self.five_prime_utr = ""
         self.three_prime_utr = ""
         self.full_mrna = None
@@ -163,6 +169,9 @@ class LazyLocusInfo:
         "_5utr_indices",
         "_3utr_indices",
         "stop_codons",
+        "all_stop_codons",
+        "start_codons",
+        "all_start_codons",
         "five_prime_utr",
         "three_prime_utr",
         "gene_start",
@@ -181,6 +190,9 @@ class LazyLocusInfo:
         self._5utr_indices = []
         self._3utr_indices = []
         self.stop_codons = []
+        self.all_stop_codons = []
+        self.start_codons = []
+        self.all_start_codons = []
         self.five_prime_utr = ""
         self.three_prime_utr = ""
         self.gene_start = None
