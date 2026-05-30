@@ -46,6 +46,13 @@ HYBR_DERIVED_FEATURES = [
     "hybr_dna_rna_dg_per_nt",
     "hybr_dna_dna_dg_per_nt",
     "hybr_ps_dna_rna_dg_per_nt",
+    # Wing/gap asymmetry of the DNA/RNA dG partition. 5'/3' end-stability imbalance
+    # is implicated in RNase H1 cleavage-site selectivity and end-mediated nuclease
+    # protection; the wing-minus-gap pair quantifies how much the high-affinity
+    # flanks dominate the central deoxy region thermodynamically.
+    "hybr_dna_rna_wing_dg_imbalance",   # wing5_dg - wing3_dg (sign = which end is more stable)
+    "hybr_dna_rna_wing5_minus_gap_dg",  # wing5_dg - gap_dg
+    "hybr_dna_rna_wing3_minus_gap_dg",  # wing3_dg - gap_dg
 ]
 
 HYBR_FEATURE_TO_CALCULATION = {
@@ -91,5 +98,24 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
     for norm_name, source in normalized.items():
         if norm_name in features_to_run and _have(source):
             all_data[norm_name] = all_data[source] / seq_len
+
+    if "hybr_dna_rna_wing_dg_imbalance" in features_to_run and _have(
+        "hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_wing3"
+    ):
+        all_data["hybr_dna_rna_wing_dg_imbalance"] = (
+            all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_wing3"]
+        )
+    if "hybr_dna_rna_wing5_minus_gap_dg" in features_to_run and _have(
+        "hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_gap"
+    ):
+        all_data["hybr_dna_rna_wing5_minus_gap_dg"] = (
+            all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_gap"]
+        )
+    if "hybr_dna_rna_wing3_minus_gap_dg" in features_to_run and _have(
+        "hybr_dna_rna_dg_wing3", "hybr_dna_rna_dg_gap"
+    ):
+        all_data["hybr_dna_rna_wing3_minus_gap_dg"] = (
+            all_data["hybr_dna_rna_dg_wing3"] - all_data["hybr_dna_rna_dg_gap"]
+        )
 
     return all_data, features_to_run
