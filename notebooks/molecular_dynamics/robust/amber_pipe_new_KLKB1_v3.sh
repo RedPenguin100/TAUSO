@@ -1,21 +1,8 @@
 #!/bin/bash
-# AMBER MD pipeline — robust v3.
-#
-# Improvements over upstream `amber_pipe_new_KLKB1.sh`:
-#   §0  --bind-to none on every mpirun (avoids OpenMPI core-binding failures
-#       on shared-pool nodes whose cpuset gives fewer bindable cores than -np).
-#   §1  Writes `.done` on success and `.failed.<jobid>.<stage>` on any error
-#       or signal — `find <batch>/ -mindepth 2 -name .failed.*` enumerates
-#       all failures across a batch.
-#   §2  Each stage skips itself if its restart output (.ncrst, or md.rst7
-#       for the final stage) already exists and is non-zero. Re-submitting
-#       the same PDB after a partial run picks up at the first unfinished
-#       stage instead of restarting from min1.
-#   §6  TERM / INT signal trap marks `.failed.signal` so SLURM-killed jobs
-#       leave a trail; pair with `#SBATCH --requeue` (in jobs_req v3).
-#   §9  Skips create_files + tleap if `.prmtop` already exists.
-#
-# Usage (unchanged from upstream): ./amber_pipe_new_KLKB1_v3.sh <pdb> <n_threads> <nodes>
+# amber_pipe v3. See ../IMPROVEMENTS.md for what differs from upstream.
+# Adds: --bind-to none (§0), .done/.failed markers (§1), resume-from-stage
+# (§2), TERM/INT trap (§6), skip if .prmtop exists (§9).
+# Usage (unchanged): ./amber_pipe_new_KLKB1_v3.sh <pdb> <n_threads> <nodes>
 
 set -u
 

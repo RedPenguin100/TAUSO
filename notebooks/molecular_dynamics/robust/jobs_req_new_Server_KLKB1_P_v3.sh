@@ -1,29 +1,10 @@
 #!/bin/bash
-# jobs_req — robust v3 (public partition).
-#
-# Improvements over upstream `jobs_req_new_Server_KLKB1_P.sh`:
-#   §3  --mem dropped from 250G to 64G. Empirically: 16G triggered SLURM
-#       cgroup-level RaisedSignal:53 (RT signal 19) kills at allocation
-#       time on 4 of 5 power-general-shared-pool nodes — the shared-pool
-#       policy seems to enforce a per-cpu memory floor. 64G is the
-#       conservative compromise (still ~4× less than upstream's 250G;
-#       sander.MPI's MaxRSS for a 20-mer in OPC is ~1–4G, so there's
-#       ample headroom for the rest of the cgroup).
-#   §5  Tleap preflight runs on the login node before sbatch. Malformed
-#       PDBs are logged to <batch>/bad_pdbs.txt and skipped — they no
-#       longer eat a SLURM allocation. Side effect: the SLURM job sees
-#       .prmtop already present and skips tleap (handled by v3 amber_pipe §9).
-#   §6  --requeue: SLURM auto-resubmits on node failure / preemption.
-#       Pair with v3 amber_pipe's resume-from-stage and signal trap.
-#
-# Invokes amber_pipe_new_KLKB1_v3.sh and create_files_new_KLKB1.sh; both
-# must sit next to this script in the same directory (i.e. /tamir2/$USER/amber).
-#
-# Conda env is hardcoded to Ariella's amber25 because she owns the
-# canonical install; replace if you have your own.
-#
-# Usage (unchanged from upstream): ./jobs_req_new_Server_KLKB1_P_v3.sh \
-#       <batch_dir> <n_threads> <nodes> <partition>
+# jobs_req v3 (public pool). See ../IMPROVEMENTS.md for what differs from
+# upstream. Adds: --mem=64G (§3), tleap preflight on login (§5), --requeue (§6).
+# Calls ./amber_pipe_new_KLKB1_v3.sh and ./create_files_new_KLKB1.sh — both
+# must sit next to this script (/tamir2/$USER/amber/).
+# Conda env hardcoded to Ariella's amber25; change CONDA_ROOT if you have your own.
+# Usage (unchanged): ./jobs_req_new_Server_KLKB1_P_v3.sh <batch_dir> <n_threads> <nodes> <partition>
 
 if [ $# -ne 4 ]; then
     echo "Usage: $0 {dir_path} {n_threads} {nodes} {queue_name}"
