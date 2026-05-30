@@ -23,6 +23,12 @@ DISPLAY = {
 }
 HEADLINE = [MODEL, OLIGOAI, "OW_Intra_Oligo", "sfold_accessibility", "PFRED_PLS", "miranda_energy"]
 
+# multi-output tools: pick each tool's best-ranking column for the headline figures
+FAMILIES = {"PFRED": ["PFRED_PLS", "PFRED_SVM"],
+            "OligoWalk": ["OW_Overall", "OW_Tm", "OW_Intra_Oligo", "OW_Duplex"],
+            "miRanda": ["miranda_score", "miranda_energy"]}
+SINGLES = [MODEL, OLIGOAI, "sfold_accessibility"]
+
 
 def disp(s):  return DISPLAY.get(s, s)
 def color(s): return ACCENT if s == MODEL else (BLUE if s == OLIGOAI else GREY)
@@ -135,6 +141,56 @@ def best_rank_cdf(preds, scorer, cohort=COHORT):
     """Predicted rank (1 = top) of each cohort's truly most-potent oligo."""
     ranks = [int((s > s[np.argmax(y)]).sum()) + 1 for y, s in _cohort_arrays(preds, scorer, cohort)]
     return np.array(ranks)
+
+
+def per_cohort_spearman(preds, scorer, cohort=COHORT, min_n=8):
+    """Per-cohort Spearman values of one scorer (for distribution overlays)."""
+    out = []
+    for y, s in _cohort_arrays(preds, scorer, cohort, min_n):
+        if np.ptp(s) > 0:
+            c = spearmanr(y, s)[0]
+            if np.isfinite(c):
+                out.append(c)
+    return np.array(out)
+
+
+def best_representatives(summary, grouping="patent", metric="spearman_median"):
+    """Each multi-output tool's best-ranking column + a note (tool -> (column, n_variants))."""
+    d = summary[summary.grouping == grouping].set_index("scorer")[metric]
+    reps, note = [], {}
+    for tool, cols in FAMILIES.items():
+        present = [c for c in cols if c in d.index and np.isfinite(d[c])]
+        if present:
+            best = max(present, key=lambda c: d[c])
+            reps.append(best)
+            note[tool] = (best, len(present))
+    return reps, note
+
+
+def rep_caption(note):
+    return ("multi-output tools shown by their best-ranking column: "
+            + ", ".join(f"{disp(b)} (best of {n})" for _, (b, n) in note.items()) + ".")
+
+
+def hbar_dist(ax, scorers, medians, means, dists, title="", xlabel="", seed=0):
+    """Median bar + per-cohort distribution (jittered dots) + mean tick, TAUSO accented."""
+    rng = np.random.default_rng(seed)
+    y = np.arange(len(scorers))[::-1]
+    for yi, s, med, mn, d in zip(y, scorers, medians, means, dists):
+        ax.barh(yi, med, height=0.6, color=color(s), alpha=0.45, zorder=1)
+        if len(d):
+            ax.scatter(d, yi + (rng.random(len(d)) - 0.5) * 0.5, s=7,
+                       color=color(s), alpha=0.30, edgecolors="none", zorder=2)
+        ax.plot([mn, mn], [yi - 0.3, yi + 0.3], color="#222", lw=1.7, zorder=4)  # mean
+        ax.text(med, yi + 0.34, f"med {med:.2f}", fontsize=8, va="bottom", ha="left", color="#333", zorder=5)
+        ax.text(mn, yi - 0.34, f"μ {mn:.2f}", fontsize=8, va="top", ha="center", color="#222", zorder=5)
+    ax.set_yticks(y); ax.set_yticklabels([disp(s) for s in scorers])
+    ax.set_title(title); ax.set_xlabel(xlabel); ax.axvline(0, color="#cccccc", lw=0.8)
+    allv = np.concatenate([d for d in dists if len(d)] + [np.asarray(medians, float)])
+    lo, hi = float(np.nanmin(allv)), float(np.nanmax(allv))
+    rng2 = hi - min(0, lo)
+    ax.set_xlim(min(0, lo) - 0.10 * rng2 - 0.02, hi + 0.12 * rng2 + 0.02)
+    return ax
 
 
 def reliability(preds, scorer, bins=10, min_bin=20):
