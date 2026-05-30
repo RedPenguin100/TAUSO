@@ -26,7 +26,6 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     # Basic Composition Features
     ("seq_purine_content", purine_content),
     ("seq_gc_content", gc_fraction),
-    ("seq_ggg_counts", count_g_runs),
     ("seq_a_count", lambda x: x.upper().count("A")),
     ("seq_c_count", lambda x: x.upper().count("C")),
     ("seq_g_count", lambda x: x.upper().count("G")),

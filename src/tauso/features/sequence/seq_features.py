@@ -145,29 +145,6 @@ def seq_entropy(seq: str) -> float:
     return ent / 2.0  # normalize to [0, 1]: max entropy over 4 bases is log2(4) = 2
 
 
-def count_g_runs(seq: str, min_run_length: int = 4) -> float:
-    """
-    Calculates the fraction of the sequence that contains G-runs
-    of at least 'min_run_length' (like 'GGGG').
-    Normalized by the sequence length.
-    """
-    if len(seq) == 0:
-        return 0.0
-    seq = seq.upper()
-    count = 0
-    i = 0
-    while i < len(seq):
-        if seq[i] == "G":
-            run_length = 1
-            while i + 1 < len(seq) and seq[i + 1] == "G":
-                run_length += 1
-                i += 1
-            if run_length >= min_run_length:
-                count += 1
-        i += 1
-    return count / len(seq)
-
-
 def hairpin_score(seq: str, min_overlap: int = 4) -> float:
     """
     Estimates hairpin potential in O(N) time using set lookups.
