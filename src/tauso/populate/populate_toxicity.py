@@ -18,6 +18,7 @@ from ..data.consts import CHEMICAL_PATTERN, SEQUENCE
 from ..features.sequence.toxicity_features import (
     cpg_count,
     g4hunter_max,
+    gggg_motif_count,
     hepatotox_gap_motif_count,
     three_prime_g_fraction,
     three_prime_g_free_length,
@@ -37,6 +38,9 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("tox_tlr9_gtcgtt", lambda s, p: tlr9_human_motif_count(s)),
     # G-quadruplex propensity: max windowed G4Hunter score (Bedrat et al. 2016).
     ("tox_g4hunter_max", lambda s, p: g4hunter_max(s)),
+    # Literal 4+ G-tract count — catches isolated GGGG runs that G4Hunter's
+    # windowed mean can underweight.
+    ("tox_gggg_motif_count", lambda s, p: gggg_motif_count(s)),
     # Acute neurotoxicity: 3'-end G content and 3'-terminal G-free stretch (Hagedorn et al. 2022).
     ("tox_3prime_g_fraction", lambda s, p: three_prime_g_fraction(s)),
     ("tox_3prime_g_free_len", lambda s, p: three_prime_g_free_length(s)),

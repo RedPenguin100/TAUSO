@@ -49,6 +49,7 @@ DATASETS = {
             'calculate_cub',
             'calculate_basic',
             'calculate_sequence',
+            'calculate_toxicity',
             'calculate_expression',
             'calculate_rnase',
             'calculate_on_target_hybridization',
