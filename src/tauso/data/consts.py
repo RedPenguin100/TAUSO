@@ -41,23 +41,6 @@ SMILES = "Smiles"
 PS_PATTERN = "ps_pattern"
 
 
-def standardize_cell_line_name(raw: str) -> str:
-    if not raw or not isinstance(raw, str) or raw.strip().lower() == "none":
-        return "Generic"
-
-    lookup_key = raw.strip().lower()
-
-    # Check if the key exists in our programmatic lowercase proxy roadmap
-    if lookup_key in _PROXY_LOOKUP_LOWER:
-        proxy = _PROXY_LOOKUP_LOWER[lookup_key]
-        if proxy is None:
-            return "Generic"  # Explicitly blocked proxy (e.g., HEK293T)
-        return re.sub(r"[^a-zA-Z0-9]", "", proxy).upper()
-
-    # Fallback normalization
-    return re.sub(r"[^a-zA-Z0-9]", "", raw).upper()
-
-
 HEPG2 = "HepG2"  # Note: DepMap usually lists this as HepG2, but keeping your key 'HepG'
 SNU_449 = "SNU-449"
 HELA = "HeLa"
@@ -73,68 +56,65 @@ SK_N_AS = "SK-N-AS"
 SK_N_SH = "SK-N-SH"
 KARPAS_229 = "KARPAS-229"
 
-# 1. Map Input Names -> Canonical "Reasonable" Proxy
+# Map dataset cell-line spellings -> canonical DepMap proxy. Lookup is
+# case- and punctuation-insensitive (see _norm_cell_line_key), so a single
+# entry covers "HeLa" / "Hela" / "HELA" / " hela ", "A-431" / "A431", etc.
+# A value of None means "no honest proxy" (primary cells, iPSC-derived models,
+# near-isogenic mismatches) and resolves to a NaN DepMap ID downstream.
 CELL_LINE_TO_DEPMAP_PROXY_DICT = {
-    # --- Direct Matches & Normalization ---
+    # --- Cancer lines with valid DepMap proxies ---
     "A-431": "A-431",
-    "A431": "A-431",
     "A-549": "A549",
-    "A549": "A549",
-    "A459": "A549",  # Typo Fixed
+    "A459": "A549",  # Typo
     "A172": "A-172",
     "G-361": "G-361",
     "H929": "NCI-H929",
     "HeLa": "HeLa",
-    "Hela": "HeLa",
     "Hep3B": "Hep 3B2.1-7",
-    "HepB3": "Hep 3B2.1-7",  # Typo Fixed
+    "HepB3": "Hep 3B2.1-7",  # Typo
     "HepG2": "Hep G2",
-    "HepG2/Hep3B": "Hep G2",  # Split: Mapping to dominant line
+    "HepG2/Hep3B": "Hep G2",  # Combined experiment; map to dominant line
     "Huh7": "HuH-7",
     "HK-2": "HK-2",
-    "HK2": "HK-2",
     "Jurkat": "JURKAT",
     "K-562": "K-562",
-    "KARPAS-229": "Karpas-299",  # Typo Fixed
-    "KMS11": "KMS-11",
+    "KMS-11": "KMS-11",
     "LNCaP": "LNCaP clone FGC",
     "MCF7": "MCF7",
-    "MM.1R": "MM.1S",  # Proxy: Parental line
+    "MM.1R": "MM.1S",  # Proxy: parental dex-sensitive line
     "MM.1S": "MM.1S",
     "NCI-H460": "NCI-H460",
     "PC3": "PC-3",
     "SH-SY5Y": "SH-SY5Y",
-    "SH-SY-5Y": "SH-SY5Y",  # Typo Fixed
     "SK-MEL-28": "SK-MEL-28",
     "SK-N-AS": "SK-N-AS",
     "SK-N-SH": "SK-N-SH",
     "SKOV3": "SK-OV-3",
     "SNU-449": "SNU-449",
     "SW872": "SW872",
-    "T-24": "T24",
     "T24": "T24",
     "THP-1": "THP-1",
     "U251": "U-251 MG",
-    "U-251 MG": "U-251 MG",
     "VCaP": "VCaP",
-    # --- Experimental Contexts (User Defined) ---
+    # --- Experimental labels mapped by domain knowledge ---
     "Angptl2/Actin": "SK-N-AS",
     "SK cells asyn": "SK-N-AS",
-    # iPSC-derived and primary neuronal models — no valid DepMap cancer-line proxy.
-    # iCell GABANeurons and all ReproNeuro variants target UBE3A via gymnosis only;
-    # assigning SH-SY5Y expression would import a wrong transcriptome.
-    # ReproNeuro appears under 4 name spellings for the same 78 ASOs (duplication).
+    # --- Explicitly blocked: no honest cancer-line proxy ---
+    # iPSC-derived and primary neuronal models, primary cells, lineages too far
+    # from any DepMap line. iCell GABANeurons and ReproNeuro all target UBE3A
+    # via gymnosis; assigning SH-SY5Y would import a wrong transcriptome.
     "PAC neurons asyn": None,
     "Human Neuronal Cell": None,
     "iCell GABANeurons": None,
+    # ReproNeuro appears under 4 spellings for the same 78 ASOs; the "(ReproCELL)"
+    # suffix variants don't collapse with the base name under punctuation-strip,
+    # so each spelling needs its own blocked-list entry to surface as "Generic".
     "ReproNeuro": None,
     "ReproNeuro Neurons": None,
-    "ReproNeuro neurons (ReproCELL)": None,
     "ReproNeuro Neurons (ReproCELL)": None,
-    "54-2": None,  # Keep as None unless you confirm lineage
-    # --- No Valid Proxy (Primary Cells / Distinct Lineages) ---
+    "ReproNeuro neurons (ReproCELL)": None,
+    "54-2": None,  # Lineage unconfirmed
     "HepaRG": None,
-    "HuVEC": None,
     "HUVEC": None,
     "hSKM": None,
     "hSKMc": None,
@@ -142,11 +122,65 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "differentiated human adipocytes": None,
     "iCell cardiomyocytes2": None,
     "iCell cardiomyocytes (R1017)": None,
-    "HEK293T": None,  # Might be tempting to put "HEK293", but they are likely too different
+    "HEK293T": None,  # Tempting to map to HEK293 but they diverge enough that the proxy lies.
+    "KARPAS-229": None,  # B-cell line, not in DepMap. Karpas-299 is a different lineage (T-cell ALCL).
 }
 
-# Programmatically builds the lowercase lookup map at runtime so original dict stays pristine
-_PROXY_LOOKUP_LOWER = {k.lower(): v for k, v in CELL_LINE_TO_DEPMAP_PROXY_DICT.items()}
+
+def _norm_cell_line_key(raw):
+    """Lower-case + strip every non-alphanumeric so HeLa/Hela/HELA/'A-431'/A431 collide."""
+    if not isinstance(raw, str):
+        return None
+    return re.sub(r"[^a-z0-9]", "", raw.lower())
+
+
+_PROXY_LOOKUP_NORM = {_norm_cell_line_key(k): v for k, v in CELL_LINE_TO_DEPMAP_PROXY_DICT.items()}
+
+
+def resolve_depmap_proxy(raw):
+    """Return the canonical DepMap proxy spelling for a dataset cell-line name.
+
+    Lookup is case- and punctuation-insensitive. Returns:
+      - the canonical proxy string when one is registered,
+      - None when the entry is explicitly blocked (primary cell / iPSC / etc.)
+        OR the name is unknown -- treated the same so unknown spellings
+        propagate as a NaN DepMap ID rather than silently using the raw input.
+    """
+    key = _norm_cell_line_key(raw)
+    if key is None or key not in _PROXY_LOOKUP_NORM:
+        return None
+    return _PROXY_LOOKUP_NORM[key]
+
+
+def resolve_depmap_id(raw):
+    """Resolve a raw cell-line name straight to its DepMap ACH-... ID, or None."""
+    proxy = resolve_depmap_proxy(raw)
+    if proxy is None:
+        return None
+    return CELL_LINE_TO_DEPMAP.get(proxy)
+
+
+def standardize_cell_line_name(raw: str) -> str:
+    """Return an UPPERCASE-stripped tag used by the codon-usage scorer cache.
+
+    Distinct from resolve_depmap_proxy: that one returns the canonical proxy
+    spelling for DepMap-merge, this one returns a cache-key tag for scorer
+    lookups. Both go through the same case/punctuation-tolerant proxy table.
+    Explicitly-blocked entries (HepaRG, HEK293T, ...) and missing input collapse
+    to "Generic" so the scorer falls back to the cross-cell-line consensus.
+    """
+    if not raw or not isinstance(raw, str) or raw.strip().lower() == "none":
+        return "Generic"
+
+    key = _norm_cell_line_key(raw)
+    if key in _PROXY_LOOKUP_NORM:
+        proxy = _PROXY_LOOKUP_NORM[key]
+        if proxy is None:
+            return "Generic"  # Explicitly blocked proxy (e.g., HepaRG, HEK293T)
+        return re.sub(r"[^a-zA-Z0-9]", "", proxy).upper()
+
+    # Unknown name: fall back to a stripped tag built from the raw input.
+    return re.sub(r"[^a-zA-Z0-9]", "", raw).upper()
 
 HEPA_PROXIES = {"Hep 3B2.1-7", "Hep G2", "HuH-7", "SNU-449", "HepaRG"}
 
