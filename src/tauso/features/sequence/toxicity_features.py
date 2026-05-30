@@ -142,6 +142,14 @@ def gggg_motif_count(seq: str) -> int:
     a 4-G tract is biologically a strong G-quadruplex / G-aggregation flag on
     its own. This is a literal motif count, reported overlapping (GGGG = 1,
     GGGGG = 2, GGGGGG = 3) so longer G-runs score proportionally higher.
+
+    The connection to *reduced* ASO knockdown is empirical too:
+    McQuisten & Peek 2007 enumerate motifs significantly associated with
+    antisense ineffectiveness on a 4438-oligo training set and explicitly
+    flag ``GGGG`` (alongside TAA, AAA) as a low-activity motif (Results,
+    Tables 1–2). Source: McQuisten KA, Peek AS. "Identification of sequence
+    motifs significantly associated with antisense activity." BMC
+    Bioinformatics 2007;8:184. doi:10.1186/1471-2105-8-184.
     """
     return _count_overlapping(_to_dna(seq), "GGGG")
 
