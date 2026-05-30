@@ -62,6 +62,22 @@ ADDED_IN_NEW = [
     "tox_cpg_ps_count",
 ]
 
+# Features that are degenerate (literally 0, or = -gap_dg) on non-gapmer rows -- pure-DNA
+# oligos (chem_1st_gen=1) and all-MOE/cEt steric blockers (no central deoxy gap). Both
+# collapse to arch_is_gapmer == 0. OPT2 NaN-masks these features on those rows so XGBoost
+# routes them per-split; OPT3 drops them entirely from the trainable feature list.
+GAPMER_GEOMETRY_DEPENDENT = [
+    "arch_wing5_len",
+    "arch_wing3_len",
+    "hybr_dna_rna_wing_dg_imbalance",
+    "hybr_dna_rna_wing5_minus_gap_dg",
+    "hybr_dna_rna_wing3_minus_gap_dg",
+    "ps_wing5_count",
+    "ps_wing3_count",
+    "frac_mod_with_ps",
+]
+GAPMER_GEOMETRY_INDEPENDENT = [f for f in ADDED_IN_NEW if f not in GAPMER_GEOMETRY_DEPENDENT]
+
 
 def _arch_lens(pat):
     if not isinstance(pat, str) or not pat:
@@ -255,36 +271,60 @@ def main():
     # OLD feature set: the cache feature list as-is (already includes is_hepa/is_all_ps).
     feats_old = list(all_features)
 
-    # NEW feature set: drop the two retired flags, add the 17 new ones (after deduping).
-    feats_new = [f for f in all_features if f not in DROPPED_IN_NEW]
-    # The new features are NOT in `all_features` from load_and_validate_final_data (they
-    # were just added by add_new_features), so it's safe to extend.
-    feats_new = feats_new + ADDED_IN_NEW
+    # NEW feature set: drop the two retired flags, add all 17 new features.
+    feats_new = [f for f in all_features if f not in DROPPED_IN_NEW] + ADDED_IN_NEW
 
-    logger.info("  OLD set: %d features  | NEW set: %d features (diff: %+d)",
-                len(feats_old), len(feats_new), len(feats_new) - len(feats_old))
+    # OPT3 feature set: drop the two retired flags AND drop the 8 gapmer-geometry-
+    # dependent features that go degenerate on non-gapmer rows. Keep the 9 geometry-
+    # independent ones.
+    feats_opt3 = [f for f in all_features if f not in DROPPED_IN_NEW] + GAPMER_GEOMETRY_INDEPENDENT
 
-    trv = final_data[final_data["split"].isin(["train", "val"])].copy()
-    test = final_data[final_data["split"] == "test"].copy()
+    # OPT2 uses the same feature list as NEW but on a dataset where the 8 geometry-
+    # dependent features are NaN-masked on rows with arch_is_gapmer == 0. Build that
+    # masked copy here so the masking is applied to both train and test consistently.
+    final_data_opt2 = final_data.copy()
+    non_gapmer = final_data_opt2["arch_is_gapmer"] == 0
+    n_masked_rows = int(non_gapmer.sum())
+    for col in GAPMER_GEOMETRY_DEPENDENT:
+        final_data_opt2.loc[non_gapmer, col] = np.nan
+    feats_opt2 = list(feats_new)
+
+    logger.info(
+        "  OLD: %d feats  |  NEW: %d feats  |  OPT2: %d feats (NaN on %d non-gapmer rows)  |  OPT3: %d feats",
+        len(feats_old), len(feats_new), len(feats_opt2), n_masked_rows, len(feats_opt3),
+    )
+
+    trv      = final_data[final_data["split"].isin(["train", "val"])].copy()
+    test     = final_data[final_data["split"] == "test"].copy()
+    trv_opt2 = final_data_opt2[final_data_opt2["split"].isin(["train", "val"])].copy()
+    test_opt2 = final_data_opt2[final_data_opt2["split"] == "test"].copy()
+
     y_test = test[INHIBITION].to_numpy(np.float64)
     cust_cohorts = _large_cohort_indices(test, "custom_id", min_size=10)
     cell_cohorts = _large_cohort_indices(test, [CANONICAL_GENE, CELL_LINE], min_size=10)
     logger.info("  train+val=%d, test=%d, custom_id cohorts(>=10)=%d, gene x cell cohorts(>=10)=%d",
                 len(trv), len(test), len(cust_cohorts), len(cell_cohorts))
 
-    variants = (("OLD", feats_old), ("NEW", feats_new))
+    # Each variant is (label, feats, train_df, test_df). OPT2 uses the masked copy.
+    variants = (
+        ("OLD",  feats_old,  trv,      test),
+        ("NEW",  feats_new,  trv,      test),
+        ("OPT2", feats_opt2, trv_opt2, test_opt2),
+        ("OPT3", feats_opt3, trv,      test),
+    )
     rows = []
     total = len(variants) * len(SEEDS)
     done = 0
     t0 = time.perf_counter()
 
-    for label, feats in variants:
+    for label, feats, trv_v, test_v in variants:
+        y_v = test_v[INHIBITION].to_numpy(np.float64)
         for seed in SEEDS:
             done += 1
-            booster = _train(trv, feats, seed)
-            preds = _predict(booster, test, feats)
-            m_cust = _cohort_metrics(preds, y_test, cust_cohorts)
-            m_cell = _cohort_metrics(preds, y_test, cell_cohorts)
+            booster = _train(trv_v, feats, seed)
+            preds = _predict(booster, test_v, feats)
+            m_cust = _cohort_metrics(preds, y_v, cust_cohorts)
+            m_cell = _cohort_metrics(preds, y_v, cell_cohorts)
             elapsed = time.perf_counter() - t0
             eta = elapsed / done * (total - done)
             logger.info("[%2d/%d eta=%.0fs] variant=%s seed=%d nfeats=%d  "
@@ -317,14 +357,18 @@ def main():
     print(f"\n=== Old vs New chem feature set ({len(SEEDS)} seeds each, SANE XGBoost, test split) ===")
     print(grid.to_string(index=False))
 
-    # OldNew delta for the eye
-    if {"OLD", "NEW"}.issubset(set(long["variant"])):
-        a = long[long["variant"] == "OLD"].mean(numeric_only=True)
-        b = long[long["variant"] == "NEW"].mean(numeric_only=True)
-        print("\nNEW − OLD (positive = new set wins):")
-        for k in ("cust_Spearman", "cell_Spearman", "cust_NDCG@10", "cell_NDCG@10",
-                  "cust_Top10_Inhib", "cell_Top10_Inhib", "cust_MAE"):
-            print(f"  {k:20s}  {b[k] - a[k]:+.4f}")
+    # Pairwise deltas against OLD baseline (positive = variant beats OLD)
+    metric_keys = ("cust_Spearman", "cell_Spearman", "cust_NDCG@10", "cell_NDCG@10",
+                   "cust_Top10_Inhib", "cell_Top10_Inhib", "cust_MAE")
+    if "OLD" in set(long["variant"]):
+        base = long[long["variant"] == "OLD"].mean(numeric_only=True)
+        for label in ("NEW", "OPT2", "OPT3"):
+            if label not in set(long["variant"]):
+                continue
+            other = long[long["variant"] == label].mean(numeric_only=True)
+            print(f"\n{label} − OLD (positive = {label} beats OLD):")
+            for k in metric_keys:
+                print(f"  {k:20s}  {other[k] - base[k]:+.4f}")
 
     if "oligo_ai_score" in test.columns:
         oa = test["oligo_ai_score"].to_numpy(np.float64)
