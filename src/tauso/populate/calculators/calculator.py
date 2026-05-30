@@ -10,6 +10,7 @@ from ...data.consts import (
     CELL_LINE_DEPMAP,
     SENSE_3UTR,
     SENSE_5UTR,
+    SENSE_CDS,
     SENSE_EXON,
     SENSE_INTRON,
     SENSE_LENGTH,
@@ -208,12 +209,14 @@ class Calculator:
             SENSE_UTR,
             SENSE_3UTR,
             SENSE_5UTR,
+            SENSE_CDS,
             SENSE_TYPE,
             f"n_{SENSE_EXON}",
             f"n_{SENSE_INTRON}",
             f"n_{SENSE_3UTR}",
             f"n_{SENSE_5UTR}",
             f"n_{SENSE_UTR}",
+            f"n_{SENSE_CDS}",
         ]
 
         missing = self._get_missing_features(expected_features)

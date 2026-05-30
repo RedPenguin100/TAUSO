@@ -190,7 +190,7 @@ def main():
     # 4. Filter
     # ------------------------------------------------------------------
     logger.info("Filtering (strict gapmer patterns)...")
-    processed_data = process_oligo_data(data, strict_gapmer_patterns=True)
+    processed_data = process_oligo_data(data, strict_gapmer_patterns=False)
     logger.info("After filtering: %d rows", len(processed_data))
 
     # ------------------------------------------------------------------

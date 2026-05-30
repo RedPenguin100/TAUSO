@@ -129,10 +129,10 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     initial_total_rows = len(data)
 
     # ---------------------------------------------------------
-    # FILTER: Chemistry (Whitelist MOE and cEt)
+    # FILTER: Chemistry (Whitelist MOE, cEt, DNA; reject mixmer/LNA/other)
     # ---------------------------------------------------------
     rows_before_chem = len(data)
-    valid_chemistries = ["MOE/5-methylcytosines/deoxy", "cEt/5-methylcytosines/deoxy"]
+    valid_chemistries = ["MOE/5-methylcytosines/deoxy", "cEt/5-methylcytosines/deoxy", "DNA"]
     # Assuming MODIFICATION is imported from your consts
     data = data[data[MODIFICATION].isin(valid_chemistries)].copy()
     elim_chemistry = rows_before_chem - len(data)
