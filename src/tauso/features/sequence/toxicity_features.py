@@ -134,6 +134,18 @@ def max_g_run(seq: str) -> int:
     return max((len(r) for r in runs), default=0)
 
 
+def gggg_motif_count(seq: str) -> int:
+    """Overlapping count of GGGG occurrences (literal 4+ G-tract motif).
+
+    Complement to :func:`g4hunter_max`: G4Hunter is a windowed mean, so an
+    isolated GGGG that doesn't dominate the window can score low even though
+    a 4-G tract is biologically a strong G-quadruplex / G-aggregation flag on
+    its own. This is a literal motif count, reported overlapping (GGGG = 1,
+    GGGGG = 2, GGGGGG = 3) so longer G-runs score proportionally higher.
+    """
+    return _count_overlapping(_to_dna(seq), "GGGG")
+
+
 # --- Acute CNS / neurotoxicity (non-hybridisation) -----------------------------------------
 # Hagedorn PH, Brown JM, Easton A, et al. "Acute Neurotoxicity of Antisense Oligonucleotides
 # After Intracerebroventricular Injection Into Mouse Brain Can Be Predicted from Sequence
