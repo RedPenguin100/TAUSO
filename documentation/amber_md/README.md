@@ -10,12 +10,13 @@ contributed by **Din**; they live on the TAU SLURM cluster at
 truth for documentation and for proposed improvements. See
 [`ATTRIBUTION.md`](ATTRIBUTION.md) for credit and licensing notes.
 
-> **Status (2026-05-30):** first 5-PDB batch (`KLKB1_K1`) submitted from this
-> repo on `power-general-shared-pool`. **3 of 5 jobs died at min1** with an
-> OpenMPI core-binding error (`#processes: 32` vs SLURM cpuset on certain
-> nodes). The 3 failures were retried as `KLKB1_K1_retry1` with `--bind-to
-> none` added to every `mpirun` call in a v2 amber_pipe — see
-> [`IMPROVEMENTS.md`](IMPROVEMENTS.md) §0 for the post-mortem.
+> **Status (2026-05-30):** all current runs use the hardened scripts in
+> [`robust/`](robust/), which bake in the improvements §0, §1, §2, §3, §5,
+> §6, §9 from [`IMPROVEMENTS.md`](IMPROVEMENTS.md). The initial 5-PDB
+> `KLKB1_K1` batch (v1) hit the OpenMPI binding failure (§0); a v2 patch
+> added `--bind-to none`; v3 in `robust/` adds the rest of the robustness
+> set and is the version we run. The original v1 binding-failure
+> post-mortem is preserved as §0 in `IMPROVEMENTS.md`.
 
 ---
 
@@ -97,12 +98,20 @@ Inside `/tamir2/nouman/amber/`:
    This sbatches one job per PDB. Each job requests `--mem=250G`, 32 cores ×
    1 node, `tamirtul-users_v2` account, up to 2 days.
 
-### Running as a non-`nouman` user
+### Recommended: use `robust/` instead of `upstream_scripts/`
 
-If you can read but not write under `/tamir2/nouman/amber/`, copy the three
-scripts into your own `/tamir2/$USER/amber/`, **copy** (not move) the PDBs into
-your own batch folder, and patch the conda-env paths inside the `jobs_req_...`
-heredoc to point at Ariella's env (which you can still read):
+For all non-throwaway runs use [`robust/`](robust/). Those scripts add
+resume-from-stage, success/failure markers, login-node tleap preflight,
+`--bind-to none`, `--requeue`, and a right-sized memory ask. The
+[`robust/README.md`](robust/README.md) covers deploy + run.
+
+### Running upstream (verbatim) as a non-`nouman` user
+
+If you specifically want the unmodified upstream scripts (e.g. to reproduce
+Ariella's pre-2026-05-30 behavior), copy the three scripts into your own
+`/tamir2/$USER/amber/`, **copy** (not move) the PDBs into your own batch
+folder, and patch the conda-env paths inside the `jobs_req_...` heredoc to
+point at Ariella's env (which you can still read):
 
 ```bash
 sed -i \
