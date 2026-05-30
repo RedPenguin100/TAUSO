@@ -111,6 +111,9 @@ def get_dtype_for_feature(filename, index_col_name):
         "arch_gap_len.csv",
         "arch_wing3_len.csv",
         "arch_is_gapmer.csv",
+        "seq5_is_purine.csv",
+        "seq5_is_g.csv",
+        "seq5_is_t.csv",
     ]:
         feat_type = "int"
     elif filename in ["sense_type.csv"]:

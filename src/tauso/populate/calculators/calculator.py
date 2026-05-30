@@ -226,7 +226,37 @@ class Calculator:
             logger.info("All gapmer architecture features exist. Skipping.")
 
         # ==========================================
-        # 3. Transfection Features
+        # 3. 5'-Terminal Base Features
+        # ==========================================
+        # 5' terminal nucleotide identity. RNase H1 has a sequence preference at the
+        # cleavage site (Wu & Lima, JBC 2004; Lima et al., Cell Chem Biol 2007), and the
+        # 5' base of the ASO drives this preference. ASO sequences are stored with DNA
+        # letters here, but the 'T' / 'U' equivalence is preserved in seq5_is_t.
+        expected_seq5 = ["seq5_is_purine", "seq5_is_g", "seq5_is_t"]
+        missing_seq5 = self._get_missing_features(expected_seq5)
+
+        if missing_seq5:
+            logger.info("Computing %d 5'-terminal base features...", len(missing_seq5))
+
+            from tauso.data.consts import SEQUENCE
+
+            self._check_dependencies([SEQUENCE])
+
+            seq_5p = self.data[SEQUENCE].str[0]
+            if "seq5_is_purine" in missing_seq5:
+                self.data["seq5_is_purine"] = seq_5p.isin(["A", "G"]).astype(int)
+            if "seq5_is_g" in missing_seq5:
+                self.data["seq5_is_g"] = (seq_5p == "G").astype(int)
+            if "seq5_is_t" in missing_seq5:
+                self.data["seq5_is_t"] = seq_5p.isin(["T", "U"]).astype(int)
+
+            for feature in missing_seq5:
+                self._save_calculated_feature(feature_name=feature)
+        else:
+            logger.info("All 5'-terminal base features exist. Skipping.")
+
+        # ==========================================
+        # 4. Transfection Features
         # ==========================================
         expected_transfection = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
         missing_transfection = self._get_missing_features(expected_transfection)
