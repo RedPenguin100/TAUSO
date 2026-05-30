@@ -85,26 +85,42 @@ def get_dtype_for_feature(filename, index_col_name):
     elif filename in ["on_target_total_hybridization_0.csv", "on_target_total_hybridization_1200.csv"]:
         feat_type = "float64"
     elif filename in [
-        "target_expression.csv",
-        "rnase_expression.csv",
-        "stab2_expression.csv",
-        "mrc1_expression.csv",
-        "msr1_expression.csv",
+        "expr_target.csv",
+        "expr_rnase.csv",
+        "expr_stab2.csv",
+        "expr_mrc1.csv",
+        "expr_msr1.csv",
     ]:
         feat_type = "float64"
-    elif filename in ["max_consecutive_PO.csv", "ps_end_score.csv"]:
+    elif filename in [
+        "ps_max_consecutive_po.csv",
+        "ps_end_score.csv",
+        "ps_wing5_count.csv",
+        "ps_gap_count.csv",
+        "ps_wing3_count.csv",
+    ]:
         feat_type = "int"
-    elif filename == "po_percentage.csv":
+    elif filename in [
+        "ps_po_percentage.csv",
+        "ps_frac_mod.csv",
+        "ps_frac_dna.csv",
+    ]:
         feat_type = "float64"
     elif filename in [
+        "chem_1st_gen.csv",
         "chem_2nd_gen.csv",
         "chem_3rd_gen.csv",
         "Electroporation.csv",
         "Gymnosis.csv",
         "Lipofection.csv",
         "Other.csv",
-        "is_hepa.csv",
-        "is_all_ps.csv",
+        "arch_wing5_len.csv",
+        "arch_gap_len.csv",
+        "arch_wing3_len.csv",
+        "arch_is_gapmer.csv",
+        "term5p_is_purine.csv",
+        "term5p_is_g.csv",
+        "term5p_is_t.csv",
     ]:
         feat_type = "int"
     elif filename in ["sense_type.csv"]:
