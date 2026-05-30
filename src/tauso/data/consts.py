@@ -183,6 +183,7 @@ def standardize_cell_line_name(raw: str) -> str:
     # Unknown name: fall back to a stripped tag built from the raw input.
     return re.sub(r"[^a-zA-Z0-9]", "", raw).upper()
 
+
 HEPA_PROXIES = {"Hep 3B2.1-7", "Hep G2", "HuH-7", "SNU-449", "HepaRG"}
 
 
