@@ -10,9 +10,12 @@ contributed by **Din**; they live on the TAU SLURM cluster at
 truth for documentation and for proposed improvements. See
 [`ATTRIBUTION.md`](ATTRIBUTION.md) for credit and licensing notes.
 
-> **Status (2026-05-30):** first 5-PDB batch submitted from this repo:
-> `KLKB1_K1` jobs `16761083, 16761088, 16761090, 16761091, 16761093` on
-> `power-general-shared-pool`. See [Running a batch](#running-a-batch) below.
+> **Status (2026-05-30):** first 5-PDB batch (`KLKB1_K1`) submitted from this
+> repo on `power-general-shared-pool`. **3 of 5 jobs died at min1** with an
+> OpenMPI core-binding error (`#processes: 32` vs SLURM cpuset on certain
+> nodes). The 3 failures were retried as `KLKB1_K1_retry1` with `--bind-to
+> none` added to every `mpirun` call in a v2 amber_pipe — see
+> [`IMPROVEMENTS.md`](IMPROVEMENTS.md) §0 for the post-mortem.
 
 ---
 
