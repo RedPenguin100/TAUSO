@@ -216,11 +216,17 @@ def _read_loose_file(path, index_col):
 
 
 def _read_cache(cache_file, index_col, excluded_cols, keep_name):
-    """Read the wide cache, skipping columns covered by shards or filtered out."""
+    """Read the wide cache, skipping columns covered by shards or filtered out.
+
+    The packed cache downcasts integer columns (int8/int16/int32) to save space; upcast them
+    back to int64 so they match the canonical CSV dtypes (keeps the integrity check exact).
+    """
     cols = [c for c in pq.read_schema(cache_file).names if c != index_col and keep_name(c) and c not in excluded_cols]
     if not cols:
         return None
-    return pd.read_parquet(cache_file, columns=[index_col] + cols).set_index(index_col)
+    frame = pd.read_parquet(cache_file, columns=[index_col] + cols).set_index(index_col)
+    int_cols = {c: "int64" for c in frame.columns if pd.api.types.is_integer_dtype(frame[c]) and frame[c].dtype != "int64"}
+    return frame.astype(int_cols) if int_cols else frame
 
 
 def load_all_features(filenames=None, light=True, verbose=False, version="oligo", load_competition=False):
