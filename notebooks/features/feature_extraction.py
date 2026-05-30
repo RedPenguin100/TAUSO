@@ -1,4 +1,5 @@
 import concurrent.futures
+import logging
 import os
 
 import pandas as pd
@@ -10,6 +11,8 @@ from tauso.populate.feature_cache import (
     feature_store_dir,
     save_feature_internal,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _get_saved_features_dir(version):
@@ -154,13 +157,49 @@ def _keep_filter(light, load_competition, wanted):
 
 
 def _list_loose_files(feature_dir, cache_file):
-    """Loose per-feature files (.csv or .parquet) in `feature_dir`, excluding the wide cache."""
+    """Loose per-feature files (.csv or .parquet) in `feature_dir`, excluding both
+    the active wide cache and any *other* wide-cache parquets left over from
+    previous versions.
+
+    Active wide cache: filename matches the one registered in FEATURE_CACHE_FILES.
+    Stale wide cache: any other .parquet whose column count is wider than a
+    single-feature file (heuristic: more than `WIDE_CACHE_COL_THRESHOLD` columns).
+    Loading a stale wide cache alongside the active one silently overrides the
+    active cache's values for every shared column (loose files take precedence in
+    load_all_features), so we refuse and warn instead.
+    """
     cache_name = os.path.basename(cache_file) if cache_file else None
-    return sorted(
-        os.path.join(feature_dir, f)
-        for f in os.listdir(feature_dir)
-        if (f.endswith(".csv") or f.endswith(".parquet")) and not f.startswith(".") and f != cache_name
-    )
+    WIDE_CACHE_COL_THRESHOLD = 5  # single-feature files have 2 cols (index + value)
+    out = []
+    stale_caches = []
+    for f in sorted(os.listdir(feature_dir)):
+        if f.startswith("."):
+            continue
+        if not (f.endswith(".csv") or f.endswith(".parquet")):
+            continue
+        if f == cache_name:
+            continue
+        full_path = os.path.join(feature_dir, f)
+        if f.endswith(".parquet"):
+            try:
+                n_cols = len(pq.read_schema(full_path).names)
+            except Exception:
+                n_cols = 0
+            if n_cols > WIDE_CACHE_COL_THRESHOLD:
+                stale_caches.append((f, n_cols))
+                continue
+        out.append(full_path)
+
+    if stale_caches:
+        details = ", ".join(f"{n} ({c} cols)" for n, c in stale_caches)
+        logger.warning(
+            "Skipping %d stale wide-cache parquet(s) in %s: %s. "
+            "These look like leftover caches from previous FEATURE_CACHE_FILES versions; "
+            "loading them alongside the current cache would silently override its values "
+            "for any shared column. Delete or move them aside to silence this warning.",
+            len(stale_caches), feature_dir, details,
+        )
+    return out
 
 
 def _read_loose_file(path, index_col):

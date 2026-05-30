@@ -1,6 +1,8 @@
 import pytest
 
 from tauso.data.consts import (
+    SENSE_CDS,
+    SENSE_CDS_NON_EXCLUSIVE,
     SENSE_EXON,
     SENSE_INTRON,
     SENSE_LENGTH,
@@ -35,12 +37,9 @@ def test_structure_features_regression(sampled_base_data, target_genes, gene_to_
         SENSE_EXON,
         SENSE_INTRON,
         SENSE_UTR,
+        SENSE_CDS,
+        SENSE_CDS_NON_EXCLUSIVE,
         SENSE_TYPE,
-        "n_sense_3utr",
-        "n_sense_5utr",
-        "n_sense_exon",
-        "n_sense_intron",
-        "n_sense_utr",
     ]
 
     dataframe_regression.check(processed_data[features])
