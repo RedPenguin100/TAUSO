@@ -94,14 +94,13 @@ def get_dtype_for_feature(filename, index_col_name):
     elif filename == "po_percentage.csv":
         feat_type = "float64"
     elif filename in [
+        "chem_1st_gen.csv",
         "chem_2nd_gen.csv",
         "chem_3rd_gen.csv",
         "Electroporation.csv",
         "Gymnosis.csv",
         "Lipofection.csv",
         "Other.csv",
-        "is_hepa.csv",
-        "is_all_ps.csv",
     ]:
         feat_type = "int"
     elif filename in ["sense_type.csv"]:

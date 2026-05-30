@@ -152,32 +152,35 @@ class Calculator:
         """Calculates fast boolean/categorical and transfection features with dependency checking."""
 
         # ==========================================
-        # 1. Basic Chemistry & Cell Line Features
+        # 1. Basic Chemistry Features
         # ==========================================
-        expected_basic = ["is_hepa", "chem_2nd_gen", "chem_3rd_gen"]
+        expected_basic = ["chem_1st_gen", "chem_2nd_gen", "chem_3rd_gen"]
         missing_basic = self._get_missing_features(expected_basic)
 
         if missing_basic:
             logger.info("Computing %d basic features...", len(missing_basic))
 
-            # Check dependencies BEFORE attempting to compute
-            from tauso.data.consts import CELL_LINE_DEPMAP_PROXY, HEPA_PROXIES, MODIFICATION
+            from tauso.data.consts import MODIFICATION
 
-            self._check_dependencies([CELL_LINE_DEPMAP_PROXY, MODIFICATION])
+            self._check_dependencies([MODIFICATION])
 
-            if "is_hepa" in missing_basic:
-                self.data["is_hepa"] = self.data[CELL_LINE_DEPMAP_PROXY].isin(HEPA_PROXIES).astype(int)
+            has_moe = self.data[MODIFICATION].str.contains("MOE", na=False)
+            has_high_aff = self.data[MODIFICATION].str.contains("LNA|cEt", na=False)
+
+            if "chem_1st_gen" in missing_basic:
+                # No sugar modifications -- pure DNA/PS oligos like the early Ionis fomivirsen-era ASOs.
+                self.data["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(int)
 
             if "chem_2nd_gen" in missing_basic:
-                self.data["chem_2nd_gen"] = self.data[MODIFICATION].str.contains("MOE", na=False).astype(int)
+                self.data["chem_2nd_gen"] = has_moe.astype(int)
 
             if "chem_3rd_gen" in missing_basic:
-                self.data["chem_3rd_gen"] = self.data[MODIFICATION].str.contains("LNA|cEt", na=False).astype(int)
+                self.data["chem_3rd_gen"] = has_high_aff.astype(int)
 
             for feature in missing_basic:
                 self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("All basic chemistry/hepa features exist. Skipping.")
+            logger.info("All basic chemistry features exist. Skipping.")
 
         # ==========================================
         # 2. Transfection Features
@@ -561,7 +564,7 @@ class Calculator:
 
     def calculate_backbone_features(self):
         """Calculates features derived from the PS_PATTERN backbone."""
-        expected_features = ["is_all_ps", "po_percentage", "ps_end_score", "max_consecutive_PO"]
+        expected_features = ["po_percentage", "ps_end_score", "max_consecutive_PO"]
         missing = self._get_missing_features(expected_features)
 
         if missing:
@@ -572,11 +575,6 @@ class Calculator:
 
             # Ensure assign_chemistry/assign_backbone has populated PS_PATTERN
             self._check_dependencies([PS_PATTERN])
-
-            if "is_all_ps" in missing:
-                self.data["is_all_ps"] = self.data[PS_PATTERN].apply(
-                    lambda x: 1 if isinstance(x, str) and x and x.replace("*", "") == "" else 0
-                )
 
             if "max_consecutive_PO" in missing:
                 self.data["max_consecutive_PO"] = self.data[PS_PATTERN].apply(
