@@ -216,6 +216,7 @@ class Calculator:
             f"n_{SENSE_3UTR}",
             f"n_{SENSE_5UTR}",
             f"n_{SENSE_UTR}",
+            f"n_{SENSE_CDS}",
         ]
 
         missing = self._get_missing_features(expected_features)

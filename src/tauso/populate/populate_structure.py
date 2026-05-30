@@ -63,6 +63,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_n_3utr = np.zeros(n_rows, dtype=np.int8)
     out_n_5utr = np.zeros(n_rows, dtype=np.int8)
     out_n_utr = np.zeros(n_rows, dtype=np.int8)
+    out_n_cds = np.zeros(n_rows, dtype=np.int8)
 
     all_data["__temp_idx"] = np.arange(n_rows)
 
@@ -135,13 +136,15 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         out_3utr[v_row_idxs[mask_3utr]] = 1
         out_5utr[v_row_idxs[mask_5utr]] = 1
 
-        # sense_cds = sense_exon AND the gene is protein-coding. mask_exon already
-        # excludes UTRs, so for protein-coding genes it's the CDS region — but
-        # for lncRNAs (MALAT1, SNHG14, ...) every exonic hit also satisfies
-        # mask_exon (no UTRs to mask), which would spuriously label them CDS.
-        # The biotype guard ensures sense_cds is 1 only for true CDS hits.
+        # sense_cds / n_sense_cds = exon hit AND the gene is protein-coding,
+        # with the same exclusive (mask_exon, no UTR) vs non-exclusive (is_exon,
+        # any exon hit including UTRs) split as sense_exon / n_sense_exon.
+        # The biotype guard ensures both stay zero on lncRNAs (MALAT1, SNHG14, …)
+        # where no UTRs are annotated to mask and every exonic hit would
+        # otherwise spuriously look like CDS.
         if locus_info.gene_type == GeneType.PROTEIN_CODING:
             out_cds[v_row_idxs[mask_exon]] = 1
+            out_n_cds[v_row_idxs[is_exon]] = 1
 
     # Apply exclusive features
     all_data[SENSE_START] = out_start
@@ -161,6 +164,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[f"n_{SENSE_3UTR}"] = out_n_3utr
     all_data[f"n_{SENSE_5UTR}"] = out_n_5utr
     all_data[f"n_{SENSE_UTR}"] = out_n_utr
+    all_data[f"n_{SENSE_CDS}"] = out_n_cds
 
     all_data.drop(columns=["__temp_idx", "__temp_sense"], inplace=True)
     return all_data
