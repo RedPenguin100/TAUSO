@@ -2,10 +2,13 @@
 # jobs_req — robust v3 (public partition).
 #
 # Improvements over upstream `jobs_req_new_Server_KLKB1_P.sh`:
-#   §3  --mem dropped from 250G to 16G. The original ask was 50–250× the
-#       actual sander.MPI footprint for a 20-mer in OPC. Reducing it lets
-#       jobs land on smaller nodes and bumps queue throughput. If a real
-#       benchmark shows MaxRSS > 12 GB, raise this.
+#   §3  --mem dropped from 250G to 64G. Empirically: 16G triggered SLURM
+#       cgroup-level RaisedSignal:53 (RT signal 19) kills at allocation
+#       time on 4 of 5 power-general-shared-pool nodes — the shared-pool
+#       policy seems to enforce a per-cpu memory floor. 64G is the
+#       conservative compromise (still ~4× less than upstream's 250G;
+#       sander.MPI's MaxRSS for a 20-mer in OPC is ~1–4G, so there's
+#       ample headroom for the rest of the cgroup).
 #   §5  Tleap preflight runs on the login node before sbatch. Malformed
 #       PDBs are logged to <batch>/bad_pdbs.txt and skipped — they no
 #       longer eat a SLURM allocation. Side effect: the SLURM job sees
@@ -84,7 +87,7 @@ for pdb_file in "$dir_path"/*.pdb; do
 #SBATCH --partition=${queue_name}
 #SBATCH -A tamirtul-users_v2
 #SBATCH --qos=public
-#SBATCH --mem=16G
+#SBATCH --mem=64G
 #SBATCH --time=2-00:00:00
 #SBATCH --requeue
 

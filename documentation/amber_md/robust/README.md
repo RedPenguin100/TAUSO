@@ -10,7 +10,7 @@ robustness/efficiency improvements documented in
 | §0 | `--bind-to none` on every `mpirun` | `amber_pipe_v3` |
 | §1 | `.done` / `.failed.<jobid>.<stage>` markers | `amber_pipe_v3` |
 | §2 | Resume-from-stage (skip a stage if its `.ncrst` exists) | `amber_pipe_v3` |
-| §3 | `--mem=16G` (down from `250G`) | `jobs_req_v3` |
+| §3 | `--mem=64G` (down from `250G`; 16G was empirically too low — shared-pool cgroup kill) | `jobs_req_v3` |
 | §5 | Tleap preflight on login node, log bad PDBs, skip sbatch | `jobs_req_v3` |
 | §6 | `#SBATCH --requeue` + SIGTERM/SIGINT trap | both |
 | §9 | Skip `create_files` + `tleap` if `.prmtop` already exists | `amber_pipe_v3` |

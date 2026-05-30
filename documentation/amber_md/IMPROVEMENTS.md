@@ -6,6 +6,30 @@ cluster. None of these are urgent enough to block running the current
 pipeline — they're investments that pay back if we end up running ≫ 184 ASOs
 or want to publish the protocol.
 
+## -1. Maintain a runtime `--exclude` list of wedged shared-pool nodes 🔴 *(empirically required — 2026-05-30)*
+
+**Problem.** Some nodes on `power-general-shared-pool` are wedged in a way
+that kills any job sent to them within 2 seconds, exit `0:53`
+(`RaisedSignal:53 (Real-time signal 19)`), before `bash` even reads the
+batch script. No `slurm-*.out`, no `.failed` marker, no MaxRSS. The 2026-05-30
+run hit it on **compute-0-34, compute-0-73, compute-0-75, compute-0-80** —
+every retry on the same node failed identically while
+`compute-0-278` / `-338` / `-381` ran cleanly.
+
+This matches the cluster skill's standing note:
+
+> task wedges on specific shared nodes (e.g. compute-0-353/354) still
+> happen — likely memory/IO contention. Mitigation: `--exclude=`
+> problematic nodes when resubmitting.
+
+**Fix.** On any resubmit, add
+`#SBATCH --exclude=<comma-separated bad nodes>` to the heredoc. Keep
+a runtime allowlist (or denylist) in a file the jobs_req reads, not
+hardcoded in committed scripts — the bad-node set shifts over days.
+
+**Not in the committed `robust/` scripts** for that reason. Apply inline
+when needed.
+
 ## 0. Add `--bind-to none` to every `mpirun` 🔴 *(empirically required — 2026-05-30)*
 
 **Problem.** On the first batch (KLKB1_K1, 5 PDBs on `power-general-shared-pool`),
@@ -75,15 +99,27 @@ this is mostly about not wasting the production-MD slot.
 [ -s "${base_name}_min1.ncrst" ] || mpirun -np $total_procs ... -i ..._min1.in ...
 ```
 
-## 3. Right-size `--mem=250G` 🟢 *(⚠ verify empirically)*
+## 3. Right-size `--mem=250G` 🟢 *(empirically settled — 2026-05-30)*
 
 **Problem.** A 20-mer DNA duplex (~50 atoms × 2) in a ~30 Å OPC box with 150
 mM NaCl is on the order of 30 000–60 000 atoms total. `sander.MPI` typically
 uses **1–4 GB** for boxes that size. `--mem=250G` is ~50–250× over-requested
 and will block the job from landing on smaller nodes for no real reason.
 
-**Fix.** Run one job with `--mem=8G`, watch `sstat -j <jobid> --format=MaxRSS`.
-If the high-water mark is under 4 GB, set `--mem=8G` (2× safety).
+**Fix.** Use `--mem=64G`.
+
+**Empirical history (this batch):**
+- `--mem=16G`: 4 of 5 jobs killed at allocation time by SLURM cgroup with
+  `RaisedSignal:53 (Real-time signal 19)` — the `power-general-shared-pool`
+  policy enforces a per-cpu memory floor that 16G/32-core trips.
+- `--mem=64G`: empirically lands on shared-pool nodes without the cgroup
+  kill, while still leaving 32-core sander.MPI massively over-provisioned.
+- `--mem=250G` (upstream): works, but blocks low-memory nodes for no
+  measurable benefit.
+
+If a future benchmark with `sstat --format=MaxRSS` confirms actual MaxRSS
+< 30 GB across all ASOs, 64G is the right number; if shared-pool policy
+changes, revisit.
 
 ## 4. Fix the GPU path so it actually uses the GPU 🟡
 
@@ -223,6 +259,7 @@ in Ariella's `amber25` env should be pinned in this README (or an
 
 | # | Improvement | Effort | Impact | Risk |
 |---|---|---|---|---|
+| -1 | `--exclude=<wedged nodes>` on shared pool | per-retry | **Required when nodes wedge** *(saw 4/5 jobs killed at 2 s)* | List rots — keep runtime-only |
 | 0 | `--bind-to none` on mpirun | 2 min | **Required** *(60% job failure rate without it on the first batch)* | None |
 | 1 | `.done`/`.failed` markers | 5 min | High | None |
 | 2 | Resume-from-stage | 15 min | High | Low |
