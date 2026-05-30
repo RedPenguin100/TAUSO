@@ -46,6 +46,13 @@ HYBR_DERIVED_FEATURES = [
     "hybr_dna_rna_dg_per_nt",
     "hybr_dna_dna_dg_per_nt",
     "hybr_ps_dna_rna_dg_per_nt",
+    # Wing/gap asymmetry of the DNA/RNA dG partition. 5'/3' end-stability imbalance is
+    # implicated in RNase H1 cleavage-site selectivity and end-mediated nuclease protection;
+    # the wing-minus-gap pair quantifies how much the high-affinity flanks dominate the
+    # central deoxy region thermodynamically. NaN on non-gapmer rows (no wings to compare).
+    "hybr_dna_rna_wing_dg_imbalance",  # wing5_dg - wing3_dg (sign = which end is more stable)
+    "hybr_dna_rna_wing5_minus_gap_dg",  # wing5_dg - gap_dg
+    "hybr_dna_rna_wing3_minus_gap_dg",  # wing3_dg - gap_dg
 ]
 
 HYBR_FEATURE_TO_CALCULATION = {
@@ -91,5 +98,38 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
     for norm_name, source in normalized.items():
         if norm_name in features_to_run and _have(source):
             all_data[norm_name] = all_data[source] / seq_len
+
+    # Wing/gap asymmetry features are NaN on non-gapmer rows (no wings to compare). The
+    # routing flag is derived from CHEMICAL_PATTERN so the populate stays standalone.
+    import numpy as np
+
+    from ..common.modifications import get_longest_dna_gap
+
+    def _is_gapmer_pat(pat):
+        if not isinstance(pat, str) or not pat:
+            return False
+        start, end, gap_len = get_longest_dna_gap(pat)
+        return gap_len > 0 and start > 0 and end < len(pat)
+
+    wing_asym_features = (
+        "hybr_dna_rna_wing_dg_imbalance",
+        "hybr_dna_rna_wing5_minus_gap_dg",
+        "hybr_dna_rna_wing3_minus_gap_dg",
+    )
+    is_gapmer_series = (
+        all_data[CHEMICAL_PATTERN].map(_is_gapmer_pat)
+        if any(f in features_to_run for f in wing_asym_features)
+        else None
+    )
+
+    if "hybr_dna_rna_wing_dg_imbalance" in features_to_run and _have("hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_wing3"):
+        raw = all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_wing3"]
+        all_data["hybr_dna_rna_wing_dg_imbalance"] = raw.where(is_gapmer_series, np.nan)
+    if "hybr_dna_rna_wing5_minus_gap_dg" in features_to_run and _have("hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_gap"):
+        raw = all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_gap"]
+        all_data["hybr_dna_rna_wing5_minus_gap_dg"] = raw.where(is_gapmer_series, np.nan)
+    if "hybr_dna_rna_wing3_minus_gap_dg" in features_to_run and _have("hybr_dna_rna_dg_wing3", "hybr_dna_rna_dg_gap"):
+        raw = all_data["hybr_dna_rna_dg_wing3"] - all_data["hybr_dna_rna_dg_gap"]
+        all_data["hybr_dna_rna_wing3_minus_gap_dg"] = raw.where(is_gapmer_series, np.nan)
 
     return all_data, features_to_run

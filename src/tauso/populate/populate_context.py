@@ -113,14 +113,14 @@ _RNASE_GENE = "RNASEH1"
 # Scavenger receptors that govern gymnotic (naked ASO) uptake — STAB2, MRC1, and MSR1 (SR-A1)
 # are the primary endocytic receptors responsible for gymnosis efficiency across cell lines.
 _SCAVENGER_RECEPTOR_GENES = {
-    "stab2_expression": "STAB2",
-    "mrc1_expression": "MRC1",
-    "msr1_expression": "MSR1",  # SR-A1
+    "expr_stab2": "STAB2",
+    "expr_mrc1": "MRC1",
+    "expr_msr1": "MSR1",  # SR-A1
 }
 
-_SPECIAL_GENES: Dict[str, str] = {"rnase_expression": _RNASE_GENE, **_SCAVENGER_RECEPTOR_GENES}
+_SPECIAL_GENES: Dict[str, str] = {"expr_rnase": _RNASE_GENE, **_SCAVENGER_RECEPTOR_GENES}
 
-TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["target_expression"]
+TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["expr_target"]
 SPECIAL_GENE_EXPRESSION_FEATURE_NAMES: List[str] = list(_SPECIAL_GENES.keys())
 EXPRESSION_FEATURE_NAMES: List[str] = TARGET_EXPRESSION_FEATURE_NAMES + SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
 
@@ -165,7 +165,7 @@ def populate_target_expression(
         right_on=[CELL_LINE_DEPMAP, "Gene"],
         how="left",
     )
-    enhanced_df = enhanced_df.rename(columns={"expression_norm": "target_expression"})
+    enhanced_df = enhanced_df.rename(columns={"expression_norm": "expr_target"})
     enhanced_df = enhanced_df.drop(columns=["Gene"])
 
     return enhanced_df, TARGET_EXPRESSION_FEATURE_NAMES

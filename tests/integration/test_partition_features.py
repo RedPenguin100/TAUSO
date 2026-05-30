@@ -52,12 +52,12 @@ def test_partition_and_merge_backbone_features(small_df, tmp_path):
         )
         calc.calculate_backbone_features()
 
-        assert (part_dir / "is_all_ps.csv").exists(), f"Partition {k} should have saved is_all_ps.csv"
-        assert len(pd.read_csv(part_dir / "is_all_ps.csv")) == 5
+        assert (part_dir / "ps_po_percentage.csv").exists(), f"Partition {k} should have saved ps_po_percentage.csv"
+        assert len(pd.read_csv(part_dir / "ps_po_percentage.csv")) == 5
 
     merge_partitions(main_dir, n_partitions=2, index_col=index_col)
 
-    for feature in ["is_all_ps", "po_percentage", "ps_end_score", "max_consecutive_PO"]:
+    for feature in ["ps_po_percentage", "ps_end_score", "ps_max_consecutive_po"]:
         merged = pd.read_csv(main_dir / f"{feature}.csv")
         assert len(merged) == len(small_df), f"{feature}: expected {len(small_df)} rows after merge"
         assert set(merged[index_col]) == set(small_df[index_col]), f"{feature}: merged indices must match original"
