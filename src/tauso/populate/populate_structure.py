@@ -3,7 +3,7 @@ import logging
 import numpy as np
 
 from ..data.consts import *
-from ..genome.LocusInfo import StrandType
+from ..genome.LocusInfo import GeneType, StrandType
 from ..util import get_antisense_rna
 
 logger = logging.getLogger(__name__)
@@ -56,6 +56,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_intron = np.zeros(n_rows, dtype=np.int8)
     out_3utr = np.zeros(n_rows, dtype=np.int8)
     out_5utr = np.zeros(n_rows, dtype=np.int8)
+    out_cds = np.zeros(n_rows, dtype=np.int8)
 
     out_n_exon = np.zeros(n_rows, dtype=np.int8)
     out_n_intron = np.zeros(n_rows, dtype=np.int8)
@@ -134,6 +135,14 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         out_3utr[v_row_idxs[mask_3utr]] = 1
         out_5utr[v_row_idxs[mask_5utr]] = 1
 
+        # sense_cds = sense_exon AND the gene is protein-coding. mask_exon already
+        # excludes UTRs, so for protein-coding genes it's the CDS region — but
+        # for lncRNAs (MALAT1, SNHG14, ...) every exonic hit also satisfies
+        # mask_exon (no UTRs to mask), which would spuriously label them CDS.
+        # The biotype guard ensures sense_cds is 1 only for true CDS hits.
+        if locus_info.gene_type == GeneType.PROTEIN_CODING:
+            out_cds[v_row_idxs[mask_exon]] = 1
+
     # Apply exclusive features
     all_data[SENSE_START] = out_start
     all_data[SENSE_START_FROM_END] = out_start_end
@@ -143,6 +152,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[SENSE_UTR] = out_3utr | out_5utr
     all_data[SENSE_3UTR] = out_3utr
     all_data[SENSE_5UTR] = out_5utr
+    all_data[SENSE_CDS] = out_cds
     all_data[SENSE_TYPE] = out_type
 
     # Apply non-exclusive features
