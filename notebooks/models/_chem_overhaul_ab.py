@@ -114,8 +114,13 @@ def _frac_with_ps(chem_pat, ps_pat, marker_chars):
     return ps / qualifying if qualifying else 0.0
 
 
-def add_new_features(df):
-    """Adds the 17 new features in-place. Idempotent."""
+def add_new_features(df, mask_non_gapmer=True):
+    """Adds the 17 new features in-place. Idempotent.
+
+    If mask_non_gapmer=True (the production default after this commit), the 8
+    gapmer-geometry-dependent features are set to NaN on rows where the
+    chemical pattern doesn't describe a wing-gap-wing structure.
+    """
     from tauso.data.consts import MODIFICATION
 
     out = df.copy()
@@ -125,30 +130,38 @@ def add_new_features(df):
     has_high_aff = out[MODIFICATION].str.contains("LNA|cEt", na=False)
     out["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(int)
 
-    # 2. arch_* — gapmer geometry
+    # 2. arch_* — gapmer geometry. arch_gap_len + arch_is_gapmer are meaningful
+    #            for all chemistries; wing lengths are NaN on non-gapmer rows.
     arch_tuples = out[CHEMICAL_PATTERN].map(_arch_lens)
-    out["arch_wing5_len"] = arch_tuples.map(lambda t: t[0]).astype(int)
+    is_gapmer = arch_tuples.map(lambda t: t[0] > 0 and t[1] > 0 and t[2] > 0)
     out["arch_gap_len"]   = arch_tuples.map(lambda t: t[1]).astype(int)
-    out["arch_wing3_len"] = arch_tuples.map(lambda t: t[2]).astype(int)
-    out["arch_is_gapmer"] = arch_tuples.map(
-        lambda t: 1 if t[0] > 0 and t[1] > 0 and t[2] > 0 else 0
-    ).astype(int)
+    out["arch_is_gapmer"] = is_gapmer.astype(int)
+    wing5 = arch_tuples.map(lambda t: float(t[0]))
+    wing3 = arch_tuples.map(lambda t: float(t[2]))
+    out["arch_wing5_len"] = wing5.where(is_gapmer, np.nan) if mask_non_gapmer else wing5
+    out["arch_wing3_len"] = wing3.where(is_gapmer, np.nan) if mask_non_gapmer else wing3
 
-    # 3. hybr wing-gap asymmetry (derived from existing columns)
-    out["hybr_dna_rna_wing_dg_imbalance"] = out["hybr_dna_rna_dg_wing5"] - out["hybr_dna_rna_dg_wing3"]
-    out["hybr_dna_rna_wing5_minus_gap_dg"] = out["hybr_dna_rna_dg_wing5"] - out["hybr_dna_rna_dg_gap"]
-    out["hybr_dna_rna_wing3_minus_gap_dg"] = out["hybr_dna_rna_dg_wing3"] - out["hybr_dna_rna_dg_gap"]
+    # 3. hybr wing-gap asymmetry — NaN on non-gapmer rows (degenerate to 0 or -gap_dg).
+    imb     = out["hybr_dna_rna_dg_wing5"] - out["hybr_dna_rna_dg_wing3"]
+    w5g     = out["hybr_dna_rna_dg_wing5"] - out["hybr_dna_rna_dg_gap"]
+    w3g     = out["hybr_dna_rna_dg_wing3"] - out["hybr_dna_rna_dg_gap"]
+    out["hybr_dna_rna_wing_dg_imbalance"]   = imb.where(is_gapmer, np.nan) if mask_non_gapmer else imb
+    out["hybr_dna_rna_wing5_minus_gap_dg"]  = w5g.where(is_gapmer, np.nan) if mask_non_gapmer else w5g
+    out["hybr_dna_rna_wing3_minus_gap_dg"]  = w3g.where(is_gapmer, np.nan) if mask_non_gapmer else w3g
 
-    # 4. PS placement
+    # 4. PS placement — ps_gap_count is meaningful for all chemistries; ps_wing5/3_count NaN on non-gapmer.
     triples = out.apply(lambda r: _ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1)
-    out["ps_wing5_count"] = triples.map(lambda t: t[0]).astype(int)
     out["ps_gap_count"]   = triples.map(lambda t: t[1]).astype(int)
-    out["ps_wing3_count"] = triples.map(lambda t: t[2]).astype(int)
+    psw5 = triples.map(lambda t: float(t[0]))
+    psw3 = triples.map(lambda t: float(t[2]))
+    out["ps_wing5_count"] = psw5.where(is_gapmer, np.nan) if mask_non_gapmer else psw5
+    out["ps_wing3_count"] = psw3.where(is_gapmer, np.nan) if mask_non_gapmer else psw3
 
-    # 5. mod x backbone interaction
-    out["frac_mod_with_ps"] = out.apply(
+    # 5. mod × backbone interaction. frac_mod_with_ps is NaN on non-gapmer; frac_dna_with_ps stays.
+    fmp = out.apply(
         lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}), axis=1
     ).astype(float)
+    out["frac_mod_with_ps"] = fmp.where(is_gapmer, np.nan) if mask_non_gapmer else fmp
     out["frac_dna_with_ps"] = out.apply(
         lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}), axis=1
     ).astype(float)
