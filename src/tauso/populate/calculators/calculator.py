@@ -183,7 +183,50 @@ class Calculator:
             logger.info("All basic chemistry features exist. Skipping.")
 
         # ==========================================
-        # 2. Transfection Features
+        # 2. Gapmer Architecture Features
+        # ==========================================
+        # Geometry of the gapmer pattern: lengths of the 5' wing, the central deoxy
+        # gap, and the 3' wing (as extracted by get_longest_dna_gap from the
+        # chemical pattern), plus a boolean for whether the oligo has the canonical
+        # wing-gap-wing layout that recruits RNase H.
+        expected_arch = ["arch_wing5_len", "arch_gap_len", "arch_wing3_len", "arch_is_gapmer"]
+        missing_arch = self._get_missing_features(expected_arch)
+
+        if missing_arch:
+            logger.info("Computing %d gapmer architecture features...", len(missing_arch))
+
+            from tauso.common.modifications import get_longest_dna_gap
+            from tauso.data.consts import CHEMICAL_PATTERN
+
+            self._check_dependencies([CHEMICAL_PATTERN])
+
+            def _arch_lens(pat):
+                if not isinstance(pat, str) or not pat:
+                    return 0, 0, 0
+                start, end, gap_len = get_longest_dna_gap(pat)
+                if gap_len == 0:
+                    return 0, 0, 0
+                return start, gap_len, len(pat) - end
+
+            arch_tuples = self.data[CHEMICAL_PATTERN].map(_arch_lens)
+            if "arch_wing5_len" in missing_arch:
+                self.data["arch_wing5_len"] = arch_tuples.map(lambda t: t[0]).astype(int)
+            if "arch_gap_len" in missing_arch:
+                self.data["arch_gap_len"] = arch_tuples.map(lambda t: t[1]).astype(int)
+            if "arch_wing3_len" in missing_arch:
+                self.data["arch_wing3_len"] = arch_tuples.map(lambda t: t[2]).astype(int)
+            if "arch_is_gapmer" in missing_arch:
+                self.data["arch_is_gapmer"] = arch_tuples.map(
+                    lambda t: 1 if t[0] > 0 and t[1] > 0 and t[2] > 0 else 0
+                ).astype(int)
+
+            for feature in missing_arch:
+                self._save_calculated_feature(feature_name=feature)
+        else:
+            logger.info("All gapmer architecture features exist. Skipping.")
+
+        # ==========================================
+        # 3. Transfection Features
         # ==========================================
         expected_transfection = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
         missing_transfection = self._get_missing_features(expected_transfection)
