@@ -184,7 +184,7 @@ def main():
     logging.getLogger("numba").setLevel(logging.WARNING)
 
     config = DATASETS[args.dataset]
-    main_feature_dir = _get_saved_features_dir(config['version'])
+    main_feature_dir = Path(_get_saved_features_dir(config['version']))
     index_col = f"index_{config['version']}"
 
     if args.merge:
