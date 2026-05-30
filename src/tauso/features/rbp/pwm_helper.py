@@ -165,5 +165,7 @@ def build_rbp_expression_matrix(
     if expression_matrix.empty:
         raise ValueError("CRITICAL: Final expression matrix is empty!")
 
+    expression_matrix = np.log1p(expression_matrix)
+
     logger.info("Success. Expression matrix ready: %s", expression_matrix.shape)
     return expression_matrix
