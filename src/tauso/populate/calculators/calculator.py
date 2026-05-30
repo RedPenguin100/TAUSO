@@ -1,6 +1,7 @@
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 import psutil
 from pympler import asizeof
@@ -209,16 +210,22 @@ class Calculator:
                 return start, gap_len, len(pat) - end
 
             arch_tuples = self.data[CHEMICAL_PATTERN].map(_arch_lens)
-            if "arch_wing5_len" in missing_arch:
-                self.data["arch_wing5_len"] = arch_tuples.map(lambda t: t[0]).astype(int)
+            # is_gapmer is the routing flag for the wing-dependent features below
+            is_gapmer = arch_tuples.map(lambda t: t[0] > 0 and t[1] > 0 and t[2] > 0)
+
             if "arch_gap_len" in missing_arch:
+                # Meaningful for ALL chemistries: longest deoxy run (full length for all-DNA, 0 for all-modified)
                 self.data["arch_gap_len"] = arch_tuples.map(lambda t: t[1]).astype(int)
-            if "arch_wing3_len" in missing_arch:
-                self.data["arch_wing3_len"] = arch_tuples.map(lambda t: t[2]).astype(int)
             if "arch_is_gapmer" in missing_arch:
-                self.data["arch_is_gapmer"] = arch_tuples.map(
-                    lambda t: 1 if t[0] > 0 and t[1] > 0 and t[2] > 0 else 0
-                ).astype(int)
+                self.data["arch_is_gapmer"] = is_gapmer.astype(int)
+            # arch_wing5_len and arch_wing3_len are NaN on non-gapmer rows (no wings to measure).
+            # XGBoost routes NaN per-split rather than treating the degenerate 0 as data.
+            if "arch_wing5_len" in missing_arch:
+                wing5 = arch_tuples.map(lambda t: float(t[0]))
+                self.data["arch_wing5_len"] = wing5.where(is_gapmer, np.nan)
+            if "arch_wing3_len" in missing_arch:
+                wing3 = arch_tuples.map(lambda t: float(t[2]))
+                self.data["arch_wing3_len"] = wing3.where(is_gapmer, np.nan)
 
             for feature in missing_arch:
                 self._save_calculated_feature(feature_name=feature)
@@ -695,6 +702,17 @@ class Calculator:
             if need_placement or need_interaction:
                 self._check_dependencies([CHEMICAL_PATTERN])
 
+            # Routing flag: a row is a "real" gapmer iff it has both flanks AND a deoxy gap.
+            # ps_wing5/3_count and frac_mod_with_ps are NaN on non-gapmer rows (their value
+            # is 0 by construction there, which leaks zero-variance noise into split selection).
+            def _is_gapmer_pat(pat):
+                if not isinstance(pat, str) or not pat:
+                    return False
+                start, end, gap_len = get_longest_dna_gap(pat)
+                return gap_len > 0 and start > 0 and end < len(pat)
+
+            is_gapmer_series = self.data[CHEMICAL_PATTERN].map(_is_gapmer_pat) if need_placement or need_interaction else None
+
             if need_placement:
 
                 def _ps_placement(chem_pat, ps_pat):
@@ -712,12 +730,15 @@ class Calculator:
                 triples = self.data.apply(
                     lambda r: _ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1
                 )
-                if "ps_wing5_count" in missing:
-                    self.data["ps_wing5_count"] = triples.map(lambda t: t[0]).astype(int)
                 if "ps_gap_count" in missing:
+                    # Meaningful for all chemistries (= total PS for all-DNA, 0 for all-modified)
                     self.data["ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
+                if "ps_wing5_count" in missing:
+                    wing5 = triples.map(lambda t: float(t[0]))
+                    self.data["ps_wing5_count"] = wing5.where(is_gapmer_series, np.nan)
                 if "ps_wing3_count" in missing:
-                    self.data["ps_wing3_count"] = triples.map(lambda t: t[2]).astype(int)
+                    wing3 = triples.map(lambda t: float(t[2]))
+                    self.data["ps_wing3_count"] = wing3.where(is_gapmer_series, np.nan)
 
             if need_interaction:
 
@@ -735,13 +756,16 @@ class Calculator:
                     return ps / qualifying if qualifying else 0.0
 
                 if "frac_mod_with_ps" in missing:
-                    # Any high-affinity sugar marker: 'M' = 2'-MOE, 'C' = cEt, 'L' = LNA
-                    self.data["frac_mod_with_ps"] = self.data.apply(
+                    # Any high-affinity sugar marker: 'M' = 2'-MOE, 'C' = cEt, 'L' = LNA.
+                    # NaN on non-gapmer rows (degenerate to 0 for pure-DNA; well-defined for
+                    # gapmers, where the mod-on-PS interaction is mechanistically meaningful).
+                    raw = self.data.apply(
                         lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}),
                         axis=1,
                     ).astype(float)
+                    self.data["frac_mod_with_ps"] = raw.where(is_gapmer_series, np.nan)
                 if "frac_dna_with_ps" in missing:
-                    # 'd' = deoxynucleotide in CHEMICAL_PATTERN (and also 'd' = PO bond in PS_PATTERN -- separate alphabet)
+                    # Meaningful for all chemistries (pure-DNA = total PS / total bonds, etc.)
                     self.data["frac_dna_with_ps"] = self.data.apply(
                         lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}),
                         axis=1,

@@ -99,23 +99,43 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
         if norm_name in features_to_run and _have(source):
             all_data[norm_name] = all_data[source] / seq_len
 
+    # Wing/gap asymmetry features are NaN on non-gapmer rows (no wings to compare). The
+    # routing flag is derived from CHEMICAL_PATTERN so the populate stays standalone.
+    import numpy as np
+
+    from ..common.modifications import get_longest_dna_gap
+
+    def _is_gapmer_pat(pat):
+        if not isinstance(pat, str) or not pat:
+            return False
+        start, end, gap_len = get_longest_dna_gap(pat)
+        return gap_len > 0 and start > 0 and end < len(pat)
+
+    wing_asym_features = (
+        "hybr_dna_rna_wing_dg_imbalance",
+        "hybr_dna_rna_wing5_minus_gap_dg",
+        "hybr_dna_rna_wing3_minus_gap_dg",
+    )
+    is_gapmer_series = (
+        all_data[CHEMICAL_PATTERN].map(_is_gapmer_pat)
+        if any(f in features_to_run for f in wing_asym_features)
+        else None
+    )
+
     if "hybr_dna_rna_wing_dg_imbalance" in features_to_run and _have(
         "hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_wing3"
     ):
-        all_data["hybr_dna_rna_wing_dg_imbalance"] = (
-            all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_wing3"]
-        )
+        raw = all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_wing3"]
+        all_data["hybr_dna_rna_wing_dg_imbalance"] = raw.where(is_gapmer_series, np.nan)
     if "hybr_dna_rna_wing5_minus_gap_dg" in features_to_run and _have(
         "hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_gap"
     ):
-        all_data["hybr_dna_rna_wing5_minus_gap_dg"] = (
-            all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_gap"]
-        )
+        raw = all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_gap"]
+        all_data["hybr_dna_rna_wing5_minus_gap_dg"] = raw.where(is_gapmer_series, np.nan)
     if "hybr_dna_rna_wing3_minus_gap_dg" in features_to_run and _have(
         "hybr_dna_rna_dg_wing3", "hybr_dna_rna_dg_gap"
     ):
-        all_data["hybr_dna_rna_wing3_minus_gap_dg"] = (
-            all_data["hybr_dna_rna_dg_wing3"] - all_data["hybr_dna_rna_dg_gap"]
-        )
+        raw = all_data["hybr_dna_rna_dg_wing3"] - all_data["hybr_dna_rna_dg_gap"]
+        all_data["hybr_dna_rna_wing3_minus_gap_dg"] = raw.where(is_gapmer_series, np.nan)
 
     return all_data, features_to_run
