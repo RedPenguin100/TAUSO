@@ -57,13 +57,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_3utr = np.zeros(n_rows, dtype=np.int8)
     out_5utr = np.zeros(n_rows, dtype=np.int8)
     out_cds = np.zeros(n_rows, dtype=np.int8)
-
-    out_n_exon = np.zeros(n_rows, dtype=np.int8)
-    out_n_intron = np.zeros(n_rows, dtype=np.int8)
-    out_n_3utr = np.zeros(n_rows, dtype=np.int8)
-    out_n_5utr = np.zeros(n_rows, dtype=np.int8)
-    out_n_utr = np.zeros(n_rows, dtype=np.int8)
-    out_n_cds = np.zeros(n_rows, dtype=np.int8)
+    out_cds_non_exclusive = np.zeros(n_rows, dtype=np.int8)
 
     # Normalized sense positions and codon-distance features.
     # NaN for unmapped rows (no gene match), for rows on genes without codon
@@ -217,13 +211,6 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         is_5utr = _in_intervals(gen_coords, locus_info._5utr_indices)
         is_generic_utr = _in_intervals(gen_coords, locus_info.utr_indices)
 
-        # --- NON-EXCLUSIVE ASSIGNMENTS ---
-        out_n_exon[v_row_idxs[is_exon]] = 1
-        out_n_intron[v_row_idxs[is_intron]] = 1
-        out_n_3utr[v_row_idxs[is_3utr]] = 1
-        out_n_5utr[v_row_idxs[is_5utr]] = 1
-        out_n_utr[v_row_idxs[is_generic_utr | is_3utr | is_5utr]] = 1
-
         # --- EXCLUSIVE ASSIGNMENTS & TYPE ---
         # Note: generic_utr_mask was completely unused for exclusive flagging, so it's removed.
         mask_3utr = is_3utr
@@ -241,15 +228,15 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         out_3utr[v_row_idxs[mask_3utr]] = 1
         out_5utr[v_row_idxs[mask_5utr]] = 1
 
-        # sense_cds / n_sense_cds = exon hit AND the gene is protein-coding,
-        # with the same exclusive (mask_exon, no UTR) vs non-exclusive (is_exon,
-        # any exon hit including UTRs) split as sense_exon / n_sense_exon.
-        # The biotype guard ensures both stay zero on lncRNAs (MALAT1, SNHG14, …)
+        # sense_cds and sense_cds_non_exclusive = exon hit AND the gene is
+        # protein-coding, in exclusive (mask_exon, UTR excluded) vs non-exclusive
+        # (is_exon, any exonic hit including UTRs that overlap exons) forms.
+        # The biotype guard keeps both at zero on lncRNAs (MALAT1, SNHG14, …)
         # where no UTRs are annotated to mask and every exonic hit would
         # otherwise spuriously look like CDS.
         if locus_info.gene_type == GeneType.PROTEIN_CODING:
             out_cds[v_row_idxs[mask_exon]] = 1
-            out_n_cds[v_row_idxs[is_exon]] = 1
+            out_cds_non_exclusive[v_row_idxs[is_exon]] = 1
 
     # Apply exclusive features
     all_data[SENSE_START] = out_start
@@ -261,15 +248,8 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[SENSE_3UTR] = out_3utr
     all_data[SENSE_5UTR] = out_5utr
     all_data[SENSE_CDS] = out_cds
+    all_data[SENSE_CDS_NON_EXCLUSIVE] = out_cds_non_exclusive
     all_data[SENSE_TYPE] = out_type
-
-    # Apply non-exclusive features
-    all_data[f"n_{SENSE_EXON}"] = out_n_exon
-    all_data[f"n_{SENSE_INTRON}"] = out_n_intron
-    all_data[f"n_{SENSE_3UTR}"] = out_n_3utr
-    all_data[f"n_{SENSE_5UTR}"] = out_n_5utr
-    all_data[f"n_{SENSE_UTR}"] = out_n_utr
-    all_data[f"n_{SENSE_CDS}"] = out_n_cds
 
     # Normalized positions + codon distances (genomic + mRNA)
     all_data[SENSE_START_NORM] = out_start_norm

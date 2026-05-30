@@ -11,6 +11,7 @@ from ...data.consts import (
     SENSE_3UTR,
     SENSE_5UTR,
     SENSE_CDS,
+    SENSE_CDS_NON_EXCLUSIVE,
     SENSE_DIST_TO_CANONICAL_START,
     SENSE_DIST_TO_CANONICAL_STOP,
     SENSE_DIST_TO_CLOSEST_START,
@@ -218,6 +219,7 @@ class Calculator:
             SENSE_3UTR,
             SENSE_5UTR,
             SENSE_CDS,
+            SENSE_CDS_NON_EXCLUSIVE,
             SENSE_TYPE,
             SENSE_START_NORM,
             SENSE_START_FROM_END_NORM,
@@ -227,12 +229,6 @@ class Calculator:
             SENSE_DIST_TO_CLOSEST_START,
             SENSE_MRNA_DIST_TO_CANONICAL_STOP,
             SENSE_MRNA_DIST_TO_CLOSEST_STOP,
-            f"n_{SENSE_EXON}",
-            f"n_{SENSE_INTRON}",
-            f"n_{SENSE_3UTR}",
-            f"n_{SENSE_5UTR}",
-            f"n_{SENSE_UTR}",
-            f"n_{SENSE_CDS}",
         ]
 
         missing = self._get_missing_features(expected_features)
