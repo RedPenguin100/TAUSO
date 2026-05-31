@@ -967,7 +967,7 @@ class Calculator:
 
     def calculate_mrna_halflife(self):
         """Calculates mRNA stability and half-life features."""
-        expected_features = ["mRNA_HalfLife", "HalfLife_Source", "Mapped_Cell_Proxy"]
+        expected_features = ["halflife_value", "halflife_source", "halflife_cell_proxy"]
         missing = self._get_missing_features(expected_features)
 
         if missing:

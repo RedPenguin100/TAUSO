@@ -123,9 +123,9 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "int"
     elif name == "sense_type":
         feat_type = "str"
-    elif name in {"HalfLife_Source", "Mapped_Cell_Proxy"}:
+    elif name in {"halflife_source", "halflife_cell_proxy"}:
         feat_type = "str"
-    elif name == "mRNA_HalfLife":
+    elif name == "halflife_value":
         feat_type = "float64"
     # Competition
     elif name.startswith("PFRED_") or name.startswith("OW_"):
