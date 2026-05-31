@@ -9,7 +9,7 @@ Status: ✅ done in `robust/` · ⏭ skipped intentionally · ◇ open / not yet
 | 1  | `.done` / `.failed.<jobid>.<stage>` markers per ASO | ✅ |
 | 2  | Resume-from-stage (skip a stage if its `.ncrst` exists) | ✅ |
 | 3  | `--mem=64G` (was 250G) | ✅ |
-| 4  | GPU path (`pmemd.cuda`) — upstream GPU variants reserve a GPU then run sander.MPI on CPU anyway | ⏭ — needs verifying `pmemd.cuda` is in env |
+| 4  | GPU path (`pmemd.cuda`) — upstream GPU variants reserve a GPU then run sander.MPI on CPU anyway | ✅ — `USE_GPU=1` runs 1 `pmemd.cuda`/GPU (no MPI); needs `barostat=2`. See `GPU_FAST_PATH.md` |
 | 5  | Tleap preflight on the login node; bad PDBs → `bad_pdbs.txt`, skip sbatch | ✅ |
 | 6  | `#SBATCH --requeue` + SIGTERM trap | ✅ |
 | 7  | Right-size `-np` (probably 4–8 enough; `sander.MPI` plateaus early) | ⏭ — needs benchmark |
