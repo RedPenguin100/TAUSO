@@ -539,7 +539,7 @@ class Calculator:
         expected_features = []
         for pos in range(max_len):
             for nuc in ["A", "C", "G", "T"]:
-                expected_features.append(f"OHE_pos{pos}_{nuc}")
+                expected_features.append(f"ohe_pos{pos}_{nuc}")
 
         missing = self._get_missing_features(expected_features)
 

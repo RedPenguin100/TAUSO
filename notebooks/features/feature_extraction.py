@@ -42,7 +42,7 @@ def get_dtype_for_feature(filename, index_col_name):
     name = filename.removesuffix(".parquet").removesuffix(".csv")
     if name.startswith("RBP_"):
         feat_type = "float64"
-    elif name.startswith("OHE_"):
+    elif name.startswith("ohe_"):
         feat_type = "int8"
     elif name.startswith("tAI_") or name.startswith("CAI_") or name.startswith("ENC_"):
         feat_type = "float64"

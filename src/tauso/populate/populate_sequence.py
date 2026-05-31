@@ -102,7 +102,7 @@ def populate_sequence_one_hot_encoded(
 ) -> Tuple[pd.DataFrame, list[str]]:
     """
     One-hot encodes ASO sequences with zero-padding to handle varying lengths.
-    Flattens the output into tabular columns (e.g., OHE_pos0_A, OHE_pos0_C...).
+    Flattens the output into tabular columns (e.g., ohe_pos0_A, ohe_pos0_C...).
 
     Returns:
         Tuple containing the updated DataFrame and a list of the new feature names.
@@ -150,7 +150,7 @@ def populate_sequence_one_hot_encoded(
     feature_names = []
     for pos in range(max_len):
         for nuc in ["A", "C", "G", "T"]:
-            feature_names.append(f"OHE_pos{pos}_{nuc}")
+            feature_names.append(f"ohe_pos{pos}_{nuc}")
 
     # 5. Expand the lists into DataFrame columns
     # (Doing this via pd.DataFrame conversion is significantly faster than looping column-wise)
