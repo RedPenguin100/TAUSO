@@ -19,4 +19,8 @@ ax.set_yticks(range(len(feats))); ax.set_yticklabels(feats[::-1])
 ax.set_xlabel('mean inhibition (%)')
 ax.set_title('High off-target ASOs knock down ~5 points less than their cohort-mates')
 ax.legend(frameon=False, loc='lower right')
+fig.text(0.012, -0.02,
+         "off-target burden = predicted hybridization to abundant non-target RNA "
+         "(rRNA, RNase-H1, transcriptome); 'high' = top 25% within each experiment.",
+         ha='left', fontsize=8, color='#666')
 f.save(fig, "dumbbell")

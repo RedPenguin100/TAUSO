@@ -32,6 +32,16 @@ BURDEN = {
     "off-target specific": ("off_target_score_specific_ARTM_n200_c1000", -1),
 }
 META = [INH, COHORT, "Cell_line", "Modification"]
+
+# plain-language description of each burden feature, for figure captions
+BURDEN_DESC = {
+    "rRNA (total)":        "binding to ribosomal RNA (18S/28S/5.8S/5S) — the most abundant RNA in the cell",
+    "rRNA 18S":            "binding to 18S ribosomal RNA",
+    "rRNA 28S":            "binding to 28S ribosomal RNA",
+    "RNase-H1 off-tgt":    "binding to the RNase-H1 transcript",
+    "off-target general":  "abundance-weighted off-target binding across the transcriptome",
+    "off-target specific": "abundance-weighted off-target binding to specifically-expressed transcripts",
+}
 ACCENT, BLUE, GREY = "#E4572E", "#2E86AB", "#9AA5B1"
 SEQ = ["#bdbdbd", "#f3b08a", "#e4572e", "#9e2a0c"]   # none -> high burden (grey -> deep red = worse)
 
@@ -99,6 +109,29 @@ def resid_by_bin(df, name, n=3):
     """Per burden-bin mean within-cohort residual inhibition (+/- SE) and n."""
     g = df.assign(_b=bins(df, name, n)).groupby("_b", observed=True)["inh_resid"]
     return pd.DataFrame({"mean": g.mean(), "se": g.sem(), "n": g.size()})
+
+
+def burden_log10(df, name):
+    """log10(1 + burden): puts the 0-burden ASOs at x=0 and spreads the score's orders of magnitude."""
+    return np.log10(1.0 + df[name].to_numpy("float64"))
+
+
+def binned_resid(df, name, nbins=10, min_n=30):
+    """Mean within-cohort residual inhibition vs off-target burden, binned on a log10 axis.
+
+    Equal-width bins of log10(1 + burden); returns one row per non-empty bin with x (bin centre),
+    mean, se, n. The smooth alternative to the coarse none/low/mid/high split."""
+    b = burden_log10(df, name)
+    r = df["inh_resid"].to_numpy("float64")
+    edges = np.linspace(b.min(), b.max(), nbins + 1)
+    idx = np.clip(np.digitize(b, edges) - 1, 0, nbins - 1)
+    rows = []
+    for k in range(nbins):
+        m = idx == k
+        if m.sum() >= min_n:
+            rows.append({"x": (edges[k] + edges[k + 1]) / 2, "mean": float(r[m].mean()),
+                         "se": float(r[m].std() / np.sqrt(m.sum())), "n": int(m.sum())})
+    return pd.DataFrame(rows)
 
 
 def high_vs_regular(df, name, q=0.25, min_n=12):
