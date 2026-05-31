@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 
 
-def compute_mod_fraction(pattern):
+def compute_mod_sugar_fraction(pattern):
     """
     Returns the fraction of modified residues (non-'d' characters)
     in a given chemical pattern string.
@@ -17,135 +17,111 @@ def compute_mod_fraction(pattern):
     return modified / total
 
 
-def compute_mod_type_count(pattern):
+def compute_mod_sugar_5prime_run(pattern):
     """
-    Returns the normalized number of unique modification characters (excluding 'd'),
-    divided by the total number of modified residues. Returns 0 if no modifications.
-    """
-    pattern = str(pattern)
-    mod_chars = [c for c in pattern if c != "d"]
-    if not mod_chars:
-        return 0.0
-
-    unique_mods = set(mod_chars)
-    return len(unique_mods) / len(mod_chars)
-
-
-def compute_mod_5prime_run(pattern):
-    """
-    Returns the length of the longest consecutive stretch of modified residues
-    (non-'d') starting from the 5' end (left side of the pattern).
-    """
-    pattern = str(pattern)
-    run = 0
-    for c in pattern:
-        if c != "d":
-            run += 1
-        else:
-            break
-
-    length = len(pattern)
-    if length == 0:
-        return 0.0
-
-    return run / length
-
-
-def compute_mod_3prime_run(pattern):
-    """
-    Returns the length of the longest consecutive stretch of modified residues
-    (non-'d') starting from the 3' end (right side of the pattern).
-    """
-    pattern = str(pattern)[::-1]  # reverse pattern to simulate scanning from 3'
-    run = 0
-    for c in pattern:
-        if c != "d":
-            run += 1
-        else:
-            break
-
-    length = len(pattern)
-    if length == 0:
-        return 0.0
-
-    return run / length
-
-
-def compute_mod_min_distance_to_5prime(pattern):
-    """
-    Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
-    from the 5' end of the pattern. Returns -1.0 if no modifications are found or if pattern is empty.
+    Returns the length of the contiguous modified run at the 5' end, normalized by
+    pattern length. NaN if pattern is empty.
     """
     pattern = str(pattern)
     n = len(pattern)
     if n == 0:
-        return -1.0
+        return np.nan
+    run = 0
+    for c in pattern:
+        if c == "d":
+            break
+        run += 1
+    return run / n
+
+
+def compute_mod_sugar_3prime_run(pattern):
+    """
+    Returns the length of the contiguous modified run at the 3' end, normalized by
+    pattern length. NaN if pattern is empty.
+    """
+    pattern = str(pattern)
+    n = len(pattern)
+    if n == 0:
+        return np.nan
+    run = 0
+    for c in reversed(pattern):
+        if c == "d":
+            break
+        run += 1
+    return run / n
+
+
+def compute_mod_sugar_min_distance_to_5prime(pattern):
+    """
+    Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
+    from the 5' end of the pattern. NaN if pattern is empty or has no modifications.
+    """
+    pattern = str(pattern)
+    n = len(pattern)
+    if n == 0:
+        return np.nan
 
     for i, c in enumerate(pattern):
         if c != "d":
             return i / n
 
-    return -1.0
+    return np.nan
 
 
 ###########################################################################
-def compute_mod_min_distance_to_3prime(pattern):
+def compute_mod_sugar_min_distance_to_3prime(pattern):
     """
     Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
-    from the 3' end of the pattern. Returns -1.0 if no modifications are found.
+    from the 3' end of the pattern. NaN if pattern is empty or has no modifications.
     """
     pattern = str(pattern)
     n = len(pattern)
     if n == 0:
-        return -1.0
+        return np.nan
 
     for i, c in enumerate(reversed(pattern)):
         if c != "d":
             return i / n
 
-    return -1.0
+    return np.nan
 
 
 ###########################################################################
-def compute_mod_pos_std(pattern):
+def compute_mod_sugar_pos_std(pattern):
     """
-    Returns the standard deviation of modified residue positions (non-'d') in the pattern.
-    Returns -1 if there are no modifications.
+    Returns the standard deviation of modified residue positions (non-'d'), normalized
+    by pattern length so the value is a dimensionless fraction. NaN if pattern is empty
+    or has no modifications.
     """
 
     pattern = str(pattern)
-    mod_positions = [i for i, c in enumerate(pattern) if c != "d"]
-    if not mod_positions:
-        return -1
-
     length = len(pattern)
     if length == 0:
-        return 0.0
-    std = np.std(mod_positions)
-    return std / length
+        return np.nan
+
+    mod_positions = [i for i, c in enumerate(pattern) if c != "d"]
+    if not mod_positions:
+        return np.nan
+
+    return float(np.std(mod_positions)) / length
 
 
 ###########################################################################
 
 
-def compute_mod_block_count(pattern):
+def compute_mod_sugar_block_count(pattern):
     """
     Returns the number of contiguous blocks of modified residues (non-'d')
     in the pattern.
     """
     pattern = str(pattern)
-    blocks = re.findall(r"[^d]+", pattern)
-    length = len(pattern)
-    if length == 0:
-        return 0.0
-
-    return (len(blocks)) / length
+    return len(re.findall(r"[^d]+", pattern))
 
 
 ############################################################################
 
 
-def compute_mod_max_block_length(pattern):
+def compute_mod_sugar_max_block_length(pattern):
     """
     Returns the length of the longest contiguous block of modified residues (non-'d')
     in the chemical pattern.
@@ -158,7 +134,7 @@ def compute_mod_max_block_length(pattern):
 ############################################################################
 
 
-def compute_mod_char_entropy(pattern):
+def compute_mod_sugar_char_entropy(pattern):
     """
     Computes the Shannon entropy of the non-'d' characters (modification types) in the pattern.
     Entropy is 0 if there are no modifications or if all are of the same type.
@@ -180,7 +156,7 @@ def compute_mod_char_entropy(pattern):
 ############################################################################
 
 
-def compute_dominant_mod_fraction(pattern):
+def compute_mod_sugar_dominant_mod_fraction(pattern):
     """
     Returns the relative frequency of the most common modified residue
     (non-'d') in the chemical pattern. Returns 0.0 if there are no modifications.
@@ -198,7 +174,7 @@ def compute_dominant_mod_fraction(pattern):
 ############################################################################
 
 
-def compute_mod_evenness(pattern):
+def compute_mod_sugar_evenness(pattern):
     """
     Computes the normalized entropy of the distances between modified residues
     (non-'d') as a proxy for spatial evenness. Returns 0.0 if < 2 modifications.
@@ -219,7 +195,7 @@ def compute_mod_evenness(pattern):
 
 
 ############################################################################
-def compute_mod_symmetry_score(pattern):
+def compute_mod_sugar_symmetry_score(pattern):
     """
     Computes a symmetry score of modification distribution around the center.
     Returns a value between 0 (fully asymmetric) and 1 (perfect symmetry).
@@ -244,7 +220,7 @@ def compute_mod_symmetry_score(pattern):
 
 
 ############################################################################
-def compute_mod_skew_index(pattern):
+def compute_mod_sugar_skew_index(pattern):
     """
     Computes skew index between the 5' and 3' thirds of the pattern.
     Returns a value between -1 (all in 3') and +1 (all in 5').
@@ -269,27 +245,22 @@ def compute_mod_skew_index(pattern):
 
 
 ############################################################################
-def compute_mod_mean_gap(pattern):
+def compute_mod_sugar_mean_gap(pattern):
     """
-    Returns the mean gap between consecutive modified residues (non-'d').
-    Returns -1 if fewer than 2 modifications are found.
+    Returns the mean gap (in residues) between consecutive modified positions (non-'d').
+    NaN if fewer than 2 modifications are found.
     """
     pattern = str(pattern)
     positions = [i for i, c in enumerate(pattern) if c != "d"]
 
     if len(positions) < 2:
-        return -1
+        return np.nan
 
-    gaps = np.diff(positions)
-
-    length = len(pattern)
-    if length == 0:
-        return 0
-    return (gaps.mean()) / length
+    return float(np.diff(positions).mean())
 
 
 ############################################################################
-def compute_mod_local_density_max(pattern, window=5):
+def compute_mod_sugar_local_density_max(pattern, window=5):
     """
     Returns the maximum number of modified residues (non-'d') found in any sliding window
     of length `window` across the given chemical pattern.
@@ -313,30 +284,30 @@ def compute_mod_local_density_max(pattern, window=5):
 ############################################################################
 
 
-def compute_mod_in_core(pattern, core_fraction=0.4):
+def compute_mod_sugar_in_core(pattern, core_fraction=0.4):
     """
     Returns the fraction of modified residues (non-'d') that lie within
     the central portion of the pattern (e.g., 30%-70%).
-    Returns -1 if no modifications exist.
+    NaN if pattern is empty or has no modifications.
     """
     pattern = str(pattern)
     n = len(pattern)
     if n == 0:
-        return -1
+        return np.nan
 
     core_start = int(n * (0.5 - core_fraction / 2))
     core_end = int(n * (0.5 + core_fraction / 2))
 
     total_mods = sum(1 for c in pattern if c != "d")
     if total_mods == 0:
-        return -1
+        return np.nan
 
     core_mods = sum(1 for c in pattern[core_start:core_end] if c != "d")
     return core_mods / total_mods
 
 
 #############################################################################
-def compute_mod_longest_repeat_run(pattern):
+def compute_mod_sugar_longest_repeat_run(pattern):
     """
     Returns the length of the longest run of identical modified characters (non-'d')
     appearing consecutively in the pattern.
@@ -360,15 +331,12 @@ def compute_mod_longest_repeat_run(pattern):
 
         if current_run > max_run:
             max_run = current_run
-    length = len(pattern)
-    if length == 0:
-        return 0  # define empty pattern as having no runs
 
-    return max_run / length  # normalize by pattern length for consistency
+    return max_run
 
 
 ############################################################################
-def compute_mod_adjacent_pair_count(pattern):
+def compute_mod_sugar_adjacent_pair_count(pattern):
     """
     Returns the number of adjacent identical modification pairs (e.g., 'CC', 'MM'),
     where both characters are the same and not 'd' (DNA).
@@ -379,15 +347,11 @@ def compute_mod_adjacent_pair_count(pattern):
     for i in range(len(pattern) - 1):
         if pattern[i] != "d" and pattern[i] == pattern[i + 1]:
             count += 1
-
-    length = len(pattern)
-    if length == 0:
-        return 0
-    return count / length
+    return count
 
 
 ############################################################################
-def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
+def compute_mod_sugar_strong_repeat_group_count(pattern, min_run_length=3):
     """
     Returns the number of groups of identical, consecutive modification characters (non-'d'),
     where each group has length ≥ min_run_length (default 3).
@@ -412,7 +376,4 @@ def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
         else:
             i += 1
 
-    length = len(pattern)
-    if length == 0:
-        return 0
-    return count / length
+    return count

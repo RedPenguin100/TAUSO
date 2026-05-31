@@ -228,51 +228,7 @@ class Calculator:
             logger.info("All basic chemistry features exist. Skipping.")
 
         # ==========================================
-        # 2. Gapmer Architecture Features
-        # ==========================================
-        # Lengths of the 5' wing, central deoxy gap, and 3' wing (extracted from the
-        # chemical pattern). arch_wing5_len / arch_wing3_len are NaN on non-gapmer rows
-        # (no wings to measure); arch_gap_len + arch_is_gapmer are meaningful for all
-        # chemistries.
-        expected_arch = ["arch_wing5_len", "arch_gap_len", "arch_wing3_len", "arch_is_gapmer"]
-        missing_arch = self._get_missing_features(expected_arch)
-
-        if missing_arch:
-            logger.info("Computing %d gapmer architecture features...", len(missing_arch))
-
-            from tauso.common.modifications import get_longest_dna_gap
-            from tauso.data.consts import CHEMICAL_PATTERN
-
-            self._check_dependencies([CHEMICAL_PATTERN])
-
-            def _arch_lens(pat):
-                if not isinstance(pat, str) or not pat:
-                    return 0, 0, 0
-                start, end, gap_len = get_longest_dna_gap(pat)
-                if gap_len == 0:
-                    return 0, 0, 0
-                return start, gap_len, len(pat) - end
-
-            arch_tuples = self.data[CHEMICAL_PATTERN].map(_arch_lens)
-            is_gapmer = arch_tuples.map(lambda t: t[0] > 0 and t[1] > 0 and t[2] > 0)
-            if "arch_gap_len" in missing_arch:
-                self.data["arch_gap_len"] = arch_tuples.map(lambda t: t[1]).astype(int)
-            if "arch_is_gapmer" in missing_arch:
-                self.data["arch_is_gapmer"] = is_gapmer.astype(int)
-            if "arch_wing5_len" in missing_arch:
-                wing5 = arch_tuples.map(lambda t: float(t[0]))
-                self.data["arch_wing5_len"] = wing5.where(is_gapmer, np.nan)
-            if "arch_wing3_len" in missing_arch:
-                wing3 = arch_tuples.map(lambda t: float(t[2]))
-                self.data["arch_wing3_len"] = wing3.where(is_gapmer, np.nan)
-
-            for feature in missing_arch:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All gapmer architecture features exist. Skipping.")
-
-        # ==========================================
-        # 3. 5'-Terminal Nucleotide Features (term5p_*)
+        # 2. 5'-Terminal Nucleotide Features (term5p_*)
         # ==========================================
         # 5'-terminal base identity. RNase H1 has a documented sequence preference at the
         # cleavage site (Wu & Lima, JBC 2004; Lima et al., JBC 2004) and the 5' base of
@@ -302,7 +258,7 @@ class Calculator:
             logger.info("All 5'-terminal base features exist. Skipping.")
 
         # ==========================================
-        # 4. Transfection Features
+        # 3. Transfection Features
         # ==========================================
         expected_transfection = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
         missing_transfection = self._get_missing_features(expected_transfection)
@@ -686,7 +642,7 @@ class Calculator:
             logger.info("All modification features exist. Skipping.")
 
     def calculate_backbone_features(self):
-        """Calculates features derived from the PS_PATTERN backbone (ps_* family).
+        """Calculates features derived from the PS_PATTERN backbone (mod_ps_* family).
 
         PS_PATTERN encodes one inter-nucleotide BOND per character ('*' = PS,
         'd' = PO), so it has length len(CHEMICAL_PATTERN) - 1 for a regular
@@ -694,14 +650,14 @@ class Calculator:
         matching the convention used in get_dna_rna_dg_region.
         """
         expected_features = [
-            "ps_po_percentage",
-            "ps_end_score",
-            "ps_max_consecutive_po",
-            "ps_wing5_count",
-            "ps_gap_count",
-            "ps_wing3_count",
-            "ps_frac_mod",
-            "ps_frac_dna",
+            "mod_ps_po_percentage",
+            "mod_ps_end_score",
+            "mod_ps_max_consecutive_po",
+            "mod_ps_wing5_count",
+            "mod_ps_gap_count",
+            "mod_ps_wing3_count",
+            "mod_ps_frac_mod",
+            "mod_ps_frac_dna",
         ]
         missing = self._get_missing_features(expected_features)
 
@@ -714,13 +670,13 @@ class Calculator:
 
             self._check_dependencies([PS_PATTERN])
 
-            if "ps_max_consecutive_po" in missing:
-                self.data["ps_max_consecutive_po"] = self.data[PS_PATTERN].apply(
+            if "mod_ps_max_consecutive_po" in missing:
+                self.data["mod_ps_max_consecutive_po"] = self.data[PS_PATTERN].apply(
                     lambda x: max((len(chunk) for chunk in x.split("*")), default=0) if isinstance(x, str) else 0
                 )
 
-            if "ps_end_score" in missing:
-                self.data["ps_end_score"] = self.data[PS_PATTERN].apply(
+            if "mod_ps_end_score" in missing:
+                self.data["mod_ps_end_score"] = self.data[PS_PATTERN].apply(
                     lambda x: (
                         len(re.match(r"^\**", x).group()) + len(re.search(r"\**$", x).group())
                         if isinstance(x, str) and x
@@ -728,20 +684,20 @@ class Calculator:
                     )
                 )
 
-            if "ps_po_percentage" in missing:
+            if "mod_ps_po_percentage" in missing:
                 total_po = self.data[PS_PATTERN].apply(lambda x: x.count("d") if isinstance(x, str) else 0)
                 total_ps = self.data[PS_PATTERN].apply(lambda x: x.count("*") if isinstance(x, str) else 0)
                 backbone_length = total_po + total_ps
-                self.data["ps_po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
+                self.data["mod_ps_po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
 
-            need_placement = any(c in missing for c in ("ps_wing5_count", "ps_gap_count", "ps_wing3_count"))
-            need_interaction = any(c in missing for c in ("ps_frac_mod", "ps_frac_dna"))
+            need_placement = any(c in missing for c in ("mod_ps_wing5_count", "mod_ps_gap_count", "mod_ps_wing3_count"))
+            need_interaction = any(c in missing for c in ("mod_ps_frac_mod", "mod_ps_frac_dna"))
 
             if need_placement or need_interaction:
                 self._check_dependencies([CHEMICAL_PATTERN])
 
             # Routing flag: a row is a "real" gapmer iff it has both flanks AND a deoxy gap.
-            # ps_wing5/3_count and ps_frac_mod are NaN on non-gapmer rows because their
+            # mod_ps_wing5/3_count and mod_ps_frac_mod are NaN on non-gapmer rows because their
             # value is 0 by construction there, which would leak zero-variance noise into
             # split selection.
             def _is_gapmer_pat(pat):
@@ -769,15 +725,15 @@ class Calculator:
                     )
 
                 triples = self.data.apply(lambda r: _ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1)
-                if "ps_gap_count" in missing:
+                if "mod_ps_gap_count" in missing:
                     # Meaningful for all chemistries (= total PS for all-DNA, 0 for all-modified)
-                    self.data["ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
-                if "ps_wing5_count" in missing:
+                    self.data["mod_ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
+                if "mod_ps_wing5_count" in missing:
                     wing5 = triples.map(lambda t: float(t[0]))
-                    self.data["ps_wing5_count"] = wing5.where(is_gapmer_series, np.nan)
-                if "ps_wing3_count" in missing:
+                    self.data["mod_ps_wing5_count"] = wing5.where(is_gapmer_series, np.nan)
+                if "mod_ps_wing3_count" in missing:
                     wing3 = triples.map(lambda t: float(t[2]))
-                    self.data["ps_wing3_count"] = wing3.where(is_gapmer_series, np.nan)
+                    self.data["mod_ps_wing3_count"] = wing3.where(is_gapmer_series, np.nan)
 
             if need_interaction:
 
@@ -794,18 +750,18 @@ class Calculator:
                                 ps += 1
                     return ps / qualifying if qualifying else 0.0
 
-                if "ps_frac_mod" in missing:
+                if "mod_ps_frac_mod" in missing:
                     # Fraction of high-affinity-sugar positions (M/C/L) that carry a PS bond
                     # on their 3' side. NaN on non-gapmer rows (no mods or no wings).
                     raw = self.data.apply(
                         lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}),
                         axis=1,
                     ).astype(float)
-                    self.data["ps_frac_mod"] = raw.where(is_gapmer_series, np.nan)
-                if "ps_frac_dna" in missing:
+                    self.data["mod_ps_frac_mod"] = raw.where(is_gapmer_series, np.nan)
+                if "mod_ps_frac_dna" in missing:
                     # Fraction of deoxy ('d') positions that carry a PS bond on their 3' side.
                     # Meaningful for all chemistries (pure-DNA = total PS / total bonds).
-                    self.data["ps_frac_dna"] = self.data.apply(
+                    self.data["mod_ps_frac_dna"] = self.data.apply(
                         lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}),
                         axis=1,
                     ).astype(float)
