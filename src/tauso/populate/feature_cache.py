@@ -20,6 +20,10 @@ FEATURE_CACHE_FILES = {
     },
 }
 
+# Per-feature shards (overrides + features not yet folded into the wide pack) live here,
+# one level below the feature store dir. The wide cache sits in the bare dir alongside.
+LOOSE_SHARD_SUBDIR = "_patches"
+
 
 def _spec(run):
     if run not in FEATURE_CACHE_FILES:
@@ -35,6 +39,19 @@ def feature_store_dir(run):
 
 def cache_path(run):
     return os.path.join(feature_store_dir(run), _spec(run)["filename"])
+
+
+def cache_path_if_present(run):
+    """Return the local cache path if it exists for `run`, else None. Never downloads."""
+    if run not in FEATURE_CACHE_FILES:
+        return None
+    p = cache_path(run)
+    return p if os.path.exists(p) else None
+
+
+def loose_shard_dir(base_dir):
+    """Subdir of `base_dir` where per-feature shards are written."""
+    return os.path.join(base_dir, LOOSE_SHARD_SUBDIR)
 
 
 def index_col(run):
@@ -61,7 +78,8 @@ def save_feature_internal(df, feature_name, overwrite=False, version=None, saved
     if saved_dir_func is None:
         raise ValueError(f"saved_dir_func is required to cache feature '{feature_name}'.")
 
-    feature_dir = saved_dir_func(version)
+    base_dir = saved_dir_func(version)
+    feature_dir = loose_shard_dir(base_dir)
     os.makedirs(feature_dir, exist_ok=True)
     idx = _spec(version)["index_col"] if version in FEATURE_CACHE_FILES else f"index_{version}"
     sub_df = df[[idx, feature_name]].copy()
