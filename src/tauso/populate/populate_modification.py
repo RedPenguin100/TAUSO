@@ -5,12 +5,12 @@ logger = logging.getLogger(__name__)
 
 from ..data.consts import CHEMICAL_PATTERN
 from ..features.sequence_modification.mod_features import (
-    compute_mod_sugar_dominant_mod_fraction,
     compute_mod_sugar_3prime_run,
     compute_mod_sugar_5prime_run,
     compute_mod_sugar_adjacent_pair_count,
     compute_mod_sugar_block_count,
     compute_mod_sugar_char_entropy,
+    compute_mod_sugar_dominant_mod_fraction,
     compute_mod_sugar_evenness,
     compute_mod_sugar_fraction,
     compute_mod_sugar_in_core,
@@ -46,7 +46,9 @@ MODIFICATION_FEATURE_TO_CALCULATION = {
     "mod_sugar_in_core": lambda row: compute_mod_sugar_in_core(row[CHEMICAL_PATTERN]),
     "mod_sugar_longest_repeat_run": lambda row: compute_mod_sugar_longest_repeat_run(row[CHEMICAL_PATTERN]),
     "mod_sugar_adjacent_pair_count": lambda row: compute_mod_sugar_adjacent_pair_count(row[CHEMICAL_PATTERN]),
-    "mod_sugar_strong_repeat_group_count": lambda row: compute_mod_sugar_strong_repeat_group_count(row[CHEMICAL_PATTERN]),
+    "mod_sugar_strong_repeat_group_count": lambda row: compute_mod_sugar_strong_repeat_group_count(
+        row[CHEMICAL_PATTERN]
+    ),
 }
 
 
