@@ -56,22 +56,14 @@ def create_tauso_split(data: pd.DataFrame, val_frac: float = 0.15, test_frac: fl
     return data
 
 
-def _apply_other_as_nan(final_data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Re-encode the 'Other' delivery method as missing-data semantics rather than
-    a category. Where Other == 1:
-      - Set Gymnosis / Lipofection / Electroporation to NaN
-      - Add a single delivery_unknown flag (==1)
-      - Drop the Other column
-    For rows where Other == 0, delivery_unknown = 0 and the three indicators stay as-is.
-
-    Rationale: 'Other' bundles >5 distinct real delivery methods (free uptake, LNP,
-    in-vivo routes, etc). Treating it as one category lets the model overfit on
-    spurious patterns. Treating it as missing data forces the model to rely on
-    actual chemistry/expression features while keeping a single OOD flag.
+def _drop_legacy_other_column(final_data: pd.DataFrame) -> pd.DataFrame:
+    """Backward-compat shim for caches built before populate_transfection started
+    emitting only three columns with NaN-on-unknown semantics. Drops the legacy
+    'Other' column if present and propagates NaN into Gymnosis / Lipofection /
+    Electroporation for rows where Other == 1. Once the wide cache is regenerated
+    this function becomes a no-op.
     """
     if "Other" not in final_data.columns:
-        logger.info("'Other' column not present; skipping NaN re-encoding.")
         return final_data
 
     final_data = final_data.copy()
@@ -83,23 +75,20 @@ def _apply_other_as_nan(final_data: pd.DataFrame) -> pd.DataFrame:
             final_data[col] = final_data[col].astype("float64")
             final_data.loc[other_mask, col] = np.nan
 
-    final_data["delivery_unknown"] = other_mask.astype(int)
     final_data = final_data.drop(columns=["Other"])
-
-    logger.info("'Other' re-encoded as NaN | %d rows flagged as delivery_unknown=1", n_other)
+    logger.info("Legacy 'Other' column dropped | %d rows had Other=1, now NaN on the three indicators", n_other)
     return final_data
 
 
-def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai",
-                                 other_encoding="onehot"):
+def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai"):
     """
     Loads features and metadata, ensures shared columns are identical,
     and returns the merged DataFrame along with the final feature list.
 
-    other_encoding:
-      - 'onehot' (default): keep Other as a 1/0 column alongside the others
-      - 'nan': when Other == 1, NaN out Gymnosis/Lipofection/Electroporation,
-               add delivery_unknown flag, drop Other column
+    Transfection one-hots are always Electroporation / Gymnosis / Lipofection with
+    NaN on rows whose transfection_method isn't one of those three (populate_transfection
+    enforces this). Legacy caches that still carry an 'Other' column are normalized
+    via _drop_legacy_other_column after the merge.
     """
     index = f"index_{version}"
 
@@ -136,11 +125,8 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
     elif split_source != "oligoai":
         raise ValueError(f"Unknown split_source '{split_source}'. Use 'oligoai' or 'tauso'.")
 
-    # 5b. Re-encode 'Other' delivery if requested
-    if other_encoding == "nan":
-        final_data = _apply_other_as_nan(final_data)
-    elif other_encoding != "onehot":
-        raise ValueError(f"Unknown other_encoding '{other_encoding}'. Use 'onehot' or 'nan'.")
+    # 5b. Drop the legacy 'Other' column if a pre-NaN cache version sneaks in.
+    final_data = _drop_legacy_other_column(final_data)
 
     # 6. Define Final Feature List
     features_to_ignore = [index, INHIBITION, "inhibition_percent", "dosage", "split"]

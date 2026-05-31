@@ -89,8 +89,9 @@ def base_data(raw_oligo_data):
         data = standardize_oligo_ai_data(raw_oligo_data)
 
     with Timer("Transfection One Hot Encoding"):
-        binary_features = pd.get_dummies(data["transfection_method"])
-        data = pd.concat([data, binary_features], axis=1)
+        from tauso.populate.populate_context import populate_transfection
+
+        data, _ = populate_transfection(data)
 
     return data
 
