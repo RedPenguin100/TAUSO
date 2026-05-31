@@ -43,9 +43,10 @@ cd "$output_path" || { mark_failed cd; exit 1; }
 
 USE_GPU=${USE_GPU:-0}
 if [ "$USE_GPU" -eq 1 ]; then
-    amber_exec="pmemd.cuda"
+    export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    run_md="pmemd.cuda"                                      # one process, one GPU
 else
-    amber_exec="sander"
+    run_md="mpirun --bind-to none -np ${total_procs} sander.MPI"
 fi
 
 # Tleap — only run if .prmtop is missing (and create_files just generated _tleap.in).
@@ -56,7 +57,7 @@ else
     echo "[SKIP] tleap — ${base_name}.prmtop already exists"
 fi
 
-echo "Using Amber executable: $amber_exec"
+echo "Using Amber executable: $run_md"
 
 # run_stage <stage> <in_coords> <out_restart> [traj] [ref]
 #   Resume-from-stage: skips if <out_restart> already exists.
@@ -77,7 +78,7 @@ run_stage() {
         -r "$rout" )
     [ -n "$traj" ] && a+=( -x "${base_name}_${stage}.nc" )
     [ -n "$ref" ]  && a+=( -ref "$ref" )
-    mpirun --bind-to none -np ${total_procs} "$amber_exec".MPI "${a[@]}" \
+    $run_md "${a[@]}" \
         || { mark_failed "$stage"; exit 1; }
 }
 
