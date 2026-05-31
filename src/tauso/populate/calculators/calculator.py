@@ -260,7 +260,7 @@ class Calculator:
         # ==========================================
         # 3. Transfection Features
         # ==========================================
-        expected_transfection = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
+        expected_transfection = ["Electroporation", "Gymnosis", "Lipofection"]
         missing_transfection = self._get_missing_features(expected_transfection)
 
         if missing_transfection:
