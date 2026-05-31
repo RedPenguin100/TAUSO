@@ -190,19 +190,23 @@ def populate_special_gene_expression(
 
 def populate_transfection(data):
     """
-    One-hot encodes the specified column into 0s and 1s, ensures all expected
-    features exist (even if absent from the data), and merges them.
+    One-hot encodes transfection_method into three columns: Electroporation,
+    Gymnosis, Lipofection. Rows whose transfection_method isn't one of those
+    three (e.g. "Other", missing, or any unrecognized label) get NaN across
+    all three -- the model treats them as missing rather than as confidently
+    "not Electroporation, not Gymnosis, not Lipofection".
+
+    Returns float64 columns because NaN cannot live in an int column.
     """
-    # The master list of expected categories
-    features = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
+    features = ["Electroporation", "Gymnosis", "Lipofection"]
 
-    # 1. Create binary columns as 0/1 for whatever actually exists in the data
-    binary_features = pd.get_dummies(data["transfection_method"], dtype=int)
+    method = data["transfection_method"]
+    binary = pd.DataFrame(
+        {feat: (method == feat).astype("float64") for feat in features},
+        index=data.index,
+    )
+    unknown = ~method.isin(features)
+    binary.loc[unknown, features] = np.nan
 
-    # 2. Force the dataframe to have exactly our expected columns, filling missing ones with 0
-    binary_features = binary_features.reindex(columns=features, fill_value=0)
-
-    # 3. Join them back to your original dataframe
-    data = pd.concat([data, binary_features], axis=1)
-
+    data = pd.concat([data, binary], axis=1)
     return data, features

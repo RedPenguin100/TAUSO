@@ -115,12 +115,18 @@ def get_dtype_for_feature(filename, index_col_name):
         "chem_1st_gen",
         "chem_2nd_gen",
         "chem_3rd_gen",
+    }:
+        feat_type = "int"
+    elif name in {
+        # Transfection one-hots are float64 because rows with an unrecognized
+        # transfection_method (literal "Other", missing, or any label outside
+        # the three) carry NaN across all three columns -- NaN cannot live in
+        # an int column.
         "Electroporation",
         "Gymnosis",
         "Lipofection",
-        "Other",
     }:
-        feat_type = "int"
+        feat_type = "float64"
     elif name == "sense_type":
         feat_type = "str"
     elif name in {"HalfLife_Source", "Mapped_Cell_Proxy"}:
