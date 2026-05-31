@@ -172,18 +172,23 @@ def rep_caption(note):
             + ", ".join(f"{disp(b)} (best of {n})" for _, (b, n) in note.items()) + ".")
 
 
-def hbar_dist(ax, scorers, medians, means, dists, title="", xlabel="", seed=0):
-    """Median bar + per-cohort distribution (jittered dots) + mean tick, TAUSO accented."""
+def hbar_dist(ax, scorers, medians, means, dists, title="", xlabel="", seed=0, colors=None):
+    """Median bar + per-cohort distribution (jittered dots) + mean tick.
+
+    Rows are labelled by `scorers`; bar colour is `color(scorer)` unless `colors` (one per row)
+    is given (e.g. a single accent when every row is the same model across cell lines)."""
     rng = np.random.default_rng(seed)
+    cols = colors if colors is not None else [color(s) for s in scorers]
     y = np.arange(len(scorers))[::-1]
-    for yi, s, med, mn, d in zip(y, scorers, medians, means, dists):
-        ax.barh(yi, med, height=0.6, color=color(s), alpha=0.45, zorder=1)
+    for yi, c, med, mn, d in zip(y, cols, medians, means, dists):
+        ax.barh(yi, med, height=0.6, color=c, alpha=0.45, zorder=1)
         if len(d):
             ax.scatter(d, yi + (rng.random(len(d)) - 0.5) * 0.5, s=7,
-                       color=color(s), alpha=0.30, edgecolors="none", zorder=2)
+                       color=c, alpha=0.30, edgecolors="none", zorder=2)
         ax.plot([mn, mn], [yi - 0.3, yi + 0.3], color="#222", lw=1.7, zorder=4)  # mean
-        ax.text(med, yi + 0.34, f"med {med:.2f}", fontsize=8, va="bottom", ha="left", color="#333", zorder=5)
-        ax.text(mn, yi - 0.34, f"μ {mn:.2f}", fontsize=8, va="top", ha="center", color="#222", zorder=5)
+        ax.text(max(med, mn), yi, f"  {med:.2f} · μ{mn:.2f}", fontsize=8, va="center", ha="left",
+                color="#222", zorder=6,
+                bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.55))
     ax.set_yticks(y); ax.set_yticklabels([disp(s) for s in scorers])
     ax.set_title(title); ax.set_xlabel(xlabel); ax.axvline(0, color="#cccccc", lw=0.8)
     allv = np.concatenate([d for d in dists if len(d)] + [np.asarray(medians, float)])
