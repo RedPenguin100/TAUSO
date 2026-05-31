@@ -4,8 +4,9 @@ Hardened drop-in replacements for the `upstream/` KLKB1 scripts.
 
 - `amber_pipe_new_KLKB1_v3.sh` — replaces `amber_pipe_new_KLKB1.sh`.
 - `jobs_req_new_Server_KLKB1_P_v3.sh` — replaces `jobs_req_new_Server_KLKB1_P.sh`.
-- `create_files_new_KLKB1.sh` — verbatim copy of upstream, included so
-  this folder is self-contained when deployed.
+- `create_files_new_KLKB1.sh` — copy of upstream's, with the Monte-Carlo
+  barostat (`barostat=2`) the GPU path needs; included so this folder is
+  self-contained when deployed.
 
 ## Deploy
 
