@@ -1047,19 +1047,13 @@ class Calculator:
         expected_interaction = [f"RBP_interaction_total_{flank_size}_expression"]
         expected_affinity = [f"RBP_interaction_total_{flank_size}_generic"]
         expected_functional = [f"RBP_interaction_stabilizer_{flank_size}"]
-        expected_regions = [
-            f"RBP_interaction_total_left",
-            f"RBP_interaction_total_core",
-            f"RBP_interaction_total_right",
-        ]
 
         # Check disk
         missing_int = self._get_missing_features(expected_interaction)
         missing_aff = self._get_missing_features(expected_affinity)
         missing_func = self._get_missing_features(expected_functional)
-        missing_reg = self._get_missing_features(expected_regions)
 
-        if not any([missing_int, missing_aff, missing_func, missing_reg]):
+        if not any([missing_int, missing_aff, missing_func]):
             logger.info("All RBP features exist. Skipping.")
             return
 
@@ -1081,7 +1075,6 @@ class Calculator:
             populate_functional_features,
             populate_rbp_affinity_features,
             populate_rbp_interaction_features,
-            populate_rbp_region,
         )
 
         # ==========================================
@@ -1122,44 +1115,6 @@ class Calculator:
             )
             for feature in functional_features:
                 self._save_calculated_feature(feature_name=feature)
-
-        # ==========================================
-        # BLOCK D: Regional Features
-        # ==========================================
-        if missing_reg:
-            logger.info("Processing Regional Features...")
-            import warnings
-
-            import pandas as pd
-            from pandas.errors import PerformanceWarning
-
-            from tauso.features.rbp.rbp_features import create_positional_sequence_columns
-
-            warnings.simplefilter(action="ignore", category=PerformanceWarning)
-            warnings.simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
-
-            self.data = create_positional_sequence_columns(self.data, window_col, flank_size=flank_size)
-
-            # Determine which specific regions are actually missing based on sentinels
-            regions_to_run = [feat.split("_")[-1] for feat in missing_reg]
-
-            for region in regions_to_run:
-                # Fix Memory Fragmentation exactly as you specified
-                self.data = self.data.copy()
-
-                self.data, new_features = populate_rbp_region(
-                    df=self.data,
-                    region_name=region,
-                    rbp_map=rbp_map,
-                    pwm_db=pwm_db,
-                    expr_matrix=expression_matrix,
-                    role_map=rbp_role_map_strict,
-                    gene_to_data=gene_to_data,
-                    n_jobs=self.cpus,
-                )
-
-                for feature in new_features:
-                    self._save_calculated_feature(feature_name=feature)
 
     def calculate_oligowalk(self):
         import shutil
