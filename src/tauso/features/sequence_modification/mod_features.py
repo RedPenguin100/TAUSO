@@ -74,55 +74,56 @@ def compute_mod_3prime_run(pattern):
 def compute_mod_min_distance_to_5prime(pattern):
     """
     Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
-    from the 5' end of the pattern. Returns -1.0 if no modifications are found or if pattern is empty.
+    from the 5' end of the pattern. NaN if pattern is empty or has no modifications.
     """
     pattern = str(pattern)
     n = len(pattern)
     if n == 0:
-        return -1.0
+        return np.nan
 
     for i, c in enumerate(pattern):
         if c != "d":
             return i / n
 
-    return -1.0
+    return np.nan
 
 
 ###########################################################################
 def compute_mod_min_distance_to_3prime(pattern):
     """
     Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
-    from the 3' end of the pattern. Returns -1.0 if no modifications are found.
+    from the 3' end of the pattern. NaN if pattern is empty or has no modifications.
     """
     pattern = str(pattern)
     n = len(pattern)
     if n == 0:
-        return -1.0
+        return np.nan
 
     for i, c in enumerate(reversed(pattern)):
         if c != "d":
             return i / n
 
-    return -1.0
+    return np.nan
 
 
 ###########################################################################
 def compute_mod_pos_std(pattern):
     """
-    Returns the standard deviation of modified residue positions (non-'d') in the pattern.
-    Returns -1 if there are no modifications.
+    Returns the standard deviation of modified residue positions (non-'d'), normalized
+    by pattern length so the value is a dimensionless fraction. NaN if pattern is empty
+    or has no modifications.
     """
 
     pattern = str(pattern)
-    mod_positions = [i for i, c in enumerate(pattern) if c != "d"]
-    if not mod_positions:
-        return -1
-
     length = len(pattern)
     if length == 0:
-        return 0.0
-    std = np.std(mod_positions)
-    return std / length
+        return np.nan
+
+    mod_positions = [i for i, c in enumerate(pattern) if c != "d"]
+    if not mod_positions:
+        return np.nan
+
+    return float(np.std(mod_positions)) / length
 
 
 ###########################################################################
@@ -134,12 +135,7 @@ def compute_mod_block_count(pattern):
     in the pattern.
     """
     pattern = str(pattern)
-    blocks = re.findall(r"[^d]+", pattern)
-    length = len(pattern)
-    if length == 0:
-        return 0.0
-
-    return (len(blocks)) / length
+    return len(re.findall(r"[^d]+", pattern))
 
 
 ############################################################################
@@ -271,21 +267,16 @@ def compute_mod_skew_index(pattern):
 ############################################################################
 def compute_mod_mean_gap(pattern):
     """
-    Returns the mean gap between consecutive modified residues (non-'d').
-    Returns -1 if fewer than 2 modifications are found.
+    Returns the mean gap (in residues) between consecutive modified positions (non-'d').
+    NaN if fewer than 2 modifications are found.
     """
     pattern = str(pattern)
     positions = [i for i, c in enumerate(pattern) if c != "d"]
 
     if len(positions) < 2:
-        return -1
+        return np.nan
 
-    gaps = np.diff(positions)
-
-    length = len(pattern)
-    if length == 0:
-        return 0
-    return (gaps.mean()) / length
+    return float(np.diff(positions).mean())
 
 
 ############################################################################
@@ -317,19 +308,19 @@ def compute_mod_in_core(pattern, core_fraction=0.4):
     """
     Returns the fraction of modified residues (non-'d') that lie within
     the central portion of the pattern (e.g., 30%-70%).
-    Returns -1 if no modifications exist.
+    NaN if pattern is empty or has no modifications.
     """
     pattern = str(pattern)
     n = len(pattern)
     if n == 0:
-        return -1
+        return np.nan
 
     core_start = int(n * (0.5 - core_fraction / 2))
     core_end = int(n * (0.5 + core_fraction / 2))
 
     total_mods = sum(1 for c in pattern if c != "d")
     if total_mods == 0:
-        return -1
+        return np.nan
 
     core_mods = sum(1 for c in pattern[core_start:core_end] if c != "d")
     return core_mods / total_mods
@@ -360,11 +351,8 @@ def compute_mod_longest_repeat_run(pattern):
 
         if current_run > max_run:
             max_run = current_run
-    length = len(pattern)
-    if length == 0:
-        return 0  # define empty pattern as having no runs
 
-    return max_run / length  # normalize by pattern length for consistency
+    return max_run
 
 
 ############################################################################
@@ -379,11 +367,7 @@ def compute_mod_adjacent_pair_count(pattern):
     for i in range(len(pattern) - 1):
         if pattern[i] != "d" and pattern[i] == pattern[i + 1]:
             count += 1
-
-    length = len(pattern)
-    if length == 0:
-        return 0
-    return count / length
+    return count
 
 
 ############################################################################
@@ -412,7 +396,4 @@ def compute_mod_strong_repeat_group_count(pattern, min_run_length=3):
         else:
             i += 1
 
-    length = len(pattern)
-    if length == 0:
-        return 0
-    return count / length
+    return count
