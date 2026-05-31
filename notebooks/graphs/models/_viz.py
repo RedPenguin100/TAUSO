@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, rankdata
 
 INHIB, COHORT, MODEL, OLIGOAI = "Inhibition(%)", "custom_id", "TAUSO", "oligo_ai_score"
 RESULTS = Path(__file__).resolve().parents[2] / "models/Evaluation/results"
@@ -138,8 +138,14 @@ def gap_closed(preds, scorer, k=10, cohort=COHORT):
 
 
 def best_rank_cdf(preds, scorer, cohort=COHORT):
-    """Predicted rank (1 = top) of each cohort's truly most-potent oligo."""
-    ranks = [int((s > s[np.argmax(y)]).sum()) + 1 for y, s in _cohort_arrays(preds, scorer, cohort)]
+    """Predicted rank (1 = top) of each cohort's truly most-potent oligo.
+
+    Tie-aware (average rank): a scorer that gives many oligos the same value gets no credit for
+    'ranking' the best one first -- it gets the expected rank over the tied group. Without this,
+    heavily-tied biophysical scores (e.g. OligoWalk intra-oligo, ~50 oligos tied per cohort) look
+    spuriously perfect."""
+    ranks = [rankdata(-s, method="average")[np.argmax(y)]
+             for y, s in _cohort_arrays(preds, scorer, cohort)]
     return np.array(ranks)
 
 
