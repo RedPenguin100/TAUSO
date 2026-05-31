@@ -48,8 +48,8 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     }
 
     # Initialize tracking arrays
-    out_start = np.full(n_rows, -1, dtype=np.int32)
-    out_start_end = np.zeros(n_rows, dtype=np.int32)
+    out_start = np.full(n_rows, -1, dtype=np.int64)
+    out_start_end = np.zeros(n_rows, dtype=np.int64)
     out_type = np.full(n_rows, "unannotated", dtype=object)  # Initialize all as unannotated
 
     out_exon = np.zeros(n_rows, dtype=np.int64)
@@ -64,14 +64,14 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     # NaN for unmapped rows (no gene match), for rows on genes without codon
     # annotations (lncRNAs), and for mRNA-distance features on rows whose
     # genomic coord lies in an intron (no mRNA position exists there).
-    out_start_norm = np.full(n_rows, np.nan, dtype=np.float32)
-    out_start_end_norm = np.full(n_rows, np.nan, dtype=np.float32)
-    out_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float32)
-    out_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float32)
-    out_dist_canonical_start = np.full(n_rows, np.nan, dtype=np.float32)
-    out_dist_closest_start = np.full(n_rows, np.nan, dtype=np.float32)
-    out_mrna_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float32)
-    out_mrna_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float32)
+    out_start_norm = np.full(n_rows, np.nan, dtype=np.float64)
+    out_start_end_norm = np.full(n_rows, np.nan, dtype=np.float64)
+    out_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float64)
+    out_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float64)
+    out_dist_canonical_start = np.full(n_rows, np.nan, dtype=np.float64)
+    out_dist_closest_start = np.full(n_rows, np.nan, dtype=np.float64)
+    out_mrna_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float64)
+    out_mrna_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float64)
 
     all_data["__temp_idx"] = np.arange(n_rows)
 
@@ -118,8 +118,8 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         # length-invariant across genes (PSD3 ~640k vs APOL1 ~15k).
         gene_length = float(locus_info.gene_end - locus_info.gene_start)
         if gene_length > 0:
-            out_start_norm[v_row_idxs] = v_idxs.astype(np.float32) / gene_length
-            out_start_end_norm[v_row_idxs] = (gene_length - v_idxs).astype(np.float32) / gene_length
+            out_start_norm[v_row_idxs] = v_idxs.astype(np.float64) / gene_length
+            out_start_end_norm[v_row_idxs] = (gene_length - v_idxs).astype(np.float64) / gene_length
 
         # Genomic distance from the ASO center to the nearest canonical /
         # any-transcript stop or start codon. NaN for genes with no codon
@@ -129,22 +129,22 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
             stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64)
             out_dist_canonical_stop[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - stop_mids[None, :]), axis=1
-            ).astype(np.float32)
+            )
         if locus_info.all_stop_codons:
             all_stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64)
             out_dist_closest_stop[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - all_stop_mids[None, :]), axis=1
-            ).astype(np.float32)
+            )
         if locus_info.start_codons:
             start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.start_codons], dtype=np.float64)
             out_dist_canonical_start[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - start_mids[None, :]), axis=1
-            ).astype(np.float32)
+            )
         if locus_info.all_start_codons:
             all_start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_start_codons], dtype=np.float64)
             out_dist_closest_start[v_row_idxs] = np.min(
                 np.abs(gen_coords[:, None] - all_start_mids[None, :]), axis=1
-            ).astype(np.float32)
+            )
 
         # mRNA-distance variants for stop codons. Walk the canonical exon set in
         # 5'->3' order and map a genomic coord to its position in the spliced
@@ -182,14 +182,14 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
                 valid_stops = stop_mrna[~np.isnan(stop_mrna)]
                 if len(valid_stops) > 0:
                     dists = np.min(np.abs(aso_mrna[:, None] - valid_stops[None, :]), axis=1)
-                    out_mrna_dist_canonical_stop[v_row_idxs] = dists.astype(np.float32)
+                    out_mrna_dist_canonical_stop[v_row_idxs] = dists
             if locus_info.all_stop_codons:
                 all_stop_mids_arr = np.array([(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64)
                 all_stop_mrna = _gen_to_mrna(all_stop_mids_arr)
                 valid_all_stops = all_stop_mrna[~np.isnan(all_stop_mrna)]
                 if len(valid_all_stops) > 0:
                     dists_all = np.min(np.abs(aso_mrna[:, None] - valid_all_stops[None, :]), axis=1)
-                    out_mrna_dist_closest_stop[v_row_idxs] = dists_all.astype(np.float32)
+                    out_mrna_dist_closest_stop[v_row_idxs] = dists_all
 
         # Much cleaner interval checking
         is_exon = _in_intervals(gen_coords, locus_info._exon_indices)

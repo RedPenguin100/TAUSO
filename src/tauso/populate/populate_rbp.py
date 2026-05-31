@@ -88,7 +88,7 @@ def process_rbp(task, sequences, background_probs_arr):
     col_name = task["col_name"]
     n_rows = len(sequences)
 
-    scores = np.zeros(n_rows, dtype=np.float32)
+    scores = np.zeros(n_rows, dtype=np.float64)
     for matrix in matrices:
         for i in range(n_rows):
             scores[i] += calculate_total_affinity_numba(sequences[i], matrix, background_probs_arr[i])
