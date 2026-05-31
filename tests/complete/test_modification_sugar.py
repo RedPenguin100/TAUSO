@@ -22,6 +22,6 @@ def mini_sampled_chemistry_only_data(request, chemistry_only_data):
 
 
 @pytest.mark.parametrize("mini_sampled_chemistry_only_data", [10000], indirect=True)
-def test_modification(mini_sampled_chemistry_only_data, dataframe_regression):
+def test_modification_sugar(mini_sampled_chemistry_only_data, dataframe_regression):
     data, feature_names = populate_modifications(mini_sampled_chemistry_only_data, n_cores=get_n_jobs())
     dataframe_regression.check(data[["index_oligo"] + feature_names])

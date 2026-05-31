@@ -60,6 +60,16 @@ def get_dtype_for_feature(filename, index_col_name):
     elif name.startswith("RNaseH1_Krel") or name.startswith("RNaseH1_score"):
         feat_type = "float64"
 
+    elif name in {
+        # mod_ps_* counts/booleans are int; the rest of the mod_* family (mod_sugar_* +
+        # mod_ps_po_percentage / mod_ps_frac_mod / mod_ps_frac_dna) is float64.
+        "mod_ps_max_consecutive_po",
+        "mod_ps_end_score",
+        "mod_ps_wing5_count",
+        "mod_ps_gap_count",
+        "mod_ps_wing3_count",
+    }:
+        feat_type = "int"
     elif name.startswith("mod_"):
         feat_type = "float64"
     elif name.startswith("hybr_"):
@@ -100,20 +110,6 @@ def get_dtype_for_feature(filename, index_col_name):
     elif name.startswith("sense_dist_to_") or name.startswith("sense_mrna_dist_to_"):
         feat_type = "float64"
     elif name.startswith("on_target_total_hybridization_"):
-        feat_type = "float64"
-    elif name in {
-        "ps_max_consecutive_po",
-        "ps_end_score",
-        "ps_wing5_count",
-        "ps_gap_count",
-        "ps_wing3_count",
-    }:
-        feat_type = "int"
-    elif name in {
-        "ps_po_percentage",
-        "ps_frac_mod",
-        "ps_frac_dna",
-    }:
         feat_type = "float64"
     elif name in {
         "chem_1st_gen",
