@@ -60,7 +60,7 @@ def get_dtype_for_feature(filename, index_col_name):
     elif name.startswith("RNaseH1_Krel") or name.startswith("RNaseH1_score"):
         feat_type = "float64"
 
-    elif name.startswith("Modification_"):
+    elif name.startswith("mod_"):
         feat_type = "float64"
     elif name.startswith("hybr_"):
         feat_type = "float64"
