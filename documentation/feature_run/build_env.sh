@@ -19,7 +19,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"   # the TAUSO clone
 BASE="$(dirname "$REPO")"                                    # the chosen base dir
 
-export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$BASE/micromamba}"
+export MAMBA_ROOT_PREFIX="$BASE/micromamba"
 ENV="${ENV:-tauso_repro}"
 if [ -z "${MM:-}" ]; then
   if [ -x "$BASE/bin/micromamba" ]; then MM="$BASE/bin/micromamba"; else MM="micromamba"; fi

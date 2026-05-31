@@ -112,12 +112,16 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
     # 2. Identify all columns that exist in both frames (other than the join key).
     common_cols = sorted(set(loaded_features.columns) & set(data.columns) - {index})
 
-    # 3. Validation: ensure every shared column has identical values across sources
+    # 3. Validation: ensure every shared column has identical values across sources.
+    # Compare values not dtypes — the wide cache compresses some int columns to int8
+    # for storage, while the same value in the source CSV stays int64.
     for col in common_cols:
         check_df = pd.merge(loaded_features[[index, col]], data[[index, col]], on=index)
-        if not check_df[f"{col}_x"].equals(check_df[f"{col}_y"]):
-            raise ValueError(f"Integrity Check Failed: '{col}' differs between sources.")
-        del check_df
+        a, b = check_df[f"{col}_x"], check_df[f"{col}_y"]
+        if a.isna().equals(b.isna()) and (a.dropna().to_numpy() == b.dropna().to_numpy()).all():
+            del check_df
+            continue
+        raise ValueError(f"Integrity Check Failed: '{col}' differs between sources.")
 
     # 4. Drop the shared columns from `data` so the merge produces no _x/_y suffixes
     logger.info(f"Merge dedup | {len(common_cols)} shared columns dropped from data: {common_cols}")
