@@ -12,11 +12,12 @@ Scorers (each a single prediction column scored against Inhibition(%)):
   miranda_score, miranda_energy
 
 Cohorts:
-  patent            one patent inhibition table = one experiment (custom_id, the per-experiment
-                    ASO-selection unit; nested inside patent_id)
+  custom_id         one inhibition table = one experiment (the per-experiment ASO-selection
+                    unit, one gene x cell line x assay; nested inside patent_id)
   gene x cell_line  biological cohort (canonical gene x cell line)
 
-Breakdowns (metrics recomputed within each slice, with per-slice n and inhibition range):
+Breakdowns (metrics recomputed within each slice over its custom_id cohorts, with per-slice n
+and inhibition range):
   chemistry   cEt vs 2'MOE gapmers
   cell_line   per cell line
 
@@ -89,12 +90,15 @@ def _group_metrics(t, p):
         if n > k:
             out[f"ndcg{k}"] = float(ndcg_score(rel, scr, k=k))
             out[f"p@{k}"] = np.intersect1d(top_pred, np.argpartition(t, -kk)[-kk:]).size / kk
+    # mean true inhibition of the predicted top 5% of the cohort (k scales with cohort size)
+    kp = max(1, round(0.05 * n))
+    out["top5pct_inhib"] = float(np.mean(t[np.argpartition(p, -kp)[-kp:]]))
     return out
 
 
 def _aggregate(per, scorer, **extra):
     agg = {"scorer": scorer, "n_cohorts": len(per), **extra}
-    for m in ("spearman", "top5_inhib", "top10_inhib", "ndcg5", "ndcg10", "p@5", "p@10"):
+    for m in ("spearman", "top5_inhib", "top10_inhib", "ndcg5", "ndcg10", "p@5", "p@10", "top5pct_inhib"):
         vals = [d[m] for d in per if m in d]
         if vals:
             agg[f"{m}_median"], agg[f"{m}_mean"] = float(np.median(vals)), float(np.mean(vals))
@@ -139,20 +143,28 @@ def evaluate(preds_df, scorers):
 
 
 def breakdown(preds_df, scorers, slice_col):
-    """Metrics per slice of `slice_col`, cohorts = custom_id within the slice, plus per-slice
-    descriptive stats (n samples, inhibition range)."""
+    """Metrics per slice of `slice_col`, plus per-slice descriptive stats (n samples,
+    inhibition range).
+
+    Ranking metrics are computed per custom_id cohort (= one gene x cell line x assay, the unit
+    where oligos are directly comparable) and summarised over the slice's cohorts: Spearman as a
+    median (continuous), and P@5 / P@10 / top-5% inhibition as a MEAN (these are discrete per
+    cohort, so a median sticks on a round value and is uninformative). The summarised values live
+    in the ``<metric>_median`` / ``<metric>_mean`` columns emitted by ``_aggregate``."""
     rows = []
     for sval, sub in preds_df.groupby(slice_col):
         keys = sub.groupby(COHORT).ngroup().to_numpy()
         inh = sub[INHIBITION]
         desc = {"breakdown": slice_col, "slice": sval, "n_samples": len(sub),
-                "n_genes": int(sub[CANONICAL_GENE].nunique()), "n_patents": int(sub[COHORT].nunique()),
+                "n_genes": int(sub[CANONICAL_GENE].nunique()),
+                "n_cohorts_total": int(sub[COHORT].nunique()),
                 "inhib_min": float(inh.min()), "inhib_max": float(inh.max()),
                 "inhib_mean": float(inh.mean()), "base_hit70": float((inh >= 70).mean())}
         for scorer in scorers:
             per = _per_cohort(sub, sub[scorer].to_numpy("float64"), keys)
-            if per:
-                rows.append(_aggregate(per, scorer, **desc))
+            if not per:
+                continue
+            rows.append(_aggregate(per, scorer, **desc))
     return pd.DataFrame(rows)
 
 
@@ -218,7 +230,7 @@ def main():
     pd.concat([chem_df, cell_df], ignore_index=True).to_csv(args.out_dir / "breakdown_metrics.csv", index=False)
 
     sp = summary_df[summary_df.grouping == "patent"].set_index("scorer")["spearman_median"].round(3)
-    logger.info("Median per-patent-table Spearman:\n%s", sp.sort_values(ascending=False).to_string())
+    logger.info("Median per-custom_id Spearman:\n%s", sp.sort_values(ascending=False).to_string())
     oa = sp.get("oligo_ai_score", float("nan"))
     if np.isfinite(oa) and oa < OLIGOAI_FLOOR:
         logger.warning("OligoAI median Spearman %.3f < %.2f floor — check index_oligo alignment!", oa, OLIGOAI_FLOOR)

@@ -80,6 +80,33 @@ def hbar(ax, scorers, values, title="", xlabel="", fmt="{:.2f}"):
     return ax
 
 
+def grouped_hbar(ax, slices, series, title="", xlabel="", fmt="{:.2f}"):
+    """Grouped horizontal bars: one group of bars per slice (y-axis), one bar per scorer.
+
+    `series` is an ordered dict {scorer: values}, values aligned to `slices`. TAUSO is accented,
+    OligoAI blue, others grey (via `color`). Value labels sit at each bar tip; bold left title."""
+    scorers = list(series)
+    base = np.arange(len(slices))[::-1].astype(float)
+    nb = len(scorers)
+    h = 0.8 / nb
+    finite = [v for vs in series.values() for v in vs if np.isfinite(v)]
+    hi = max(finite) if finite else 1.0
+    for i, s in enumerate(scorers):
+        vals = np.asarray(series[s], float)
+        off = (nb - 1) / 2 * h - i * h
+        yy = base + off
+        ax.barh(yy, vals, height=h, color=color(s), label=disp(s), zorder=2)
+        for yi, v in zip(yy, vals):
+            if np.isfinite(v):
+                ax.text(v + 0.012 * hi, yi, fmt.format(v), va="center", ha="left",
+                        fontsize=7.5, color="#333")
+    ax.set_yticks(base); ax.set_yticklabels(slices, fontsize=9)
+    ax.set_title(title); ax.set_xlabel(xlabel)
+    ax.set_xlim(0, hi * 1.18)
+    ax.margins(y=0.04)
+    return ax
+
+
 # ----------------------------------------------------------------- per-cohort compute
 
 def _cohort_arrays(preds, scorer, cohort=COHORT, min_n=8):
@@ -88,6 +115,32 @@ def _cohort_arrays(preds, scorer, cohort=COHORT, min_n=8):
         ok = np.isfinite(y) & np.isfinite(s)
         if ok.sum() >= min_n:
             yield y[ok], s[ok]
+
+
+def topk_means(preds, scorer, cohort=COHORT, min_cohort=5):
+    """Mean (over custom_id cohorts) of the top-of-list ranking metrics for one scorer.
+
+    Mirrors evaluate.py's per-cohort logic, then averages over cohorts (the metrics are discrete
+    per cohort, so a median sticks on a round value — the mean is the informative summary):
+      p@5 / p@10      fraction of the predicted top-k in the true top-k (only when cohort n > k)
+      top5pct_inhib   mean true inhibition of the predicted top 5% of the cohort, k=max(1,round(.05n))
+    Returns {'p@5','p@10','top5pct_inhib','n_cohorts'}; metric is NaN if no cohort scored it."""
+    acc = {"p@5": [], "p@10": [], "top5pct_inhib": []}
+    for _, sub in preds.groupby(cohort):
+        y = sub[INHIB].to_numpy("float64"); p = sub[scorer].to_numpy("float64")
+        ok = np.isfinite(y) & np.isfinite(p); y, p = y[ok], p[ok]
+        n = len(y)
+        if n < min_cohort or np.ptp(y) == 0 or np.ptp(p) == 0:
+            continue
+        for k in (5, 10):
+            if n > k:
+                top_p = np.argpartition(p, -k)[-k:]
+                acc[f"p@{k}"].append(np.intersect1d(top_p, np.argpartition(y, -k)[-k:]).size / k)
+        kp = max(1, round(0.05 * n))
+        acc["top5pct_inhib"].append(float(np.mean(y[np.argpartition(p, -kp)[-kp:]])))
+    out = {m: (float(np.mean(vs)) if vs else float("nan")) for m, vs in acc.items()}
+    out["n_cohorts"] = max(len(vs) for vs in acc.values())
+    return out
 
 
 def add_cohort_mean(preds, cohort=COHORT):
