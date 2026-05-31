@@ -17,60 +17,6 @@ def compute_mod_fraction(pattern):
     return modified / total
 
 
-def compute_mod_type_count(pattern):
-    """
-    Returns the normalized number of unique modification characters (excluding 'd'),
-    divided by the total number of modified residues. Returns 0 if no modifications.
-    """
-    pattern = str(pattern)
-    mod_chars = [c for c in pattern if c != "d"]
-    if not mod_chars:
-        return 0.0
-
-    unique_mods = set(mod_chars)
-    return len(unique_mods) / len(mod_chars)
-
-
-def compute_mod_5prime_run(pattern):
-    """
-    Returns the length of the longest consecutive stretch of modified residues
-    (non-'d') starting from the 5' end (left side of the pattern).
-    """
-    pattern = str(pattern)
-    run = 0
-    for c in pattern:
-        if c != "d":
-            run += 1
-        else:
-            break
-
-    length = len(pattern)
-    if length == 0:
-        return 0.0
-
-    return run / length
-
-
-def compute_mod_3prime_run(pattern):
-    """
-    Returns the length of the longest consecutive stretch of modified residues
-    (non-'d') starting from the 3' end (right side of the pattern).
-    """
-    pattern = str(pattern)[::-1]  # reverse pattern to simulate scanning from 3'
-    run = 0
-    for c in pattern:
-        if c != "d":
-            run += 1
-        else:
-            break
-
-    length = len(pattern)
-    if length == 0:
-        return 0.0
-
-    return run / length
-
-
 def compute_mod_min_distance_to_5prime(pattern):
     """
     Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
