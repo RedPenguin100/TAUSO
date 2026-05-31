@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import psutil
+import pyarrow.parquet as pq
 from pympler import asizeof
 
 from ...data.consts import (
@@ -18,6 +19,7 @@ from ...data.consts import (
     SENSE_DIST_TO_CLOSEST_START,
     SENSE_DIST_TO_CLOSEST_STOP,
     SENSE_EXON,
+    SENSE_EXON_NON_EXCLUSIVE,
     SENSE_INTRON,
     SENSE_LENGTH,
     SENSE_MRNA_DIST_TO_CANONICAL_STOP,
@@ -30,7 +32,7 @@ from ...data.consts import (
     SENSE_UTR,
 )
 from ...timer import Timer
-from ..feature_cache import save_feature_internal
+from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
 from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
     populate_special_gene_expression,
@@ -89,28 +91,61 @@ class Calculator:
         if missing:
             raise ValueError(f"Missing required dependencies in dataframe: {missing}")
 
+    def _cache_columns(self):
+        """Column names in the locally-present wide cache for this run, or empty set."""
+        cache = cache_path_if_present(self.data_version) if self.data_version else None
+        if cache is None:
+            return set(), None
+        return set(pq.read_schema(cache).names), cache
+
+    def _resolve_feature_source(self, feature_dir, feature, cache_cols, cache_path):
+        """Return ('loose', path) | ('cache', cache_path) | None for `feature`. Loose wins.
+
+        Loose shards are read from `<feature_dir>/_patches/` first, then from `feature_dir`
+        itself (legacy location, migration window).
+        """
+        for parent in (loose_shard_dir(feature_dir), feature_dir):
+            for ext in (".parquet", ".csv"):
+                path = os.path.join(parent, f"{feature}{ext}")
+                if os.path.exists(path):
+                    return ("loose", path)
+        if feature in cache_cols:
+            return ("cache", cache_path)
+        return None
+
     def _load_features_into_data(self, feature_names: list):
-        """Reads saved feature CSVs back into self.data for columns needed as in-memory dependencies."""
+        """Reads saved feature shards (or the wide cache) back into self.data for in-memory dependencies."""
         feature_dir = self.get_feature_dir_func(self.data_version)
+        cache_cols, cache = self._cache_columns()
         for feature in feature_names:
             if feature in self.data.columns:
                 continue
-            file_path = os.path.join(feature_dir, f"{feature}.csv")
-            feat_df = pd.read_csv(file_path)
+            src = self._resolve_feature_source(feature_dir, feature, cache_cols, cache)
+            if src is None:
+                raise FileNotFoundError(
+                    f"No shard or cache column for '{feature}' in {feature_dir} (.parquet, .csv, or wide cache)."
+                )
+            kind, path = src
+            if kind == "cache":
+                feat_df = pd.read_parquet(path, columns=[self.index, feature])
+            elif path.endswith(".parquet"):
+                feat_df = pd.read_parquet(path)
+            else:
+                feat_df = pd.read_csv(path)
             self.data = self.data.merge(feat_df[[self.index, feature]], on=self.index, how="left")
-            logger.debug("Loaded '%s' from disk into DataFrame.", feature)
+            logger.debug("Loaded '%s' from %s into DataFrame.", feature, kind)
 
     def _get_missing_features(self, expected_features: list) -> list:
         if self.overwrite:
             return expected_features
 
         feature_dir = self.get_feature_dir_func(self.data_version)
+        cache_cols, cache = self._cache_columns()
         missing = []
 
         for feature in expected_features:
-            file_path = os.path.join(feature_dir, f"{feature}.csv")
-            if os.path.exists(file_path):
-                logger.debug("Skipping '%s': CSV already exists.", feature)
+            if self._resolve_feature_source(feature_dir, feature, cache_cols, cache) is not None:
+                logger.debug("Skipping '%s': already present.", feature)
             else:
                 missing.append(feature)
 
@@ -292,6 +327,7 @@ class Calculator:
             SENSE_START_FROM_END,
             SENSE_LENGTH,
             SENSE_EXON,
+            SENSE_EXON_NON_EXCLUSIVE,
             SENSE_INTRON,
             SENSE_UTR,
             SENSE_3UTR,

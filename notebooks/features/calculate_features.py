@@ -31,6 +31,7 @@ from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
 from notebooks.features.feature_extraction import _get_saved_features_dir
 from tauso.data.consts import CANONICAL_GENE
 from tauso.populate.calculators.calculator import Calculator
+from tauso.populate.feature_cache import LOOSE_SHARD_SUBDIR, loose_shard_dir
 
 logger = logging.getLogger(__name__)
 
@@ -98,15 +99,22 @@ def _write_shard(df: pd.DataFrame, path: Path) -> None:
         df.to_csv(path, index=False)
 
 
+def _shard_source_dir(partition_dir: Path) -> Path:
+    """Per-partition dir to glob shards from: <part>/_patches if it exists, else <part>."""
+    patches = partition_dir / LOOSE_SHARD_SUBDIR
+    return patches if patches.is_dir() else partition_dir
+
+
 def merge_partitions(main_feature_dir: Path, n_partitions: int, index_col: str, n_jobs: int = 1) -> None:
-    """Merge all partition feature directories into main_feature_dir.
+    """Merge all partition feature directories into main_feature_dir/_patches/.
 
     For each per-feature shard (``.parquet`` or ``.csv``; union of filenames across partitions),
     read every partition's copy, ``pd.concat`` + ``drop_duplicates`` on ``index_col``, write the
     master once in the same format. Empty (0-byte) shards are skipped with a warning. Per-feature
     work is independent; ``n_jobs > 1`` parallelizes via joblib threading.
     """
-    main_feature_dir.mkdir(parents=True, exist_ok=True)
+    main_patches_dir = Path(loose_shard_dir(str(main_feature_dir)))
+    main_patches_dir.mkdir(parents=True, exist_ok=True)
 
     part_dirs = [get_partition_dir(main_feature_dir, k, n_partitions) for k in range(n_partitions)]
     for d in part_dirs:
@@ -116,13 +124,14 @@ def merge_partitions(main_feature_dir: Path, n_partitions: int, index_col: str, 
     if not part_dirs:
         logger.warning("No partition dirs found; nothing to merge.")
         return
+    src_dirs = [_shard_source_dir(d) for d in part_dirs]
 
-    feat_names = sorted({p.name for d in part_dirs for p in d.glob("*.parquet")}
-                       | {p.name for d in part_dirs for p in d.glob("*.csv")})
+    feat_names = sorted({p.name for d in src_dirs for p in d.glob("*.parquet")}
+                       | {p.name for d in src_dirs for p in d.glob("*.csv")})
 
     def _merge_one(name: str):
         dfs = []
-        for d in part_dirs:
+        for d in src_dirs:
             p = d / name
             if not p.exists():
                 continue
@@ -133,7 +142,7 @@ def merge_partitions(main_feature_dir: Path, n_partitions: int, index_col: str, 
         if not dfs:
             return name, 0
         out = pd.concat(dfs, ignore_index=True).drop_duplicates(subset=[index_col])
-        _write_shard(out, main_feature_dir / name)
+        _write_shard(out, main_patches_dir / name)
         return name, len(out)
 
     if n_jobs and n_jobs > 1:

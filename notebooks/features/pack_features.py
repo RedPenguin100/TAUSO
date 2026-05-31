@@ -26,6 +26,7 @@ import pandas as pd
 
 from notebooks.features.feature_extraction import _get_saved_features_dir, get_dtype_for_feature
 from tauso.cli_utils import md5_file
+from tauso.populate.feature_cache import loose_shard_dir
 
 
 def pack_features(source_dir: Path, out_dir: Path, run: str, workers: int, row_group_size: int = 20000) -> Path:
@@ -98,7 +99,12 @@ def main():
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
 
-    source_dir = args.source or Path(_get_saved_features_dir(args.run))
+    if args.source is not None:
+        source_dir = args.source
+    else:
+        base = Path(_get_saved_features_dir(args.run))
+        patches = Path(loose_shard_dir(str(base)))
+        source_dir = patches if patches.is_dir() else base
     if not source_dir.is_dir():
         parser.error(f"Source dir does not exist: {source_dir}")
 
