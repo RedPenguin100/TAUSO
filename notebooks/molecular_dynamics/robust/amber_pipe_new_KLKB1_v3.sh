@@ -41,9 +41,10 @@ cd "$output_path" || { mark_failed cd; exit 1; }
 
 USE_GPU=${USE_GPU:-0}
 if [ "$USE_GPU" -eq 1 ]; then
-    amber_exec="pmemd.cuda"
+    export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    run_md="pmemd.cuda"                                      # one process, one GPU
 else
-    amber_exec="sander"
+    run_md="mpirun --bind-to none -np ${total_procs} sander.MPI"
 fi
 
 # Tleap — only run if .prmtop is missing (and create_files just generated _tleap.in)
@@ -54,14 +55,14 @@ else
     echo "[SKIP] tleap — ${base_name}.prmtop already exists"
 fi
 
-echo "Using Amber executable: $amber_exec"
+echo "Using Amber executable: $run_md"
 
 # §2: resume-from-stage — skip any stage whose restart output is already present.
 
 # --- Minimization 1 ---
 if [ ! -s "${base_name}_min1.ncrst" ]; then
     echo "[RUN] min1 at $(date -Iseconds)"
-    mpirun --bind-to none -np ${total_procs} "$amber_exec".MPI -i "${base_name}_min1.in" \
+    $run_md -i "${base_name}_min1.in" \
         -o "${base_name}_min1.out" \
         -p "${base_name}.prmtop" \
         -c "${base_name}.rst7" \
@@ -75,7 +76,7 @@ fi
 # --- Minimization 2 ---
 if [ ! -s "${base_name}_min2.ncrst" ]; then
     echo "[RUN] min2 at $(date -Iseconds)"
-    mpirun --bind-to none -np ${total_procs} "$amber_exec".MPI -i "${base_name}_min2.in" \
+    $run_md -i "${base_name}_min2.in" \
         -o "${base_name}_min2.out" \
         -p "${base_name}.prmtop" \
         -c "${base_name}_min1.ncrst" \
@@ -88,7 +89,7 @@ fi
 # --- Heat ---
 if [ ! -s "${base_name}_heat.ncrst" ]; then
     echo "[RUN] heat at $(date -Iseconds)"
-    mpirun --bind-to none -np ${total_procs} "$amber_exec".MPI -O -i "${base_name}_heat.in" \
+    $run_md -O -i "${base_name}_heat.in" \
         -o "${base_name}_heat.out" \
         -p "${base_name}.prmtop" \
         -c "${base_name}_min2.ncrst" \
@@ -103,7 +104,7 @@ fi
 # --- Equilibrate ---
 if [ ! -s "${base_name}_equilibrate.ncrst" ]; then
     echo "[RUN] equilibrate at $(date -Iseconds)"
-    mpirun --bind-to none -np ${total_procs} "$amber_exec".MPI -O -i "${base_name}_equilibrate.in" \
+    $run_md -O -i "${base_name}_equilibrate.in" \
         -o "${base_name}_equilibrate.out" \
         -p "${base_name}.prmtop" \
         -c "${base_name}_heat.ncrst" \
@@ -118,7 +119,7 @@ fi
 # --- Production MD ---
 if [ ! -s "${base_name}_md.rst7" ]; then
     echo "[RUN] md at $(date -Iseconds)"
-    mpirun --bind-to none -np ${total_procs} "$amber_exec".MPI -O -i "${base_name}_md.in" \
+    $run_md -O -i "${base_name}_md.in" \
         -o "${base_name}_md.out" \
         -p "${base_name}.prmtop" \
         -c "${base_name}_equilibrate.ncrst" \
