@@ -89,6 +89,23 @@ def resid_by_bin(df, name, n=3):
     return pd.DataFrame({"mean": g.mean(), "se": g.sem(), "n": g.size()})
 
 
+def high_vs_regular(df, name, q=0.25, min_n=12):
+    """Per cohort: mean Inhibition(%) of the top-q-burden ASOs ('high') vs the rest ('regular').
+
+    Real inhibition units, but each cohort contributes one high/regular pair, so averaging across
+    cohorts controls for the experiment. Returns columns high, reg, n."""
+    rows = []
+    for _, s in df.groupby(COHORT):
+        b = s[name].to_numpy("float64"); y = s[INH].to_numpy("float64")
+        if len(y) < min_n or np.ptp(b) == 0:
+            continue
+        hi = b >= np.quantile(b, 1 - q)
+        if hi.sum() < 3 or (~hi).sum() < 3:
+            continue
+        rows.append((y[hi].mean(), y[~hi].mean(), len(y)))
+    return pd.DataFrame(rows, columns=["high", "reg", "n"])
+
+
 def per_cohort_corr(df, name, min_n=10, min_nonzero=3):
     """Per-cohort Spearman(burden, inhibition); negative => burden flags worse ASOs."""
     out = []
