@@ -6,6 +6,8 @@ logger = logging.getLogger(__name__)
 from ..data.consts import CHEMICAL_PATTERN
 from ..features.sequence_modification.mod_features import (
     compute_dominant_mod_fraction,
+    compute_mod_3prime_run,
+    compute_mod_5prime_run,
     compute_mod_adjacent_pair_count,
     compute_mod_block_count,
     compute_mod_char_entropy,
@@ -27,6 +29,8 @@ from ..parallel_utils import make_apply_fn
 
 MODIFICATION_FEATURE_TO_CALCULATION = {
     "mod_fraction": lambda row: compute_mod_fraction(row[CHEMICAL_PATTERN]),
+    "mod_5prime_run": lambda row: compute_mod_5prime_run(row[CHEMICAL_PATTERN]),
+    "mod_3prime_run": lambda row: compute_mod_3prime_run(row[CHEMICAL_PATTERN]),
     "mod_min_distance_to_5prime": lambda row: compute_mod_min_distance_to_5prime(row[CHEMICAL_PATTERN]),
     "mod_min_distance_to_3prime": lambda row: compute_mod_min_distance_to_3prime(row[CHEMICAL_PATTERN]),
     "mod_pos_std": lambda row: compute_mod_pos_std(row[CHEMICAL_PATTERN]),

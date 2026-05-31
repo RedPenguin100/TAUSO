@@ -228,51 +228,7 @@ class Calculator:
             logger.info("All basic chemistry features exist. Skipping.")
 
         # ==========================================
-        # 2. Gapmer Architecture Features
-        # ==========================================
-        # Lengths of the 5' wing, central deoxy gap, and 3' wing (extracted from the
-        # chemical pattern). arch_wing5_len / arch_wing3_len are NaN on non-gapmer rows
-        # (no wings to measure); arch_gap_len + arch_is_gapmer are meaningful for all
-        # chemistries.
-        expected_arch = ["arch_wing5_len", "arch_gap_len", "arch_wing3_len", "arch_is_gapmer"]
-        missing_arch = self._get_missing_features(expected_arch)
-
-        if missing_arch:
-            logger.info("Computing %d gapmer architecture features...", len(missing_arch))
-
-            from tauso.common.modifications import get_longest_dna_gap
-            from tauso.data.consts import CHEMICAL_PATTERN
-
-            self._check_dependencies([CHEMICAL_PATTERN])
-
-            def _arch_lens(pat):
-                if not isinstance(pat, str) or not pat:
-                    return 0, 0, 0
-                start, end, gap_len = get_longest_dna_gap(pat)
-                if gap_len == 0:
-                    return 0, 0, 0
-                return start, gap_len, len(pat) - end
-
-            arch_tuples = self.data[CHEMICAL_PATTERN].map(_arch_lens)
-            is_gapmer = arch_tuples.map(lambda t: t[0] > 0 and t[1] > 0 and t[2] > 0)
-            if "arch_gap_len" in missing_arch:
-                self.data["arch_gap_len"] = arch_tuples.map(lambda t: t[1]).astype(int)
-            if "arch_is_gapmer" in missing_arch:
-                self.data["arch_is_gapmer"] = is_gapmer.astype(int)
-            if "arch_wing5_len" in missing_arch:
-                wing5 = arch_tuples.map(lambda t: float(t[0]))
-                self.data["arch_wing5_len"] = wing5.where(is_gapmer, np.nan)
-            if "arch_wing3_len" in missing_arch:
-                wing3 = arch_tuples.map(lambda t: float(t[2]))
-                self.data["arch_wing3_len"] = wing3.where(is_gapmer, np.nan)
-
-            for feature in missing_arch:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All gapmer architecture features exist. Skipping.")
-
-        # ==========================================
-        # 3. 5'-Terminal Nucleotide Features (term5p_*)
+        # 2. 5'-Terminal Nucleotide Features (term5p_*)
         # ==========================================
         # 5'-terminal base identity. RNase H1 has a documented sequence preference at the
         # cleavage site (Wu & Lima, JBC 2004; Lima et al., JBC 2004) and the 5' base of
@@ -302,7 +258,7 @@ class Calculator:
             logger.info("All 5'-terminal base features exist. Skipping.")
 
         # ==========================================
-        # 4. Transfection Features
+        # 3. Transfection Features
         # ==========================================
         expected_transfection = ["Electroporation", "Gymnosis", "Lipofection", "Other"]
         missing_transfection = self._get_missing_features(expected_transfection)

@@ -17,6 +17,40 @@ def compute_mod_fraction(pattern):
     return modified / total
 
 
+def compute_mod_5prime_run(pattern):
+    """
+    Returns the length of the contiguous modified run at the 5' end, normalized by
+    pattern length. NaN if pattern is empty.
+    """
+    pattern = str(pattern)
+    n = len(pattern)
+    if n == 0:
+        return np.nan
+    run = 0
+    for c in pattern:
+        if c == "d":
+            break
+        run += 1
+    return run / n
+
+
+def compute_mod_3prime_run(pattern):
+    """
+    Returns the length of the contiguous modified run at the 3' end, normalized by
+    pattern length. NaN if pattern is empty.
+    """
+    pattern = str(pattern)
+    n = len(pattern)
+    if n == 0:
+        return np.nan
+    run = 0
+    for c in reversed(pattern):
+        if c == "d":
+            break
+        run += 1
+    return run / n
+
+
 def compute_mod_min_distance_to_5prime(pattern):
     """
     Returns the normalized distance (0 to 1) of the first modified residue (non-'d')
