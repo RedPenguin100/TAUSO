@@ -127,24 +127,16 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         # mRNA-distance variants live below.
         if locus_info.stop_codons:
             stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64)
-            out_dist_canonical_stop[v_row_idxs] = np.min(
-                np.abs(gen_coords[:, None] - stop_mids[None, :]), axis=1
-            )
+            out_dist_canonical_stop[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - stop_mids[None, :]), axis=1)
         if locus_info.all_stop_codons:
             all_stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64)
-            out_dist_closest_stop[v_row_idxs] = np.min(
-                np.abs(gen_coords[:, None] - all_stop_mids[None, :]), axis=1
-            )
+            out_dist_closest_stop[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - all_stop_mids[None, :]), axis=1)
         if locus_info.start_codons:
             start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.start_codons], dtype=np.float64)
-            out_dist_canonical_start[v_row_idxs] = np.min(
-                np.abs(gen_coords[:, None] - start_mids[None, :]), axis=1
-            )
+            out_dist_canonical_start[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - start_mids[None, :]), axis=1)
         if locus_info.all_start_codons:
             all_start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_start_codons], dtype=np.float64)
-            out_dist_closest_start[v_row_idxs] = np.min(
-                np.abs(gen_coords[:, None] - all_start_mids[None, :]), axis=1
-            )
+            out_dist_closest_start[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - all_start_mids[None, :]), axis=1)
 
         # mRNA-distance variants for stop codons. Walk the canonical exon set in
         # 5'->3' order and map a genomic coord to its position in the spliced
