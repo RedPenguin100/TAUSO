@@ -85,6 +85,7 @@ def get_dtype_for_feature(filename, index_col_name):
         "sense_5utr",
         "sense_cds",
         "sense_cds_non_exclusive",
+        "sense_exon_non_exclusive",
     }:
         feat_type = "int"
     elif name in {"sense_start_norm", "sense_start_from_end_norm"}:

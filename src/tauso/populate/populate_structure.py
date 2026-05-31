@@ -53,6 +53,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_type = np.full(n_rows, "unannotated", dtype=object)  # Initialize all as unannotated
 
     out_exon = np.zeros(n_rows, dtype=np.int8)
+    out_exon_non_exclusive = np.zeros(n_rows, dtype=np.int8)
     out_intron = np.zeros(n_rows, dtype=np.int8)
     out_3utr = np.zeros(n_rows, dtype=np.int8)
     out_5utr = np.zeros(n_rows, dtype=np.int8)
@@ -210,6 +211,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         out_type[v_row_idxs[mask_5utr]] = "5UTR"
 
         out_exon[v_row_idxs[mask_exon]] = 1
+        out_exon_non_exclusive[v_row_idxs[is_exon]] = 1
         out_intron[v_row_idxs[mask_intron]] = 1
         out_3utr[v_row_idxs[mask_3utr]] = 1
         out_5utr[v_row_idxs[mask_5utr]] = 1
@@ -229,6 +231,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[SENSE_START_FROM_END] = out_start_end
     all_data[SENSE_LENGTH] = seq_lengths
     all_data[SENSE_EXON] = out_exon
+    all_data[SENSE_EXON_NON_EXCLUSIVE] = out_exon_non_exclusive
     all_data[SENSE_INTRON] = out_intron
     all_data[SENSE_UTR] = out_3utr | out_5utr
     all_data[SENSE_3UTR] = out_3utr
