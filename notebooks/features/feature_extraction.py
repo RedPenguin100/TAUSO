@@ -72,6 +72,19 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name.startswith("expr_"):
         feat_type = "float64"
+    elif name in {
+        # arch_wing5_len / arch_wing3_len are NaN on non-gapmer rows (the .where(is_gapmer, NaN)
+        # in Calculator._calculate_basic_features), so they're stored as float64 -- coercing them
+        # to int on CSV-shard read would silently drop the NaNs to 0 or error.
+        "arch_wing5_len",
+        "arch_wing3_len",
+        # tox_g4hunter_max is a max windowed G4Hunter score (real-valued); tox_3prime_g_fraction
+        # is a fraction in [0, 1]. Both are float; everything else in the tox_* family is a
+        # motif/length count.
+        "tox_g4hunter_max",
+        "tox_3prime_g_fraction",
+    }:
+        feat_type = "float64"
     elif name.startswith("arch_") or name.startswith("term5p_") or name.startswith("tox_"):
         feat_type = "int"
     elif name in {"sense_length", "sense_start", "sense_start_from_end"}:
