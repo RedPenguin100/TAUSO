@@ -74,12 +74,11 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name.startswith("arch_") or name.startswith("term5p_") or name.startswith("tox_"):
         feat_type = "int"
+    elif name in {"sense_length", "sense_start", "sense_start_from_end"}:
+        feat_type = "int"
     elif name in {
         "sense_exon",
         "sense_intron",
-        "sense_length",
-        "sense_start",
-        "sense_start_from_end",
         "sense_utr",
         "sense_3utr",
         "sense_5utr",
@@ -87,7 +86,7 @@ def get_dtype_for_feature(filename, index_col_name):
         "sense_cds_non_exclusive",
         "sense_exon_non_exclusive",
     }:
-        feat_type = "int"
+        feat_type = "int8"
     elif name in {"sense_start_norm", "sense_start_from_end_norm"}:
         feat_type = "float64"
     elif name.startswith("sense_dist_to_") or name.startswith("sense_mrna_dist_to_"):
