@@ -39,3 +39,4 @@ notebooks/models/SimpleModels/
 # Per-feature CSVs (regenerable from bigWigs + ASO data via tauso populate / notebooks/features/feature_extraction)
 notebooks/saved_features_oligo/
 notebooks/graphs/**/__pycache__/
+notebooks/graphs/**/figures/

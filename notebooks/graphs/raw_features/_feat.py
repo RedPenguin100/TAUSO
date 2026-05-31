@@ -46,6 +46,18 @@ def setup_style():
     })
 
 
+FIGDIR = Path(__file__).resolve().parent / "figures"
+
+
+def save(fig, name, dpi=200):
+    """Save a figure to figures/<name>.png and close it."""
+    FIGDIR.mkdir(exist_ok=True)
+    path = FIGDIR / f"{name}.png"
+    fig.savefig(path, dpi=dpi, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    print(f"saved {path}")
+
+
 def build_cache():
     from notebooks.models.utility import load_and_validate_final_data
     fd, _ = load_and_validate_final_data(version="oligo", load_competition=False)
