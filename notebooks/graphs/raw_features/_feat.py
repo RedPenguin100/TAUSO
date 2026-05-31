@@ -106,6 +106,53 @@ def high_vs_regular(df, name, q=0.25, min_n=12):
     return pd.DataFrame(rows, columns=["high", "reg", "n"])
 
 
+def burden_values(df, name, q=0.25, min_n=12):
+    """The burden values that 'high' vs 'regular' actually carry, pooled over the cohorts that
+    high_vs_regular uses (so 'high' is the per-cohort top-q). Returns (high, reg) arrays in the
+    feature's own units; NaN-safe."""
+    hi, reg = [], []
+    for _, s in df.groupby(COHORT):
+        b = s[name].to_numpy("float64")
+        b = b[~np.isnan(b)]
+        if len(b) < min_n or np.ptp(b) == 0:
+            continue
+        m = b >= np.quantile(b, 1 - q)
+        if m.sum() < 3 or (~m).sum() < 3:
+            continue
+        hi.append(b[m]); reg.append(b[~m])
+    return np.concatenate(hi), np.concatenate(reg)
+
+
+def burden_summary(df, name, q=0.25):
+    """One-line facts about what counts as 'high' burden for a feature: fraction of all ASOs that
+    are nonzero, the median per-cohort 'high' cutoff, and a typical (median) high vs regular value."""
+    b = df[name].to_numpy("float64"); b = b[~np.isnan(b)]
+    hi, reg = burden_values(df, name, q)
+    cuts = [c for c in (
+        (lambda x: np.quantile(x, 1 - q) if len(x) >= 12 and np.ptp(x) > 0 else np.nan)
+        (s[name].to_numpy("float64")[~np.isnan(s[name].to_numpy("float64"))])
+        for _, s in df.groupby(COHORT)) if np.isfinite(c)]
+    return {"pct_nonzero": 100 * (b > 0).mean(), "cutoff": float(np.median(cuts)),
+            "high": float(np.median(hi)), "reg": float(np.median(reg))}
+
+
+def cohort_delta(df, name, q=0.25):
+    """Per-cohort delta = high_mean - reg_mean (real inhibition %), with the across-cohort summary.
+
+    Returns dict with: delta (per-cohort array), mean & 95% t-CI of the mean delta, Wilcoxon p
+    (paired high vs reg), and the means + 95% CIs of high and of regular for dumbbell error bars."""
+    from scipy.stats import wilcoxon, t
+    d = high_vs_regular(df, name, q)
+    delta = (d.high - d.reg).to_numpy("float64")
+    n = len(delta)
+    ci = lambda v: t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))
+    return {"delta": delta, "n": n,
+            "mean": float(delta.mean()), "ci": float(ci(delta)),
+            "p": float(wilcoxon(d.high, d.reg).pvalue),
+            "high": float(d.high.mean()), "high_ci": float(ci(d.high.to_numpy())),
+            "reg": float(d.reg.mean()),  "reg_ci": float(ci(d.reg.to_numpy()))}
+
+
 def per_cohort_corr(df, name, min_n=10, min_nonzero=3):
     """Per-cohort Spearman(burden, inhibition); negative => burden flags worse ASOs."""
     out = []
