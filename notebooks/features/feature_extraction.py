@@ -7,12 +7,15 @@ import pyarrow.parquet as pq
 
 from tauso.populate.feature_cache import (
     FEATURE_CACHE_FILES,
+    LOOSE_SHARD_SUBDIR,
     ensure_cache,
     feature_store_dir,
+    loose_shard_dir,
     save_feature_internal,
 )
 
 logger = logging.getLogger(__name__)
+_warned_legacy_shards = set()
 
 
 def _get_saved_features_dir(version):
@@ -36,111 +39,101 @@ COMPETITION = [
 
 
 def get_dtype_for_feature(filename, index_col_name):
-    if filename.startswith("RBP_"):
+    name = filename.removesuffix(".parquet").removesuffix(".csv")
+    if name.startswith("RBP_"):
         feat_type = "float64"
-    elif filename.startswith("OHE_"):
+    elif name.startswith("OHE_"):
         feat_type = "int8"
-    elif filename.startswith("tAI_") or filename.startswith("CAI_") or filename.startswith("ENC_"):
+    elif name.startswith("tAI_") or name.startswith("CAI_") or name.startswith("ENC_"):
         feat_type = "float64"
-    elif filename.startswith("fold_"):
+    elif name.startswith("fold_"):
         feat_type = "float64"
-    elif filename.startswith("off_target_score_") or filename.startswith("off_target_single_"):
+    elif name.startswith("off_target_score_") or name.startswith("off_target_single_"):
         feat_type = "float64"
-    elif filename in [
-        "RNaseH1_Inefficacy_GGGG.csv",
-        "RNaseH1_Potency_TCCC.csv",
-        "RNaseH1_Potency_TCTC.csv",
-        "RNaseH1_Potency_TTCC.csv",
-    ]:
+    elif name in {
+        "RNaseH1_Inefficacy_GGGG",
+        "RNaseH1_Potency_TCCC",
+        "RNaseH1_Potency_TCTC",
+        "RNaseH1_Potency_TTCC",
+    }:
         feat_type = "int"
-    elif filename.startswith("RNaseH1_Krel") or filename.startswith("RNaseH1_score"):
+    elif name.startswith("RNaseH1_Krel") or name.startswith("RNaseH1_score"):
         feat_type = "float64"
 
-    elif filename.startswith("Modification_"):
+    elif name.startswith("Modification_"):
         feat_type = "float64"
-    elif filename.startswith("hybr_"):
+    elif name.startswith("hybr_"):
         feat_type = "float64"
-    elif filename.startswith("seq_"):
+    elif name.startswith("seq_"):
         feat_type = "float64"
-    elif filename.startswith("SeqChem_"):
+    elif name.startswith("SeqChem_"):
         feat_type = "float64"
-    elif filename.startswith("ribo_"):
+    elif name.startswith("ribo_"):
         feat_type = "float64"
-    elif filename in [
-        "sense_exon.csv",
-        "sense_intron.csv",
-        "sense_length.csv",
-        "sense_start.csv",
-        "sense_start_from_end.csv",
-        "sense_utr.csv",
-        "sense_3utr.csv",
-        "sense_5utr.csv",
-        "n_sense_exon.csv",
-        "n_sense_intron.csv",
-        "n_sense_utr.csv",
-        "n_sense_3utr.csv",
-        "n_sense_5utr.csv",
-    ]:
+    elif name.startswith("expr_"):
+        feat_type = "float64"
+    elif name.startswith("arch_") or name.startswith("term5p_") or name.startswith("tox_"):
         feat_type = "int"
-    elif filename in ["on_target_total_hybridization_0.csv", "on_target_total_hybridization_1200.csv"]:
-        feat_type = "float64"
-    elif filename in [
-        "expr_target.csv",
-        "expr_rnase.csv",
-        "expr_stab2.csv",
-        "expr_mrc1.csv",
-        "expr_msr1.csv",
-    ]:
-        feat_type = "float64"
-    elif filename in [
-        "ps_max_consecutive_po.csv",
-        "ps_end_score.csv",
-        "ps_wing5_count.csv",
-        "ps_gap_count.csv",
-        "ps_wing3_count.csv",
-    ]:
+    elif name in {"sense_length", "sense_start", "sense_start_from_end"}:
         feat_type = "int"
-    elif filename in [
-        "ps_po_percentage.csv",
-        "ps_frac_mod.csv",
-        "ps_frac_dna.csv",
-    ]:
+    elif name in {
+        "sense_exon",
+        "sense_intron",
+        "sense_utr",
+        "sense_3utr",
+        "sense_5utr",
+        "sense_cds",
+        "sense_cds_non_exclusive",
+        "sense_exon_non_exclusive",
+    }:
+        feat_type = "int8"
+    elif name in {"sense_start_norm", "sense_start_from_end_norm"}:
         feat_type = "float64"
-    elif filename in [
-        "chem_1st_gen.csv",
-        "chem_2nd_gen.csv",
-        "chem_3rd_gen.csv",
-        "Electroporation.csv",
-        "Gymnosis.csv",
-        "Lipofection.csv",
-        "Other.csv",
-        "arch_wing5_len.csv",
-        "arch_gap_len.csv",
-        "arch_wing3_len.csv",
-        "arch_is_gapmer.csv",
-        "term5p_is_purine.csv",
-        "term5p_is_g.csv",
-        "term5p_is_t.csv",
-    ]:
+    elif name.startswith("sense_dist_to_") or name.startswith("sense_mrna_dist_to_"):
+        feat_type = "float64"
+    elif name.startswith("on_target_total_hybridization_"):
+        feat_type = "float64"
+    elif name in {
+        "ps_max_consecutive_po",
+        "ps_end_score",
+        "ps_wing5_count",
+        "ps_gap_count",
+        "ps_wing3_count",
+    }:
         feat_type = "int"
-    elif filename in ["sense_type.csv"]:
+    elif name in {
+        "ps_po_percentage",
+        "ps_frac_mod",
+        "ps_frac_dna",
+    }:
+        feat_type = "float64"
+    elif name in {
+        "chem_1st_gen",
+        "chem_2nd_gen",
+        "chem_3rd_gen",
+        "Electroporation",
+        "Gymnosis",
+        "Lipofection",
+        "Other",
+    }:
+        feat_type = "int"
+    elif name == "sense_type":
         feat_type = "str"
-    elif filename in ["HalfLife_Source.csv", "Mapped_Cell_Proxy.csv"]:
+    elif name in {"HalfLife_Source", "Mapped_Cell_Proxy"}:
         feat_type = "str"
-    elif filename in ["mRNA_HalfLife.csv"]:
+    elif name == "mRNA_HalfLife":
         feat_type = "float64"
     # Competition
-    elif filename.startswith("PFRED_") or filename.startswith("OW_"):
+    elif name.startswith("PFRED_") or name.startswith("OW_"):
         feat_type = "float64"
-    elif filename.startswith("sfold_") or filename.startswith("oligo_ai_") or filename.startswith("miranda_"):
+    elif name.startswith("sfold_") or name.startswith("oligo_ai_") or name.startswith("miranda_"):
         feat_type = "float64"
     else:
-        print(f"Filename not assigned: {filename}")
+        logger.warning("Filename not assigned: %s", filename)
         feat_type = None
-    col_name = filename.removesuffix(".csv")
 
     if feat_type is not None:
-        return {index_col_name: "int32", col_name: feat_type}
+        return {index_col_name: "int32", name: feat_type}
     return {index_col_name: "int32"}
 
 
@@ -173,20 +166,23 @@ def _keep_filter(light, load_competition, wanted):
 
 
 def _list_loose_files(feature_dir, cache_file):
-    """Loose per-feature files (.csv or .parquet) in `feature_dir`, excluding both
-    the active wide cache and any *other* wide-cache parquets left over from
-    previous versions.
+    """Loose per-feature shards (.parquet/.csv). Canonical location is `<feature_dir>/_patches/`.
 
-    Active wide cache: filename matches the one registered in FEATURE_CACHE_FILES.
-    Stale wide cache: any other .parquet whose column count is wider than a
-    single-feature file (heuristic: more than `WIDE_CACHE_COL_THRESHOLD` columns).
-    Loading a stale wide cache alongside the active one silently overrides the
-    active cache's values for every shared column (loose files take precedence in
-    load_all_features), so we refuse and warn instead.
+    During the migration window we still pick up shards left in the bare feature_dir, and
+    skip wide-cache parquets there via a column-count heuristic. A one-shot warning per
+    directory tells the user how to move legacy shards into _patches/.
     """
+    patches_dir = loose_shard_dir(feature_dir)
+    out = []
+    if os.path.isdir(patches_dir):
+        for f in sorted(os.listdir(patches_dir)):
+            if f.startswith(".") or not (f.endswith(".parquet") or f.endswith(".csv")):
+                continue
+            out.append(os.path.join(patches_dir, f))
+
     cache_name = os.path.basename(cache_file) if cache_file else None
     WIDE_CACHE_COL_THRESHOLD = 5  # single-feature files have 2 cols (index + value)
-    out = []
+    legacy = []
     stale_caches = []
     for f in sorted(os.listdir(feature_dir)):
         if f.startswith("."):
@@ -204,7 +200,16 @@ def _list_loose_files(feature_dir, cache_file):
             if n_cols > WIDE_CACHE_COL_THRESHOLD:
                 stale_caches.append((f, n_cols))
                 continue
-        out.append(full_path)
+        legacy.append(full_path)
+
+    if legacy and feature_dir not in _warned_legacy_shards:
+        _warned_legacy_shards.add(feature_dir)
+        logger.warning(
+            "Found %d legacy loose shard(s) in %s. New writes go to %s/. "
+            "To migrate: mkdir -p %s && mv %s/*.parquet %s/",
+            len(legacy), feature_dir, LOOSE_SHARD_SUBDIR, patches_dir, feature_dir, patches_dir,
+        )
+    out.extend(legacy)
 
     if stale_caches:
         details = ", ".join(f"{n} ({c} cols)" for n, c in stale_caches)
@@ -292,19 +297,3 @@ def save_feature(df, feature_name, overwrite=False, version=None):
     save_feature_internal(
         df, feature_name, overwrite=overwrite, version=version, saved_dir_func=_get_saved_features_dir
     )
-
-
-# TODO: fix this function
-# def read_base_df():
-#     all_data = pd.read_csv(DATA_PATH_NEW / 'data_asoptimizer_updated.11.7.csv',
-#                            dtype={'index': int, 'ISIS': int, 'Target_gene': str,
-#                                   'Cell_line': str, 'Density(cells_per_well)': float,
-#                                   'Transfection': str, 'ASO_volume(nm)': float, 'Treatment_Period(hours)': float,
-#                                   'Primer_probe_set': str, 'Sequence': str, 'Modification': str, 'Location': str,
-#                                   'Chemical_Pattern': str, 'Linkage': str, 'Linage_Location' : str, 'Smiles' : str,
-#                                   'Inhibition(%)' : float, 'seq_length' : int, 'Canonical Gene Name' : str,
-#                                   'Cell line organism' : str, 'Transcript' : str, 'Location_in_sequence' : int,
-#                                   'Location_div_by_length' : float, 'true_length_of_seq' : int, 'mod_scan' : int,
-#                                   'cell_line_uniform' : str
-#                                   })
-#     return all_data
