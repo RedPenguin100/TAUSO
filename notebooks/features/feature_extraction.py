@@ -44,7 +44,7 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name.startswith("ohe_"):
         feat_type = "int8"
-    elif name.startswith("tAI_") or name.startswith("CAI_") or name.startswith("ENC_"):
+    elif name.startswith("tai_") or name.startswith("cai_") or name.startswith("enc_"):
         feat_type = "float64"
     elif name.startswith("fold_"):
         feat_type = "float64"

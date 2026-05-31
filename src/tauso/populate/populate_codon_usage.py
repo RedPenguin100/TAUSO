@@ -35,7 +35,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
                 f"Missing required column for tAI calculation: '{local_col}'. Please run add_external_mrna_and_context_columns"
             )
 
-        feat_name = f"tAI_score_{flank}_CDS"
+        feat_name = f"tai_score_{flank}"
         df[feat_name] = df[local_col].apply(compute_tAI)
         feature_names.append(feat_name)
 
@@ -47,8 +47,8 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     }
 
     logger.info("Mapping Global tAI scores to dataframe...")
-    df["tAI_score_global_CDS"] = df[CANONICAL_GENE].map(gene_tai_lookup)
-    feature_names.append("tAI_score_global_CDS")
+    df["tai_score_global"] = df[CANONICAL_GENE].map(gene_tai_lookup)
+    feature_names.append("tai_score_global")
 
     return df, feature_names
 
@@ -81,7 +81,7 @@ def populate_enc(
 
     for flank in cds_windows:
         local_col = f"local_coding_region_around_ASO_{flank}"
-        enc_col = f"ENC_score_{flank}_CDS"
+        enc_col = f"enc_score_{flank}"
 
         if local_col not in df.columns:
             raise KeyError(
@@ -105,8 +105,8 @@ def populate_enc(
 
     logger.info("Mapping Global ENC scores to dataframe...")
 
-    df["ENC_score_global_CDS"] = df[CANONICAL_GENE].map(gene_enc_lookup)
-    feature_names.append("ENC_score_global_CDS")
+    df["enc_score_global"] = df[CANONICAL_GENE].map(gene_enc_lookup)
+    feature_names.append("enc_score_global")
 
     logger.info("Global ENC Calculation Complete.")
 
@@ -182,7 +182,7 @@ def populate_cai(
 
     for flank in cds_windows:
         local_col = f"local_coding_region_around_ASO_{flank}"
-        cai_col = f"CAI_score_{flank}_CDS"
+        cai_col = f"cai_score_{flank}"
 
         if local_col not in df.columns:
             raise KeyError(
@@ -214,11 +214,11 @@ def populate_cai(
         return _get_row_cai(row, entry["cds_sequence"])
 
     if use_parallel:
-        df["CAI_score_global_CDS"] = df.parallel_apply(_get_global_cai, axis=1)
+        df["cai_score_global"] = df.parallel_apply(_get_global_cai, axis=1)
     else:
-        df["CAI_score_global_CDS"] = df.apply(_get_global_cai, axis=1)
+        df["cai_score_global"] = df.apply(_get_global_cai, axis=1)
 
-    feature_names.append("CAI_score_global_CDS")
+    feature_names.append("cai_score_global")
 
     logger.info("CAI Calculation Complete.")
 
