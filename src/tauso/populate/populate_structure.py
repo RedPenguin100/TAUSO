@@ -52,13 +52,13 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_start_end = np.zeros(n_rows, dtype=np.int32)
     out_type = np.full(n_rows, "unannotated", dtype=object)  # Initialize all as unannotated
 
-    out_exon = np.zeros(n_rows, dtype=np.int8)
-    out_exon_non_exclusive = np.zeros(n_rows, dtype=np.int8)
-    out_intron = np.zeros(n_rows, dtype=np.int8)
-    out_3utr = np.zeros(n_rows, dtype=np.int8)
-    out_5utr = np.zeros(n_rows, dtype=np.int8)
-    out_cds = np.zeros(n_rows, dtype=np.int8)
-    out_cds_non_exclusive = np.zeros(n_rows, dtype=np.int8)
+    out_exon = np.zeros(n_rows, dtype=np.int64)
+    out_exon_non_exclusive = np.zeros(n_rows, dtype=np.int64)
+    out_intron = np.zeros(n_rows, dtype=np.int64)
+    out_3utr = np.zeros(n_rows, dtype=np.int64)
+    out_5utr = np.zeros(n_rows, dtype=np.int64)
+    out_cds = np.zeros(n_rows, dtype=np.int64)
+    out_cds_non_exclusive = np.zeros(n_rows, dtype=np.int64)
 
     # Normalized sense positions and codon-distance features.
     # NaN for unmapped rows (no gene match), for rows on genes without codon
