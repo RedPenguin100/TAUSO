@@ -6,3 +6,4 @@ AMBER MD scripts for the KLKB1 ASO library on the TAU SLURM cluster.
 - `robust/` — hardened drop-in replacements (resume-from-stage, success/failure
   markers, login-node tleap preflight, `--bind-to none`, right-sized memory,
   `--requeue`). This is what we run. See `robust/README.md`.
+- `GPU_FAST_PATH.md` — running on GPU (`USE_GPU=1`), ~90× faster than CPU.
