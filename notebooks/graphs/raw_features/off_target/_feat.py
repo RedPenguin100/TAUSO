@@ -10,7 +10,7 @@ non-negative; the off_target_score_* columns are <=0, so they are sign-flipped).
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -31,6 +31,13 @@ BURDEN = {
     "off-target general":  ("off_target_score_general_ARTM_n200_c1000", -1),
     "off-target specific": ("off_target_score_specific_ARTM_n200_c1000", -1),
 }
+# on-target control: binding to the INTENDED target. If the off-target drop were just "more
+# binding energy", on-target binding would hurt too; it does not -- so the effect is
+# off-target-specific, not a general binding-strength artefact.
+CONTROL = {
+    "on-target binding": ("on_target_total_hybridization_1000", +1),
+}
+ALL = {**BURDEN, **CONTROL}
 META = [INH, COHORT, "Cell_line", "Modification"]
 
 # plain-language description of each burden feature, for figure captions
@@ -41,6 +48,7 @@ BURDEN_DESC = {
     "RNase-H1 off-tgt":    "binding to the RNase-H1 transcript",
     "off-target general":  "abundance-weighted off-target binding across the transcriptome",
     "off-target specific": "abundance-weighted off-target binding to specifically-expressed transcripts",
+    "on-target binding":   "binding to the INTENDED target (control — more = stronger on-target engagement)",
 }
 ACCENT, BLUE, GREY = "#E4572E", "#2E86AB", "#9AA5B1"
 SEQ = ["#bdbdbd", "#f3b08a", "#e4572e", "#9e2a0c"]   # none -> high burden (grey -> deep red = worse)
@@ -71,7 +79,7 @@ def save(fig, name, dpi=200):
 def build_cache():
     from notebooks.models.utility import load_and_validate_final_data
     fd, _ = load_and_validate_final_data(version="oligo", load_competition=False)
-    cols = META + [c for (c, _s) in BURDEN.values() if c in fd.columns]
+    cols = META + [c for (c, _s) in ALL.values() if c in fd.columns]
     df = fd[cols].copy()
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(CACHE, index=False)
@@ -84,7 +92,7 @@ def load():
         build_cache()
     df = pd.read_parquet(CACHE)
     df["chem"] = df["Modification"].map(lambda m: "cEt" if isinstance(m, str) and "cEt" in m else "2'MOE")
-    for name, (col, sgn) in BURDEN.items():
+    for name, (col, sgn) in ALL.items():
         if col in df.columns:
             df[name] = sgn * df[col].to_numpy("float64")
     df["inh_resid"] = df[INH] - df.groupby(COHORT)[INH].transform("mean")
@@ -123,6 +131,8 @@ def binned_resid(df, name, nbins=10, min_n=30):
     mean, se, n. The smooth alternative to the coarse none/low/mid/high split."""
     b = burden_log10(df, name)
     r = df["inh_resid"].to_numpy("float64")
+    ok = np.isfinite(b) & np.isfinite(r)
+    b, r = b[ok], r[ok]
     edges = np.linspace(b.min(), b.max(), nbins + 1)
     idx = np.clip(np.digitize(b, edges) - 1, 0, nbins - 1)
     rows = []
