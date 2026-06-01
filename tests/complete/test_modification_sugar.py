@@ -8,7 +8,7 @@ from tests.complete.conftest import get_n_jobs
 @pytest.fixture(scope="session")
 def chemistry_only_data(base_data):
     """Modification features only consume CHEMICAL_PATTERN. assign_chemistry derives it
-    directly from MODIFICATION, so this fixture skips the structure / genome-DB stack
+    directly from MODIFICATION_STRING, so this fixture skips the structure / genome-DB stack
     that other tests pull in via `chemistry_data`.
     """
     return assign_chemistry(base_data)

@@ -6,7 +6,7 @@ from Bio.SeqUtils import gc_fraction
 
 logger = logging.getLogger(__name__)
 
-from ..data.consts import SEQUENCE
+from ..data.consts import ASO_SEQUENCE
 from ..features.sequence.seq_features import *
 from ..parallel_utils import make_apply_fn
 from ..timer import Timer
@@ -70,7 +70,7 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     """
     start_time = time.time()
     logger.debug("Starting %s...", col_name)
-    df[col_name] = make_apply_fn(df[SEQUENCE], n_jobs=cpus)(func)
+    df[col_name] = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(func)
     duration = time.time() - start_time
     logger.debug("Finished %s | Time: %.2fs", col_name, duration)
 
@@ -113,7 +113,7 @@ def populate_sequence_one_hot_encoded(
 
     # 1. Determine max length for padding (if not manually provided)
     if max_len is None:
-        max_len = int(df[SEQUENCE].str.len().max())
+        max_len = int(df[ASO_SEQUENCE].str.len().max())
         logger.debug("Determined max_len automatically: %d", max_len)
 
     # 2. Map nucleotides to lists (includes U for RNA compatibility)
@@ -144,7 +144,7 @@ def populate_sequence_one_hot_encoded(
         return encoded
 
     # 3. Apply function
-    encoded_series = make_apply_fn(df[SEQUENCE], n_jobs=cpus)(encode_and_pad)
+    encoded_series = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(encode_and_pad)
 
     # 4. Generate the new feature names
     feature_names = []

@@ -1,4 +1,4 @@
-# ================= RNA-mode RBP_compatibility =================
+# ================= RNA-mode rbp_compatibility =================
 # Works entirely in RNA alphabet (A/C/G/U). No U->T conversions.
 import numpy as np
 from scipy.stats import entropy
@@ -26,7 +26,7 @@ def add_global_complexity_features(df, feature_cols, suffix):
     matrix = df[feature_cols].fillna(0.0).values
 
     # 1. Total Sum
-    total_col = f"RBP_interaction_total_{suffix}"
+    total_col = f"rbp_interaction_total_{suffix}"
     total_scores = matrix.sum(axis=1)
     df[total_col] = total_scores
 
@@ -35,7 +35,7 @@ def add_global_complexity_features(df, feature_cols, suffix):
         probs = matrix / total_scores[:, None]
         probs = np.nan_to_num(probs)  # Replace NaNs with 0
 
-    div_col = f"RBP_diversity_global_{suffix}"
+    div_col = f"rbp_diversity_global_{suffix}"
     df[div_col] = entropy(probs, axis=1)
 
     return df, [total_col, div_col]
@@ -49,13 +49,15 @@ def add_strict_functional_features(df, rbp_map, suffix):
     for role in ["stabilizer", "destabilizer"]:
         genes = [g for g, r in rbp_map.items() if r == role]
         # Reconstruct column names
-        cols = [f"RBP_{g}_expr_aff_{suffix}" for g in genes if f"RBP_{g}_expr_aff_{suffix}" in df.columns]
+        cols = [
+            f"rbp_{g.lower()}_expr_aff_{suffix}" for g in genes if f"rbp_{g.lower()}_expr_aff_{suffix}" in df.columns
+        ]
 
         if not cols:
             continue
 
         # Sum
-        name = f"RBP_interaction_{role}_{suffix}"
+        name = f"rbp_interaction_{role}_{suffix}"
         df[name] = df[cols].sum(axis=1)
         new_feats.append(name)
         role_cols[role] = name
@@ -66,12 +68,12 @@ def add_strict_functional_features(df, rbp_map, suffix):
         destab = df[role_cols["destabilizer"]]
 
         # Delta
-        delta = f"RBP_interaction_delta_stab_vs_destab_{suffix}"
+        delta = f"rbp_interaction_delta_stab_vs_destab_{suffix}"
         df[delta] = stab - destab
         new_feats.append(delta)
 
         # Ratio
-        ratio = f"RBP_interaction_ratio_stab_vs_destab_{suffix}"
+        ratio = f"rbp_interaction_ratio_stab_vs_destab_{suffix}"
         df[ratio] = stab / (destab + 1e-6)
         new_feats.append(ratio)
 

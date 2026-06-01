@@ -4,10 +4,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(os.path.dirname(os.path.dirname(__file__)))
 NOTEBOOK_PATH = PROJECT_ROOT / "notebooks"
 
-ASOPTIMIZER_DATA_PATH = NOTEBOOK_PATH / "data" / "ASOptimizer" / "raw_data"
-ORIGINAL_CSV = ASOPTIMIZER_DATA_PATH / "asoptimizer_data_original.csv"
-PROCESSED_CSV = ASOPTIMIZER_DATA_PATH / "asoptimizer_data_processed.csv"
-UPDATED_CSV = ASOPTIMIZER_DATA_PATH / "data_asoptimizer_updated.csv"
+# NOTE: ASOptimizer data paths are intentionally NOT defined here. The ASOptimizer
+# pipeline lives in notebooks/data/ASOptimizer/ as a parked module that will be
+# re-integrated separately once its column-naming convention is translated to
+# TAUSO's canonical names (Linkage / ISIS / Smiles / Sugar_mods / Backbone_mods
+# all still carry the old shape). Do not add ASOPTIMIZER_DATA_PATH or its CSVs
+# back to this file until that translation is done.
 
 OLIGO_AI_DATA_PATH = NOTEBOOK_PATH / "data" / "OligoAI" / "raw_data"
 ORIGINAL_OLIGO_CSV_FLANK_100 = OLIGO_AI_DATA_PATH / "aso_inhibitions_21_08_25_incl_context_w_flank_100_df.csv.gz"

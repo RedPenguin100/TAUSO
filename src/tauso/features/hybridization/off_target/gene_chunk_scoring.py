@@ -13,7 +13,7 @@ from collections import defaultdict
 
 import pandas as pd
 
-from ....data.consts import SEQUENCE
+from ....data.consts import ASO_SEQUENCE
 from ....util import get_antisense
 from ..fast_hybridization import (
     TMP_PATH,
@@ -100,7 +100,7 @@ def dispatch_gene_chunk_scores(aso_df, gene_to_data, target_genes, get_gene_fn, 
             )
 
         gene_to_row_triggers = defaultdict(list)
-        for idx, seq, gene in zip(aso_df.index, aso_df[SEQUENCE], aso_df.apply(get_gene_fn, axis=1)):
+        for idx, seq, gene in zip(aso_df.index, aso_df[ASO_SEQUENCE], aso_df.apply(get_gene_fn, axis=1)):
             if pd.notna(gene) and gene in gene_to_target_path:
                 gene_to_row_triggers[gene].append((idx, get_antisense(seq)))
 

@@ -99,7 +99,7 @@ def base_data(raw_oligo_data):
 @pytest.fixture(scope="session")
 def target_genes(base_data):
     """Extracts unique target genes from the base data."""
-    return base_data[CANONICAL_GENE].unique().tolist()
+    return base_data[CANONICAL_GENE_NAME].unique().tolist()
 
 
 @pytest.fixture(scope="session")

@@ -25,7 +25,7 @@ def _in_intervals(coords: np.ndarray, intervals: list) -> np.ndarray:
 
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask=True):
     if use_mask:
-        mask = (df[CELL_LINE_ORGANISM] == "human") & (df[CANONICAL_GENE].isin(genes_u))
+        mask = (df[CELL_LINE_ORGANISM] == "human") & (df[CANONICAL_GENE_NAME].isin(genes_u))
         all_data = df[mask].copy()
     else:
         all_data = df.copy()
@@ -37,11 +37,11 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     trans_table = str.maketrans("tT", "uU")
 
     # Encode sequences to bytes outside the loop for speed
-    unique_seqs = all_data[SEQUENCE].unique()
+    unique_seqs = all_data[ASO_SEQUENCE].unique()
     sense_cache = {seq: get_antisense_rna(seq).encode() for seq in unique_seqs}
 
-    all_data["__temp_sense"] = all_data[SEQUENCE].map(sense_cache)
-    seq_lengths = all_data[SEQUENCE].str.len().values
+    all_data["__temp_sense"] = all_data[ASO_SEQUENCE].map(sense_cache)
+    seq_lengths = all_data[ASO_SEQUENCE].str.len().values
 
     pre_mrna_cache = {
         g: gene_to_data[g].full_mrna.upper().translate(trans_table).encode() for g in genes_u if g in gene_to_data
@@ -75,7 +75,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
 
     all_data["__temp_idx"] = np.arange(n_rows)
 
-    for gene_name, group in all_data.groupby(CANONICAL_GENE, observed=True):
+    for gene_name, group in all_data.groupby(CANONICAL_GENE_NAME, observed=True):
         if gene_name not in pre_mrna_cache:
             continue
 
@@ -219,28 +219,28 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
             out_cds_non_exclusive[v_row_idxs[is_exon]] = 1
 
     # Apply exclusive features
-    all_data[SENSE_START] = out_start
-    all_data[SENSE_START_FROM_END] = out_start_end
-    all_data[SENSE_LENGTH] = seq_lengths
-    all_data[SENSE_EXON] = out_exon
-    all_data[SENSE_EXON_NON_EXCLUSIVE] = out_exon_non_exclusive
-    all_data[SENSE_INTRON] = out_intron
-    all_data[SENSE_UTR] = out_3utr | out_5utr
-    all_data[SENSE_3UTR] = out_3utr
-    all_data[SENSE_5UTR] = out_5utr
-    all_data[SENSE_CDS] = out_cds
-    all_data[SENSE_CDS_NON_EXCLUSIVE] = out_cds_non_exclusive
-    all_data[SENSE_TYPE] = out_type
+    all_data[STRUCTURE_SENSE_START] = out_start
+    all_data[STRUCTURE_SENSE_START_FROM_END] = out_start_end
+    all_data[STRUCTURE_SENSE_LENGTH] = seq_lengths
+    all_data[STRUCT_SENSE_IN_EXON] = out_exon
+    all_data[STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE] = out_exon_non_exclusive
+    all_data[STRUCT_SENSE_IN_INTRON] = out_intron
+    all_data[STRUCT_SENSE_IN_UTR] = out_3utr | out_5utr
+    all_data[STRUCT_SENSE_IN_3UTR] = out_3utr
+    all_data[STRUCT_SENSE_IN_5UTR] = out_5utr
+    all_data[STRUCT_SENSE_IN_CDS] = out_cds
+    all_data[STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE] = out_cds_non_exclusive
+    all_data[STRUCTURE_SENSE_TYPE] = out_type
 
     # Normalized positions + codon distances (genomic + mRNA)
-    all_data[SENSE_START_NORM] = out_start_norm
-    all_data[SENSE_START_FROM_END_NORM] = out_start_end_norm
-    all_data[SENSE_DIST_TO_CANONICAL_STOP] = out_dist_canonical_stop
-    all_data[SENSE_DIST_TO_CLOSEST_STOP] = out_dist_closest_stop
-    all_data[SENSE_DIST_TO_CANONICAL_START] = out_dist_canonical_start
-    all_data[SENSE_DIST_TO_CLOSEST_START] = out_dist_closest_start
-    all_data[SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out_mrna_dist_canonical_stop
-    all_data[SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out_mrna_dist_closest_stop
+    all_data[STRUCTURE_SENSE_START_NORM] = out_start_norm
+    all_data[STRUCTURE_SENSE_START_FROM_END_NORM] = out_start_end_norm
+    all_data[STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP] = out_dist_canonical_stop
+    all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP] = out_dist_closest_stop
+    all_data[STRUCTURE_SENSE_DIST_TO_CANONICAL_START] = out_dist_canonical_start
+    all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_START] = out_dist_closest_start
+    all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out_mrna_dist_canonical_stop
+    all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out_mrna_dist_closest_stop
 
     all_data.drop(columns=["__temp_idx", "__temp_sense"], inplace=True)
     return all_data

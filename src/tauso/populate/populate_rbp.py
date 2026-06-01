@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
+from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE_DEPMAP
 from tauso.features.rbp.rbp_features import get_background_probs
 
 
@@ -111,7 +111,8 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
     # This allows Joblib to share memory across workers instead of pickling 180k tiny lists
     default_bg = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
     bg_list = [
-        get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg for g in df[CANONICAL_GENE]
+        get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg
+        for g in df[CANONICAL_GENE_NAME]
     ]
     background_probs_arr = np.array(bg_list, dtype=np.float32)
 
@@ -126,7 +127,7 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
             {
                 "name": rbp,
                 "matrices": [pwm_db[m] for m in valid_mids],
-                "col_name": f"RBP_{rbp}_aff_{flank_param}",
+                "col_name": f"rbp_{rbp.lower()}_aff_{flank_param}",
             }
         )
 
@@ -223,7 +224,7 @@ def populate_rbp_interaction_features(
     # Pre-calculate background probs
     default_bg = np.array([0.25, 0.25, 0.25, 0.25])
     background_probs = []
-    for g in df[CANONICAL_GENE]:
+    for g in df[CANONICAL_GENE_NAME]:
         if g in gene_to_data:
             background_probs.append(get_background_probs(gene_to_data[g].full_mrna))
         else:
@@ -249,7 +250,7 @@ def populate_rbp_interaction_features(
                 "name": rbp,
                 "matrices": [pwm_db[m] for m in valid_mids],
                 "expr_gene": rbp,
-                "col_name": f"RBP_{rbp}_expr_aff_{flank_param}",
+                "col_name": f"rbp_{rbp.lower()}_expr_aff_{flank_param}",
             }
         )
 
@@ -331,7 +332,7 @@ def populate_functional_features(df, rbp_map, flank_size=50):
     and calculates the 'Tug-of-War' (Contrast) features.
 
     Args:
-        df: DataFrame containing individual RBP columns (e.g., RBP_ELAVL1_expr_aff_50)
+        df: DataFrame containing individual RBP columns (e.g., rbp_ELAVL1_expr_aff_50)
         rbp_map: Dictionary mapping Gene Name -> Role
         flank_size: The window size suffix (e.g., "50")
 
@@ -352,9 +353,9 @@ def populate_functional_features(df, rbp_map, flank_size=50):
         # 2. Find the corresponding columns in the DataFrame
         #    (We check if they exist, in case some genes were missing from expression data)
         relevant_columns = [
-            f"RBP_{gene}_expr_aff_{flank_size}"
+            f"rbp_{gene.lower()}_expr_aff_{flank_size}"
             for gene in target_genes
-            if f"RBP_{gene}_expr_aff_{flank_size}" in df.columns
+            if f"rbp_{gene.lower()}_expr_aff_{flank_size}" in df.columns
         ]
 
         if not relevant_columns:
@@ -362,7 +363,7 @@ def populate_functional_features(df, rbp_map, flank_size=50):
             continue
 
         # 3. Create the Feature: Sum of Interactions
-        feature_name = f"RBP_interaction_{role}_{flank_size}"
+        feature_name = f"rbp_interaction_{role}_{flank_size}"
         df[feature_name] = df[relevant_columns].sum(axis=1)
 
         new_features.append(feature_name)
@@ -374,13 +375,13 @@ def populate_functional_features(df, rbp_map, flank_size=50):
 
     if col_stab and col_destab:
         # 1. Delta: Net Stability (Positive = Stable, Negative = Unstable)
-        delta_name = f"RBP_interaction_delta_stab_vs_destab_{flank_size}"
+        delta_name = f"rbp_interaction_delta_stab_vs_destab_{flank_size}"
         df[delta_name] = df[col_stab] - df[col_destab]
         new_features.append(delta_name)
 
         # 2. Ratio: Relative Stability
         #    (We add 1e-6 to denominator to avoid division by zero)
-        ratio_name = f"RBP_interaction_ratio_stab_vs_destab_{flank_size}"
+        ratio_name = f"rbp_interaction_ratio_stab_vs_destab_{flank_size}"
         df[ratio_name] = df[col_stab] / (df[col_destab] + 1e-6)
         new_features.append(ratio_name)
 
@@ -398,7 +399,7 @@ def populate_complexity_features(df, feature_cols, suffix, type="generic"):
     matrix = df[feature_cols].fillna(0.0).values
 
     # 1. Total Interaction (Sum of all RBPs)
-    total_col = f"RBP_interaction_total_{suffix}_{type}"
+    total_col = f"rbp_interaction_total_{suffix}_{type}"
     total_scores = matrix.sum(axis=1)
     df[total_col] = total_scores
 
@@ -410,7 +411,7 @@ def populate_complexity_features(df, feature_cols, suffix, type="generic"):
         # Replace NaNs (from 0/0) with 0
         probs = np.nan_to_num(probs)
 
-    div_col = f"RBP_diversity_global_{suffix}_{type}"
+    div_col = f"rbp_diversity_global_{suffix}_{type}"
     # Calculate entropy (base e by default)
     df[div_col] = entropy(probs, axis=1)
 

@@ -14,7 +14,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-from ..data.consts import CHEMICAL_PATTERN, PS_PATTERN, SEQUENCE
+from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN, PS_PATTERN
 from ..features.sequence.toxicity_features import (
     cpg_count,
     cpg_ps_count,
@@ -58,7 +58,7 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
     start_time = time.time()
     logger.debug("Starting %s...", col_name)
     apply_fn = make_apply_fn(df, n_jobs=cpus, progress_bar=verbose, verbose=0, use_memory_fs=False)
-    df[col_name] = apply_fn(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN], row[PS_PATTERN]), axis=1)
+    df[col_name] = apply_fn(lambda row: func(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[PS_PATTERN]), axis=1)
     logger.debug("Finished %s | Time: %.2fs", col_name, time.time() - start_time)
 
 

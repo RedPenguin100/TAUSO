@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from notebooks.features.calculate_features import get_partition_dir, merge_partitions, partition_data
-from tauso.data.consts import CANONICAL_GENE, PS_PATTERN
+from tauso.data.consts import CANONICAL_GENE_NAME, PS_PATTERN
 from tauso.populate.calculators.calculator import Calculator
 
 pytestmark = pytest.mark.integration
@@ -16,7 +16,7 @@ def small_df():
         for j in range(5):
             rows.append({
                 "index_oligo": i * 5 + j + 1,
-                CANONICAL_GENE: gene,
+                CANONICAL_GENE_NAME: gene,
                 PS_PATTERN: "***ddd***",
             })
     return pd.DataFrame(rows)
@@ -26,8 +26,8 @@ def test_partition_data_is_disjoint_and_complete(small_df):
     p0 = partition_data(small_df, k=0, n=2)
     p1 = partition_data(small_df, k=1, n=2)
 
-    genes_p0 = set(p0[CANONICAL_GENE].unique())
-    genes_p1 = set(p1[CANONICAL_GENE].unique())
+    genes_p0 = set(p0[CANONICAL_GENE_NAME].unique())
+    genes_p1 = set(p1[CANONICAL_GENE_NAME].unique())
 
     assert genes_p0 & genes_p1 == set(), "Partitions must not share genes"
     assert genes_p0 | genes_p1 == {"KRAS", "BRAF"}, "Partitions must cover all genes"

@@ -18,7 +18,7 @@ def process_chemistry(mod_str):
             elif m_up == 'DNA': pattern_chars.append('d')
         pattern = "".join(pattern_chars)
 
-        # 2. Determine the MODIFICATION label
+        # 2. Determine the MODIFICATION_STRING label
         has_moe = 'MOE' in mod_set
         has_cet = 'CET' in mod_set or 'CET' in mod_set # handles case variations
 

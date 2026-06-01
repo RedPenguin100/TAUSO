@@ -1,4 +1,4 @@
-,sense_start,sense_start_from_end,sense_length,sense_exon,sense_intron,sense_utr,sense_cds,sense_cds_non_exclusive,sense_type
+,structure_sense_start,structure_sense_start_from_end,structure_sense_length,struct_sense_in_exon,struct_sense_in_intron,struct_sense_in_utr,struct_sense_in_cds,struct_sense_in_cds_non_exclusive,structure_sense_type
 161439,-1,0,16,0,0,0,0,0,unannotated
 43038,11432,34259,16,0,1,0,0,0,intron
 38277,42551,12250,20,0,0,1,0,1,3UTR

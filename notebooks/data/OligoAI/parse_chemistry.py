@@ -2,7 +2,7 @@ import ast
 from functools import lru_cache
 import pandas as pd
 
-from tauso.data.consts import BACKBONE_MODS, CHEMICAL_PATTERN, MODIFICATION, PS_PATTERN, SUGAR_MODS
+from tauso.data.consts import BACKBONE_MODS, CHEMICAL_PATTERN, MODIFICATION_STRING, PS_PATTERN, SUGAR_MODS
 
 
 # Cache will help store the most common modifications
@@ -29,7 +29,7 @@ def _process_chemistry(mod_str):
                 pattern_chars.append("d")
         pattern = "".join(pattern_chars)
 
-        # 2. Determine the MODIFICATION label
+        # 2. Determine the MODIFICATION_STRING label
         has_moe = "MOE" in mod_set
         has_cet = "CET" in mod_set
         has_lna = "LNA" in mod_set
@@ -71,7 +71,7 @@ def assign_sugar(df: pd.DataFrame) -> pd.DataFrame:
 
     # Assuming _process_chemistry is defined locally or imported
     results = df[SUGAR_MODS].apply(_process_chemistry)
-    df[[CHEMICAL_PATTERN, MODIFICATION]] = pd.DataFrame(results.tolist(), index=df.index)
+    df[[CHEMICAL_PATTERN, MODIFICATION_STRING]] = pd.DataFrame(results.tolist(), index=df.index)
     return df
 
 

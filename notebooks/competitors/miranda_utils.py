@@ -4,7 +4,7 @@ import tempfile
 import pandas as pd
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from tauso.data.consts import CANONICAL_GENE, SEQUENCE
+from tauso.data.consts import CANONICAL_GENE_NAME, ASO_SEQUENCE
 
 # --- Configuration ---
 MIRANDA_EXEC = "miranda"
@@ -34,8 +34,8 @@ def _process_gene_group(args):
         aso_fasta_path = os.path.join(temp_dir, "asos.fa")
         with open(aso_fasta_path, "w") as f:
             for idx, row in gene_subset.iterrows():
-                if pd.notna(row[SEQUENCE]):
-                    f.write(f">{idx}\n{row[SEQUENCE]}\n")
+                if pd.notna(row[ASO_SEQUENCE]):
+                    f.write(f">{idx}\n{row[ASO_SEQUENCE]}\n")
 
         # 3. Run miRanda
         output_path = os.path.join(temp_dir, "miranda_out.txt")
@@ -88,7 +88,7 @@ def get_populated_df_with_miranda_features(df, gene_to_data, max_workers=None):
     Populates the DataFrame with miRanda scores and energy values using multiprocessing.
     """
     df_out = df.copy()
-    grouped = df_out.groupby(CANONICAL_GENE)
+    grouped = df_out.groupby(CANONICAL_GENE_NAME)
 
     # --- Early Error Check ---
     # Fail fast before doing any heavy lifting
@@ -103,7 +103,7 @@ def get_populated_df_with_miranda_features(df, gene_to_data, max_workers=None):
         target_seq = gene_to_data[gene_id].full_mrna
 
         # Slice only the required column to keep Inter-Process Communication (IPC) fast
-        subset_minimal = gene_subset[[SEQUENCE]]
+        subset_minimal = gene_subset[[ASO_SEQUENCE]]
         tasks.append((gene_id, subset_minimal, target_seq))
 
     print(f"Starting parallel miRanda analysis on {len(df_out)} sequences across {len(tasks)} gene groups...")

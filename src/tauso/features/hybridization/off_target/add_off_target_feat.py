@@ -13,7 +13,7 @@ import uuid
 
 import pandas as pd
 
-from ....data.consts import CANONICAL_GENE, SEQUENCE
+from ....data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 from ....util import get_antisense
 from ..fast_hybridization import (
     Interaction,
@@ -116,8 +116,8 @@ def compute_group_batch_multi_cutoff(group_df, exp_map, cutoffs, method, prebuil
     if group_df.empty:
         return {c: pd.Series(dtype=float) for c in cutoffs}
 
-    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, group_df[SEQUENCE])]
-    idx_to_gene = {str(idx): gene for idx, gene in zip(indices, group_df[CANONICAL_GENE])}
+    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, group_df[ASO_SEQUENCE])]
+    idx_to_gene = {str(idx): gene for idx, gene in zip(indices, group_df[CANONICAL_GENE_NAME])}
 
     per_cutoff = calculate_risearch_energy_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
     return energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs)

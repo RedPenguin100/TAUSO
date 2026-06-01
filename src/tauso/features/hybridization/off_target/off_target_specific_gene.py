@@ -5,7 +5,7 @@ ASO vs its own canonical gene) and one for off-target against a fixed named gene
 returns the dataframe plus the names of the feature columns it added (one per cutoff).
 """
 
-from ....data.consts import CANONICAL_GENE
+from ....data.consts import CANONICAL_GENE_NAME
 from .gene_chunk_scoring import dispatch_gene_chunk_scores
 
 
@@ -14,8 +14,8 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoffs, n_jobs=1):
     return dispatch_gene_chunk_scores(
         aso_df=aso_df,
         gene_to_data=gene_to_data,
-        target_genes=aso_df[CANONICAL_GENE].dropna().unique(),
-        get_gene_fn=lambda row: row[CANONICAL_GENE],
+        target_genes=aso_df[CANONICAL_GENE_NAME].dropna().unique(),
+        get_gene_fn=lambda row: row[CANONICAL_GENE_NAME],
         feature_name_fn=lambda c: f"on_target_total_hybridization_{c}",
         cutoffs=cutoffs,
         n_jobs=n_jobs,

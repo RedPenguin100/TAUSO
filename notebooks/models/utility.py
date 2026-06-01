@@ -5,7 +5,7 @@ import pandas as pd
 from notebooks.consts import OLIGO_CSV_PROCESSED_AVERAGED
 from notebooks.features.feature_extraction import load_all_features
 
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE, INHIBITION, VOLUME
+from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE, INHIBITION_PERCENT, VOLUME_NM
 from tauso.timer import Timer
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def create_tauso_split(data: pd.DataFrame, val_frac: float = 0.15, test_frac: fl
     train_frac = 1.0 - val_frac - test_frac
     split = pd.Series("train", index=data.index)
 
-    for _, group in data.groupby([CANONICAL_GENE, CELL_LINE]):
+    for _, group in data.groupby([CANONICAL_GENE_NAME, CELL_LINE]):
         idx = group.sort_values("index_oligo").index
         n = len(idx)
         if n < 3:
@@ -56,27 +56,48 @@ def create_tauso_split(data: pd.DataFrame, val_frac: float = 0.15, test_frac: fl
     return data
 
 
-def _drop_legacy_other_column(final_data: pd.DataFrame) -> pd.DataFrame:
-    """Backward-compat shim for caches built before populate_transfection started
-    emitting only three columns with NaN-on-unknown semantics. Drops the legacy
-    'Other' column if present and propagates NaN into Gymnosis / Lipofection /
-    Electroporation for rows where Other == 1. Once the wide cache is regenerated
-    this function becomes a no-op.
+_OLIGOAI_TO_TRANSFECTION_COLUMN = {
+    "Electroporation": "transfection_electroporation",
+    "Gymnosis": "transfection_gymnosis",
+    "Lipofection": "transfection_lipofection",
+}
+
+
+def _standardize_transfection_columns(final_data: pd.DataFrame) -> pd.DataFrame:
+    """Translate OligoAI's transfection-column convention to TAUSO's convention.
+
+    Same idea as standardize_oligo_ai_data / standardize_cell_line: take the
+    upstream OligoAI naming and convert to our canonical names. Two issues
+    handled when the loaded features still carry the OligoAI shape:
+      1. Capitalized one-hot column names (Electroporation / Gymnosis /
+         Lipofection) instead of the canonical transfection_* lowercase names.
+      2. A separate 'Other' column carrying the "unknown method" mask that
+         should instead live as NaN on the three transfection_* indicators.
+
+    Once the wide cache is rebuilt under the canonical names this function is
+    a no-op.
     """
-    if "Other" not in final_data.columns:
-        return final_data
-
     final_data = final_data.copy()
-    other_mask = final_data["Other"].astype(bool)
-    n_other = int(other_mask.sum())
 
-    for col in ("Gymnosis", "Lipofection", "Electroporation"):
-        if col in final_data.columns:
-            final_data[col] = final_data[col].astype("float64")
-            final_data.loc[other_mask, col] = np.nan
+    # 1. Apply the NaN-on-Other semantics if an OligoAI-shaped 'Other' column is still present.
+    if "Other" in final_data.columns:
+        other_mask = final_data["Other"].astype(bool)
+        n_other = int(other_mask.sum())
+        for col in ("Gymnosis", "Lipofection", "Electroporation"):
+            if col in final_data.columns:
+                final_data[col] = final_data[col].astype("float64")
+                final_data.loc[other_mask, col] = np.nan
+        final_data = final_data.drop(columns=["Other"])
+        logger.info(
+            "OligoAI 'Other' column dropped | %d rows had Other=1, now NaN on the three indicators", n_other
+        )
 
-    final_data = final_data.drop(columns=["Other"])
-    logger.info("Legacy 'Other' column dropped | %d rows had Other=1, now NaN on the three indicators", n_other)
+    # 2. Rename OligoAI capitalized one-hots to the canonical transfection_* names.
+    oligoai_present = [c for c in _OLIGOAI_TO_TRANSFECTION_COLUMN if c in final_data.columns]
+    if oligoai_present:
+        final_data = final_data.rename(columns=_OLIGOAI_TO_TRANSFECTION_COLUMN)
+        logger.info("Standardized OligoAI transfection one-hots: %s", oligoai_present)
+
     return final_data
 
 
@@ -86,9 +107,10 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
     and returns the merged DataFrame along with the final feature list.
 
     Transfection one-hots are always Electroporation / Gymnosis / Lipofection with
-    NaN on rows whose transfection_method isn't one of those three (populate_transfection
-    enforces this). Legacy caches that still carry an 'Other' column are normalized
-    via _drop_legacy_other_column after the merge.
+    NaN on rows whose transfection_raw isn't one of those three (populate_transfection
+    enforces this). When the loaded features still carry the OligoAI shape
+    (capitalized one-hots + a separate 'Other' column), _standardize_transfection_columns
+    translates it to ours after the merge.
     """
     index = f"index_{version}"
 
@@ -125,15 +147,15 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
     elif split_source != "oligoai":
         raise ValueError(f"Unknown split_source '{split_source}'. Use 'oligoai' or 'tauso'.")
 
-    # 5b. Drop the legacy 'Other' column if a pre-NaN cache version sneaks in.
-    final_data = _drop_legacy_other_column(final_data)
+    # 5b. Translate OligoAI's transfection convention to ours if it's present.
+    final_data = _standardize_transfection_columns(final_data)
 
     # 6. Define Final Feature List
-    features_to_ignore = [index, INHIBITION, "inhibition_percent", "dosage", "split"]
+    features_to_ignore = [index, INHIBITION_PERCENT, "inhibition_percent", "dosage", "split"]
 
     features = [
         col for col in final_data.select_dtypes(include=["number"]).columns if col not in features_to_ignore
-    ] + [VOLUME]
+    ] + [VOLUME_NM]
 
     # Ensure uniqueness and sort
     features = sorted(list(set(features)))

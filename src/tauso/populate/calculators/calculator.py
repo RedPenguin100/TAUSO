@@ -8,28 +8,29 @@ import pyarrow.parquet as pq
 from pympler import asizeof
 
 from ...data.consts import (
-    CANONICAL_GENE,
+    CANONICAL_GENE_NAME,
     CELL_LINE_DEPMAP,
-    SENSE_3UTR,
-    SENSE_5UTR,
-    SENSE_CDS,
-    SENSE_CDS_NON_EXCLUSIVE,
-    SENSE_DIST_TO_CANONICAL_START,
-    SENSE_DIST_TO_CANONICAL_STOP,
-    SENSE_DIST_TO_CLOSEST_START,
-    SENSE_DIST_TO_CLOSEST_STOP,
-    SENSE_EXON,
-    SENSE_EXON_NON_EXCLUSIVE,
-    SENSE_INTRON,
-    SENSE_LENGTH,
-    SENSE_MRNA_DIST_TO_CANONICAL_STOP,
-    SENSE_MRNA_DIST_TO_CLOSEST_STOP,
-    SENSE_START,
-    SENSE_START_FROM_END,
-    SENSE_START_FROM_END_NORM,
-    SENSE_START_NORM,
-    SENSE_TYPE,
-    SENSE_UTR,
+    STRUCT_SENSE_IN_3UTR,
+    STRUCT_SENSE_IN_5UTR,
+    STRUCT_SENSE_IN_CDS,
+    STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
+    STRUCT_SENSE_IN_EXON,
+    STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE,
+    STRUCT_SENSE_IN_INTRON,
+    STRUCT_SENSE_IN_UTR,
+    STRUCTURE_SENSE_DIST_TO_CANONICAL_START,
+    STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP,
+    STRUCTURE_SENSE_DIST_TO_CLOSEST_START,
+    STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
+    STRUCTURE_SENSE_LENGTH,
+    STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP,
+    STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
+    STRUCTURE_SENSE_START,
+    STRUCTURE_SENSE_START_FROM_END,
+    STRUCTURE_SENSE_START_FROM_END_NORM,
+    STRUCTURE_SENSE_START_NORM,
+    STRUCTURE_SENSE_TYPE,
+    TRANSFECTION_RAW,
 )
 from ...timer import Timer
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
@@ -154,7 +155,7 @@ class Calculator:
     def _get_unique_genes(self):
         """Lazy getter for the unique genes list."""
         if self._genes_u is None:
-            self._genes_u = list(set(self.data[CANONICAL_GENE]))
+            self._genes_u = list(set(self.data[CANONICAL_GENE_NAME]))
 
             if "RNASEH1" not in self._genes_u:
                 self._genes_u.append("RNASEH1")
@@ -208,12 +209,12 @@ class Calculator:
         if missing_basic:
             logger.info("Computing %d basic features...", len(missing_basic))
 
-            from tauso.data.consts import MODIFICATION
+            from tauso.data.consts import MODIFICATION_STRING
 
-            self._check_dependencies([MODIFICATION])
+            self._check_dependencies([MODIFICATION_STRING])
 
-            has_moe = self.data[MODIFICATION].str.contains("MOE", na=False)
-            has_high_aff = self.data[MODIFICATION].str.contains("LNA|cEt", na=False)
+            has_moe = self.data[MODIFICATION_STRING].str.contains("MOE", na=False)
+            has_high_aff = self.data[MODIFICATION_STRING].str.contains("LNA|cEt", na=False)
 
             if "chem_1st_gen" in missing_basic:
                 self.data["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(int)
@@ -240,11 +241,11 @@ class Calculator:
         if missing_term5p:
             logger.info("Computing %d 5'-terminal base features...", len(missing_term5p))
 
-            from tauso.data.consts import SEQUENCE
+            from tauso.data.consts import ASO_SEQUENCE
 
-            self._check_dependencies([SEQUENCE])
+            self._check_dependencies([ASO_SEQUENCE])
 
-            seq_5p = self.data[SEQUENCE].str[0]
+            seq_5p = self.data[ASO_SEQUENCE].str[0]
             if "term5p_is_purine" in missing_term5p:
                 self.data["term5p_is_purine"] = seq_5p.isin(["A", "G"]).astype(int)
             if "term5p_is_g" in missing_term5p:
@@ -260,14 +261,14 @@ class Calculator:
         # ==========================================
         # 3. Transfection Features
         # ==========================================
-        expected_transfection = ["Electroporation", "Gymnosis", "Lipofection"]
+        expected_transfection = ["transfection_electroporation", "transfection_gymnosis", "transfection_lipofection"]
         missing_transfection = self._get_missing_features(expected_transfection)
 
         if missing_transfection:
             logger.info("Computing %d transfection features...", len(missing_transfection))
 
             # 2. Check Dependency
-            self._check_dependencies(["transfection_method"])
+            self._check_dependencies([TRANSFECTION_RAW])
 
             self.data, _ = populate_transfection(self.data)
 
@@ -279,26 +280,26 @@ class Calculator:
 
     def calculate_structure(self):
         expected_features = [
-            SENSE_START,
-            SENSE_START_FROM_END,
-            SENSE_LENGTH,
-            SENSE_EXON,
-            SENSE_EXON_NON_EXCLUSIVE,
-            SENSE_INTRON,
-            SENSE_UTR,
-            SENSE_3UTR,
-            SENSE_5UTR,
-            SENSE_CDS,
-            SENSE_CDS_NON_EXCLUSIVE,
-            SENSE_TYPE,
-            SENSE_START_NORM,
-            SENSE_START_FROM_END_NORM,
-            SENSE_DIST_TO_CANONICAL_STOP,
-            SENSE_DIST_TO_CLOSEST_STOP,
-            SENSE_DIST_TO_CANONICAL_START,
-            SENSE_DIST_TO_CLOSEST_START,
-            SENSE_MRNA_DIST_TO_CANONICAL_STOP,
-            SENSE_MRNA_DIST_TO_CLOSEST_STOP,
+            STRUCTURE_SENSE_START,
+            STRUCTURE_SENSE_START_FROM_END,
+            STRUCTURE_SENSE_LENGTH,
+            STRUCT_SENSE_IN_EXON,
+            STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE,
+            STRUCT_SENSE_IN_INTRON,
+            STRUCT_SENSE_IN_UTR,
+            STRUCT_SENSE_IN_3UTR,
+            STRUCT_SENSE_IN_5UTR,
+            STRUCT_SENSE_IN_CDS,
+            STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
+            STRUCTURE_SENSE_TYPE,
+            STRUCTURE_SENSE_START_NORM,
+            STRUCTURE_SENSE_START_FROM_END_NORM,
+            STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP,
+            STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
+            STRUCTURE_SENSE_DIST_TO_CANONICAL_START,
+            STRUCTURE_SENSE_DIST_TO_CLOSEST_START,
+            STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP,
+            STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -343,22 +344,18 @@ class Calculator:
     def calculate_rnase(self):
         """Calculates RNase H features."""
         expected_features = [
-            "RNaseH1_Krel_dinucleotide_score_R4a_krel_dinuc_dynamic",
-            "RNaseH1_Krel_dinucleotide_score_R4b_krel_dinuc_dynamic",
-            "RNaseH1_Krel_dinucleotide_score_R7_krel_dinuc_dynamic",
-            "RNaseH1_score_dinucleotide_R4a_dinuc_dynamic",
-            "RNaseH1_score_dinucleotide_R4b_dinuc_dynamic",
-            "RNaseH1_score_dinucleotide_R7_dinuc_dynamic",
-            "RNaseH1_Krel_score_R4a_krel_dynamic",
-            "RNaseH1_Krel_score_R4b_krel_dynamic",
-            "RNaseH1_Krel_score_R7_krel_dynamic",
-            "RNaseH1_score_R4a_dynamic",
-            "RNaseH1_score_R4b_dynamic",
-            "RNaseH1_score_R7_dynamic",
-            "RNaseH1_Potency_TCCC",
-            "RNaseH1_Potency_TTCC",
-            "RNaseH1_Potency_TCTC",
-            "RNaseH1_Inefficacy_GGGG",
+            "rnase_krel_dinucleotide_score_R4a_krel_dinuc_dynamic",
+            "rnase_krel_dinucleotide_score_R4b_krel_dinuc_dynamic",
+            "rnase_krel_dinucleotide_score_R7_krel_dinuc_dynamic",
+            "rnase_score_dinucleotide_R4a_dinuc_dynamic",
+            "rnase_score_dinucleotide_R4b_dinuc_dynamic",
+            "rnase_score_dinucleotide_R7_dinuc_dynamic",
+            "rnase_krel_score_R4a_krel_dynamic",
+            "rnase_krel_score_R4b_krel_dynamic",
+            "rnase_krel_score_R7_krel_dynamic",
+            "rnase_score_R4a_dynamic",
+            "rnase_score_R4b_dynamic",
+            "rnase_score_R7_dynamic",
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -463,7 +460,7 @@ class Calculator:
         if missing:
             logger.info("Computing %d MFE features...", len(missing))
 
-            self._check_dependencies([SENSE_START, SENSE_LENGTH])
+            self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
 
             # Reuse the lean dictionary
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
@@ -532,9 +529,9 @@ class Calculator:
 
         # 1. Determine the expected names BEFORE running the heavy function
         # We need the max sequence length from the data to predict the names
-        from tauso.data.consts import SEQUENCE
+        from tauso.data.consts import ASO_SEQUENCE
 
-        max_len = int(self.data[SEQUENCE].str.len().max())
+        max_len = int(self.data[ASO_SEQUENCE].str.len().max())
 
         expected_features = []
         for pos in range(max_len):
@@ -827,7 +824,7 @@ class Calculator:
 
         logger.info("Computing Codon Usage Bias (CUB) features...")
 
-        self._check_dependencies([SENSE_START])
+        self._check_dependencies([STRUCTURE_SENSE_START])
 
         # 4. Load the shared heavy dependencies EXACTLY ONCE
         registry = self.cache.get_gene_registry(self._get_unique_genes())
@@ -974,9 +971,9 @@ class Calculator:
             logger.info("Computing %d mRNA half-life features...", len(missing))
 
             # Check dependencies BEFORE loading heavy objects
-            from tauso.data.consts import CANONICAL_GENE, CELL_LINE
+            from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE
 
-            self._check_dependencies([CANONICAL_GENE, CELL_LINE])
+            self._check_dependencies([CANONICAL_GENE_NAME, CELL_LINE])
 
             from tauso.populate.populate_mrna_halflife import populate_mrna_halflife_features
 
@@ -1000,9 +997,9 @@ class Calculator:
 
         # 1. Define "Sentinel" features.
         # If these summary features exist, we know the block successfully completed.
-        expected_interaction = [f"RBP_interaction_total_{flank_size}_expression"]
-        expected_affinity = [f"RBP_interaction_total_{flank_size}_generic"]
-        expected_functional = [f"RBP_interaction_stabilizer_{flank_size}"]
+        expected_interaction = [f"rbp_interaction_total_{flank_size}_expression"]
+        expected_affinity = [f"rbp_interaction_total_{flank_size}_generic"]
+        expected_functional = [f"rbp_interaction_stabilizer_{flank_size}"]
 
         # Check disk
         missing_int = self._get_missing_features(expected_interaction)

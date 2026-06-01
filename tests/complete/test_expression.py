@@ -15,7 +15,7 @@ from tauso.timer import Timer
 
 @pytest.fixture(scope="session")
 def expression_transcriptomes(base_data, target_genes):
-    """Expression data for target genes plus the fixed special genes (RNASEH1, STAB2, MRC1, MSR1)."""
+    """Expression data for target genes plus the fixed special genes (RNASEH1, STAB2, MSR1)."""
     data_dir = get_data_dir()
     expression_dir = os.path.join(data_dir, "processed_expression")
     depmap_ids = list(set(base_data[CELL_LINE_DEPMAP]))

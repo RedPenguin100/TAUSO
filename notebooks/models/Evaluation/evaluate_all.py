@@ -1,6 +1,6 @@
 """
 Comprehensive ASO model evaluation: every trained model + every competitor baseline,
-broken down OVERALL, per CELL LINE, and per CHEMICAL MODIFICATION (MOE / cEt / ...),
+broken down OVERALL, per CELL LINE, and per CHEMICAL MODIFICATION_STRING (MOE / cEt / ...),
 for both the custom_id (within-experiment) and gene x cell-line (cross-cohort) groupings.
 
 Walks `--models-dir/*/` for trained TAUSO models (the grid from train_model.py), loads data
@@ -25,7 +25,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, ndcg_score
 from notebooks.models.SeenOligoModel.base_model import split_data
 from notebooks.models.utility import load_and_validate_final_data
 
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE, INHIBITION, MODIFICATION
+from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE, INHIBITION_PERCENT, MODIFICATION_STRING
 
 
 COMPETITION = [
@@ -148,7 +148,7 @@ def _evaluate(models, splits, breakdown_col, groupings, min_size):
     for spec in models:
         for split_name, df in splits.items():
             preds  = _predict(spec, df)
-            y_true = df[INHIBITION].values
+            y_true = df[INHIBITION_PERCENT].values
 
             if breakdown_col is None:
                 bins = [(None, np.ones(len(df), dtype=bool))]
@@ -262,7 +262,7 @@ def main():
     splits = {"Train": train_df, "Validation": val_df, "Test": test_df}
     groupings = {
         "custom_id": "custom_id",
-        "gene x CL": [CANONICAL_GENE, CELL_LINE],
+        "gene x CL": [CANONICAL_GENE_NAME, CELL_LINE],
     }
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -290,7 +290,7 @@ def main():
 
     # 5. Per modification
     print("\n[3/3] Per modification...")
-    df_mod = _evaluate(all_specs, splits, MODIFICATION, groupings,
+    df_mod = _evaluate(all_specs, splits, MODIFICATION_STRING, groupings,
                        min_size=args.min_size_modification)
     df_mod.to_csv(args.out_dir / "per_modification.csv", index=False)
     _print_breakdown(df_mod, "Modification")

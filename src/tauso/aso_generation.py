@@ -5,16 +5,17 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from tauso.data.consts import (
-    CANONICAL_GENE,
+    ASO_SEQUENCE,
+    CANONICAL_GENE_NAME,
     CELL_LINE,
     CELL_LINE_DEPMAP,
     CELL_LINE_DEPMAP_PROXY,
     CELL_LINE_ORGANISM,
     CHEMICAL_PATTERN,
-    MODIFICATION,
+    MODIFICATION_STRING,
     PS_PATTERN,
-    SENSE_LENGTH,
-    SEQUENCE,
+    STRUCTURE_SENSE_LENGTH,
+    TRANSFECTION_RAW,
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
@@ -41,9 +42,9 @@ def get_initial_data(target_mrna, aso_sizes, canonical_name):
 
     df = pd.DataFrame(
         {
-            SEQUENCE: candidates,
-            SENSE_LENGTH: sense_lengths,
-            CANONICAL_GENE: canonical_name,
+            ASO_SEQUENCE: candidates,
+            STRUCTURE_SENSE_LENGTH: sense_lengths,
+            CANONICAL_GENE_NAME: canonical_name,
         }
     )
     return df
@@ -110,7 +111,7 @@ def generate_stub_data(
     if first_n is not None:
         data = data[300 : 300 + first_n]  # TODO: change at some point
 
-    data[MODIFICATION] = data_config.standard_modification
+    data[MODIFICATION_STRING] = data_config.standard_modification
     data[CHEMICAL_PATTERN] = data_config.standard_chemical_pattern
 
     data[CELL_LINE] = data_config.cell_line  # TODO: handle empty case
@@ -120,7 +121,7 @@ def generate_stub_data(
     data[PS_PATTERN] = data_config.standard_ps_pattern
 
     data[CELL_LINE_ORGANISM] = data_config.organism_name
-    data["transfection_method"] = data_config.transfection_method
+    data[TRANSFECTION_RAW] = data_config.transfection_method
 
     if version is None:
         version = "generated"
