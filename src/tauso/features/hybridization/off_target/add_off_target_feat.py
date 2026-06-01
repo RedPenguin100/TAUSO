@@ -17,7 +17,8 @@ from ....data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 from ....util import get_antisense
 from ..fast_hybridization import (
     Interaction,
-    min_energy_by_pair_multi_cutoff,
+    PairAggregation,
+    aggregate_by_pair_multi_cutoff,
     parse_risearch_hits_pyarrow,
 )
 
@@ -25,18 +26,19 @@ logger = logging.getLogger(__name__)
 
 
 class AggregationMethod:
-    ARTM = "ARTM"
+    BOLTZMANN_SUM = "BOLTZ"
 
 
 def aggregate_energies(energy_dict, expression_dict, method):
-    """Combine per-gene off-target energies into one expression-weighted score.
+    """Combine per-gene off-target values into one expression-weighted score.
 
-    energy_dict: {gene: energy} for the off-target genes a trigger binds.
+    energy_dict: {gene: value} for the off-target genes a trigger binds; ``value`` is
+    the per-pair aggregation result (Boltzmann sum, see PairAggregation.BOLTZMANN_SUM).
     expression_dict: {gene: (TPM, normalised)}.
-    method: an AggregationMethod. Only ARTM is supported: sum of energy * TPM-fraction
-    over off-targets the trigger actually binds (energy < 0) and that are expressed.
+    method: an AggregationMethod. Only BOLTZMANN_SUM is supported: sum of value *
+    TPM-fraction over off-targets that are expressed.
     """
-    if method != AggregationMethod.ARTM:
+    if method != AggregationMethod.BOLTZMANN_SUM:
         raise ValueError(f"Unsupported aggregation method: {method}")
     if not energy_dict:
         return 0.0
@@ -44,7 +46,7 @@ def aggregate_energies(energy_dict, expression_dict, method):
     valid_targets = []
     for gene, energy in energy_dict.items():
         expr_tpm = expression_dict[gene][0] / 1e6
-        if energy < 0 and expr_tpm > 0:
+        if expr_tpm > 0:
             valid_targets.append((gene, energy, expr_tpm))
 
     # Sort by gene name so summation order is identical regardless of dict/thread ordering.
@@ -64,14 +66,15 @@ def calculate_risearch_energy_per_cutoff(query_pairs, target_path, cutoffs, mini
     when its score > c). minimum_score: the RIsearch -s threshold for the single run
     (the caller passes the loosest cutoff so every requested cutoff is derivable).
 
-    Returns {cutoff: {(trigger, target): strongest_energy}} (no self-filter, no scoring).
+    Returns {cutoff: {(trigger, target): value}} where ``value`` is the per-pair
+    reduction selected by PairAggregation.BOLTZMANN_SUM (no self-filter, no scoring).
     """
     if not query_pairs:
         return {int(c): {} for c in cutoffs}
     return parse_risearch_hits_pyarrow(
         trigger_id_seq_pairs=query_pairs,
         target_file_path=target_path,
-        aggregation=min_energy_by_pair_multi_cutoff(cutoffs),
+        aggregation=aggregate_by_pair_multi_cutoff(cutoffs, strategy=PairAggregation.BOLTZMANN_SUM),
         minimum_score=minimum_score,
         parsing_type="2",
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,

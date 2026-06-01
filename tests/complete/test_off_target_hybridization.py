@@ -142,7 +142,7 @@ def test_off_target_specific_regression(mini_structure_data, gene_to_data, trans
         cell_line2data=transcriptomes,
         top_n_list=[50],
         cutoff_list=[800],
-        method=AggregationMethod.ARTM,
+        method=AggregationMethod.BOLTZMANN_SUM,
         n_jobs=get_n_jobs(),
     )
     # Parallel thread aggregation can produce floating-point differences ~1e-5
@@ -160,7 +160,7 @@ def test_off_target_general_regression(
         cell_line2data=transcriptomes_with_general,
         top_n_list=[25],
         cutoff_list=[800],
-        method=AggregationMethod.ARTM,
+        method=AggregationMethod.BOLTZMANN_SUM,
         n_jobs=get_n_jobs(),
     )
     dataframe_regression.check(data[["index_oligo"] + feature_names])
@@ -179,7 +179,7 @@ def test_off_target_general_multi_cutoff_matches_per_cutoff(
         gene_to_data=gene_to_data_full,
         cell_line2data=transcriptomes_with_general,
         top_n_list=[25],
-        method=AggregationMethod.ARTM,
+        method=AggregationMethod.BOLTZMANN_SUM,
         n_jobs=get_n_jobs(),
     )
 
@@ -199,7 +199,7 @@ def test_off_target_specific_multi_cutoff_matches_per_cutoff(mini_structure_data
         gene_to_data=gene_to_data,
         cell_line2data=transcriptomes,
         top_n_list=[50],
-        method=AggregationMethod.ARTM,
+        method=AggregationMethod.BOLTZMANN_SUM,
         n_jobs=get_n_jobs(),
     )
     multi, feats = populate_off_target_specific(ASO_df=mini_structure_data.copy(), cutoff_list=cutoffs, **base)

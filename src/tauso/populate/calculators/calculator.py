@@ -864,7 +864,7 @@ class Calculator:
         from tauso.populate.populate_off_target import serialize_feature_name
 
         # Define the parameter spaces
-        methods = [AggregationMethod.ARTM]
+        methods = [AggregationMethod.BOLTZMANN_SUM]
         top_ns = [25, 50, 100, 200]
         cutoffs = [800, 1000, 1200]
 
@@ -917,7 +917,7 @@ class Calculator:
         from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
         from tauso.populate.populate_off_target import serialize_feature_name
 
-        method = AggregationMethod.ARTM
+        method = AggregationMethod.BOLTZMANN_SUM
         top_n_list = [50, 100, 200]
         cutoff_list = [800, 1000, 1200]
 
