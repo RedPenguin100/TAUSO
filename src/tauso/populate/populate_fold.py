@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from .._raccess.core import find_raccess
-from ..data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
+from ..data.consts import CANONICAL_GENE, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
 from ..features.fold.vienna_fold import calculate_avg_mfe_per_step
 from ..features.rna_access.access_calculator import get_sense_with_flanks, window_access_energies
 from ..features.rna_access.rna_access import RNAAccess
@@ -46,7 +46,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     if settings is None:
         settings = DEFAULT_SETTINGS
 
-    required_cols = [CANONICAL_GENE, SENSE_START, SENSE_LENGTH]
+    required_cols = [CANONICAL_GENE, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
     lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE].dropna().unique(), gene_to_data)
@@ -64,8 +64,8 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
 
     def _process_row(row):
         gene_name = row[CANONICAL_GENE]
-        global_start = row[SENSE_START]
-        sense_len = row[SENSE_LENGTH]
+        global_start = row[STRUCTURE_SENSE_START]
+        sense_len = row[STRUCTURE_SENSE_LENGTH]
 
         out = {name: np.nan for name in feature_names}
         if gene_name not in lightweight_gene_to_data or global_start == -1:
@@ -174,14 +174,14 @@ def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_
             continue
         full_mrna_seq = lightweight_gene_to_data[gene_name]
 
-        current_sense_start = row[SENSE_START]
+        current_sense_start = row[STRUCTURE_SENSE_START]
         flank_start = max(0, current_sense_start - flank_size)
         relative_start = current_sense_start - flank_start
 
         flanked_sense = get_sense_with_flanks(
             full_mrna_seq,
             current_sense_start,
-            row[SENSE_LENGTH],
+            row[STRUCTURE_SENSE_LENGTH],
             flank_size=flank_size,
         )
         if not flanked_sense or len(flanked_sense) < min_seq_len:
@@ -189,7 +189,7 @@ def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_
 
         flanked_sense = flanked_sense.upper().replace("T", "U")
         rna_seqs.append((current_id, flanked_sense))
-        sense_len_map[current_id] = row[SENSE_LENGTH]
+        sense_len_map[current_id] = row[STRUCTURE_SENSE_LENGTH]
         sense_start_map[current_id] = relative_start
 
     return rna_seqs, sense_len_map, sense_start_map
@@ -237,9 +237,11 @@ def _sense_region_mean(per_position_df, sense_len_map, sense_start_map, feature_
 
     df = per_position_df  # caller hands us an owned frame; mutate in place
     df["pos_in_flank"] = df.groupby("rna_id", sort=False, observed=True).cumcount()
-    df["sense_length"] = df["rna_id"].map(sense_len_map)
+    df["structure_sense_length"] = df["rna_id"].map(sense_len_map)
     df["rel_start"] = df["rna_id"].map(sense_start_map)
-    mask = (df["pos_in_flank"] >= df["rel_start"]) & (df["pos_in_flank"] < df["rel_start"] + df["sense_length"])
+    mask = (df["pos_in_flank"] >= df["rel_start"]) & (
+        df["pos_in_flank"] < df["rel_start"] + df["structure_sense_length"]
+    )
 
     result = df[mask].groupby("rna_id", as_index=False, observed=True)["avg_access"].mean()
     result.rename(columns={"rna_id": "_temp_id", "avg_access": feature_name}, inplace=True)
@@ -335,14 +337,16 @@ def _populate_single_flank_accessibility(
 
     df_out["_temp_id"] = range(len(df_out))
 
-    valid_mask = df_out[SENSE_START] != -1
+    valid_mask = df_out[STRUCTURE_SENSE_START] != -1
     if not valid_mask.any():
         for fn in feature_names:
             df_out[fn] = np.nan
         df_out.drop(columns=["_temp_id"], inplace=True)
         return feature_names
 
-    valid_df = df_out.loc[valid_mask, ["_temp_id", SENSE_START, SENSE_LENGTH, CANONICAL_GENE]].copy()
+    valid_df = df_out.loc[
+        valid_mask, ["_temp_id", STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH, CANONICAL_GENE]
+    ].copy()
     lightweight_gene_to_data = _lightweight_gene_to_data(valid_df[CANONICAL_GENE].unique(), gene_to_data)
     raccess_exe = find_raccess()
 

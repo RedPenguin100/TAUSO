@@ -13,8 +13,8 @@ from tauso.data.consts import (
     CHEMICAL_PATTERN,
     MODIFICATION,
     PS_PATTERN,
-    SENSE_LENGTH,
     SEQUENCE,
+    STRUCTURE_SENSE_LENGTH,
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
@@ -42,7 +42,7 @@ def get_initial_data(target_mrna, aso_sizes, canonical_name):
     df = pd.DataFrame(
         {
             SEQUENCE: candidates,
-            SENSE_LENGTH: sense_lengths,
+            STRUCTURE_SENSE_LENGTH: sense_lengths,
             CANONICAL_GENE: canonical_name,
         }
     )

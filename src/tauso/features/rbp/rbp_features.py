@@ -49,7 +49,9 @@ def add_strict_functional_features(df, rbp_map, suffix):
     for role in ["stabilizer", "destabilizer"]:
         genes = [g for g, r in rbp_map.items() if r == role]
         # Reconstruct column names
-        cols = [f"rbp_{g.lower()}_expr_aff_{suffix}" for g in genes if f"rbp_{g.lower()}_expr_aff_{suffix}" in df.columns]
+        cols = [
+            f"rbp_{g.lower()}_expr_aff_{suffix}" for g in genes if f"rbp_{g.lower()}_expr_aff_{suffix}" in df.columns
+        ]
 
         if not cols:
             continue

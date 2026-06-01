@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pyBigWig
 
-from ...data.consts import CANONICAL_GENE, SENSE_LENGTH, SENSE_START
+from ...data.consts import CANONICAL_GENE, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
 from ...data.data import get_data_dir
 
 logger = logging.getLogger(__name__)
@@ -175,10 +175,10 @@ def add_genomic_coordinates(aso_df, mapper):
     # Vectorized target-position arithmetic (preserves NaN for unmapped genes)
     valid = out["chrom"].notna()
     gene_len = out["gene_end"] - out["gene_start"]
-    L = out[SENSE_START].astype(float)
-    k = out[SENSE_LENGTH].astype(float)
+    L = out[STRUCTURE_SENSE_START].astype(float)
+    k = out[STRUCTURE_SENSE_LENGTH].astype(float)
 
-    # SENSE_START is 0-based (from pre_mrna.find(sense)); gene_start/end are 0-based half-open.
+    # STRUCTURE_SENSE_START is 0-based (from pre_mrna.find(sense)); gene_start/end are 0-based half-open.
     t_start_plus = out["gene_start"] + L
     t_start_minus = out["gene_start"] + (gene_len - L - k)
     t_start = np.where(out["strand"] == "+", t_start_plus, t_start_minus)

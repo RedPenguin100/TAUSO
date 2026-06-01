@@ -5,7 +5,7 @@ from tauso.data.consts import (
     CELL_LINE,
     CELL_LINE_DEPMAP,
     CELL_LINE_DEPMAP_PROXY,
-    SENSE_START,
+    STRUCTURE_SENSE_START,
     SEQUENCE,
     resolve_depmap_id,
     resolve_depmap_proxy,
@@ -46,6 +46,6 @@ def get_populated_df_with_sense_start(df, gene_to_data):
     # Work on a copy to prevent SettingWithCopy warnings
     result_df = df.copy()
 
-    result_df[SENSE_START] = result_df.apply(lambda row: find_sense_start(row, gene_to_data), axis=1)
+    result_df[STRUCTURE_SENSE_START] = result_df.apply(lambda row: find_sense_start(row, gene_to_data), axis=1)
 
     return result_df

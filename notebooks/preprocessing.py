@@ -72,15 +72,15 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
 
     # 5. Sequence Mapping
     # Initialize columns
-    df[SENSE_SEQUENCE] = ""
-    df[SENSE_START] = -1
-    df[SENSE_LENGTH] = 0
+    df[STRUCTURE_SENSE_SEQUENCE] = ""
+    df[STRUCTURE_SENSE_START] = -1
+    df[STRUCTURE_SENSE_LENGTH] = 0
 
     results = df.apply(lambda row: process_row(row, gene_to_data), axis=1)
-    df[[SENSE_START, SENSE_LENGTH, SENSE_SEQUENCE]] = pd.DataFrame(results.tolist(), index=df.index)
+    df[[STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_SEQUENCE]] = pd.DataFrame(results.tolist(), index=df.index)
 
     # 6. Final Cleanup
-    valid_data = df[df[SENSE_START] != -1].copy()
+    valid_data = df[df[STRUCTURE_SENSE_START] != -1].copy()
 
     # 7. Add standard cell line column
     if not CELL_LINE_DEPMAP_PROXY in valid_data.columns:
@@ -117,8 +117,8 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     3. Sparse cohorts
     4. Sparse cell lines
     """
-    if not SENSE_START in data.columns:
-        raise ValueError(f"Need {SENSE_START} in data to filter properly! Add the features")
+    if not STRUCTURE_SENSE_START in data.columns:
+        raise ValueError(f"Need {STRUCTURE_SENSE_START} in data to filter properly! Add the features")
 
     # Create a working copy to avoid mutating the original dataframe
     data = data.copy()
@@ -175,11 +175,11 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     elim_missing_cell_line = rows_before - len(data)
 
     # ---------------------------------------------------------
-    # FILTER 1: Unmapped Sequences (SENSE_START == -1)
+    # FILTER 1: Unmapped Sequences (STRUCTURE_SENSE_START == -1)
     # ---------------------------------------------------------
     initial_rows_unmapped = len(data)
-    unmapped_series = data[data[SENSE_START] == -1][CANONICAL_GENE].value_counts()
-    data = data[data[SENSE_START] != -1].copy()
+    unmapped_series = data[data[STRUCTURE_SENSE_START] == -1][CANONICAL_GENE].value_counts()
+    data = data[data[STRUCTURE_SENSE_START] != -1].copy()
     elim_unmapped_rows = initial_rows_unmapped - len(data)
 
     # ---------------------------------------------------------
@@ -248,8 +248,8 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
         print(f"Missing inhibition (NaN) eliminated: {elim_missing_inhib:,}")
         print(f"Missing cell line (NaN) eliminated: {elim_missing_cell_line:,}")
 
-        if SENSE_START in data.columns:
-            print(f"\n[1. UNMAPPED SEQUENCES ({SENSE_START} == -1)]")
+        if STRUCTURE_SENSE_START in data.columns:
+            print(f"\n[1. UNMAPPED SEQUENCES ({STRUCTURE_SENSE_START} == -1)]")
             print(f"Samples eliminated: {elim_unmapped_rows:,}")
 
         if strict_gapmer_patterns:
@@ -274,7 +274,7 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
         print("ELIMINATED GROUPS BREAKDOWN")
         print("=" * 60)
 
-        if SENSE_START in data.columns:
+        if STRUCTURE_SENSE_START in data.columns:
             print(
                 f"\n[ELIMINATED UNMAPPED SAMPLES] - {elim_unmapped_rows:,} samples across {len(unmapped_series)} genes:"
             )

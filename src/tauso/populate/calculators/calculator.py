@@ -10,26 +10,26 @@ from pympler import asizeof
 from ...data.consts import (
     CANONICAL_GENE,
     CELL_LINE_DEPMAP,
-    SENSE_3UTR,
-    SENSE_5UTR,
-    SENSE_CDS,
-    SENSE_CDS_NON_EXCLUSIVE,
-    SENSE_DIST_TO_CANONICAL_START,
-    SENSE_DIST_TO_CANONICAL_STOP,
-    SENSE_DIST_TO_CLOSEST_START,
-    SENSE_DIST_TO_CLOSEST_STOP,
-    SENSE_EXON,
-    SENSE_EXON_NON_EXCLUSIVE,
-    SENSE_INTRON,
-    SENSE_LENGTH,
-    SENSE_MRNA_DIST_TO_CANONICAL_STOP,
-    SENSE_MRNA_DIST_TO_CLOSEST_STOP,
-    SENSE_START,
-    SENSE_START_FROM_END,
-    SENSE_START_FROM_END_NORM,
-    SENSE_START_NORM,
-    SENSE_TYPE,
-    SENSE_UTR,
+    STRUCT_SENSE_IN_3UTR,
+    STRUCT_SENSE_IN_5UTR,
+    STRUCT_SENSE_IN_CDS,
+    STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
+    STRUCT_SENSE_IN_EXON,
+    STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE,
+    STRUCT_SENSE_IN_INTRON,
+    STRUCT_SENSE_IN_UTR,
+    STRUCTURE_SENSE_DIST_TO_CANONICAL_START,
+    STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP,
+    STRUCTURE_SENSE_DIST_TO_CLOSEST_START,
+    STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
+    STRUCTURE_SENSE_LENGTH,
+    STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP,
+    STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
+    STRUCTURE_SENSE_START,
+    STRUCTURE_SENSE_START_FROM_END,
+    STRUCTURE_SENSE_START_FROM_END_NORM,
+    STRUCTURE_SENSE_START_NORM,
+    STRUCTURE_SENSE_TYPE,
 )
 from ...timer import Timer
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
@@ -279,26 +279,26 @@ class Calculator:
 
     def calculate_structure(self):
         expected_features = [
-            SENSE_START,
-            SENSE_START_FROM_END,
-            SENSE_LENGTH,
-            SENSE_EXON,
-            SENSE_EXON_NON_EXCLUSIVE,
-            SENSE_INTRON,
-            SENSE_UTR,
-            SENSE_3UTR,
-            SENSE_5UTR,
-            SENSE_CDS,
-            SENSE_CDS_NON_EXCLUSIVE,
-            SENSE_TYPE,
-            SENSE_START_NORM,
-            SENSE_START_FROM_END_NORM,
-            SENSE_DIST_TO_CANONICAL_STOP,
-            SENSE_DIST_TO_CLOSEST_STOP,
-            SENSE_DIST_TO_CANONICAL_START,
-            SENSE_DIST_TO_CLOSEST_START,
-            SENSE_MRNA_DIST_TO_CANONICAL_STOP,
-            SENSE_MRNA_DIST_TO_CLOSEST_STOP,
+            STRUCTURE_SENSE_START,
+            STRUCTURE_SENSE_START_FROM_END,
+            STRUCTURE_SENSE_LENGTH,
+            STRUCT_SENSE_IN_EXON,
+            STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE,
+            STRUCT_SENSE_IN_INTRON,
+            STRUCT_SENSE_IN_UTR,
+            STRUCT_SENSE_IN_3UTR,
+            STRUCT_SENSE_IN_5UTR,
+            STRUCT_SENSE_IN_CDS,
+            STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
+            STRUCTURE_SENSE_TYPE,
+            STRUCTURE_SENSE_START_NORM,
+            STRUCTURE_SENSE_START_FROM_END_NORM,
+            STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP,
+            STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
+            STRUCTURE_SENSE_DIST_TO_CANONICAL_START,
+            STRUCTURE_SENSE_DIST_TO_CLOSEST_START,
+            STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP,
+            STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -463,7 +463,7 @@ class Calculator:
         if missing:
             logger.info("Computing %d MFE features...", len(missing))
 
-            self._check_dependencies([SENSE_START, SENSE_LENGTH])
+            self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
 
             # Reuse the lean dictionary
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
@@ -827,7 +827,7 @@ class Calculator:
 
         logger.info("Computing Codon Usage Bias (CUB) features...")
 
-        self._check_dependencies([SENSE_START])
+        self._check_dependencies([STRUCTURE_SENSE_START])
 
         # 4. Load the shared heavy dependencies EXACTLY ONCE
         registry = self.cache.get_gene_registry(self._get_unique_genes())
