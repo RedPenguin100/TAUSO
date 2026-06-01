@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 import pandas as pd
 from tqdm import tqdm
 
-from tauso.data.consts import CANONICAL_GENE, SEQUENCE
+from tauso.data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 
 from ...util import get_antisense
 
@@ -70,8 +70,8 @@ def _run_single_aso_worker(row_tuple):
         "error": None,
     }
 
-    aso_seq = row.get(SEQUENCE)
-    gene_name = row.get(CANONICAL_GENE)
+    aso_seq = row.get(ASO_SEQUENCE)
+    gene_name = row.get(CANONICAL_GENE_NAME)
 
     # 1. Validation
     if not gene_name or gene_name not in _WORKER_GENE_DATA:

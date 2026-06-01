@@ -31,7 +31,7 @@ import numpy as np
 import xgboost as xgb
 
 from notebooks.models.utility import load_and_validate_final_data
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE, INHIBITION
+from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE, INHIBITION_PERCENT
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ def build_grid():
 
 def _ndcg_groups(df, split):
     """Contiguous-group sort order + group sizes for a rank:ndcg query grouping."""
-    key = df.groupby([CANONICAL_GENE, CELL_LINE]).ngroup() if split == "cohort" else df["custom_id"].astype("category").cat.codes
+    key = df.groupby([CANONICAL_GENE_NAME, CELL_LINE]).ngroup() if split == "cohort" else df["custom_id"].astype("category").cat.codes
     g = key.to_numpy()
     order = np.argsort(g, kind="stable")
     sizes = np.bincount(g[order])
@@ -96,7 +96,7 @@ def _ndcg_groups(df, split):
 
 
 def _train(df, feats, cfg):
-    y = df[INHIBITION].to_numpy(np.float64)
+    y = df[INHIBITION_PERCENT].to_numpy(np.float64)
     X = df[feats].to_numpy(np.float32)
     params = {**SANE, "objective": OBJECTIVES[cfg["loss"]]}
     if cfg["loss"] == "ndcg":

@@ -1,53 +1,50 @@
 import re
 
-SEQUENCE = "Sequence"
-INHIBITION = "Inhibition(%)"
-CANONICAL_GENE = "Canonical Gene Name"
-CELL_LINE_ORGANISM = "Cell line organism"
-VOLUME = "ASO_volume(nM)"
-CHEMICAL_PATTERN = "Chemical_Pattern"  # LNA / MOE / cEt
-TREATMENT_PERIOD = "Treatment_Period(hours)"
-CELL_LINE = "Cell_line"
-TRANSFECTION = "Transfection"
-DENSITY = "Density(cells/well)"
-DENSITY_UPDATED = "Density(cells_per_well)"  # Avoiding /
-PRIMER_PROBE = "Primer_probe_set"
-MODIFICATION = "Modification"  # MMMdddMMM or CCCdddCCC etc
-SENSE_START = "sense_start"
-SENSE_START_FROM_END = "sense_start_from_end"
-SENSE_LENGTH = "sense_length"
-SENSE_TYPE = "sense_type"
-SENSE_SEQUENCE = "sense_sequence"
-SENSE_EXON = "sense_exon"
-SENSE_EXON_NON_EXCLUSIVE = "sense_exon_non_exclusive"
-SENSE_INTRON = "sense_intron"
-SENSE_UTR = "sense_utr"
-SENSE_3UTR = "sense_3utr"
-SENSE_5UTR = "sense_5utr"
-SENSE_CDS = "sense_cds"
-SENSE_CDS_NON_EXCLUSIVE = "sense_cds_non_exclusive"
-SENSE_START_NORM = "sense_start_norm"
-SENSE_START_FROM_END_NORM = "sense_start_from_end_norm"
-SENSE_DIST_TO_CANONICAL_STOP = "sense_dist_to_canonical_stop"
-SENSE_DIST_TO_CLOSEST_STOP = "sense_dist_to_closest_stop"
-SENSE_DIST_TO_CANONICAL_START = "sense_dist_to_canonical_start"
-SENSE_DIST_TO_CLOSEST_START = "sense_dist_to_closest_start"
-SENSE_MRNA_DIST_TO_CANONICAL_STOP = "sense_mrna_dist_to_canonical_stop"
-SENSE_MRNA_DIST_TO_CLOSEST_STOP = "sense_mrna_dist_to_closest_stop"
+ASO_SEQUENCE = "aso_sequence"
+INHIBITION_PERCENT = "inhibition_percent"
+CANONICAL_GENE_NAME = "canonical_gene_name"
+CELL_LINE_ORGANISM = "cell_line_organism"
+VOLUME_NM = "volume_nm"
+CHEMICAL_PATTERN = "chemical_pattern"  # LNA / MOE / cEt
+TREATMENT_PERIOD_HOURS = "treatment_period_hours"
+CELL_LINE = "cell_line"
+# Raw transfection column from the source data: not a model feature; downstream
+# populate_transfection turns this into the three transfection_* one-hots with
+# NaN on anything outside {Electroporation, Gymnosis, Lipofection}.
+TRANSFECTION_RAW = "transfection_raw"
+DENSITY_CELLS_PER_WELL = "density_cells_per_well"
+MODIFICATION_STRING = "modification_string"  # MMMdddMMM or CCCdddCCC etc
+STRUCTURE_SENSE_START = "structure_sense_start"
+STRUCTURE_SENSE_START_FROM_END = "structure_sense_start_from_end"
+STRUCTURE_SENSE_LENGTH = "structure_sense_length"
+STRUCTURE_SENSE_TYPE = "structure_sense_type"
+STRUCTURE_SENSE_SEQUENCE = "structure_sense_sequence"
+STRUCT_SENSE_IN_EXON = "struct_sense_in_exon"
+STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE = "struct_sense_in_exon_non_exclusive"
+STRUCT_SENSE_IN_INTRON = "struct_sense_in_intron"
+STRUCT_SENSE_IN_UTR = "struct_sense_in_utr"
+STRUCT_SENSE_IN_3UTR = "struct_sense_in_3utr"
+STRUCT_SENSE_IN_5UTR = "struct_sense_in_5utr"
+STRUCT_SENSE_IN_CDS = "struct_sense_in_cds"
+STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE = "struct_sense_in_cds_non_exclusive"
+STRUCTURE_SENSE_START_NORM = "structure_sense_start_norm"
+STRUCTURE_SENSE_START_FROM_END_NORM = "structure_sense_start_from_end_norm"
+STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP = "structure_sense_dist_to_canonical_stop"
+STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP = "structure_sense_dist_to_closest_stop"
+STRUCTURE_SENSE_DIST_TO_CANONICAL_START = "structure_sense_dist_to_canonical_start"
+STRUCTURE_SENSE_DIST_TO_CLOSEST_START = "structure_sense_dist_to_closest_start"
+STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP = "structure_sense_mrna_dist_to_canonical_stop"
+STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP = "structure_sense_mrna_dist_to_closest_stop"
 PRE_MRNA_SEQUENCE = "pre_mrna_sequence"
-SENSE_AVG_ACCESSIBILITY = "sense_avg_accessibility"
-CELL_LINE_DEPMAP_PROXY = "Cell_Line_Depmap_Proxy"
-CELL_LINE_DEPMAP = "Cell_Line_Depmap"
+CELL_LINE_DEPMAP_PROXY = "cell_line_depmap_proxy"
+CELL_LINE_DEPMAP = "cell_line_depmap"
 
 # OligoAI syntax
 SUGAR_MODS = "sugar_mods"
 BACKBONE_MODS = "backbone_mods"
 
-ISIS = "ISIS"
-LINKAGE = "Linkage"
-LINKAGE_LOCATION = "Linkage_Location"
-TARGET_GENE = "Target_gene"
-SMILES = "Smiles"
+# SMILES, LINKAGE_LOCATION live in notebooks/data/ASOptimizer/consts.py;
+# ISIS / LINKAGE / TARGET_GENE were unused and have been removed entirely.
 
 PS_PATTERN = "ps_pattern"
 

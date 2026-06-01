@@ -348,7 +348,7 @@ def run_bowtie_search_bulk(fasta_path, genome="GRCh38", max_mismatches=0, thread
             if flag & 4:
                 continue  # Unmapped
 
-            # Because we wrote the FASTA with >SEQUENCE, parts[0] is the sequence itself
+            # Because we wrote the FASTA with >ASO_SEQUENCE, parts[0] is the sequence itself
             sequence_id = parts[0]
             chrom = parts[2]
             start_pos = int(parts[3]) - 1

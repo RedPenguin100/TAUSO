@@ -6,14 +6,14 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-from ..data.consts import CHEMICAL_PATTERN, SEQUENCE
+from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
 from ..features.sequence.seq_chemistry import gap_gc_content, wing_gap_gc_delta
 from ..parallel_utils import make_apply_fn
 from ..timer import Timer
 
 FEATURE_SPECS: list[tuple[str, callable]] = [
-    ("SeqChem_gap_gc_content", gap_gc_content),
-    ("SeqChem_wing_gap_gc_delta", wing_gap_gc_delta),
+    ("mod_sugar_gap_gc_content", gap_gc_content),
+    ("mod_sugar_wing_gap_gc_delta", wing_gap_gc_delta),
 ]
 
 
@@ -28,7 +28,7 @@ def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=F
 
     # use_memory_fs=False prevents silent hangs in containerized/Docker environments
     apply_fn = make_apply_fn(df, n_jobs=cpus, progress_bar=verbose, verbose=0, use_memory_fs=False)
-    df[col_name] = apply_fn(lambda row: func(row[SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
+    df[col_name] = apply_fn(lambda row: func(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]), axis=1)
 
     duration = time.time() - start_time
     logger.debug("Finished %s | Time: %.2fs", col_name, duration)

@@ -114,7 +114,7 @@ def test_rrna_off_target_binder_vs_random():
     """Fast guard: an ASO complementary to 18S scores >0, a random one ~0. Skips if FASTA absent."""
     import pandas as pd
 
-    from tauso.data.consts import SEQUENCE
+    from tauso.data.consts import ASO_SEQUENCE
     from tauso.features.hybridization.off_target.rrna_targets import get_rrna_loci
     from tauso.util import get_antisense
 
@@ -125,7 +125,7 @@ def test_rrna_off_target_binder_vs_random():
 
     seq_18s = loci["rRNA_18S"].full_mrna
     binder = get_antisense(seq_18s[200:220])  # antisense of an 18S 20-mer -> binds 18S
-    df = pd.DataFrame({SEQUENCE: [binder, "ACGTACGTACGTACGTACGT"]})
+    df = pd.DataFrame({ASO_SEQUENCE: [binder, "ACGTACGTACGTACGTACGT"]})
 
     df, feats = off_target_single_gene_hybridization(df, "rRNA_18S", loci, cutoffs=[1200], n_jobs=1)
     feat = feats[0]

@@ -7,7 +7,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-from ..data.consts import CANONICAL_GENE, CELL_LINE, standardize_cell_line_name
+from ..data.consts import CANONICAL_GENE_NAME, CELL_LINE, standardize_cell_line_name
 from ..data.data import get_data_dir
 from ..features.codon_usage.cai import CAI_WEIGHTS_FILENAME, CAIScorerCache
 from ..features.codon_usage.enc import compute_ENC
@@ -47,7 +47,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     }
 
     logger.info("Mapping Global tAI scores to dataframe...")
-    df["tai_score_global"] = df[CANONICAL_GENE].map(gene_tai_lookup)
+    df["tai_score_global"] = df[CANONICAL_GENE_NAME].map(gene_tai_lookup)
     feature_names.append("tai_score_global")
 
     return df, feature_names
@@ -105,7 +105,7 @@ def populate_enc(
 
     logger.info("Mapping Global ENC scores to dataframe...")
 
-    df["enc_score_global"] = df[CANONICAL_GENE].map(gene_enc_lookup)
+    df["enc_score_global"] = df[CANONICAL_GENE_NAME].map(gene_enc_lookup)
     feature_names.append("enc_score_global")
 
     logger.info("Global ENC Calculation Complete.")
@@ -205,7 +205,7 @@ def populate_cai(
     logger.info("Calculating Global CDS CAI Scores...")
 
     def _get_global_cai(row):
-        gene = row.get(CANONICAL_GENE)
+        gene = row.get(CANONICAL_GENE_NAME)
         entry = registry.get(gene)
 
         if not entry or not entry.get("cds_sequence"):

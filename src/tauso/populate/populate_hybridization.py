@@ -19,25 +19,25 @@ from ..features.hybridization.md_weights import get_moe_md_contribution
 # Row-wise hybridization features. All dG values are kcal/mol at 37 C, summed 5'->3'.
 HYBR_ROWWISE_CALCULATION = {
     # DNA/RNA hybrid baseline and its phosphorothioate-modified counterpart.
-    "hybr_dna_rna_dg": lambda row: get_dna_rna_dg(row[SEQUENCE]),
-    "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[SEQUENCE]),
-    "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[SEQUENCE]),
+    "hybr_dna_rna_dg": lambda row: get_dna_rna_dg(row[ASO_SEQUENCE]),
+    "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[ASO_SEQUENCE]),
+    "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[ASO_SEQUENCE]),
     # DNA/DNA duplex (SantaLucia & Hicks 2004).
-    "hybr_dna_dna_dg": lambda row: calculate_dna(row[SEQUENCE]),
+    "hybr_dna_dna_dg": lambda row: calculate_dna(row[ASO_SEQUENCE]),
     # High-affinity sugar deltas.
-    "hybr_lna_delta_dg": lambda row: calculate_lna(row[SEQUENCE], row[CHEMICAL_PATTERN]),
-    "hybr_cet_delta_dg": lambda row: calculate_cet(row[SEQUENCE], row[CHEMICAL_PATTERN]),
+    "hybr_lna_delta_dg": lambda row: calculate_lna(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
+    "hybr_cet_delta_dg": lambda row: calculate_cet(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
     # 2'-MOE MD contribution over the MOE-bearing dinucleotides (MOE oligos only).
     "hybr_moe_md_gb_dg": lambda row: get_moe_md_contribution(
-        row[SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION], simul_type="gb"
+        row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb"
     ),
     "hybr_moe_md_pb_dg": lambda row: get_moe_md_contribution(
-        row[SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION], simul_type="pb"
+        row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="pb"
     ),
     # DNA/RNA dG split across the gapmer architecture (5' wing / DNA gap / 3' wing).
-    "hybr_dna_rna_dg_wing5": lambda row: get_dna_rna_dg_region(row[SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
-    "hybr_dna_rna_dg_gap": lambda row: get_dna_rna_dg_region(row[SEQUENCE], row[CHEMICAL_PATTERN], "gap"),
-    "hybr_dna_rna_dg_wing3": lambda row: get_dna_rna_dg_region(row[SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
+    "hybr_dna_rna_dg_wing5": lambda row: get_dna_rna_dg_region(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
+    "hybr_dna_rna_dg_gap": lambda row: get_dna_rna_dg_region(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "gap"),
+    "hybr_dna_rna_dg_wing3": lambda row: get_dna_rna_dg_region(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
 }
 
 # Vectorized features derived from the row-wise ones.
@@ -89,7 +89,7 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
     if "hybr_dna_rna_selectivity_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
         all_data["hybr_dna_rna_selectivity_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
 
-    seq_len = all_data[SEQUENCE].str.len()
+    seq_len = all_data[ASO_SEQUENCE].str.len()
     normalized = {
         "hybr_dna_rna_dg_per_nt": "hybr_dna_rna_dg",
         "hybr_dna_dna_dg_per_nt": "hybr_dna_dna_dg",

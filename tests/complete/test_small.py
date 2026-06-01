@@ -1,15 +1,15 @@
 import pytest
 
 from tauso.data.consts import (
-    SENSE_CDS,
-    SENSE_CDS_NON_EXCLUSIVE,
-    SENSE_EXON,
-    SENSE_INTRON,
-    SENSE_LENGTH,
-    SENSE_START,
-    SENSE_START_FROM_END,
-    SENSE_TYPE,
-    SENSE_UTR,
+    STRUCT_SENSE_IN_CDS,
+    STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
+    STRUCT_SENSE_IN_EXON,
+    STRUCT_SENSE_IN_INTRON,
+    STRUCTURE_SENSE_LENGTH,
+    STRUCTURE_SENSE_START,
+    STRUCTURE_SENSE_START_FROM_END,
+    STRUCTURE_SENSE_TYPE,
+    STRUCT_SENSE_IN_UTR,
 )
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
@@ -31,15 +31,15 @@ def test_structure_features_regression(sampled_base_data, target_genes, gene_to_
         processed_data = get_populated_df_with_structure_features(data, target_genes, gene_to_data)
 
     features = [
-        SENSE_START,
-        SENSE_START_FROM_END,
-        SENSE_LENGTH,
-        SENSE_EXON,
-        SENSE_INTRON,
-        SENSE_UTR,
-        SENSE_CDS,
-        SENSE_CDS_NON_EXCLUSIVE,
-        SENSE_TYPE,
+        STRUCTURE_SENSE_START,
+        STRUCTURE_SENSE_START_FROM_END,
+        STRUCTURE_SENSE_LENGTH,
+        STRUCT_SENSE_IN_EXON,
+        STRUCT_SENSE_IN_INTRON,
+        STRUCT_SENSE_IN_UTR,
+        STRUCT_SENSE_IN_CDS,
+        STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
+        STRUCTURE_SENSE_TYPE,
     ]
 
     dataframe_regression.check(processed_data[features])

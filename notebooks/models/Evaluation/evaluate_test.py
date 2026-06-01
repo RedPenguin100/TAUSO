@@ -29,7 +29,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from notebooks.models.SeenOligoModel.base_model import split_data
 from notebooks.models.utility import load_and_validate_final_data
 
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE, INHIBITION
+from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE, INHIBITION_PERCENT
 
 
 def _large_cohort_indices(df, group_cols, min_size):
@@ -92,13 +92,13 @@ def main():
 
     groupings = {
         "custom_id (within-batch)":     "custom_id",
-        "gene x cell_line (cross)":    [CANONICAL_GENE, CELL_LINE],
+        "gene x cell_line (cross)":    [CANONICAL_GENE_NAME, CELL_LINE],
     }
 
     rows = []
     for split_name, df in [("Train", train_df), ("Validation", val_df), ("Test", test_df)]:
         preds = bst.predict(xgb.DMatrix(df[feats].values, feature_names=feats))
-        y_true = df[INHIBITION].values
+        y_true = df[INHIBITION_PERCENT].values
         for grouping_label, group_cols in groupings.items():
             idxs = _large_cohort_indices(df, group_cols, min_size=args.min_eval_size)
             m = _metrics(preds, y_true, idxs)

@@ -40,7 +40,7 @@ COMPETITION = [
 
 def get_dtype_for_feature(filename, index_col_name):
     name = filename.removesuffix(".parquet").removesuffix(".csv")
-    if name.startswith("RBP_"):
+    if name.startswith("rbp_"):
         feat_type = "float64"
     elif name.startswith("ohe_"):
         feat_type = "int8"
@@ -50,14 +50,7 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name.startswith("off_target_score_") or name.startswith("off_target_single_"):
         feat_type = "float64"
-    elif name in {
-        "RNaseH1_Inefficacy_GGGG",
-        "RNaseH1_Potency_TCCC",
-        "RNaseH1_Potency_TCTC",
-        "RNaseH1_Potency_TTCC",
-    }:
-        feat_type = "int"
-    elif name.startswith("RNaseH1_Krel") or name.startswith("RNaseH1_score"):
+    elif name.startswith("rnase_"):
         feat_type = "float64"
 
     elif name in {
@@ -76,8 +69,6 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name.startswith("seq_"):
         feat_type = "float64"
-    elif name.startswith("SeqChem_"):
-        feat_type = "float64"
     elif name.startswith("ribo_"):
         feat_type = "float64"
     elif name.startswith("expr_"):
@@ -92,22 +83,22 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name.startswith("term5p_") or name.startswith("tox_"):
         feat_type = "int"
-    elif name in {"sense_length", "sense_start", "sense_start_from_end"}:
+    elif name in {"structure_sense_length", "structure_sense_start", "structure_sense_start_from_end"}:
         feat_type = "int"
     elif name in {
-        "sense_exon",
-        "sense_intron",
-        "sense_utr",
-        "sense_3utr",
-        "sense_5utr",
-        "sense_cds",
-        "sense_cds_non_exclusive",
-        "sense_exon_non_exclusive",
+        "struct_sense_in_exon",
+        "struct_sense_in_intron",
+        "struct_sense_in_utr",
+        "struct_sense_in_3utr",
+        "struct_sense_in_5utr",
+        "struct_sense_in_cds",
+        "struct_sense_in_cds_non_exclusive",
+        "struct_sense_in_exon_non_exclusive",
     }:
         feat_type = "int8"
-    elif name in {"sense_start_norm", "sense_start_from_end_norm"}:
+    elif name in {"structure_sense_start_norm", "structure_sense_start_from_end_norm"}:
         feat_type = "float64"
-    elif name.startswith("sense_dist_to_") or name.startswith("sense_mrna_dist_to_"):
+    elif name.startswith("structure_sense_dist_to_") or name.startswith("structure_sense_mrna_dist_to_"):
         feat_type = "float64"
     elif name.startswith("on_target_total_hybridization_"):
         feat_type = "float64"
@@ -119,15 +110,15 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "int"
     elif name in {
         # Transfection one-hots are float64 because rows with an unrecognized
-        # transfection_method (literal "Other", missing, or any label outside
+        # transfection_raw value (literal "Other", missing, or any label outside
         # the three) carry NaN across all three columns -- NaN cannot live in
         # an int column.
-        "Electroporation",
-        "Gymnosis",
-        "Lipofection",
+        "transfection_electroporation",
+        "transfection_gymnosis",
+        "transfection_lipofection",
     }:
         feat_type = "float64"
-    elif name == "sense_type":
+    elif name == "structure_sense_type":
         feat_type = "str"
     elif name in {"halflife_source", "halflife_cell_proxy"}:
         feat_type = "str"

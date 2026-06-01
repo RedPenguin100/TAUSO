@@ -5,11 +5,11 @@ import pandas as pd
 
 from notebooks.data.OligoAI.parse_chemistry import assign_backbone
 from notebooks.data.utility import standardize_cell_line
+from notebooks.data.ASOptimizer.consts import LINKAGE_LOCATION
 from tauso.data.consts import (
-    CANONICAL_GENE,
-    SEQUENCE,
-    LINKAGE_LOCATION,
-    TRANSFECTION,
+    CANONICAL_GENE_NAME,
+    ASO_SEQUENCE,
+    TRANSFECTION_RAW,
 )
 
 
@@ -61,7 +61,7 @@ def transform_pattern_to_oligo(sequence_string, lna_as_cet=True):
 
 def transfection_to_oligo(df):
     # Ensure the Transfection column is string type and handle NaNs
-    col = df[TRANSFECTION].astype(str).str.lower()
+    col = df[TRANSFECTION_RAW].astype(str).str.lower()
 
     # Define conditions
     # 1. Gymnosis: matches "free uptake" or "uptake"
@@ -86,13 +86,13 @@ def standardize_asoptimizer_data(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
 
     # HBV is not handled well in this version of the code. # TODO: fix HBV
-    result = result[result[CANONICAL_GENE] != "HBV"].reset_index(drop=True)
+    result = result[result[CANONICAL_GENE_NAME] != "HBV"].reset_index(drop=True)
 
     # Convert ASOptimizer transfection to OligoAI transfection
     result = transfection_to_oligo(result)
 
     result["backbone_mods"] = result.apply(
-        lambda row: transform_linkage_to_oligo(row[LINKAGE_LOCATION], len(row[SEQUENCE])), axis=1
+        lambda row: transform_linkage_to_oligo(row[LINKAGE_LOCATION], len(row[ASO_SEQUENCE])), axis=1
     )
 
     result = assign_backbone(result)

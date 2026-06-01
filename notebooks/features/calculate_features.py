@@ -29,7 +29,7 @@ import pandas as pd
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
 from notebooks.features.feature_extraction import _get_saved_features_dir
-from tauso.data.consts import CANONICAL_GENE
+from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.populate.calculators.calculator import Calculator
 from tauso.populate.feature_cache import LOOSE_SHARD_SUBDIR, loose_shard_dir
 
@@ -75,10 +75,10 @@ DATASETS = {
 
 def partition_data(data: pd.DataFrame, k: int, n: int) -> pd.DataFrame:
     """Return the subset of data whose genes fall in partition k of n."""
-    genes = sorted(data[CANONICAL_GENE].dropna().unique())
+    genes = sorted(data[CANONICAL_GENE_NAME].dropna().unique())
     partition_genes = set(genes[k::n])
     logger.info("Partition %d/%d: %d genes (of %d total)", k, n, len(partition_genes), len(genes))
-    return data[data[CANONICAL_GENE].isin(partition_genes)].copy()
+    return data[data[CANONICAL_GENE_NAME].isin(partition_genes)].copy()
 
 
 def get_partition_dir(main_feature_dir: Path, k: int, n: int) -> Path:

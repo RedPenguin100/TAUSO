@@ -3,10 +3,10 @@ from typing import Dict, Iterable
 import pandas as pd
 
 from ..data.consts import *
-from ..data.consts import SENSE_START
+from ..data.consts import STRUCTURE_SENSE_START
 from ..genome.TranscriptMapper import GeneCoordinateMapper
 
-# Assuming SENSE_START, CANONICAL_GENE, SEQUENCE, etc. are imported
+# Assuming STRUCTURE_SENSE_START, CANONICAL_GENE_NAME, ASO_SEQUENCE, etc. are imported
 
 
 def add_external_mrna_and_context_columns(
@@ -20,8 +20,8 @@ def add_external_mrna_and_context_columns(
     df = df.copy()
 
     # --- LOUD FAILURE 1: Check Inputs ---
-    required_cols = [SENSE_START, CANONICAL_GENE, SEQUENCE]
-    missing = [c for c in required_cols if c not in df.columns and c != SEQUENCE]
+    required_cols = [STRUCTURE_SENSE_START, CANONICAL_GENE_NAME, ASO_SEQUENCE]
+    missing = [c for c in required_cols if c not in df.columns and c != ASO_SEQUENCE]
     if missing:
         raise ValueError(f"❌ CRITICAL ERROR: Input DataFrame is missing required columns: {missing}")
 
@@ -43,9 +43,9 @@ def add_external_mrna_and_context_columns(
     populated_count = 0
 
     # Extracting columns to numpy/lists and using zip is vastly faster than iterrows()
-    sense_starts = df[SENSE_START].values
-    genes = df[CANONICAL_GENE].values
-    sequences = df[SEQUENCE].values
+    sense_starts = df[STRUCTURE_SENSE_START].values
+    genes = df[CANONICAL_GENE_NAME].values
+    sequences = df[ASO_SEQUENCE].values
 
     for i, (idx, gene, aso_seq) in enumerate(zip(sense_starts, genes, sequences)):
         # 1. Validate Start Index

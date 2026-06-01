@@ -1,12 +1,12 @@
 import pandas as pd
 
 from tauso.data.consts import (
-    CANONICAL_GENE,
+    CANONICAL_GENE_NAME,
     CELL_LINE,
     CELL_LINE_DEPMAP,
     CELL_LINE_DEPMAP_PROXY,
-    SENSE_START,
-    SEQUENCE,
+    STRUCTURE_SENSE_START,
+    ASO_SEQUENCE,
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
@@ -24,8 +24,8 @@ def standardize_cell_line(df: pd.DataFrame) -> pd.DataFrame:
 
 def find_sense_start(row, gene_to_data):
     """Finds the 0-indexed start position of the sense sequence in the mRNA."""
-    gene = row[CANONICAL_GENE]
-    antisense_seq = row[SEQUENCE]
+    gene = row[CANONICAL_GENE_NAME]
+    antisense_seq = row[ASO_SEQUENCE]
 
     # Return -1 if gene isn't in our dictionary
     if pd.isna(gene) or gene not in gene_to_data:
@@ -46,6 +46,6 @@ def get_populated_df_with_sense_start(df, gene_to_data):
     # Work on a copy to prevent SettingWithCopy warnings
     result_df = df.copy()
 
-    result_df[SENSE_START] = result_df.apply(lambda row: find_sense_start(row, gene_to_data), axis=1)
+    result_df[STRUCTURE_SENSE_START] = result_df.apply(lambda row: find_sense_start(row, gene_to_data), axis=1)
 
     return result_df

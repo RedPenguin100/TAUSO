@@ -10,7 +10,7 @@ import pandas as pd
 from Bio.Seq import Seq
 from tqdm import tqdm
 
-from tauso.data.consts import CANONICAL_GENE, SEQUENCE
+from tauso.data.consts import CANONICAL_GENE_NAME, ASO_SEQUENCE
 
 # --- CONFIGURATION & CONSTANTS ---
 CONTEXT_WINDOW = 50
@@ -123,7 +123,7 @@ def calculate_sfold_accessibility(
         raise RuntimeError(f"The '{SFOLD_BINARY}' executable was not found in PATH.")
 
     tasks = []
-    unique_genes = df[CANONICAL_GENE].unique()
+    unique_genes = df[CANONICAL_GENE_NAME].unique()
 
     for gene in unique_genes:
         if gene not in gene_to_data:
@@ -135,9 +135,9 @@ def calculate_sfold_accessibility(
         if not full_seq or len(full_seq) < 10:
             continue
 
-        gene_mask = df[CANONICAL_GENE] == gene
+        gene_mask = df[CANONICAL_GENE_NAME] == gene
         for idx, row in df[gene_mask].iterrows():
-            aso_seq = row[SEQUENCE].strip()
+            aso_seq = row[ASO_SEQUENCE].strip()
             tasks.append((idx, aso_seq, full_seq))
 
     print(f"Queueing {len(tasks)} jobs on {n_cores} cores...")

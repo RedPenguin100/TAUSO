@@ -8,7 +8,7 @@ from collections import Counter
 import pandas as pd
 
 from notebooks.consts import ORIGINAL_OLIGO_CSV, ORIGINAL_OLIGO_CSV_WITH_CANONICAL
-from tauso.data.consts import CANONICAL_GENE
+from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.off_target.search import find_all_gene_off_targets_BULK
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ MANUAL_CANONICAL_MAPPING = {
 def refine_and_clean_canonical_genes(df, gene_stats, output_csv, canonical_mapping=MANUAL_CANONICAL_MAPPING):
     """
     Analyzes hit statistics, prints discrepancy reports, and assigns
-    the final CANONICAL_GENE using original targets and manual overrides.
+    the final CANONICAL_GENE_NAME using original targets and manual overrides.
     """
     # If the most popular candidate agrees with the original candidate we can safely continue.
     filtered_df = gene_stats[gene_stats["original_target_gene"] != gene_stats["most_popular_canonical"]].copy()
@@ -201,10 +201,10 @@ def refine_and_clean_canonical_genes(df, gene_stats, output_csv, canonical_mappi
     logger.info(f"Dropped {dropped_empty} ASOs missing an initial 'target_gene'.")
 
     # 2. Apply the map using .replace() to preserve our pd.NA traps
-    df_no_empty_genes[CANONICAL_GENE] = df_no_empty_genes["target_gene"].replace(canonical_mapping)
+    df_no_empty_genes[CANONICAL_GENE_NAME] = df_no_empty_genes["target_gene"].replace(canonical_mapping)
 
     # 3. Purge the unrecoverable data (the ones we mapped to pd.NA like RHO, NAIP)
-    df_clean = df_no_empty_genes.dropna(subset=[CANONICAL_GENE]).copy()
+    df_clean = df_no_empty_genes.dropna(subset=[CANONICAL_GENE_NAME]).copy()
     dropped_unrecoverable = len(df_no_empty_genes) - len(df_clean)
 
     logger.info(f"Dataset cleaned! Purged {dropped_unrecoverable} ASOs due to unrecoverable errors (e.g., RHO, NAIP).")
