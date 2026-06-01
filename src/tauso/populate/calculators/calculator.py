@@ -355,10 +355,6 @@ class Calculator:
             "rnase_score_r4a_dynamic",
             "rnase_score_r4b_dynamic",
             "rnase_score_r7_dynamic",
-            "rnase_potency_tccc",
-            "rnase_potency_ttcc",
-            "rnase_potency_tctc",
-            "rnase_inefficacy_gggg",
         ]
 
         missing = self._get_missing_features(expected_features)
