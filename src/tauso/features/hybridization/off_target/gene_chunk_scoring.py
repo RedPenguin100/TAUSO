@@ -3,7 +3,7 @@
 The orchestration behind the per-gene off-target / on-target features: build a target
 FASTA per gene, split each gene's ASOs into worker-sized chunks, score the chunks in
 parallel, and assemble one score column per energy cutoff. The hit-level scoring itself
-is a sum(exp(-RT*energy)) per trigger (see sum_exp_by_trigger_multi_cutoff).
+is a sum(exp(-energy/RT)) per trigger (see sum_exp_by_trigger_multi_cutoff).
 """
 
 import logging
@@ -39,7 +39,7 @@ def chunkify_score_one_gene(row_triggers, target_path, cutoffs, chunk_size=100):
     """Score one gene's ASOs against its target, in query chunks, for every cutoff.
 
     row_triggers: [(aso_index, trigger_seq)] for ASOs targeting this gene.
-    Returns {cutoff: {trigger_id: sum(exp(-RT*energy))}}. chunk_size caps the per-call
+    Returns {cutoff: {trigger_id: sum(exp(-energy/RT))}}. chunk_size caps the per-call
     query batch (and thus peak RIsearch output held while parsing).
     """
     cutoffs = [int(c) for c in cutoffs]
@@ -50,7 +50,7 @@ def chunkify_score_one_gene(row_triggers, target_path, cutoffs, chunk_size=100):
         partial = parse_risearch_hits_pyarrow(
             trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
             target_file_path=target_path,
-            aggregation=sum_exp_by_trigger_multi_cutoff(cutoffs, rt=_RT),
+            aggregation=sum_exp_by_trigger_multi_cutoff(cutoffs, RT=_RT),
             minimum_score=minimum_score,
             parsing_type="2",
             interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
