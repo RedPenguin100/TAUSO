@@ -8,6 +8,7 @@ expression-weighted score.
 """
 
 import logging
+import math
 import os
 import uuid
 
@@ -29,14 +30,19 @@ class AggregationMethod:
     BOLTZMANN_SUM = "BOLTZ"
 
 
-def aggregate_energies(energy_dict, expression_dict, method):
-    """Combine per-gene off-target values into one expression-weighted score.
+def aggregate_per_gene_tpm_weighted(energy_dict, expression_dict, method):
+    """Combine per-gene off-target values into one TPM-weighted score on a log scale.
 
     energy_dict: {gene: value} for the off-target genes a trigger binds; ``value`` is
     the per-pair aggregation result (Boltzmann sum, see PairAggregation.BOLTZMANN_SUM).
     expression_dict: {gene: (TPM, normalised)}.
-    method: an AggregationMethod. Only BOLTZMANN_SUM is supported: sum of value *
-    TPM-fraction over off-targets that are expressed.
+    method: an AggregationMethod. Only BOLTZMANN_SUM is supported.
+
+    Computes Σ_g (TPM_g / 1e6) · value_g — a mass-action TPM-weighted sum over
+    expressed off-target genes — and returns log1p of it. The outer log1p keeps the
+    feature in a sane numeric range now that per-pair Boltzmann Z values can span
+    many orders of magnitude, while preserving ranking (monotone transform). The
+    no-off-target case (sum=0) maps cleanly to 0.
     """
     if method != AggregationMethod.BOLTZMANN_SUM:
         raise ValueError(f"Unsupported aggregation method: {method}")
@@ -55,7 +61,7 @@ def aggregate_energies(energy_dict, expression_dict, method):
     score = 0.0
     for _, energy, expr_tpm in valid_targets:
         score += energy * expr_tpm
-    return score
+    return math.log1p(score)
 
 
 def calculate_risearch_energy_per_cutoff(query_pairs, target_path, cutoffs, minimum_score):
@@ -105,7 +111,7 @@ def energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, c
         for idx in indices:
             energies = per_trigger.get(str(idx))
             if energies:
-                scores[idx] = aggregate_energies(energies, exp_map, method)
+                scores[idx] = aggregate_per_gene_tpm_weighted(energies, exp_map, method)
         out[cutoff] = scores
     return out
 
