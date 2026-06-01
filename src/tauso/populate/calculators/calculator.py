@@ -539,7 +539,7 @@ class Calculator:
         expected_features = []
         for pos in range(max_len):
             for nuc in ["A", "C", "G", "T"]:
-                expected_features.append(f"OHE_pos{pos}_{nuc}")
+                expected_features.append(f"ohe_pos{pos}_{nuc}")
 
         missing = self._get_missing_features(expected_features)
 
@@ -811,9 +811,9 @@ class Calculator:
         cds_windows = [20, 30, 40, 50, 60, 70]
 
         # 1. Define expected features for all three
-        expected_tai = [f"tAI_score_{flank}_CDS" for flank in cds_windows] + ["tAI_score_global_CDS"]
-        expected_cai = [f"CAI_score_{flank}_CDS" for flank in cds_windows] + ["CAI_score_global_CDS"]
-        expected_enc = [f"ENC_score_{flank}_CDS" for flank in cds_windows] + ["ENC_score_global_CDS"]
+        expected_tai = [f"tai_score_{flank}" for flank in cds_windows] + ["tai_score_global"]
+        expected_cai = [f"cai_score_{flank}" for flank in cds_windows] + ["cai_score_global"]
+        expected_enc = [f"enc_score_{flank}" for flank in cds_windows] + ["enc_score_global"]
 
         # 2. Check disk for missing files
         missing_tai = self._get_missing_features(expected_tai)
@@ -967,7 +967,7 @@ class Calculator:
 
     def calculate_mrna_halflife(self):
         """Calculates mRNA stability and half-life features."""
-        expected_features = ["mRNA_HalfLife", "HalfLife_Source", "Mapped_Cell_Proxy"]
+        expected_features = ["halflife_value", "halflife_source", "halflife_cell_proxy"]
         missing = self._get_missing_features(expected_features)
 
         if missing:

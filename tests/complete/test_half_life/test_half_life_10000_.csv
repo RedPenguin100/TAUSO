@@ -1,4 +1,4 @@
-,mRNA_HalfLife,HalfLife_Source,Mapped_Cell_Proxy
+,halflife_value,halflife_source,halflife_cell_proxy
 161439,3.8952585000798305,Imputed (Gene GeomMean),Huh7
 43038,3.633550071128016,Imputed (Gene GeomMean),A431
 38277,3.0046440930202967,Imputed (Gene GeomMean),HepG2
