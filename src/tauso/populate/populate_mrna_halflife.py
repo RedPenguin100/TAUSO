@@ -15,13 +15,13 @@ def populate_mrna_halflife_features(all_data, provider):
     to TTDB cell types and querying the HalfLifeProvider.
 
     Adds, per row:
-      mRNA_HalfLife        clipped half-life in hours (NaN if the gene is absent)
-      HalfLife_Source      human-readable provenance string
-      Mapped_Cell_Proxy    the TTDB cell type the lookup used
+      halflife_value       clipped half-life in hours (NaN if the gene is absent)
+      halflife_source      human-readable provenance string
+      halflife_cell_proxy  the TTDB cell type the lookup used
     """
     logger.info(f"Calculating stability features for {len(all_data)} rows...")
 
-    features = ["mRNA_HalfLife", "HalfLife_Source", "Mapped_Cell_Proxy"]
+    features = ["halflife_value", "halflife_source", "halflife_cell_proxy"]
 
     def _get_halflife_features(row):
         gene = row[CANONICAL_GENE]

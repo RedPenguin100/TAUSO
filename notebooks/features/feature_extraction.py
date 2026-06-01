@@ -42,9 +42,9 @@ def get_dtype_for_feature(filename, index_col_name):
     name = filename.removesuffix(".parquet").removesuffix(".csv")
     if name.startswith("RBP_"):
         feat_type = "float64"
-    elif name.startswith("OHE_"):
+    elif name.startswith("ohe_"):
         feat_type = "int8"
-    elif name.startswith("tAI_") or name.startswith("CAI_") or name.startswith("ENC_"):
+    elif name.startswith("tai_") or name.startswith("cai_") or name.startswith("enc_"):
         feat_type = "float64"
     elif name.startswith("fold_"):
         feat_type = "float64"
@@ -129,9 +129,9 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name == "sense_type":
         feat_type = "str"
-    elif name in {"HalfLife_Source", "Mapped_Cell_Proxy"}:
+    elif name in {"halflife_source", "halflife_cell_proxy"}:
         feat_type = "str"
-    elif name == "mRNA_HalfLife":
+    elif name == "halflife_value":
         feat_type = "float64"
     # Competition
     elif name.startswith("PFRED_") or name.startswith("OW_"):
