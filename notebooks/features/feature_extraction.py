@@ -51,13 +51,13 @@ def get_dtype_for_feature(filename, index_col_name):
     elif name.startswith("off_target_score_") or name.startswith("off_target_single_"):
         feat_type = "float64"
     elif name in {
-        "RNaseH1_Inefficacy_GGGG",
-        "RNaseH1_Potency_TCCC",
-        "RNaseH1_Potency_TCTC",
-        "RNaseH1_Potency_TTCC",
+        "rnase_inefficacy_gggg",
+        "rnase_potency_tccc",
+        "rnase_potency_tctc",
+        "rnase_potency_ttcc",
     }:
         feat_type = "int"
-    elif name.startswith("RNaseH1_Krel") or name.startswith("RNaseH1_score"):
+    elif name.startswith("rnase_"):
         feat_type = "float64"
 
     elif name in {

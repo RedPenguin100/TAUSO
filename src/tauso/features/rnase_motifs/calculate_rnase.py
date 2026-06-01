@@ -47,7 +47,7 @@ def _apply_rnaseh1_dinuc_scoring(
 def add_rnaseh1_scores_dinuc(
     df: pd.DataFrame,
     experiments: tuple[str, ...] = ("R4a_dinuc", "R4b_dinuc", "R7_dinuc"),
-    out_prefix: str = "RNaseH1_score_dinucleotide_",
+    out_prefix: str = "rnase_score_dinucleotide_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates the best RNase H1 DINUCLEOTIDE score strictly within the longest DNA gap.
@@ -64,7 +64,7 @@ def add_rnaseh1_scores_krel_dinuc(
         "R4b_krel_dinuc",
         "R7_krel_dinuc",
     ),
-    out_prefix: str = "RNaseH1_Krel_dinucleotide_score_",
+    out_prefix: str = "rnase_krel_dinucleotide_score_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Calculates the best RNase H1 score strictly within the longest DNA gap.
@@ -113,7 +113,7 @@ def _apply_rnaseh1_scoring(
 def add_rnaseh1_scores_krel_nt(
     df: pd.DataFrame,
     experiments: tuple[str, ...] = ("R4a_krel", "R4b_krel", "R7_krel"),
-    out_prefix: str = "RNaseH1_Krel_score_",
+    out_prefix: str = "rnase_krel_score_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """Calculates RNase H1 SINGLE-NUCLEOTIDE score (LogFC) using best-effort overlap logic."""
     return _apply_rnaseh1_scoring(df, experiments, out_prefix)
@@ -122,7 +122,7 @@ def add_rnaseh1_scores_krel_nt(
 def add_rnaseh1_scores_nt(
     df: pd.DataFrame,
     experiments: tuple[str, ...] = ("R4a", "R4b", "R7"),
-    out_prefix: str = "RNaseH1_score_",
+    out_prefix: str = "rnase_score_",
 ) -> tuple[pd.DataFrame, list[str]]:
     """Calculates RNase H1 SINGLE-NUCLEOTIDE score (LogFC) using best-effort overlap logic."""
     return _apply_rnaseh1_scoring(df, experiments, out_prefix)

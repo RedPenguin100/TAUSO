@@ -24,7 +24,7 @@ def check_motif_presence(aso_sequence: str, motif: str) -> float:
     return 1.0 if motif.upper() in aso_sequence.upper() else 0.0
 
 
-def add_rnaseh1_motif_features(df: pd.DataFrame, out_prefix: str = "RNaseH1_") -> tuple[pd.DataFrame, list[str]]:
+def add_rnaseh1_motif_features(df: pd.DataFrame, out_prefix: str = "rnase_") -> tuple[pd.DataFrame, list[str]]:
     """Add binary presence columns for each motif in ``_RNASEH1_MOTIFS``.
 
     Only the longest DNA stretch is considered. Mixmers with two sizeable

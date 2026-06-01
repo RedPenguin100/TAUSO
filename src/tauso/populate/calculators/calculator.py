@@ -343,22 +343,22 @@ class Calculator:
     def calculate_rnase(self):
         """Calculates RNase H features."""
         expected_features = [
-            "RNaseH1_Krel_dinucleotide_score_R4a_krel_dinuc_dynamic",
-            "RNaseH1_Krel_dinucleotide_score_R4b_krel_dinuc_dynamic",
-            "RNaseH1_Krel_dinucleotide_score_R7_krel_dinuc_dynamic",
-            "RNaseH1_score_dinucleotide_R4a_dinuc_dynamic",
-            "RNaseH1_score_dinucleotide_R4b_dinuc_dynamic",
-            "RNaseH1_score_dinucleotide_R7_dinuc_dynamic",
-            "RNaseH1_Krel_score_R4a_krel_dynamic",
-            "RNaseH1_Krel_score_R4b_krel_dynamic",
-            "RNaseH1_Krel_score_R7_krel_dynamic",
-            "RNaseH1_score_R4a_dynamic",
-            "RNaseH1_score_R4b_dynamic",
-            "RNaseH1_score_R7_dynamic",
-            "RNaseH1_Potency_TCCC",
-            "RNaseH1_Potency_TTCC",
-            "RNaseH1_Potency_TCTC",
-            "RNaseH1_Inefficacy_GGGG",
+            "rnase_krel_dinucleotide_score_r4a_krel_dinuc_dynamic",
+            "rnase_krel_dinucleotide_score_r4b_krel_dinuc_dynamic",
+            "rnase_krel_dinucleotide_score_r7_krel_dinuc_dynamic",
+            "rnase_score_dinucleotide_r4a_dinuc_dynamic",
+            "rnase_score_dinucleotide_r4b_dinuc_dynamic",
+            "rnase_score_dinucleotide_r7_dinuc_dynamic",
+            "rnase_krel_score_r4a_krel_dynamic",
+            "rnase_krel_score_r4b_krel_dynamic",
+            "rnase_krel_score_r7_krel_dynamic",
+            "rnase_score_r4a_dynamic",
+            "rnase_score_r4b_dynamic",
+            "rnase_score_r7_dynamic",
+            "rnase_potency_tccc",
+            "rnase_potency_ttcc",
+            "rnase_potency_tctc",
+            "rnase_inefficacy_gggg",
         ]
 
         missing = self._get_missing_features(expected_features)
