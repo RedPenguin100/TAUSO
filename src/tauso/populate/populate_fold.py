@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from .._raccess.core import find_raccess
-from ..data.consts import CANONICAL_GENE, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
+from ..data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
 from ..features.fold.vienna_fold import calculate_avg_mfe_per_step
 from ..features.rna_access.access_calculator import get_sense_with_flanks, window_access_energies
 from ..features.rna_access.rna_access import RNAAccess
@@ -46,10 +46,10 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     if settings is None:
         settings = DEFAULT_SETTINGS
 
-    required_cols = [CANONICAL_GENE, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
+    required_cols = [CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
-    lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE].dropna().unique(), gene_to_data)
+    lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
 
     # Group settings by (flank, window). Every entry in a group reuses the same
     # sub-sequence cut and the same set of folded windows; only the `step` grid
@@ -63,7 +63,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     feature_names = [f"fold_mfe_win{w}_flank{f}_step{s}" for f, w, s in settings]
 
     def _process_row(row):
-        gene_name = row[CANONICAL_GENE]
+        gene_name = row[CANONICAL_GENE_NAME]
         global_start = row[STRUCTURE_SENSE_START]
         sense_len = row[STRUCTURE_SENSE_LENGTH]
 
@@ -169,7 +169,7 @@ def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_
 
     for _, row in batch_rows.iterrows():
         current_id = str(row["_temp_id"])
-        gene_name = row[CANONICAL_GENE]
+        gene_name = row[CANONICAL_GENE_NAME]
         if gene_name not in lightweight_gene_to_data:
             continue
         full_mrna_seq = lightweight_gene_to_data[gene_name]
@@ -345,9 +345,9 @@ def _populate_single_flank_accessibility(
         return feature_names
 
     valid_df = df_out.loc[
-        valid_mask, ["_temp_id", STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH, CANONICAL_GENE]
+        valid_mask, ["_temp_id", STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH, CANONICAL_GENE_NAME]
     ].copy()
-    lightweight_gene_to_data = _lightweight_gene_to_data(valid_df[CANONICAL_GENE].unique(), gene_to_data)
+    lightweight_gene_to_data = _lightweight_gene_to_data(valid_df[CANONICAL_GENE_NAME].unique(), gene_to_data)
     raccess_exe = find_raccess()
 
     def _process_batch(batch_rows):

@@ -78,7 +78,7 @@ def get_init_df(target_mrna: str, mod_type: str = "moe") -> pd.DataFrame:
 
     df = pd.DataFrame(
         {
-            SEQUENCE: candidates,
+            ASO_SEQUENCE: candidates,
             STRUCTURE_SENSE_START: sense_starts,
             STRUCTURE_SENSE_LENGTH: sense_lengths,
             STRUCTURE_SENSE_START_FROM_END: sense_starts_from_end,

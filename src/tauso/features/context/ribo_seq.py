@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pyBigWig
 
-from ...data.consts import CANONICAL_GENE, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
+from ...data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
 from ...data.data import get_data_dir
 
 logger = logging.getLogger(__name__)
@@ -154,7 +154,7 @@ def add_genomic_coordinates(aso_df, mapper):
     out = aso_df.copy()
 
     # One mapper call per unique gene
-    unique_genes = out[CANONICAL_GENE].dropna().unique()
+    unique_genes = out[CANONICAL_GENE_NAME].dropna().unique()
     t0 = time.perf_counter()
     gene_info = {g: mapper.get_gene_coords(g) for g in unique_genes}
     logger.info(
@@ -167,10 +167,10 @@ def add_genomic_coordinates(aso_df, mapper):
         info = gene_info.get(gene)
         return info[key] if info else np.nan
 
-    out["chrom"] = out[CANONICAL_GENE].map(lambda g: _field(g, "chrom"))
-    out["gene_start"] = out[CANONICAL_GENE].map(lambda g: _field(g, "gene_start"))
-    out["gene_end"] = out[CANONICAL_GENE].map(lambda g: _field(g, "gene_end"))
-    out["strand"] = out[CANONICAL_GENE].map(lambda g: _field(g, "strand"))
+    out["chrom"] = out[CANONICAL_GENE_NAME].map(lambda g: _field(g, "chrom"))
+    out["gene_start"] = out[CANONICAL_GENE_NAME].map(lambda g: _field(g, "gene_start"))
+    out["gene_end"] = out[CANONICAL_GENE_NAME].map(lambda g: _field(g, "gene_end"))
+    out["strand"] = out[CANONICAL_GENE_NAME].map(lambda g: _field(g, "strand"))
 
     # Vectorized target-position arithmetic (preserves NaN for unmapped genes)
     valid = out["chrom"].notna()

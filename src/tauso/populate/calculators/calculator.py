@@ -8,7 +8,7 @@ import pyarrow.parquet as pq
 from pympler import asizeof
 
 from ...data.consts import (
-    CANONICAL_GENE,
+    CANONICAL_GENE_NAME,
     CELL_LINE_DEPMAP,
     STRUCT_SENSE_IN_3UTR,
     STRUCT_SENSE_IN_5UTR,
@@ -30,6 +30,7 @@ from ...data.consts import (
     STRUCTURE_SENSE_START_FROM_END_NORM,
     STRUCTURE_SENSE_START_NORM,
     STRUCTURE_SENSE_TYPE,
+    TRANSFECTION_RAW,
 )
 from ...timer import Timer
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
@@ -154,7 +155,7 @@ class Calculator:
     def _get_unique_genes(self):
         """Lazy getter for the unique genes list."""
         if self._genes_u is None:
-            self._genes_u = list(set(self.data[CANONICAL_GENE]))
+            self._genes_u = list(set(self.data[CANONICAL_GENE_NAME]))
 
             if "RNASEH1" not in self._genes_u:
                 self._genes_u.append("RNASEH1")
@@ -208,12 +209,12 @@ class Calculator:
         if missing_basic:
             logger.info("Computing %d basic features...", len(missing_basic))
 
-            from tauso.data.consts import MODIFICATION
+            from tauso.data.consts import MODIFICATION_STRING
 
-            self._check_dependencies([MODIFICATION])
+            self._check_dependencies([MODIFICATION_STRING])
 
-            has_moe = self.data[MODIFICATION].str.contains("MOE", na=False)
-            has_high_aff = self.data[MODIFICATION].str.contains("LNA|cEt", na=False)
+            has_moe = self.data[MODIFICATION_STRING].str.contains("MOE", na=False)
+            has_high_aff = self.data[MODIFICATION_STRING].str.contains("LNA|cEt", na=False)
 
             if "chem_1st_gen" in missing_basic:
                 self.data["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(int)
@@ -240,11 +241,11 @@ class Calculator:
         if missing_term5p:
             logger.info("Computing %d 5'-terminal base features...", len(missing_term5p))
 
-            from tauso.data.consts import SEQUENCE
+            from tauso.data.consts import ASO_SEQUENCE
 
-            self._check_dependencies([SEQUENCE])
+            self._check_dependencies([ASO_SEQUENCE])
 
-            seq_5p = self.data[SEQUENCE].str[0]
+            seq_5p = self.data[ASO_SEQUENCE].str[0]
             if "term5p_is_purine" in missing_term5p:
                 self.data["term5p_is_purine"] = seq_5p.isin(["A", "G"]).astype(int)
             if "term5p_is_g" in missing_term5p:
@@ -260,14 +261,14 @@ class Calculator:
         # ==========================================
         # 3. Transfection Features
         # ==========================================
-        expected_transfection = ["Electroporation", "Gymnosis", "Lipofection"]
+        expected_transfection = ["transfection_electroporation", "transfection_gymnosis", "transfection_lipofection"]
         missing_transfection = self._get_missing_features(expected_transfection)
 
         if missing_transfection:
             logger.info("Computing %d transfection features...", len(missing_transfection))
 
             # 2. Check Dependency
-            self._check_dependencies(["transfection_method"])
+            self._check_dependencies([TRANSFECTION_RAW])
 
             self.data, _ = populate_transfection(self.data)
 
@@ -528,9 +529,9 @@ class Calculator:
 
         # 1. Determine the expected names BEFORE running the heavy function
         # We need the max sequence length from the data to predict the names
-        from tauso.data.consts import SEQUENCE
+        from tauso.data.consts import ASO_SEQUENCE
 
-        max_len = int(self.data[SEQUENCE].str.len().max())
+        max_len = int(self.data[ASO_SEQUENCE].str.len().max())
 
         expected_features = []
         for pos in range(max_len):
@@ -970,9 +971,9 @@ class Calculator:
             logger.info("Computing %d mRNA half-life features...", len(missing))
 
             # Check dependencies BEFORE loading heavy objects
-            from tauso.data.consts import CANONICAL_GENE, CELL_LINE
+            from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE
 
-            self._check_dependencies([CANONICAL_GENE, CELL_LINE])
+            self._check_dependencies([CANONICAL_GENE_NAME, CELL_LINE])
 
             from tauso.populate.populate_mrna_halflife import populate_mrna_halflife_features
 

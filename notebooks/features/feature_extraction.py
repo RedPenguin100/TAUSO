@@ -110,12 +110,12 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "int"
     elif name in {
         # Transfection one-hots are float64 because rows with an unrecognized
-        # transfection_method (literal "Other", missing, or any label outside
+        # transfection_raw value (literal "Other", missing, or any label outside
         # the three) carry NaN across all three columns -- NaN cannot live in
         # an int column.
-        "Electroporation",
-        "Gymnosis",
-        "Lipofection",
+        "transfection_electroporation",
+        "transfection_gymnosis",
+        "transfection_lipofection",
     }:
         feat_type = "float64"
     elif name == "structure_sense_type":

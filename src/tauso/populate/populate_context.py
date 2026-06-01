@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from ..data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
+from ..data.consts import CANONICAL_GENE_NAME, CELL_LINE_DEPMAP, TRANSFECTION_RAW
 from ..features.context.ribo_seq import (
     feature_names,
     get_feature_prefix,
@@ -71,7 +71,7 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     valid_mask = aso_df["chrom"].notna() & aso_df["target_start"].notna()
     valid_df = aso_df[valid_mask]
     n_valid = len(valid_df)
-    n_genes = valid_df[CANONICAL_GENE].nunique()
+    n_genes = valid_df[CANONICAL_GENE_NAME].nunique()
 
     logger.info(
         "populate_ribo_seq[%s]: %d valid rows across %d genes × %d features (n_jobs=%d)",
@@ -82,7 +82,7 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
         n_jobs,
     )
 
-    gene_groups = list(valid_df.groupby(CANONICAL_GENE))
+    gene_groups = list(valid_df.groupby(CANONICAL_GENE_NAME))
 
     t0 = time.perf_counter()
     results, skipped = _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs, prefix=prefix)
@@ -161,7 +161,7 @@ def populate_target_expression(
 
     enhanced_df = df.merge(
         expression_master,
-        left_on=[CELL_LINE_DEPMAP, CANONICAL_GENE],
+        left_on=[CELL_LINE_DEPMAP, CANONICAL_GENE_NAME],
         right_on=[CELL_LINE_DEPMAP, "Gene"],
         how="left",
     )
@@ -188,24 +188,33 @@ def populate_special_gene_expression(
     return df, SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
 
 
+_TRANSFECTION_LABEL_TO_COLUMN = {
+    "Electroporation": "transfection_electroporation",
+    "Gymnosis": "transfection_gymnosis",
+    "Lipofection": "transfection_lipofection",
+}
+
+
 def populate_transfection(data):
     """
-    One-hot encodes transfection_method into three columns: Electroporation,
-    Gymnosis, Lipofection. Rows whose transfection_method isn't one of those
-    three (e.g. "Other", missing, or any unrecognized label) get NaN across
-    all three -- the model treats them as missing rather than as confidently
-    "not Electroporation, not Gymnosis, not Lipofection".
+    One-hot encodes the raw transfection_raw label into three columns:
+    transfection_electroporation / transfection_gymnosis / transfection_lipofection.
+    Rows whose transfection_raw isn't one of those three (e.g. "Other", missing,
+    or any unrecognized label) get NaN across all three -- the model treats them
+    as missing rather than as confidently "not Electroporation, not Gymnosis,
+    not Lipofection".
 
     Returns float64 columns because NaN cannot live in an int column.
     """
-    features = ["Electroporation", "Gymnosis", "Lipofection"]
+    features = list(_TRANSFECTION_LABEL_TO_COLUMN.values())
+    labels = list(_TRANSFECTION_LABEL_TO_COLUMN.keys())
 
-    method = data["transfection_method"]
+    method = data[TRANSFECTION_RAW]
     binary = pd.DataFrame(
-        {feat: (method == feat).astype("float64") for feat in features},
+        {col: (method == label).astype("float64") for label, col in _TRANSFECTION_LABEL_TO_COLUMN.items()},
         index=data.index,
     )
-    unknown = ~method.isin(features)
+    unknown = ~method.isin(labels)
     binary.loc[unknown, features] = np.nan
 
     data = pd.concat([data, binary], axis=1)

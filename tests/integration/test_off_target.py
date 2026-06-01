@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from pandarallel import pandarallel
 
-from tauso.data.consts import SEQUENCE
+from tauso.data.consts import ASO_SEQUENCE
 from tauso.features.hybridization.off_target.off_target_specific_gene import (
     off_target_single_gene_hybridization,
 )
@@ -76,7 +76,7 @@ def test_off_target_regression(small_gene_to_data, dataframe_regression, data_re
     ]
 
     # Create the DataFrame with actual data
-    aso_df = pd.DataFrame({SEQUENCE: sequences})
+    aso_df = pd.DataFrame({ASO_SEQUENCE: sequences})
     aso_df = aso_df.reset_index()
 
     # 2. Execution

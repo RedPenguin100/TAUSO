@@ -1,18 +1,19 @@
 import re
 
-SEQUENCE = "Sequence"
-INHIBITION = "Inhibition(%)"
-CANONICAL_GENE = "Canonical Gene Name"
-CELL_LINE_ORGANISM = "Cell line organism"
-VOLUME = "ASO_volume(nM)"
-CHEMICAL_PATTERN = "Chemical_Pattern"  # LNA / MOE / cEt
-TREATMENT_PERIOD = "Treatment_Period(hours)"
-CELL_LINE = "Cell_line"
-TRANSFECTION = "Transfection"
-DENSITY = "Density(cells/well)"
-DENSITY_UPDATED = "Density(cells_per_well)"  # Avoiding /
-PRIMER_PROBE = "Primer_probe_set"
-MODIFICATION = "Modification"  # MMMdddMMM or CCCdddCCC etc
+ASO_SEQUENCE = "aso_sequence"
+INHIBITION_PERCENT = "inhibition_percent"
+CANONICAL_GENE_NAME = "canonical_gene_name"
+CELL_LINE_ORGANISM = "cell_line_organism"
+VOLUME_NM = "volume_nm"
+CHEMICAL_PATTERN = "chemical_pattern"  # LNA / MOE / cEt
+TREATMENT_PERIOD_HOURS = "treatment_period_hours"
+CELL_LINE = "cell_line"
+# Raw transfection column from the source data: not a model feature; downstream
+# populate_transfection turns this into the three transfection_* one-hots with
+# NaN on anything outside {Electroporation, Gymnosis, Lipofection}.
+TRANSFECTION_RAW = "transfection_raw"
+DENSITY_CELLS_PER_WELL = "density_cells_per_well"
+MODIFICATION_STRING = "modification_string"  # MMMdddMMM or CCCdddCCC etc
 STRUCTURE_SENSE_START = "structure_sense_start"
 STRUCTURE_SENSE_START_FROM_END = "structure_sense_start_from_end"
 STRUCTURE_SENSE_LENGTH = "structure_sense_length"
@@ -35,9 +36,8 @@ STRUCTURE_SENSE_DIST_TO_CLOSEST_START = "structure_sense_dist_to_closest_start"
 STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP = "structure_sense_mrna_dist_to_canonical_stop"
 STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP = "structure_sense_mrna_dist_to_closest_stop"
 PRE_MRNA_SEQUENCE = "pre_mrna_sequence"
-STRUCTURE_SENSE_AVG_ACCESSIBILITY = "structure_sense_avg_accessibility"
-CELL_LINE_DEPMAP_PROXY = "Cell_Line_Depmap_Proxy"
-CELL_LINE_DEPMAP = "Cell_Line_Depmap"
+CELL_LINE_DEPMAP_PROXY = "cell_line_depmap_proxy"
+CELL_LINE_DEPMAP = "cell_line_depmap"
 
 # OligoAI syntax
 SUGAR_MODS = "sugar_mods"

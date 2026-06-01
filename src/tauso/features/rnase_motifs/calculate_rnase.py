@@ -1,7 +1,7 @@
 import pandas as pd
 
 from ...common.modifications import get_longest_dna_gap
-from ...data.consts import CHEMICAL_PATTERN, SEQUENCE
+from ...data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
 from ...util import get_antisense
 from .rnase_helpers import (
     rnaseh1_dict,
@@ -15,7 +15,7 @@ def _apply_rnaseh1_dinuc_scoring(
 ) -> tuple[pd.DataFrame, list[str]]:
     """Core logic for applying RNase H1 dinucleotide scoring across experiments."""
     feature_cols = []
-    seqs = df[SEQUENCE].tolist()
+    seqs = df[ASO_SEQUENCE].tolist()
     chems = df[CHEMICAL_PATTERN].tolist()
 
     def score_row(seq: str, chem: str, weights: dict) -> float:
@@ -78,7 +78,7 @@ def _apply_rnaseh1_scoring(
 ) -> tuple[pd.DataFrame, list[str]]:
     """Core logic for applying RNase H1 scoring across a set of experiments."""
     feature_cols = []
-    seqs = df[SEQUENCE].tolist()
+    seqs = df[ASO_SEQUENCE].tolist()
     chems = df[CHEMICAL_PATTERN].tolist()
 
     # Define the row scorer here to keep the namespace clean.

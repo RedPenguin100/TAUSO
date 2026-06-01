@@ -28,21 +28,21 @@ from pfred_runner import populate_pfred, score_sequences, validate_docker_contai
 
 from notebooks.consts import OLIGO_CSV_PROCESSED  # noqa: E402
 from notebooks.features.feature_extraction import save_feature  # noqa: E402
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE, INHIBITION, SEQUENCE  # noqa: E402
+from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE, INHIBITION_PERCENT, ASO_SEQUENCE  # noqa: E402
 
 
 def populate_and_save_pfred(version="oligo"):
     """Load the oligo dataset, score with PFRED, and save features to the TAUSO store."""
     oligo_data = pd.read_csv(OLIGO_CSV_PROCESSED)
-    df, features = populate_pfred(oligo_data, seq_col=SEQUENCE)
+    df, features = populate_pfred(oligo_data, seq_col=ASO_SEQUENCE)
     for feature in features:
         save_feature(df, feature, version=version)
     return df, features
 
 
-def median_spearman_per_cohort(df, feature_cols=("PFRED_SVM", "PFRED_PLS"), target_col=INHIBITION):
+def median_spearman_per_cohort(df, feature_cols=("PFRED_SVM", "PFRED_PLS"), target_col=INHIBITION_PERCENT):
     """Median per-cohort (gene x cell line) Spearman correlation of each feature vs target."""
-    cohort = df[CANONICAL_GENE] + "_" + df[CELL_LINE]
+    cohort = df[CANONICAL_GENE_NAME] + "_" + df[CELL_LINE]
     results = {}
     for col in feature_cols:
         corr = df.groupby(cohort).apply(lambda x: x[col].corr(x[target_col], method="spearman"))

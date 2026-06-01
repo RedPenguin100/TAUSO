@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from ..data.consts import CANONICAL_GENE, CELL_LINE
+from ..data.consts import CANONICAL_GENE_NAME, CELL_LINE
 from ..features.context.ttdb_cell_names import cell_name_to_ttdb
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ def populate_mrna_halflife_features(all_data, provider):
     features = ["halflife_value", "halflife_source", "halflife_cell_proxy"]
 
     def _get_halflife_features(row):
-        gene = row[CANONICAL_GENE]
+        gene = row[CANONICAL_GENE_NAME]
         cell = row[CELL_LINE]
 
         # Fix the cell name to TTDB's spelling; unknown names pass through and resolve to gene-level.

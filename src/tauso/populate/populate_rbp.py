@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-from tauso.data.consts import CANONICAL_GENE, CELL_LINE_DEPMAP
+from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE_DEPMAP
 from tauso.features.rbp.rbp_features import get_background_probs
 
 
@@ -111,7 +111,8 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
     # This allows Joblib to share memory across workers instead of pickling 180k tiny lists
     default_bg = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
     bg_list = [
-        get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg for g in df[CANONICAL_GENE]
+        get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg
+        for g in df[CANONICAL_GENE_NAME]
     ]
     background_probs_arr = np.array(bg_list, dtype=np.float32)
 
@@ -223,7 +224,7 @@ def populate_rbp_interaction_features(
     # Pre-calculate background probs
     default_bg = np.array([0.25, 0.25, 0.25, 0.25])
     background_probs = []
-    for g in df[CANONICAL_GENE]:
+    for g in df[CANONICAL_GENE_NAME]:
         if g in gene_to_data:
             background_probs.append(get_background_probs(gene_to_data[g].full_mrna))
         else:

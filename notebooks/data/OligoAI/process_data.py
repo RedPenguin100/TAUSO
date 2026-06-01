@@ -36,7 +36,7 @@ from notebooks.consts import (
     OLIGO_CSV_PROCESSED_AVERAGED,
 )
 from notebooks.preprocessing import process_oligo_data, process_oligo_data_rename
-from tauso.data.consts import INHIBITION, SEQUENCE
+from tauso.data.consts import CELL_LINE, INHIBITION_PERCENT, ASO_SEQUENCE
 from tauso.populate.calculators.calculator import Calculator
 
 logger = logging.getLogger(__name__)
@@ -48,12 +48,12 @@ logger = logging.getLogger(__name__)
 
 def _plot_sequence_split_features(averaged_df, output_dir):
     """Bar chart: which features cause identical sequences to get multiple rows."""
-    duplicates = averaged_df[averaged_df.duplicated(subset=[SEQUENCE], keep=False)]
+    duplicates = averaged_df[averaged_df.duplicated(subset=[ASO_SEQUENCE], keep=False)]
     variation_counts = defaultdict(int)
 
-    for _, group in duplicates.groupby(SEQUENCE):
+    for _, group in duplicates.groupby(ASO_SEQUENCE):
         for col in group.columns:
-            if col in [SEQUENCE, INHIBITION, "index_oligo"]:
+            if col in [ASO_SEQUENCE, INHIBITION_PERCENT, "index_oligo"]:
                 continue
             if group[col].nunique(dropna=False) > 1:
                 variation_counts[col] += 1
@@ -81,12 +81,12 @@ def _plot_sequence_split_features(averaged_df, output_dir):
 
 
 def _analyze_sequence_custom_id_splits(averaged_df, output_dir):
-    """Report which columns cause rows with identical (SEQUENCE, custom_id) to differ."""
-    subset_cols = [SEQUENCE, "custom_id"]
+    """Report which columns cause rows with identical (ASO_SEQUENCE, custom_id) to differ."""
+    subset_cols = [ASO_SEQUENCE, "custom_id"]
     duplicates = averaged_df[averaged_df.duplicated(subset=subset_cols, keep=False)]
 
     if duplicates.empty:
-        logger.info("No (SEQUENCE, custom_id) duplicates found.")
+        logger.info("No (ASO_SEQUENCE, custom_id) duplicates found.")
         return
 
     grouped = duplicates.groupby(subset_cols)
@@ -95,7 +95,7 @@ def _analyze_sequence_custom_id_splits(averaged_df, output_dir):
 
     for _, group in grouped:
         for col in group.columns:
-            if col in subset_cols + [INHIBITION, "index_oligo"]:
+            if col in subset_cols + [INHIBITION_PERCENT, "index_oligo"]:
                 continue
             if group[col].nunique(dropna=False) > 1:
                 variation_counts[col] += 1
@@ -107,7 +107,7 @@ def _analyze_sequence_custom_id_splits(averaged_df, output_dir):
     summary_df = pd.DataFrame(rows)
     summary_df.to_csv(output_dir / "custom_id_split_features.csv", index=False)
 
-    logger.info("(SEQUENCE, custom_id) duplicate pairs: %d", total)
+    logger.info("(ASO_SEQUENCE, custom_id) duplicate pairs: %d", total)
     for r in rows:
         logger.info("  %-25s | split %d pairs (%.1f%%)", r["Feature"], r["Pairs_Split"], r["Pct"])
     logger.info(
@@ -116,18 +116,18 @@ def _analyze_sequence_custom_id_splits(averaged_df, output_dir):
 
 
 def _save_cell_line_summary(processed_df, output_dir):
-    counts = processed_df["Cell_line"].value_counts().reset_index()
-    counts.columns = ["Cell_line", "Count"]
+    counts = processed_df[CELL_LINE].value_counts().reset_index()
+    counts.columns = [CELL_LINE, "Count"]
     counts.to_csv(output_dir / "cell_line_counts.csv", index=False)
     logger.info("Cell lines present (%d):", len(counts))
     for _, row in counts.iterrows():
-        logger.info("  %-35s %d", row["Cell_line"], row["Count"])
+        logger.info("  %-35s %d", row[CELL_LINE], row["Count"])
     logger.info("Saved cell line summary -> %s", output_dir / "cell_line_counts.csv")
 
 
 def _plot_inhibition_distribution(averaged_df, output_dir):
     plt.figure(figsize=(8, 4))
-    plt.hist(averaged_df[INHIBITION].dropna(), bins=80, edgecolor="none", color="steelblue")
+    plt.hist(averaged_df[INHIBITION_PERCENT].dropna(), bins=80, edgecolor="none", color="steelblue")
     plt.xlabel("Inhibition (%)")
     plt.ylabel("Count")
     plt.title(f"Inhibition distribution (n={len(averaged_df):,})")
@@ -205,11 +205,11 @@ def main():
     # 6. Average duplicate measurements
     # ------------------------------------------------------------------
     logger.info("Averaging duplicate measurements...")
-    feature_cols = [col for col in processed_data.columns if col not in [INHIBITION, "index_oligo"]]
+    feature_cols = [col for col in processed_data.columns if col not in [INHIBITION_PERCENT, "index_oligo"]]
     averaged_df = processed_data.groupby(feature_cols, as_index=False, dropna=False).agg(
-        {INHIBITION: "mean", "index_oligo": "first"}
+        {INHIBITION_PERCENT: "mean", "index_oligo": "first"}
     )
-    final_cols = ["index_oligo"] + feature_cols + [INHIBITION]
+    final_cols = ["index_oligo"] + feature_cols + [INHIBITION_PERCENT]
     averaged_df = averaged_df[final_cols]
     logger.info("Collapsed %d -> %d rows after averaging", len(processed_data), len(averaged_df))
 

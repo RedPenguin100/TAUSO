@@ -12,7 +12,7 @@ def get_unique_genes(df):
     """
     Extracts unique genes from a dataframe, excluding blacklist items.
     """
-    genes = df[CANONICAL_GENE].unique()
+    genes = df[CANONICAL_GENE_NAME].unique()
     genes_to_remove = {"HBV", "negative_control", np.nan}
 
     # Filter using list comprehension
@@ -26,18 +26,18 @@ def get_filtered_human_data(df):
     Returns a copy to avoid SettingWithCopy warnings.
     """
     # Filter: Organism is Human AND Inhibition is not NaN
-    condition = (df[CELL_LINE_ORGANISM] == "human") & (df[INHIBITION].notna())
+    condition = (df[CELL_LINE_ORGANISM] == "human") & (df[INHIBITION_PERCENT].notna())
     return df[condition].copy()
 
 
 def process_row(row, gene_to_data):
-    gene_name = row[CANONICAL_GENE]
+    gene_name = row[CANONICAL_GENE_NAME]
     if gene_name not in gene_to_data:
         return -1, 0, ""
 
     locus_info = gene_to_data[gene_name]
     pre_mrna = locus_info.full_mrna
-    antisense = getattr(row, SEQUENCE)
+    antisense = getattr(row, ASO_SEQUENCE)
     sense = get_antisense(antisense)
     idx = pre_mrna.find(sense)  # the index in the pre_mrna the sense is found
 
@@ -64,7 +64,7 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
     # 3. Filter Specific Genes (using the clean DF)
     genes_clean = get_unique_genes(df)
     gene_to_data = get_locus_to_data_dict(gene_subset=genes_clean)
-    df = df[df[CANONICAL_GENE].isin(genes_clean)].copy()
+    df = df[df[CANONICAL_GENE_NAME].isin(genes_clean)].copy()
 
     # 4. Optional: Drop SMILES
     if not include_smiles and SMILES in df.columns:
@@ -97,13 +97,18 @@ def preprocess_aso_data(csv_path, include_smiles: bool = False):
 
 
 def process_oligo_data_rename(data):
+    """Translate the raw OligoAI source columns to TAUSO's canonical names.
+    Identity entries (cell_line, inhibition_percent) are intentionally omitted -- the
+    raw and canonical names already match after the consts.py standardization, so the
+    rename map only carries the columns that actually need renaming.
+    """
     rename_scheme = {
-        "aso_sequence_5_to_3": SEQUENCE,
-        "Canonical Gene Name": CANONICAL_GENE,
-        "cell_line": CELL_LINE,
+        "aso_sequence_5_to_3": ASO_SEQUENCE,
+        "Canonical Gene Name": CANONICAL_GENE_NAME,
         "cell_line_species": CELL_LINE_ORGANISM,
-        "inhibition_percent": INHIBITION,
-        "dosage": VOLUME,
+        "dosage": VOLUME_NM,
+        "cells_per_well": DENSITY_CELLS_PER_WELL,
+        "transfection_method": TRANSFECTION_RAW,
     }
     data = data.rename(columns=rename_scheme)
     return data
@@ -133,8 +138,8 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     # ---------------------------------------------------------
     rows_before_chem = len(data)
     valid_chemistries = ["MOE/5-methylcytosines/deoxy", "cEt/5-methylcytosines/deoxy", "DNA"]
-    # Assuming MODIFICATION is imported from your consts
-    data = data[data[MODIFICATION].isin(valid_chemistries)].copy()
+    # Assuming MODIFICATION_STRING is imported from your consts
+    data = data[data[MODIFICATION_STRING].isin(valid_chemistries)].copy()
     elim_chemistry = rows_before_chem - len(data)
 
     # 1. Rename columns to standard consts
@@ -162,11 +167,11 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     elim_steric = rows_before - len(data)
 
     rows_before = len(data)
-    data = data[~data[CANONICAL_GENE].str.contains(";", na=False)].copy()
+    data = data[~data[CANONICAL_GENE_NAME].str.contains(";", na=False)].copy()
     elim_multigene = rows_before - len(data)
 
     rows_before = len(data)
-    data = data[data[INHIBITION].notna()].copy()
+    data = data[data[INHIBITION_PERCENT].notna()].copy()
     elim_missing_inhib = rows_before - len(data)
 
     # Explicitly drop and track missing cell lines
@@ -178,7 +183,7 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     # FILTER 1: Unmapped Sequences (STRUCTURE_SENSE_START == -1)
     # ---------------------------------------------------------
     initial_rows_unmapped = len(data)
-    unmapped_series = data[data[STRUCTURE_SENSE_START] == -1][CANONICAL_GENE].value_counts()
+    unmapped_series = data[data[STRUCTURE_SENSE_START] == -1][CANONICAL_GENE_NAME].value_counts()
     data = data[data[STRUCTURE_SENSE_START] != -1].copy()
     elim_unmapped_rows = initial_rows_unmapped - len(data)
 
@@ -199,7 +204,7 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     # ---------------------------------------------------------
     # FILTER 3: Sparse Cohorts (< min_cohort_size)
     # ---------------------------------------------------------
-    data["cohort_id"] = data[CANONICAL_GENE].astype(str).str.strip() + "_" + data[CELL_LINE].astype(str).str.strip()
+    data["cohort_id"] = data[CANONICAL_GENE_NAME].astype(str).str.strip() + "_" + data[CELL_LINE].astype(str).str.strip()
     cohort_counts = data["cohort_id"].value_counts()
 
     valid_cohorts = cohort_counts[cohort_counts >= min_cohort_size].index
