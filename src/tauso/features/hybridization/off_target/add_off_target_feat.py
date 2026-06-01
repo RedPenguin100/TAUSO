@@ -31,27 +31,28 @@ class AggregationMethod:
 
 
 def aggregate_per_gene_tpm_weighted(energy_dict, expression_dict, method):
-    """Combine per-gene off-target values into one TPM-weighted score on a log scale.
+    """Combine per-gene off-target values into a log-abundance × log-free-energy score.
 
-    energy_dict: {gene: value} for the off-target genes a trigger binds; ``value`` is
-    the per-pair aggregation result (Boltzmann sum, see PairAggregation.BOLTZMANN_SUM).
+    energy_dict: {gene: Z_g} for the off-target genes a trigger binds; ``Z_g`` is the
+    per-pair Boltzmann sum from PairAggregation.BOLTZMANN_SUM
+    (Σ_sites exp(-energy/RT) for that (trigger, gene)).
     expression_dict: {gene: (TPM, normalised)}.
-    method: an AggregationMethod. Only BOLTZMANN_SUM is supported.
+    method: AggregationMethod tag; consumed only by serialize_feature_name (kept in
+    the signature so the existing call chain doesn't change).
 
-    Computes Σ_g (TPM_g / 1e6) · value_g — a mass-action TPM-weighted sum over
-    expressed off-target genes — and returns log1p of it. The outer log1p keeps the
-    feature in a sane numeric range now that per-pair Boltzmann Z values can span
-    many orders of magnitude, while preserving ranking (monotone transform). The
-    no-off-target case (sum=0) maps cleanly to 0.
+    Computes Σ_g log1p(TPM_g) · log(Z_g). log(Z_g) is proportional to -ΔG_binding/RT
+    for total off-target capture on transcript g; log1p(TPM_g) is a log-abundance
+    weight (positive for any TPM > 0, sane magnitudes — housekeeping TPM~10⁴ gives
+    ~9.2, low-expression TPM~10 gives ~2.4). Both quantities sit in a single-digit
+    to ~50 range, so the per-gene contribution can't blow up the way TPM · Z would
+    after the RT fix made Z values span ~10⁷ to ~10²¹.
     """
-    if method != AggregationMethod.BOLTZMANN_SUM:
-        raise ValueError(f"Unsupported aggregation method: {method}")
     if not energy_dict:
         return 0.0
 
     valid_targets = []
     for gene, energy in energy_dict.items():
-        expr_tpm = expression_dict[gene][0] / 1e6
+        expr_tpm = expression_dict[gene][0]
         if expr_tpm > 0:
             valid_targets.append((gene, energy, expr_tpm))
 
@@ -60,8 +61,8 @@ def aggregate_per_gene_tpm_weighted(energy_dict, expression_dict, method):
 
     score = 0.0
     for _, energy, expr_tpm in valid_targets:
-        score += energy * expr_tpm
-    return math.log1p(score)
+        score += math.log1p(expr_tpm) * math.log(energy)
+    return score
 
 
 def calculate_risearch_energy_per_cutoff(query_pairs, target_path, cutoffs, minimum_score):
