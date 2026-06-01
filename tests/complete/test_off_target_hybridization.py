@@ -51,7 +51,7 @@ def mini_structure_data(request, structure_data):
 def test_on_target_hybridization_regression(mini_structure_data, gene_to_data, dataframe_regression):
     data = mini_structure_data.copy()
     data, feature_names = on_target_total_hybridization(data, gene_to_data, cutoffs=CUTOFFS, n_jobs=get_n_jobs())
-    # sum(exp(-RT·energy)) is float-order dependent under threads (~1e-5)
+    # sum(exp(-energy/RT)) is float-order dependent under threads (~1e-5)
     dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
 
 
