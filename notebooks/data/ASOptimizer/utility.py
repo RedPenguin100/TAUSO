@@ -5,10 +5,10 @@ import pandas as pd
 
 from notebooks.data.OligoAI.parse_chemistry import assign_backbone
 from notebooks.data.utility import standardize_cell_line
+from notebooks.data.ASOptimizer.consts import LINKAGE_LOCATION
 from tauso.data.consts import (
     CANONICAL_GENE_NAME,
     ASO_SEQUENCE,
-    LINKAGE_LOCATION,
     TRANSFECTION_RAW,
 )
 

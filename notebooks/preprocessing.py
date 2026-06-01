@@ -3,6 +3,7 @@ import pandas as pd
 
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from notebooks.notebook_utils import log_correction
+from notebooks.data.ASOptimizer.consts import SMILES
 from tauso.data.consts import *
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.util import get_antisense
