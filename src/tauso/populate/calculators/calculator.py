@@ -1000,9 +1000,9 @@ class Calculator:
 
         # 1. Define "Sentinel" features.
         # If these summary features exist, we know the block successfully completed.
-        expected_interaction = [f"RBP_interaction_total_{flank_size}_expression"]
-        expected_affinity = [f"RBP_interaction_total_{flank_size}_generic"]
-        expected_functional = [f"RBP_interaction_stabilizer_{flank_size}"]
+        expected_interaction = [f"rbp_interaction_total_{flank_size}_expression"]
+        expected_affinity = [f"rbp_interaction_total_{flank_size}_generic"]
+        expected_functional = [f"rbp_interaction_stabilizer_{flank_size}"]
 
         # Check disk
         missing_int = self._get_missing_features(expected_interaction)

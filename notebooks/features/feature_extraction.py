@@ -40,7 +40,7 @@ COMPETITION = [
 
 def get_dtype_for_feature(filename, index_col_name):
     name = filename.removesuffix(".parquet").removesuffix(".csv")
-    if name.startswith("RBP_"):
+    if name.startswith("rbp_"):
         feat_type = "float64"
     elif name.startswith("ohe_"):
         feat_type = "int8"
