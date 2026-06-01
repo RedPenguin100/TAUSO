@@ -12,8 +12,8 @@ from ..parallel_utils import make_apply_fn
 from ..timer import Timer
 
 FEATURE_SPECS: list[tuple[str, callable]] = [
-    ("SeqChem_gap_gc_content", gap_gc_content),
-    ("SeqChem_wing_gap_gc_delta", wing_gap_gc_delta),
+    ("mod_sugar_gap_gc_content", gap_gc_content),
+    ("mod_sugar_wing_gap_gc_delta", wing_gap_gc_delta),
 ]
 
 
