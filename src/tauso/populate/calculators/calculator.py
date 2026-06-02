@@ -886,28 +886,32 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            # All cutoffs for a given (method, top_n) come from ONE RIsearch pass per
-            # chunk, so group the work by (method, top_n) and derive every missing
-            # cutoff together instead of re-running RIsearch per cutoff.
+            # All (top_n, cutoff) features come from ONE RIsearch pass per chunk:
+            # target FASTA built at max(needed_top_ns), smaller top_n derived by
+            # gene-subset filter, cutoffs by score-filter on the streaming pyarrow
+            # output. Only the top_n values whose features are still missing are
+            # passed in, so we don't grow the target FASTA past what's needed.
             for method in methods:
-                for top_n in top_ns:
-                    needed_cutoffs = [
-                        c for c in cutoffs if serialize_feature_name(method, top_n, c, is_specific=False) in missing
-                    ]
-                    if not needed_cutoffs:
-                        continue
+                needed_top_ns = sorted({
+                    n for n in top_ns
+                    for c in cutoffs
+                    if serialize_feature_name(method, n, c, is_specific=False) in missing
+                })
+                if not needed_top_ns:
+                    continue
 
-                    self.data, generated_features = populate_off_target_general(
-                        ASO_df=self.data,
-                        gene_to_data=gene_to_data,
-                        cell_line2data=transcriptomes,
-                        top_n_list=[top_n],
-                        cutoff_list=needed_cutoffs,
-                        method=method,
-                        n_jobs=self.cpus,
-                    )
+                self.data, generated_features = populate_off_target_general(
+                    ASO_df=self.data,
+                    gene_to_data=gene_to_data,
+                    cell_line2data=transcriptomes,
+                    top_n_list=needed_top_ns,
+                    cutoff_list=cutoffs,
+                    method=method,
+                    n_jobs=self.cpus,
+                )
 
-                    for feature in generated_features:
+                for feature in generated_features:
+                    if feature in missing:
                         self._save_calculated_feature(feature_name=feature)
         else:
             logger.info("All general off-target features exist. Skipping.")
@@ -938,27 +942,30 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            # All cutoffs for a given top_n come from ONE RIsearch pass per (cell_line,
-            # chunk, shard), so derive every missing cutoff together per top_n.
-            for top_n in top_n_list:
-                needed_cutoffs = [
-                    c for c in cutoff_list if serialize_feature_name(method, top_n, c, is_specific=True) in missing
-                ]
-                if not needed_cutoffs:
-                    continue
-
+            # All (top_n, cutoff) features come from ONE RIsearch pass per
+            # (cell_line, chunk): target FASTA built at max(needed_top_ns), smaller
+            # top_n derived by gene-subset filter, cutoffs by score-filter on the
+            # streaming pyarrow output. Only the top_n values whose features are
+            # still missing are passed in.
+            needed_top_ns = sorted({
+                n for n in top_n_list
+                for c in cutoff_list
+                if serialize_feature_name(method, n, c, is_specific=True) in missing
+            })
+            if needed_top_ns:
                 self.data, generated_features = populate_off_target_specific(
                     ASO_df=self.data,
                     gene_to_data=gene_to_data,
                     cell_line2data=transcriptomes,
-                    top_n_list=[top_n],
-                    cutoff_list=needed_cutoffs,
+                    top_n_list=needed_top_ns,
+                    cutoff_list=cutoff_list,
                     method=method,
                     n_jobs=self.cpus,
                 )
 
                 for feature in generated_features:
-                    self._save_calculated_feature(feature_name=feature)
+                    if feature in missing:
+                        self._save_calculated_feature(feature_name=feature)
         else:
             logger.info("All specific off-target features exist. Skipping.")
 
