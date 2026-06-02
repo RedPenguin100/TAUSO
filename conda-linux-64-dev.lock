@@ -75,7 +75,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libxcrypt-4.4.36-hd590300_1.cond
 https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-haa7fec5_0.conda#7a3bff861a6583f1889021facefc08b1
 https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_1.conda#c01af13bdc553d1a8fbfff6e8db075f0
 https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-h853b02a_0.conda#d7d95fc8287ea7bf33e0e7116d2b95ec
-https://conda.anaconda.org/conda-forge/linux-64/uv-0.11.17-h29f5ae7_0.conda#4e1aa95123771c093d71b2b4fa0ada04
+https://conda.anaconda.org/conda-forge/linux-64/uv-0.11.18-h26efc2c_0.conda#7f61fea7818f95bfa3f119b4762d71f3
 https://conda.anaconda.org/conda-forge/linux-64/wayland-1.25.0-hd6090a7_0.conda#996583ea9c796e5b915f7d7580b51ea6
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libsm-1.2.6-he73a12e_0.conda#1c74ff8c35dcadf952a16f752ca5aa49
 https://conda.anaconda.org/conda-forge/linux-64/xz-gpl-tools-5.8.3-ha02ee65_0.conda#8f5e2c6726c1339287a3c76a2c138ac7
@@ -224,7 +224,7 @@ https://conda.anaconda.org/conda-forge/linux-64/at-spi2-core-2.40.3-h0630a04_0.t
 https://conda.anaconda.org/conda-forge/noarch/beautifulsoup4-4.14.3-pyha770c72_0.conda#5267bef8efea4127aacd1f4e1f149b6e
 https://conda.anaconda.org/conda-forge/noarch/bleach-with-css-6.3.0-hbca2aae_1.conda#f11a319b9700b203aa14c295858782b6
 https://conda.anaconda.org/bioconda/linux-64/bowtie-1.3.1-py311h5fe0eda_10.tar.bz2#041e045e0b79b6427363d1ba4a5af6dd
-https://conda.anaconda.org/conda-forge/linux-64/cupy-core-14.1.0-py311hb94af43_0.conda#11b4efb7255f5230322832d6dcf4f270
+https://conda.anaconda.org/conda-forge/linux-64/cupy-core-14.1.1-py311hb94af43_0.conda#3688c52239058965bdc5fe222e0c2d2e
 https://conda.anaconda.org/conda-forge/noarch/fqdn-1.5.1-pyhd8ed1ab_1.conda#d3549fd50d450b6d9e7dddff25dd2110
 https://conda.anaconda.org/conda-forge/noarch/ipython-9.14.0-pyh53cf698_0.conda#8e3caf9b45475eb00053f4bb60be0d15
 https://conda.anaconda.org/conda-forge/noarch/jsonschema-specifications-2025.9.1-pyhcf101f3_0.conda#439cd0f567d697b20a8f45cb70a1005a
@@ -238,7 +238,7 @@ https://conda.anaconda.org/conda-forge/noarch/urllib3-2.7.0-pyhd8ed1ab_0.conda#c
 https://conda.anaconda.org/bioconda/linux-64/viennarna-2.7.2-py311pl5321hb7402bf_1.conda#a1e8d7033787d5a28e991a41e949e1e8
 https://conda.anaconda.org/conda-forge/noarch/argon2-cffi-25.1.0-pyhd8ed1ab_0.conda#8ac12aff0860280ee0cff7fa2cf63f3b
 https://conda.anaconda.org/conda-forge/linux-64/at-spi2-atk-2.38.0-h0630a04_3.tar.bz2#6b889f174df1e0f816276ae69281af4d
-https://conda.anaconda.org/conda-forge/linux-64/cupy-14.1.0-py311he6f25ab_0.conda#9e77e98cdfcf99bd43bf5d5b03e26cf9
+https://conda.anaconda.org/conda-forge/linux-64/cupy-14.1.1-py311he6f25ab_0.conda#13221baf2145fb6ef462aa88ce2a7e1b
 https://conda.anaconda.org/conda-forge/linux-64/epoxy-1.5.10-hb03c661_2.conda#057083b06ccf1c2778344b6dabace38b
 https://conda.anaconda.org/conda-forge/noarch/httpcore-1.0.9-pyh29332c3_0.conda#4f14640d58e2cc0aa0819d9d8ba125bb
 https://conda.anaconda.org/conda-forge/noarch/ipykernel-7.2.0-pyha191276_1.conda#8b267f517b81c13594ed68d646fd5dcb
