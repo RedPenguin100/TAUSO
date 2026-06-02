@@ -131,3 +131,36 @@ def compute_group_batch_multi_cutoff(group_df, exp_map, cutoffs, method, prebuil
 
     per_cutoff = calculate_risearch_energy_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
     return energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs)
+
+
+def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs, method, prebuilt_target_path):
+    """Score one ASO group for several top_n levels from ONE RIsearch run.
+
+    top_n_to_data: {top_n: (exp_map, gene_set)} where gene_set is the set of target
+    genes that belong to head(top_n) of the cell-line / general expression table.
+    Every gene_set must be a subset of the genes in ``prebuilt_target_path`` (which
+    should be built at max(top_n)). Per-gene Boltzmann sums for smaller top_n are
+    derived from the same RIsearch output by restricting to that top_n's gene_set —
+    valid because RIsearch scores each (query, target) pair independently
+    (see tests/complete/test_off_target_derivation_equivalence.py).
+
+    Returns {(top_n, cutoff): Series of scores indexed like group_df}.
+    """
+    indices = group_df.index.tolist()
+    if group_df.empty:
+        return {(top_n, c): pd.Series(dtype=float) for top_n in top_n_to_data for c in cutoffs}
+
+    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, group_df[ASO_SEQUENCE])]
+    idx_to_gene = {str(idx): gene for idx, gene in zip(indices, group_df[CANONICAL_GENE_NAME])}
+
+    per_cutoff = calculate_risearch_energy_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
+
+    out: dict = {}
+    for top_n, (exp_map, gene_set) in top_n_to_data.items():
+        filtered = {
+            c: {(trig, tgt): val for (trig, tgt), val in pairs.items() if tgt in gene_set}
+            for c, pairs in per_cutoff.items()
+        }
+        for cutoff, series in energy_score_per_cutoff(filtered, indices, idx_to_gene, exp_map, method, cutoffs).items():
+            out[(top_n, cutoff)] = series
+    return out

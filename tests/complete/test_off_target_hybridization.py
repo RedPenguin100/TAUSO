@@ -206,3 +206,45 @@ def test_off_target_specific_multi_cutoff_matches_per_cutoff(mini_structure_data
     for c in cutoffs:
         single, sfeats = populate_off_target_specific(ASO_df=mini_structure_data.copy(), cutoff_list=[c], **base)
         pd.testing.assert_series_equal(multi[sfeats[0]], single[sfeats[0]])
+
+
+@pytest.mark.parametrize("mini_structure_data", [300], indirect=True)
+def test_off_target_general_multi_topn_matches_per_topn(
+    mini_structure_data, gene_to_data_full, transcriptomes_with_general
+):
+    """general path: deriving multiple top_n from a single max(top_n) RIsearch pass
+    (collapsed) equals running each top_n separately (uncollapsed)."""
+    import pandas as pd
+
+    top_ns = [25, 50, 100]
+    kwargs = dict(
+        gene_to_data=gene_to_data_full,
+        cell_line2data=transcriptomes_with_general,
+        cutoff_list=[800],
+        method=AggregationMethod.BOLTZMANN_SUM,
+        n_jobs=get_n_jobs(),
+    )
+    multi, _ = populate_off_target_general(ASO_df=mini_structure_data.copy(), top_n_list=top_ns, **kwargs)
+    for n in top_ns:
+        single, feats = populate_off_target_general(ASO_df=mini_structure_data.copy(), top_n_list=[n], **kwargs)
+        pd.testing.assert_series_equal(multi[feats[0]], single[feats[0]])
+
+
+@pytest.mark.parametrize("mini_structure_data", [300], indirect=True)
+def test_off_target_specific_multi_topn_matches_per_topn(mini_structure_data, gene_to_data, transcriptomes):
+    """specific path: deriving multiple top_n from a single max(top_n) RIsearch pass
+    (collapsed) equals running each top_n separately (uncollapsed)."""
+    import pandas as pd
+
+    top_ns = [25, 50, 100]
+    base = dict(
+        gene_to_data=gene_to_data,
+        cell_line2data=transcriptomes,
+        cutoff_list=[800],
+        method=AggregationMethod.BOLTZMANN_SUM,
+        n_jobs=get_n_jobs(),
+    )
+    multi, _ = populate_off_target_specific(ASO_df=mini_structure_data.copy(), top_n_list=top_ns, **base)
+    for n in top_ns:
+        single, feats = populate_off_target_specific(ASO_df=mini_structure_data.copy(), top_n_list=[n], **base)
+        pd.testing.assert_series_equal(multi[feats[0]], single[feats[0]])
