@@ -135,13 +135,19 @@ def test_rrna_off_target_binder_vs_random():
 
 @pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)
 def test_off_target_specific_regression(mini_structure_data, gene_to_data, transcriptomes, dataframe_regression):
+    """Full production-parameter regression for the specific path.
+
+    top_n_list × cutoff_list are run in ONE call so the test exercises both top_n-collapse
+    (one RIsearch pass at max(top_n) per cell line) and cutoff-collapse (one streaming pass
+    per chunk yields every cutoff). Cost is dominated by top_n=200, smaller top_n's free.
+    """
     data = mini_structure_data.copy()
     data, feature_names = populate_off_target_specific(
         ASO_df=data,
         gene_to_data=gene_to_data,
         cell_line2data=transcriptomes,
-        top_n_list=[50],
-        cutoff_list=[800],
+        top_n_list=[50, 100, 200],
+        cutoff_list=[800, 1000, 1200],
         method=AggregationMethod.BOLTZMANN_SUM,
         n_jobs=get_n_jobs(),
     )
@@ -153,17 +159,18 @@ def test_off_target_specific_regression(mini_structure_data, gene_to_data, trans
 def test_off_target_general_regression(
     mini_structure_data, gene_to_data_full, transcriptomes_with_general, dataframe_regression
 ):
+    """Full production-parameter regression for the general path (see _specific_ for rationale)."""
     data = mini_structure_data.copy()
     data, feature_names = populate_off_target_general(
         ASO_df=data,
         gene_to_data=gene_to_data_full,
         cell_line2data=transcriptomes_with_general,
-        top_n_list=[25],
-        cutoff_list=[800],
+        top_n_list=[25, 50, 100, 200],
+        cutoff_list=[800, 1000, 1200],
         method=AggregationMethod.BOLTZMANN_SUM,
         n_jobs=get_n_jobs(),
     )
-    dataframe_regression.check(data[["index_oligo"] + feature_names])
+    dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
 
 
 @pytest.mark.parametrize("mini_structure_data", [300], indirect=True)

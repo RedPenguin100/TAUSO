@@ -892,11 +892,14 @@ class Calculator:
             # output. Only the top_n values whose features are still missing are
             # passed in, so we don't grow the target FASTA past what's needed.
             for method in methods:
-                needed_top_ns = sorted({
-                    n for n in top_ns
-                    for c in cutoffs
-                    if serialize_feature_name(method, n, c, is_specific=False) in missing
-                })
+                needed_top_ns = sorted(
+                    {
+                        n
+                        for n in top_ns
+                        for c in cutoffs
+                        if serialize_feature_name(method, n, c, is_specific=False) in missing
+                    }
+                )
                 if not needed_top_ns:
                     continue
 
@@ -947,11 +950,14 @@ class Calculator:
             # top_n derived by gene-subset filter, cutoffs by score-filter on the
             # streaming pyarrow output. Only the top_n values whose features are
             # still missing are passed in.
-            needed_top_ns = sorted({
-                n for n in top_n_list
-                for c in cutoff_list
-                if serialize_feature_name(method, n, c, is_specific=True) in missing
-            })
+            needed_top_ns = sorted(
+                {
+                    n
+                    for n in top_n_list
+                    for c in cutoff_list
+                    if serialize_feature_name(method, n, c, is_specific=True) in missing
+                }
+            )
             if needed_top_ns:
                 self.data, generated_features = populate_off_target_specific(
                     ASO_df=self.data,
