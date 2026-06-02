@@ -28,12 +28,12 @@ def validate_cols_in_df(df, cols):
 # windows at each flank explore the "tighter vs slightly wider" trade-off
 # (e.g. catching a small hairpin only inside the wider window).
 DEFAULT_SETTINGS = [
-    (30, 25, 4),       # very tight: ASO-target-sized window
-    (30, 40, 5),       # tight: sub-target stems with small flanking context
-    (60, 55, 5),       # local: short stems inside a mid-flank context
-    (60, 70, 5),       # local: canonical stem-loop scale
-    (120, 100, 7),     # mid-regional
-    (120, 150, 10),    # wider-regional
+    (30, 25, 4),  # very tight: ASO-target-sized window
+    (30, 40, 5),  # tight: sub-target stems with small flanking context
+    (60, 55, 5),  # local: short stems inside a mid-flank context
+    (60, 70, 5),  # local: canonical stem-loop scale
+    (120, 100, 7),  # mid-regional
+    (120, 150, 10),  # wider-regional
 ]
 
 
