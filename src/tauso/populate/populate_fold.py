@@ -22,23 +22,18 @@ def validate_cols_in_df(df, cols):
         raise ValueError(f"Missing columns in DataFrame: {missing_cols}")
 
 
-# MFE grid: (flank, window, step). Spans tight-local (flank=30) through
-# medium (60), wide (120), and global (240) folding contexts.
+# MFE grid: (flank, window, step). Six configs spanning three flank scales with
+# two window sizes each, covering tight (sub-target), local (stem-loop), and
+# mid-regional structural contexts. Window size is the dominant axis; the paired
+# windows at each flank explore the "tighter vs slightly wider" trade-off
+# (e.g. catching a small hairpin only inside the wider window).
 DEFAULT_SETTINGS = [
-    # Tight local (flank=30)
-    (30, 20, 4),
-    (30, 30, 7),
-    (30, 45, 7),
-    (30, 65, 7),
-    (30, 65, 15),
-    (30, 90, 15),
-    # Medium context
-    (60, 55, 7),
-    # Wide context
-    (120, 55, 7),
-    (120, 65, 7),
-    # Global context — captures long-range stems
-    (240, 90, 15),
+    (30, 25, 4),  # very tight: ASO-target-sized window
+    (30, 40, 5),  # tight: sub-target stems with small flanking context
+    (60, 55, 5),  # local: short stems inside a mid-flank context
+    (60, 70, 5),  # local: canonical stem-loop scale
+    (120, 100, 7),  # mid-regional
+    (120, 150, 10),  # wider-regional
 ]
 
 
@@ -104,27 +99,28 @@ SEED_SIZES = [13, 26, 39]
 ACCESS_WIN_SIZE = 80
 
 
-# raccess grid: (flank, access, seeds). Spans tight-local (flank=15) through
-# wide (flank=120). Capped at flank=120 because raccess scales O(L²)/O(L³)
-# in window length and flank=240 would be prohibitive.
+# raccess grid: configs at four flank scales × two seed regimes. Flank is the
+# dominant axis for raccess (the partition function over a larger context can
+# shift opening energies substantially). The small-seed set [4, 6, 8] probes
+# individual stem-sized opening events; the long-seed set [13, 26, 39] probes
+# whole-region single-strandedness — a qualitatively distinct regime kept as
+# the final entry.
 DEFAULT_SENSE_CONFIGURATION = [
-    # Tight local (flank=15) — immediate stem-loop occlusion
+    # flank=15 — tight: sub-target stem occlusion at two opening-window sizes.
     {"flank": 15, "access": 8, "seeds": [4, 6, 8]},
     {"flank": 15, "access": 13, "seeds": [4, 6, 8]},
-    # Local (flank=30) — short-range context
+    # flank=30 — short context: half-ASO and full-ASO opening.
     {"flank": 30, "access": 13, "seeds": [4, 6, 8]},
     {"flank": 30, "access": 20, "seeds": [4, 6, 8]},
-    # Short regional (flank=60)
+    # flank=60 — mid context: half-ASO and full-ASO opening.
     {"flank": 60, "access": 13, "seeds": [4, 6, 8]},
     {"flank": 60, "access": 20, "seeds": [4, 6, 8]},
-    # Wider (flank=120)
-    {"flank": 120, "access": 6, "seeds": [4, 6]},
+    # flank=120 — long context: three opening regimes (small / full / extended).
     {"flank": 120, "access": 8, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 10, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 13, "seeds": [4, 6, 8]},
-    {"flank": 120, "access": 13, "seeds": [13, 26, 39]},
-    {"flank": 120, "access": 20, "seeds": [4, 6, 8]},
+    {"flank": 120, "access": 20, "seeds": [4, 6, 8]},  # PFRED-like full-ASO
     {"flank": 120, "access": 39, "seeds": [13, 26, 39]},
+    # Mid-context long-region probe.
+    {"flank": 60, "access": 39, "seeds": [13, 26, 39]},
 ]
 
 
