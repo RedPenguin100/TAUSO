@@ -167,9 +167,8 @@ class AssetCache:
         from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 
         gene_to_data = self.get_lean_gene(genes_u)
-        mapper = self.get_gene_mapper()
 
-        self._gene_registry = build_gene_sequence_registry(genes=genes_u, gene_to_data=gene_to_data, mapper=mapper)
+        self._gene_registry = build_gene_sequence_registry(genes=genes_u, gene_to_data=gene_to_data)
         return self._gene_registry
 
     def set_custom_gene(self, name, sequence):

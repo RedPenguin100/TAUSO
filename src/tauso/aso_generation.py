@@ -154,7 +154,7 @@ if __name__ == "__main__":
     paths = get_paths(genome)
     mapper = GeneCoordinateMapper(paths["gtf_db"])
 
-    ref_registry = build_gene_sequence_registry(genes=[target_gene], gene_to_data=gene_to_data, mapper=mapper)
+    ref_registry = build_gene_sequence_registry(genes=[target_gene], gene_to_data=gene_to_data)
 
     print(
         generate_aso_features(

@@ -18,6 +18,8 @@ def get_n_jobs() -> int:
 @pytest.fixture(scope="session", autouse=True)
 def _configure_n_jobs(request):
     _n_jobs[0] = request.config.getoption("--n-jobs")
+
+
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
@@ -144,19 +146,18 @@ def chemistry_data(structure_data):
 
 
 @pytest.fixture(scope="session")
-def ref_registry(target_genes, gene_to_data, mapper):
+def ref_registry(target_genes, gene_to_data):
     """Builds the Gene Sequence Registry."""
     with Timer("Build Gene Sequence Registry"):
-        return build_gene_sequence_registry(genes=target_genes, gene_to_data=gene_to_data, mapper=mapper)
+        return build_gene_sequence_registry(genes=target_genes, gene_to_data=gene_to_data)
 
 
 @pytest.fixture(scope="session")
-def final_data(structure_data, mapper, ref_registry):
+def final_data(structure_data, ref_registry):
     """Runs the optimized context generator to add external mRNA and context columns."""
     with Timer("Add External mRNA & Context Columns"):
         return add_external_mrna_and_context_columns(
             df=structure_data,
-            mapper=mapper,
             gene_registry=ref_registry,
             flank_sizes_premrna=FLANK_SIZES_PREMRNA,
             flank_sizes_cds=CDS_WINDOWS,

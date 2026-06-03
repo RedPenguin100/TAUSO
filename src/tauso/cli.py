@@ -495,8 +495,7 @@ def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
 
     gene_to_data = get_locus_to_data_dict(include_introns=False, gene_subset=list(all_target_genes))
 
-    # Reuse the mapper we created above to save memory/time
-    ref_registry = build_gene_sequence_registry(genes=list(all_target_genes), gene_to_data=gene_to_data, mapper=mapper)
+    ref_registry = build_gene_sequence_registry(genes=list(all_target_genes), gene_to_data=gene_to_data)
 
     # --- PHASE 3: Calculate Weights ---
     cai_weights_map = {}
@@ -505,7 +504,9 @@ def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
     click.echo("\nCalculating cell-specific weights (Top 300)...")
     for cell_name, genes in cell_line_top_genes.items():
         cds_list = [
-            ref_registry[g]["cds_sequence"] for g in genes if g in ref_registry and ref_registry[g].get("cds_sequence")
+            ref_registry[g]["cds"].sequence
+            for g in genes
+            if g in ref_registry and ref_registry[g].get("cds") and ref_registry[g]["cds"].sequence
         ]
         cds_list = cds_list[:top_n]
 
@@ -520,9 +521,9 @@ def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
     click.echo(f"\nCalculating Generic Weights (Intersection of Top {top_n_generic})...")
 
     fallback_cds_list = [
-        ref_registry[g]["cds_sequence"]
+        ref_registry[g]["cds"].sequence
         for g in fallback_genes
-        if g in ref_registry and ref_registry[g].get("cds_sequence")
+        if g in ref_registry and ref_registry[g].get("cds") and ref_registry[g]["cds"].sequence
     ]
     fallback_cds_list = fallback_cds_list[:top_n]
 
