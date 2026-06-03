@@ -637,8 +637,8 @@ class Calculator:
             return
 
         logger.info("Computing %d Ribo-seq features across %d tracks...", len(missing), len(tracks))
-        mapper = self.cache.get_gene_mapper()
-        self.data = add_genomic_coordinates(self.data, mapper)
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+        self.data = add_genomic_coordinates(self.data, gene_to_data)
 
         for track in tracks:
             self.data, generated_features = populate_ribo_seq(

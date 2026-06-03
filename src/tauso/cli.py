@@ -27,16 +27,13 @@ from tauso.cli_utils import (
     sha256_file,
     verify_hash_or_exit,
 )
-from tauso.data.data import get_data_dir, get_paths
+from tauso.data.data import get_data_dir, get_paths, load_gtf_db
 from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_FILENAME, build_scorer_from_reference
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.features.codon_usage.tai import TGCNSource
 from tauso.features.context.mrna_halflife import HALFLIFE_SOURCE_COLUMNS
 from tauso.genome.read_human_genome import build_locus_cache, get_locus_to_data_dict
-from tauso.genome.TranscriptMapper import (
-    GeneCoordinateMapper,
-    build_gene_sequence_registry,
-)
+from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
 logger = logging.getLogger(__name__)
@@ -471,14 +468,15 @@ def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
     with open(manifest_path, "r") as f:
         cohort = json.load(f)
 
-    paths = get_paths(genome)
-    # 1. Initialize Mapper first to get valid gene set
-    mapper = GeneCoordinateMapper(paths["gtf_db"])
-    valid_db_genes = set(mapper.gene_name_map.keys())
+    # 1. Load the genome annotation DB and the set of valid gene names from it
+    genome_db = load_gtf_db(genome)
+    valid_db_genes = set()
+    for gene in genome_db.features_of_type("gene"):
+        names = gene.attributes.get("gene_name")
+        if names:
+            valid_db_genes.add(names[0])
 
     # 2. PHASE 1: Use the fixed orchestrator function
-    # Note: Pass valid_db_genes here!
-
     cell_line_top_genes, fallback_genes, global_fetch_set = load_cell_line_gene_maps(
         cell_map=cohort,
         data_dir=Path(expression_dir),
@@ -486,7 +484,7 @@ def build_cai_weights(top_n, top_n_generic, genome, pseudocount, force):
         n_specific=top_n_generic,
         n_fallback_scan=top_n_generic,
         filter_mode="protein_coding",
-        genome_db=mapper.db,
+        genome_db=genome_db,
     )
 
     # --- PHASE 2: Build Sequence Registry ---

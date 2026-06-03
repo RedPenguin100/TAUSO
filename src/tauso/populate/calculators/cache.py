@@ -25,7 +25,6 @@ class AssetCache:
         self._gene_to_data_lean = None
         self._genes_u = None
 
-        self._gene_coordinate_mapper = None
         self._gene_registry = None
         self._context_added = False
 
@@ -34,8 +33,6 @@ class AssetCache:
         self.get_halflife_provider()
 
         self.get_rbp_assets()
-
-        self.get_gene_mapper()
 
         # Omitting gene_to_data_lean, get_rbp_expression_matrix
         #          get_transcriptomes, get_gene_registry because they require more context
@@ -123,18 +120,6 @@ class AssetCache:
             self._transcriptomes["general"] = mean_exp_data
 
         return self._transcriptomes
-
-    def get_gene_mapper(self):
-        """Lazy loader for the GeneCoordinateMapper."""
-        if self._gene_coordinate_mapper is None:
-            logger.info("Loading GeneCoordinateMapper into memory (happens once)...")
-            from tauso.data.data import get_paths
-            from tauso.genome.TranscriptMapper import GeneCoordinateMapper
-
-            paths = get_paths(self.genome)
-            self._gene_coordinate_mapper = GeneCoordinateMapper(paths["gff_db"])
-
-        return self._gene_coordinate_mapper
 
     def get_lean_gene(self, genes_u):
         if self._gene_to_data_lean is not None and genes_u == self._genes_u:

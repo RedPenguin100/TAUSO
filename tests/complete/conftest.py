@@ -29,16 +29,13 @@ from tauso.algorithms.genomic_context_windows import (
 )
 from tauso.data.consts import *
 from tauso.data.consts import CELL_LINE_DEPMAP
-from tauso.data.data import get_data_dir, get_paths
+from tauso.data.data import get_data_dir
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
 from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.features.rbp.pwm_helper import build_rbp_expression_matrix
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.genome.TranscriptMapper import (
-    GeneCoordinateMapper,
-    build_gene_sequence_registry,
-)
+from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
 
@@ -101,14 +98,6 @@ def base_data(raw_oligo_data):
 def target_genes(base_data):
     """Extracts unique target genes from the base data."""
     return base_data[CANONICAL_GENE].unique().tolist()
-
-
-@pytest.fixture(scope="session")
-def mapper():
-    """Initializes and returns the GeneCoordinateMapper."""
-    with Timer("Path & Mapper Initialization"):
-        paths = get_paths("GRCh38")
-        return GeneCoordinateMapper(paths["gff_db"])
 
 
 @pytest.fixture(scope="session")

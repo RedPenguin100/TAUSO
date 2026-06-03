@@ -18,12 +18,8 @@ from tauso.data.consts import (
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
-from tauso.data.data import get_paths
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.genome.TranscriptMapper import (
-    GeneCoordinateMapper,
-    build_gene_sequence_registry,
-)
+from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.populate.calculators.cache import AssetCache
 from tauso.populate.calculators.calculator import Calculator
 from tauso.util import get_antisense
@@ -151,16 +147,12 @@ if __name__ == "__main__":
     genome = "GRCh38"
     gene_to_data = get_locus_to_data_dict(gene_subset=[target_gene], genome=genome)
 
-    paths = get_paths(genome)
-    mapper = GeneCoordinateMapper(paths["gtf_db"])
-
     ref_registry = build_gene_sequence_registry(genes=[target_gene], gene_to_data=gene_to_data)
 
     print(
         generate_aso_features(
             target_gene,
             ref_registry,
-            mapper,
             gene_to_data,
             genome=genome,
         )
