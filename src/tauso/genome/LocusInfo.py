@@ -48,7 +48,98 @@ class StrandType(IntEnum):
 StrandType._str_map = {"+": StrandType.POS, "-": StrandType.NEG}
 
 
-class LocusInfo:
+def _subtract_utr_from_exons(exon_intervals, utr_intervals):
+    """Coding-exon intervals = exon intervals with any UTR overlap removed.
+
+    All intervals are 0-based half-open genomic [start, end). Returns the coding
+    sub-intervals sorted by ascending genomic start. This is the genomic-coordinate
+    counterpart of the structure pipeline's ``is_exon & ~is_utr`` test, so a position
+    lies in a returned interval iff it is exonic and not in a UTR.
+    """
+    utrs = sorted(utr_intervals)
+    coding = []
+    for es, ee in sorted(exon_intervals):
+        segments = [(es, ee)]
+        for us, ue in utrs:
+            nxt = []
+            for s, e in segments:
+                if ue <= s or us >= e:  # no overlap
+                    nxt.append((s, e))
+                    continue
+                if s < us:
+                    nxt.append((s, us))
+                if ue < e:
+                    nxt.append((ue, e))
+            segments = nxt
+        coding.extend(seg for seg in segments if seg[1] > seg[0])
+    return sorted(coding)
+
+
+def _coding_exon_intervals_biological(locus):
+    """Coding-exon genomic intervals of the canonical transcript, in biological
+    5'->3' order. Empty unless the gene is protein-coding (mirrors the biotype
+    guard on ``sense_cds``, so lncRNAs such as MALAT1 yield no CDS)."""
+    if locus.gene_type != GeneType.PROTEIN_CODING:
+        return []
+    coding = _subtract_utr_from_exons(locus._exon_indices, locus._5utr_indices + locus._3utr_indices)
+    if locus.strand == StrandType.NEG:
+        coding = sorted(coding, reverse=True)
+    return coding
+
+
+def compute_cds_sequence(locus):
+    """Spliced canonical CDS (ATG..stop), 5'->3'. '' for non-coding genes."""
+    return "".join(locus._get_sequence_slice(s, e) for s, e in _coding_exon_intervals_biological(locus))
+
+
+def compute_cds_premrna_intervals(locus):
+    """Coding-exon spans in pre-mRNA index space as (premrna_start, premrna_end,
+    cds_offset) tuples in biological order, where pre-mRNA index = position in
+    ``full_mrna`` (the gene-span sequence, 5'->3') and cds_offset is the cumulative
+    CDS length before this span. Used to map an ASO's pre-mRNA position to a CDS index.
+    """
+    out = []
+    offset = 0
+    gs, ge = locus.gene_start, locus.gene_end
+    neg = locus.strand == StrandType.NEG
+    for s, e in _coding_exon_intervals_biological(locus):
+        pstart, pend = (ge - e, ge - s) if neg else (s - gs, e - gs)
+        out.append((pstart, pend, offset))
+        offset += e - s
+    return out
+
+
+def map_premrna_to_cds_index(premrna_idx, cds_premrna_intervals):
+    """0-based index into the CDS for a pre-mRNA position, or None if not in the CDS.
+
+    ``cds_premrna_intervals`` is the output of :func:`compute_cds_premrna_intervals`.
+    """
+    for pstart, pend, offset in cds_premrna_intervals:
+        if pstart <= premrna_idx < pend:
+            return offset + (premrna_idx - pstart)
+    return None
+
+
+class _CdsMixin:
+    """Canonical-CDS accessors shared by LocusInfo and LazyLocusInfo (both expose
+    the same exon/UTR interval attributes and ``_get_sequence_slice``)."""
+
+    __slots__ = ()
+
+    @property
+    def cds_sequence(self):
+        return compute_cds_sequence(self)
+
+    @property
+    def cds_premrna_intervals(self):
+        return compute_cds_premrna_intervals(self)
+
+    def premrna_to_cds_index(self, premrna_idx):
+        """0-based CDS index for a pre-mRNA position, or None if outside the CDS."""
+        return map_premrna_to_cds_index(premrna_idx, compute_cds_premrna_intervals(self))
+
+
+class LocusInfo(_CdsMixin):
     __slots__ = (
         "_exon_indices",
         "_intron_indices",
@@ -152,7 +243,7 @@ class LocusInfo:
         )
 
 
-class LazyLocusInfo:
+class LazyLocusInfo(_CdsMixin):
     """Drop-in replacement for LocusInfo that does not store the full genomic
     sequence up front.
 

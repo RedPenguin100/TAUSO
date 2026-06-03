@@ -4,15 +4,15 @@ import pandas as pd
 
 from ..data.consts import *
 from ..data.consts import SENSE_START
-from ..genome.TranscriptMapper import GeneCoordinateMapper
+from ..genome.LocusInfo import map_premrna_to_cds_index
 
 # Assuming SENSE_START, CANONICAL_GENE, SEQUENCE, etc. are imported
 
 
 def add_external_mrna_and_context_columns(
     df: pd.DataFrame,
-    mapper: "GeneCoordinateMapper",  # Quoted to avoid NameError if not imported here
-    gene_registry: Dict[str, Dict[str, str]],
+    mapper=None,  # unused; kept for call-site compatibility (CDS comes from the registry)
+    gene_registry: Dict[str, Dict[str, str]] = None,
     *,
     flank_sizes_premrna: Iterable[int] = (20, 30, 40, 50, 60, 70),
     flank_sizes_cds: Iterable[int] = (20, 30, 40, 50, 60, 70),
@@ -60,7 +60,8 @@ def add_external_mrna_and_context_columns(
             continue
 
         pre_mrna = seqs.get("pre_mrna_sequence", "")
-        cds_seq = seqs.get("cds_sequence", "")
+        cds_seq = seqs.get("cds_sequence") or ""
+        cds_intervals = seqs.get("cds_premrna_intervals") or []
 
         if not pre_mrna:
             continue
@@ -75,14 +76,18 @@ def add_external_mrna_and_context_columns(
             start, end = max(0, idx - fs), min(len(pre_mrna), idx + aso_len + fs)
             premrna_cols[fs][i] = pre_mrna[start:end]
 
-        # CDS Context
-        spliced_idx = mapper.get_spliced_index(gene, idx)
+        # CDS Context. Anchor on the ASO's 5'-tilted centre so coding membership
+        # matches sense_cds exactly (same anchor, same canonical CDS intervals).
+        # The spliced footprint is contiguous, so the 5' end maps to centre - offset.
+        center_offset = (aso_len - 1) // 2
+        cds_center = map_premrna_to_cds_index(idx + center_offset, cds_intervals)
 
-        if spliced_idx is not None and 0 <= spliced_idx < len(cds_seq):
+        if cds_center is not None:
             in_coding_list[i] = True
+            cds_start = cds_center - center_offset
             for fs in flank_sizes_cds:
-                raw_start = max(0, spliced_idx - fs)
-                raw_end = min(len(cds_seq), spliced_idx + aso_len + fs)
+                raw_start = max(0, cds_start - fs)
+                raw_end = min(len(cds_seq), cds_start + aso_len + fs)
 
                 # Frame alignment
                 frame_correction = raw_start % 3

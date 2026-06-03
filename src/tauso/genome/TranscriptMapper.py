@@ -145,11 +145,18 @@ class GeneSequenceRegistry(dict):
 
 
 def build_gene_sequence_registry(
-    genes: Iterable[str], gene_to_data: Dict, mapper: GeneCoordinateMapper
+    genes: Iterable[str], gene_to_data: Dict, mapper: GeneCoordinateMapper = None
 ) -> GeneSequenceRegistry:
     """
-    Creates a dictionary of {gene_name: {'pre_mrna': ..., 'cds': ...}}
+    Creates a dictionary of
+    {gene_name: {'pre_mrna_sequence', 'cds_sequence', 'cds_premrna_intervals'}}
     for fast O(1) lookup during processing.
+
+    The CDS is the canonical-transcript coding sequence taken from the same
+    LocusInfo used to compute the sense_cds / sense_exon flags, so codon features
+    and those flags share one transcript model. ``cds_premrna_intervals`` maps an
+    ASO's pre-mRNA position to a CDS index (see LocusInfo.cds_premrna_intervals).
+    ``mapper`` is unused; it is kept for call-site compatibility.
     """
     registry = GeneSequenceRegistry()
     for gene in genes:
@@ -158,19 +165,23 @@ def build_gene_sequence_registry(
             continue
 
         pre_mrna = _to_str_seq(locus.full_mrna)
-        cds = mapper.get_spliced_sequence(gene, pre_mrna)
+        cds = locus.cds_sequence
+        cds_intervals = locus.cds_premrna_intervals
 
-        # If we don't find a CDS, we need to see is it because we have a non coding RNA, or is
-        # it because it is a custom user RNA?
+        # No canonical CDS: either a non-coding RNA (keep empty) or a custom
+        # user-supplied single sequence (treat the whole sequence as the CDS).
         if not cds:
-            # We no longer need .lower(). We can safely fall back to the UNKNOWN enum.
             gene_type = getattr(locus, "gene_type", GeneType.UNKNOWN)
-
-            # Fast integer comparison instead of string searching
             if gene_type in (GeneType.LNCRNA, GeneType.NON_CODING):
-                cds = None  # Explicitly keep it empty for lncRNAs
+                cds = None
+                cds_intervals = []
             else:
-                cds = pre_mrna  # Assume it's a raw CDS
+                cds = pre_mrna
+                cds_intervals = [(0, len(pre_mrna), 0)]
 
-        registry[gene] = {"pre_mrna_sequence": pre_mrna, "cds_sequence": cds}
+        registry[gene] = {
+            "pre_mrna_sequence": pre_mrna,
+            "cds_sequence": cds,
+            "cds_premrna_intervals": cds_intervals,
+        }
     return registry

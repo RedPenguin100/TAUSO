@@ -263,3 +263,74 @@ def test_utr_canonical_vs_all_consistent(locus_data_canonical, gene):
     info = locus_data_canonical[gene]
     assert info._5utr_indices, f"{gene} [canonical]: _5utr_indices empty"
     assert info._3utr_indices, f"{gene} [canonical]: _3utr_indices empty"
+
+
+# ── Canonical CDS API ───────────────────────────────────────────────────────────
+
+CODING_GENES = ["BRCA1", "BRCA2", "ACTB", "TP53", "GAPDH"]
+NONCODING_GENES = ["MALAT1", "NEAT1", "XIST"]
+_START_CODONS = {"ATG", "AUG"}
+_STOP_CODONS = {"TAA", "TAG", "TGA", "UAA", "UAG", "UGA"}
+
+
+@pytest.mark.parametrize("gene", CODING_GENES)
+def test_cds_sequence_is_valid_orf(locus_data_canonical, gene):
+    """The canonical CDS is a clean ORF: multiple of 3, starts ATG, ends on a stop."""
+    cds = locus_data_canonical[gene].cds_sequence
+    assert cds, f"{gene}: empty canonical CDS"
+    assert len(cds) % 3 == 0, f"{gene}: CDS length {len(cds)} not a multiple of 3"
+    assert cds[:3] in _START_CODONS, f"{gene}: CDS does not start with a start codon ({cds[:3]})"
+    assert cds[-3:] in _STOP_CODONS, f"{gene}: CDS does not end on a stop codon ({cds[-3:]})"
+
+
+@pytest.mark.parametrize("gene", NONCODING_GENES)
+def test_noncoding_genes_have_no_cds(locus_data_canonical, gene):
+    """lncRNAs (MALAT1, NEAT1, XIST) have no CDS — the biotype guard mirrors sense_cds."""
+    info = locus_data_canonical[gene]
+    assert info.cds_sequence == "", f"{gene}: non-coding gene produced a CDS"
+    assert info.cds_premrna_intervals == []
+    assert info.premrna_to_cds_index(0) is None
+
+
+@pytest.mark.parametrize("gene", CODING_GENES)
+def test_cds_premrna_intervals_reconstruct_cds(locus_data_canonical, gene):
+    """Concatenating full_mrna over the coding intervals reproduces cds_sequence,
+    and the stored offsets are cumulative coding lengths."""
+    info = locus_data_canonical[gene]
+    mrna = info.full_mrna
+    intervals = info.cds_premrna_intervals
+    assert "".join(mrna[s:e] for s, e, _ in intervals) == info.cds_sequence
+    offset = 0
+    for s, e, cds_off in intervals:
+        assert cds_off == offset
+        offset += e - s
+    assert offset == len(info.cds_sequence)
+
+
+@pytest.mark.parametrize("gene", CODING_GENES)
+def test_premrna_to_cds_index_maps_coding_and_rejects_noncoding(locus_data_canonical, gene):
+    """Each coding interval's endpoints map to the expected CDS index; a position
+    just 5' of the first coding base (5'UTR or intron) is not in the CDS."""
+    info = locus_data_canonical[gene]
+    intervals = info.cds_premrna_intervals
+    for s, e, cds_off in intervals:
+        assert info.premrna_to_cds_index(s) == cds_off
+        assert info.premrna_to_cds_index(e - 1) == cds_off + (e - 1 - s)
+    first_start = intervals[0][0]
+    if first_start > 0:
+        assert info.premrna_to_cds_index(first_start - 1) is None
+
+
+@pytest.mark.parametrize("gene", CODING_GENES)
+def test_cds_excludes_utr(locus_data_canonical, gene):
+    """No coding-CDS pre-mRNA position falls inside a UTR interval (CDS = exon − UTR)."""
+    info = locus_data_canonical[gene]
+    gs, ge = info.gene_start, info.gene_end
+    neg = info.strand == StrandType.NEG
+    utr_premrna = []
+    for s, e in info._5utr_indices + info._3utr_indices:
+        ps, pe = (ge - e, ge - s) if neg else (s - gs, e - gs)
+        utr_premrna.append((ps, pe))
+    for s, e, _ in info.cds_premrna_intervals:
+        for us, ue in utr_premrna:
+            assert e <= us or s >= ue, f"{gene}: CDS interval ({s},{e}) overlaps UTR ({us},{ue})"
