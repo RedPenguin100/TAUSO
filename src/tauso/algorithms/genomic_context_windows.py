@@ -4,15 +4,13 @@ import pandas as pd
 
 from ..data.consts import *
 from ..data.consts import STRUCTURE_SENSE_START
-from ..genome.TranscriptMapper import GeneCoordinateMapper
 
 # Assuming STRUCTURE_SENSE_START, CANONICAL_GENE_NAME, ASO_SEQUENCE, etc. are imported
 
 
 def add_external_mrna_and_context_columns(
     df: pd.DataFrame,
-    mapper: "GeneCoordinateMapper",  # Quoted to avoid NameError if not imported here
-    gene_registry: Dict[str, Dict[str, str]],
+    gene_registry: Dict[str, dict],
     *,
     flank_sizes_premrna: Iterable[int] = (20, 30, 40, 50, 60, 70),
     flank_sizes_cds: Iterable[int] = (20, 30, 40, 50, 60, 70),
@@ -60,7 +58,7 @@ def add_external_mrna_and_context_columns(
             continue
 
         pre_mrna = seqs.get("pre_mrna_sequence", "")
-        cds_seq = seqs.get("cds_sequence", "")
+        cds = seqs.get("cds")
 
         if not pre_mrna:
             continue
@@ -75,20 +73,27 @@ def add_external_mrna_and_context_columns(
             start, end = max(0, idx - fs), min(len(pre_mrna), idx + aso_len + fs)
             premrna_cols[fs][i] = pre_mrna[start:end]
 
-        # CDS Context
-        spliced_idx = mapper.get_spliced_index(gene, idx)
+        # CDS Context. Anchor on the ASO's 5'-tilted centre in pre-mRNA coordinates, so
+        # coding membership matches struct_sense_in_cds exactly (same centre anchor, same
+        # canonical CDS). full_mrna is stored 5'->3', so the centre is sense_start + offset
+        # on both strands; the strand is resolved inside the CDS pre-mRNA intervals.
+        center_offset = (aso_len - 1) // 2
+        aso_center = idx + center_offset
+        cds_center = cds.to_cds_index(aso_center) if cds is not None else None
 
-        if spliced_idx is not None and 0 <= spliced_idx < len(cds_seq):
+        if cds_center is not None:
             in_coding_list[i] = True
+            # The spliced CDS is contiguous, so the ASO's 5' end is centre - offset.
+            cds_start = cds_center - center_offset
             for fs in flank_sizes_cds:
-                raw_start = max(0, spliced_idx - fs)
-                raw_end = min(len(cds_seq), spliced_idx + aso_len + fs)
+                raw_start = max(0, cds_start - fs)
+                raw_end = min(len(cds.sequence), cds_start + aso_len + fs)
 
                 # Frame alignment
                 frame_correction = raw_start % 3
                 aligned_start = raw_start - frame_correction
 
-                cds_cols[fs][i] = cds_seq[aligned_start:raw_end]
+                cds_cols[fs][i] = cds.sequence[aligned_start:raw_end]
 
     # --- LOUD FAILURE 3: Check Result ---
     if populated_count == 0:

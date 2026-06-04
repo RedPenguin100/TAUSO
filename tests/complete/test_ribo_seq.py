@@ -8,12 +8,12 @@ from tauso.populate.populate_context import populate_ribo_seq
 
 
 @pytest.mark.parametrize("mini_sampled_data", [500], indirect=True)
-def test_ribo_seq(mini_sampled_data, mapper, dataframe_regression):
+def test_ribo_seq(mini_sampled_data, gene_to_data, dataframe_regression):
     """Regression test: ribo-seq feature values must match the stored baseline."""
     data = mini_sampled_data.copy()
 
     t0 = time.perf_counter()
-    data = add_genomic_coordinates(data, mapper)
+    data = add_genomic_coordinates(data, gene_to_data)
     t_coords = time.perf_counter() - t0
 
     t1 = time.perf_counter()

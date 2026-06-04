@@ -167,14 +167,12 @@ class Calculator:
             logger.info("Adding external mRNA and genomic context columns...")
             from tauso.algorithms.genomic_context_windows import add_external_mrna_and_context_columns
 
-            mapper = self.cache.get_gene_mapper()
             registry = self.cache.get_gene_registry(self._get_unique_genes())
 
             flank_sizes_premrna = [5, 20, 30, 40, 50, 60, 70]  # 5 = RBP footprint window
 
             self.data = add_external_mrna_and_context_columns(
                 df=self.data,
-                mapper=mapper,
                 gene_registry=registry,
                 flank_sizes_premrna=flank_sizes_premrna,
                 flank_sizes_cds=cds_windows,
@@ -787,8 +785,8 @@ class Calculator:
             return
 
         logger.info("Computing %d Ribo-seq features across %d tracks...", len(missing), len(tracks))
-        mapper = self.cache.get_gene_mapper()
-        self.data = add_genomic_coordinates(self.data, mapper)
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+        self.data = add_genomic_coordinates(self.data, gene_to_data)
 
         for track in tracks:
             self.data, generated_features = populate_ribo_seq(
@@ -892,11 +890,14 @@ class Calculator:
             # output. Only the top_n values whose features are still missing are
             # passed in, so we don't grow the target FASTA past what's needed.
             for method in methods:
-                needed_top_ns = sorted({
-                    n for n in top_ns
-                    for c in cutoffs
-                    if serialize_feature_name(method, n, c, is_specific=False) in missing
-                })
+                needed_top_ns = sorted(
+                    {
+                        n
+                        for n in top_ns
+                        for c in cutoffs
+                        if serialize_feature_name(method, n, c, is_specific=False) in missing
+                    }
+                )
                 if not needed_top_ns:
                     continue
 
@@ -947,11 +948,14 @@ class Calculator:
             # top_n derived by gene-subset filter, cutoffs by score-filter on the
             # streaming pyarrow output. Only the top_n values whose features are
             # still missing are passed in.
-            needed_top_ns = sorted({
-                n for n in top_n_list
-                for c in cutoff_list
-                if serialize_feature_name(method, n, c, is_specific=True) in missing
-            })
+            needed_top_ns = sorted(
+                {
+                    n
+                    for n in top_n_list
+                    for c in cutoff_list
+                    if serialize_feature_name(method, n, c, is_specific=True) in missing
+                }
+            )
             if needed_top_ns:
                 self.data, generated_features = populate_off_target_specific(
                     ASO_df=self.data,
