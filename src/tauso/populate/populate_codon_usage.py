@@ -42,7 +42,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     # 2. Global tAI Scores (Registry Lookup)
     logger.info("Pre-calculating Global tAI for %d unique genes...", len(registry))
     gene_tai_lookup = {
-        gene: compute_tAI(data.get("cds_sequence")) if data.get("cds_sequence") else np.nan
+        gene: compute_tAI(data["cds"].sequence) if data.get("cds") and data["cds"].sequence else np.nan
         for gene, data in registry.items()
     }
 
@@ -99,7 +99,7 @@ def populate_enc(
     logger.info("Pre-calculating Global ENC for %d unique genes...", len(registry))
 
     gene_enc_lookup = {
-        gene: compute_ENC(data.get("cds_sequence")) if data.get("cds_sequence") else np.nan
+        gene: compute_ENC(data["cds"].sequence) if data.get("cds") and data["cds"].sequence else np.nan
         for gene, data in registry.items()
     }
 
@@ -208,10 +208,10 @@ def populate_cai(
         gene = row.get(CANONICAL_GENE_NAME)
         entry = registry.get(gene)
 
-        if not entry or not entry.get("cds_sequence"):
+        if not entry or not entry.get("cds") or not entry["cds"].sequence:
             return np.nan
 
-        return _get_row_cai(row, entry["cds_sequence"])
+        return _get_row_cai(row, entry["cds"].sequence)
 
     if use_parallel:
         df["cai_score_global"] = df.parallel_apply(_get_global_cai, axis=1)
