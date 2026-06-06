@@ -3,7 +3,6 @@ import logging
 from ...common.modifications import get_longest_dna_gap
 from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, get_nucleotide_watson_crick
 from ..hybridization.exp_weights import DNA_RNA_DG37_WEIGHTS, PS_DELTA_DG37_WEIGHTS
-from ..hybridization.md_weights import get_moe_md_contribution
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
 
@@ -125,18 +124,21 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
     return total_dH - (temp_k * (total_dS / 1000.0))
 
 
-def get_modified_dna_rna_dg(antisense, chemical_pattern, modification):
-    """Unified high-affinity-sugar modified DNA/RNA affinity (kcal/mol): the DNA/RNA baseline plus
-    the applicable sugar increment (LNA/cEt as DNA/DNA-referenced deltas; 2'-MOE from MD, GB
-    variant). Sugar chemistries are mutually exclusive, so exactly one increment is nonzero.
-    Returns NaN when the chemical pattern length disagrees with the sequence (sugar delta undefined).
+def get_cet_dna_rna_dg(antisense, chemical_pattern):
+    """cEt affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the cEt
+    increment, so it sits on the same RNA-target footing as the 2'-MOE MD terms (the increment is
+    LNA-DNA/DNA, used as a proxy; see calculate_cet). NaN on chemical-pattern length mismatch.
+    """
+    cet = calculate_cet(antisense, chemical_pattern)
+    return float("nan") if cet is None else get_dna_rna_dg(antisense) + cet
+
+
+def get_lna_dna_rna_dg(antisense, chemical_pattern):
+    """LNA affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the LNA
+    increment (see calculate_lna). NaN on chemical-pattern length mismatch.
     """
     lna = calculate_lna(antisense, chemical_pattern)
-    cet = calculate_cet(antisense, chemical_pattern)
-    if lna is None or cet is None:
-        return float("nan")
-    moe = get_moe_md_contribution(antisense, chemical_pattern, modification, simul_type="gb")
-    return get_dna_rna_dg(antisense) + lna + cet + moe
+    return float("nan") if lna is None else get_dna_rna_dg(antisense) + lna
 
 
 def calculate_lna(antisense, chemical_pattern):
