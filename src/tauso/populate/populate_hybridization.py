@@ -6,15 +6,13 @@ from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
 from ..features.hybridization.hybridization_features import (
-    calculate_cet,
     calculate_dna,
-    calculate_lna,
     get_dna_rna_dg,
     get_dna_rna_dg_region,
+    get_modified_dna_rna_dg,
     get_ps_delta_dg,
     get_ps_dna_rna_dg,
 )
-from ..features.hybridization.md_weights import get_moe_md_contribution
 
 # Row-wise hybridization features. All dG values are kcal/mol at 37 C, summed 5'->3'.
 HYBR_ROWWISE_CALCULATION = {
@@ -24,15 +22,10 @@ HYBR_ROWWISE_CALCULATION = {
     "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[ASO_SEQUENCE], row[PS_PATTERN]),
     # DNA/DNA duplex (SantaLucia & Hicks 2004).
     "hybr_dna_dna_dg": lambda row: calculate_dna(row[ASO_SEQUENCE]),
-    # High-affinity sugar deltas.
-    "hybr_lna_delta_dg": lambda row: calculate_lna(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
-    "hybr_cet_delta_dg": lambda row: calculate_cet(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
-    # 2'-MOE MD contribution over the MOE-bearing dinucleotides (MOE oligos only).
-    "hybr_moe_md_gb_dg": lambda row: get_moe_md_contribution(
-        row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb"
-    ),
-    "hybr_moe_md_pb_dg": lambda row: get_moe_md_contribution(
-        row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="pb"
+    # Unified high-affinity-sugar modified DNA/RNA affinity (LNA/cEt deltas + 2'-MOE MD[GB] on the
+    # DNA/RNA baseline). Replaces the separate per-chemistry sugar columns; one axis for analysis.
+    "hybr_modified_dna_rna_dg": lambda row: get_modified_dna_rna_dg(
+        row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING]
     ),
     # DNA/RNA dG split across the gapmer architecture (5' wing / DNA gap / 3' wing).
     "hybr_dna_rna_dg_wing5": lambda row: get_dna_rna_dg_region(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
