@@ -23,29 +23,39 @@ def get_dna_rna_dg(seq: str) -> float:
     return total
 
 
-def get_ps_delta_dg(seq: str) -> float:
+def get_ps_delta_dg(seq: str, ps_pattern: str | None = None) -> float:
     """Phosphorothioate backbone contribution relative to the DNA/RNA hybrid (kcal/mol).
 
-    This is the per-dinucleotide PS delta added on top of get_dna_rna_dg, not a standalone
-    duplex energy. Positive = the PS backbone destabilises the duplex relative to the
-    unmodified phosphodiester baseline.
+    Per-linkage PS delta added on top of get_dna_rna_dg, not a standalone duplex energy.
+    Positive = the PS backbone destabilises the duplex relative to the unmodified
+    phosphodiester baseline.
+
+    ``ps_pattern`` is the per-linkage backbone string (5'->3', length len(seq)-1; '*' =
+    phosphorothioate, 'd' = phosphodiester): only PS linkages contribute. When it is None or
+    its length does not match the sequence, a fully phosphorothioated backbone is assumed.
     """
     seq = _to_rna(seq)
+    use_pattern = isinstance(ps_pattern, str) and len(ps_pattern) == len(seq) - 1
+    if ps_pattern is not None and not use_pattern:
+        logger.warning("ps_pattern %r does not match sequence length %d; assuming full PS", ps_pattern, len(seq))
     total = 0.0
     for i in range(len(seq) - 1):
+        if use_pattern and ps_pattern[i] != "*":
+            continue
         L, R = seq[i], seq[i + 1]
         total += PS_DELTA_DG37_WEIGHTS[L + R]
     return total
 
 
-def get_ps_dna_rna_dg(seq: str) -> float:
+def get_ps_dna_rna_dg(seq: str, ps_pattern: str | None = None) -> float:
     """PS-modified DNA/RNA hybrid dG (kcal/mol): the DNA/RNA baseline plus the PS delta.
 
     Heuristic / approximation: the PS delta is derived from DNA/DNA (PO-vs-PS) measurements
     and assumed transferable to the RNA-bound context, so this is an estimate rather than a
-    directly measured PS-DNA/RNA free energy.
+    directly measured PS-DNA/RNA free energy. ``ps_pattern`` restricts the delta to the
+    linkages that are actually phosphorothioate (see get_ps_delta_dg).
     """
-    return get_dna_rna_dg(seq) + get_ps_delta_dg(seq)
+    return get_dna_rna_dg(seq) + get_ps_delta_dg(seq, ps_pattern)
 
 
 def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float:
@@ -88,6 +98,11 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
     ``params`` holds nearest-neighbour increments keyed by the modified-strand dinucleotide
     ('+' marks a modified sugar) over the Watson-Crick complement. Only dinucleotides that
     touch a modified sugar contribute; pure-DNA ('dd') stacks are skipped.
+
+    These increments are LNA-DNA/DNA values defined on top of the DNA/DNA baseline
+    (SantaLucia & Hicks 2004), i.e. over a DNA target. No complete LNA-DNA/RNA nearest-
+    neighbour set has been published, so they are used as a proxy for the A-form RNA-bound
+    wing and kept as a standalone feature rather than summed onto the DNA/RNA baseline.
     """
     seq = seq.upper()
     fmt = fmt.upper()
@@ -126,6 +141,12 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
 
 
 def calculate_lna(antisense, chemical_pattern):
+    """LNA high-affinity-sugar delta dG (kcal/mol).
+
+    Increments are LNA-DNA/DNA nearest-neighbour values (McTigue 2004; Owczarzy 2011), i.e.
+    the LNA strand paired against a DNA target; see calculate_3rd_gen_diff for the reference
+    state and why no LNA-DNA/RNA set is used.
+    """
     return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L")
 
 
@@ -134,6 +155,7 @@ def calculate_cet(antisense, chemical_pattern):
 
     Heuristic (not a mistake): cEt has no published cEt-specific nearest-neighbour set, so it
     reuses the LNA parameters on structural-homology grounds, matching the article's treatment.
+    Same LNA-DNA/DNA reference state as calculate_lna.
     """
     return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C")
 

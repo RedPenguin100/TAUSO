@@ -20,8 +20,8 @@ from ..features.hybridization.md_weights import get_moe_md_contribution
 HYBR_ROWWISE_CALCULATION = {
     # DNA/RNA hybrid baseline and its phosphorothioate-modified counterpart.
     "hybr_dna_rna_dg": lambda row: get_dna_rna_dg(row[ASO_SEQUENCE]),
-    "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[ASO_SEQUENCE]),
-    "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[ASO_SEQUENCE]),
+    "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[ASO_SEQUENCE], row.get(PS_PATTERN)),
+    "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[ASO_SEQUENCE], row.get(PS_PATTERN)),
     # DNA/DNA duplex (SantaLucia & Hicks 2004).
     "hybr_dna_dna_dg": lambda row: calculate_dna(row[ASO_SEQUENCE]),
     # High-affinity sugar deltas.
@@ -42,7 +42,10 @@ HYBR_ROWWISE_CALCULATION = {
 
 # Vectorized features derived from the row-wise ones.
 HYBR_DERIVED_FEATURES = [
-    "hybr_dna_rna_selectivity_dg",  # DNA/DNA minus DNA/RNA: preference for a DNA over an RNA target
+    "hybr_dna_rna_selectivity_dg",  # DNA/DNA minus DNA/RNA: the sequence-dependent gap between the
+    # DNA/DNA reference (native to the LNA/cEt sugar deltas) and the RNA target -- a reference-state
+    # bridge that lets the model relate the DNA-referenced sugar weights to the RNA-bound duplex.
+    # NOT a DNA-vs-RNA target preference.
     "hybr_dna_rna_dg_per_nt",
     "hybr_dna_dna_dg_per_nt",
     "hybr_ps_dna_rna_dg_per_nt",
