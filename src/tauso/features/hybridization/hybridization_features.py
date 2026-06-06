@@ -100,7 +100,6 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
             gap_start, gap_end = len(fmt), len(fmt)
 
     seq = seq.upper()
-    fmt = fmt.upper()
     temp_k = celsius_to_kelvin(temp_c)
 
     total_dH = 0.0
