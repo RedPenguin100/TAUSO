@@ -127,21 +127,21 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
 def get_cet_dna_rna_dg(antisense, chemical_pattern):
     """cEt affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the cEt
     increment, so it sits on the same RNA-target footing as the 2'-MOE MD terms (the increment is
-    LNA-DNA/DNA, used as a proxy; see calculate_cet). NaN on chemical-pattern length mismatch.
+    LNA-DNA/DNA, used as a proxy; see calculate_cet_delta). NaN on chemical-pattern length mismatch.
     """
-    cet = calculate_cet(antisense, chemical_pattern)
+    cet = calculate_cet_delta(antisense, chemical_pattern)
     return float("nan") if cet is None else get_dna_rna_dg(antisense) + cet
 
 
 def get_lna_dna_rna_dg(antisense, chemical_pattern):
     """LNA affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the LNA
-    increment (see calculate_lna). NaN on chemical-pattern length mismatch.
+    increment (see calculate_lna_delta). NaN on chemical-pattern length mismatch.
     """
-    lna = calculate_lna(antisense, chemical_pattern)
+    lna = calculate_lna_delta(antisense, chemical_pattern)
     return float("nan") if lna is None else get_dna_rna_dg(antisense) + lna
 
 
-def calculate_lna(antisense, chemical_pattern):
+def calculate_lna_delta(antisense, chemical_pattern):
     """LNA high-affinity-sugar delta dG (kcal/mol).
 
     Increments are LNA-DNA/DNA nearest-neighbour values (McTigue 2004; Owczarzy 2011), i.e.
@@ -151,12 +151,12 @@ def calculate_lna(antisense, chemical_pattern):
     return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L")
 
 
-def calculate_cet(antisense, chemical_pattern):
+def calculate_cet_delta(antisense, chemical_pattern):
     """cEt high-affinity-sugar delta dG (kcal/mol).
 
     Heuristic (not a mistake): cEt has no published cEt-specific nearest-neighbour set, so it
     reuses the LNA parameters on structural-homology grounds, matching the article's treatment.
-    Same LNA-DNA/DNA reference state as calculate_lna.
+    Same LNA-DNA/DNA reference state as calculate_lna_delta.
     """
     return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C")
 
