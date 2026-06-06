@@ -42,7 +42,7 @@ HYBR_ROWWISE_CALCULATION = {
 
 # Vectorized features derived from the row-wise ones.
 HYBR_DERIVED_FEATURES = [
-    "hybr_dna_rna_selectivity_dg",  # DNA/DNA minus DNA/RNA: the sequence-dependent gap between the
+    "hybr_dna_dna_minus_dna_rna_dg",  # DNA/DNA minus DNA/RNA: the sequence-dependent gap between the
     # DNA/DNA reference (native to the LNA/cEt sugar deltas) and the RNA target -- a reference-state
     # bridge that lets the model relate the DNA-referenced sugar weights to the RNA-bound duplex.
     # NOT a DNA-vs-RNA target preference.
@@ -89,8 +89,8 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
             return False
         return True
 
-    if "hybr_dna_rna_selectivity_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
-        all_data["hybr_dna_rna_selectivity_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
+    if "hybr_dna_dna_minus_dna_rna_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
+        all_data["hybr_dna_dna_minus_dna_rna_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
 
     seq_len = all_data[ASO_SEQUENCE].str.len()
     normalized = {

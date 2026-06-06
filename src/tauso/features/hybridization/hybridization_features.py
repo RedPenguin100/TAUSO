@@ -24,15 +24,7 @@ def get_dna_rna_dg(seq: str) -> float:
 
 
 def get_ps_delta_dg(seq: str, ps_pattern: str) -> float:
-    """Phosphorothioate backbone contribution relative to the DNA/RNA hybrid (kcal/mol).
-
-    Per-linkage PS delta added on top of get_dna_rna_dg, not a standalone duplex energy.
-    Positive = the PS backbone destabilises the duplex relative to the unmodified
-    phosphodiester baseline.
-
-    ``ps_pattern`` is the per-linkage backbone string (5'->3', length len(seq)-1; '*' =
-    phosphorothioate, 'd' = phosphodiester); only the phosphorothioate linkages contribute.
-    """
+    """Phosphorothioate backbone contribution relative to the DNA/RNA hybrid (kcal/mol)."""
     seq = _to_rna(seq)
     if not isinstance(ps_pattern, str) or len(ps_pattern) != len(seq) - 1:
         raise ValueError(f"ps_pattern must be a length-{len(seq) - 1} string for a {len(seq)}-mer, got {ps_pattern!r}")
@@ -46,13 +38,7 @@ def get_ps_delta_dg(seq: str, ps_pattern: str) -> float:
 
 
 def get_ps_dna_rna_dg(seq: str, ps_pattern: str) -> float:
-    """PS-modified DNA/RNA hybrid dG (kcal/mol): the DNA/RNA baseline plus the PS delta.
-
-    Heuristic / approximation: the PS delta is derived from DNA/DNA (PO-vs-PS) measurements
-    and assumed transferable to the RNA-bound context, so this is an estimate rather than a
-    directly measured PS-DNA/RNA free energy. ``ps_pattern`` selects the phosphorothioate
-    linkages (see get_ps_delta_dg).
-    """
+    """PS-modified DNA/RNA hybrid dG (kcal/mol): the DNA/RNA baseline plus the PS delta."""
     return get_dna_rna_dg(seq) + get_ps_delta_dg(seq, ps_pattern)
 
 
