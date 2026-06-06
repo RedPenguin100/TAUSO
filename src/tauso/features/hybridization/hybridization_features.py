@@ -23,7 +23,7 @@ def get_dna_rna_dg(seq: str) -> float:
     return total
 
 
-def get_ps_delta_dg(seq: str, ps_pattern: str | None = None) -> float:
+def get_ps_delta_dg(seq: str, ps_pattern: str) -> float:
     """Phosphorothioate backbone contribution relative to the DNA/RNA hybrid (kcal/mol).
 
     Per-linkage PS delta added on top of get_dna_rna_dg, not a standalone duplex energy.
@@ -31,29 +31,27 @@ def get_ps_delta_dg(seq: str, ps_pattern: str | None = None) -> float:
     phosphodiester baseline.
 
     ``ps_pattern`` is the per-linkage backbone string (5'->3', length len(seq)-1; '*' =
-    phosphorothioate, 'd' = phosphodiester): only PS linkages contribute. When it is None or
-    its length does not match the sequence, a fully phosphorothioated backbone is assumed.
+    phosphorothioate, 'd' = phosphodiester); only the phosphorothioate linkages contribute.
     """
     seq = _to_rna(seq)
-    use_pattern = isinstance(ps_pattern, str) and len(ps_pattern) == len(seq) - 1
-    if ps_pattern is not None and not use_pattern:
-        logger.warning("ps_pattern %r does not match sequence length %d; assuming full PS", ps_pattern, len(seq))
+    if not isinstance(ps_pattern, str) or len(ps_pattern) != len(seq) - 1:
+        raise ValueError(f"ps_pattern must be a length-{len(seq) - 1} string for a {len(seq)}-mer, got {ps_pattern!r}")
     total = 0.0
     for i in range(len(seq) - 1):
-        if use_pattern and ps_pattern[i] != "*":
+        if ps_pattern[i] != "*":
             continue
         L, R = seq[i], seq[i + 1]
         total += PS_DELTA_DG37_WEIGHTS[L + R]
     return total
 
 
-def get_ps_dna_rna_dg(seq: str, ps_pattern: str | None = None) -> float:
+def get_ps_dna_rna_dg(seq: str, ps_pattern: str) -> float:
     """PS-modified DNA/RNA hybrid dG (kcal/mol): the DNA/RNA baseline plus the PS delta.
 
     Heuristic / approximation: the PS delta is derived from DNA/DNA (PO-vs-PS) measurements
     and assumed transferable to the RNA-bound context, so this is an estimate rather than a
-    directly measured PS-DNA/RNA free energy. ``ps_pattern`` restricts the delta to the
-    linkages that are actually phosphorothioate (see get_ps_delta_dg).
+    directly measured PS-DNA/RNA free energy. ``ps_pattern`` selects the phosphorothioate
+    linkages (see get_ps_delta_dg).
     """
     return get_dna_rna_dg(seq) + get_ps_delta_dg(seq, ps_pattern)
 
