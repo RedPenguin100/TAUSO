@@ -13,6 +13,7 @@ from importlib.resources import files
 
 import pandas as pd
 
+from ...common.modifications import get_longest_dna_gap
 from ...util import celsius_to_kelvin
 
 _BODY_TEMPERATURE_K = celsius_to_kelvin(37.0)
@@ -41,24 +42,31 @@ def _moe_weights(simul_type: str) -> dict:
     raise ValueError(f"Unknown simulation type: {simul_type}")
 
 
-def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type="gb"):
-    """Sum of MD nearest-neighbour weights over the 2'-MOE-bearing dinucleotides (kcal/mol).
-
-    Only defined for MOE oligos; returns 0 otherwise. Dinucleotides where both sugars
-    are unmodified are skipped, so this isolates the contribution of the 2'-MOE wings
-    and their junctions with the central DNA gap.
+def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type="gb", region=None):
+    """Whole-oligo 2'-MOE-modified DNA/RNA affinity from MD (kcal/mol): the MD nearest-neighbour
+    energy summed over the full duplex (MOE-bearing stacks plus the unmodified DNA-gap stacks),
+    so it is the modified ASO:RNA affinity rather than a wing-only increment. Note this is a
+    fully MD-derived quantity (gap included), not on the same footing as the physical DNA/RNA
+    weights. NaN for non-MOE oligos. ``region`` restricts the sum to one wing ('wing5'/'wing3').
     """
     if "MOE" not in modification:
-        return 0
+        return float("nan")
+    if not isinstance(chemical_pattern, str) or len(chemical_pattern) != len(seq):
+        return float("nan")
 
     seq = seq.replace("T", "U")
     weights = _moe_weights(simul_type)
+    gap_start, gap_end, gap_len = get_longest_dna_gap(chemical_pattern)
+    if gap_len == 0:
+        gap_start, gap_end = len(seq), len(seq)
 
     total = 0.0
     for i in range(len(seq) - 1):
+        if region == "wing5" and not i < gap_start:
+            continue
+        if region == "wing3" and not i >= gap_end:
+            continue
         L = seq[i] + ("*" if chemical_pattern[i] == "M" else "'")
         R = seq[i + 1] + ("*" if chemical_pattern[i + 1] == "M" else "'")
-        if "'" in L and "'" in R:
-            continue
         total += weights[L + R]
     return total
