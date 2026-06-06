@@ -6,11 +6,11 @@ from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
 from ..features.hybridization.hybridization_features import (
-    calculate_cet,
     calculate_dna,
-    calculate_lna,
+    get_cet_dna_rna_dg,
     get_dna_rna_dg,
     get_dna_rna_dg_region,
+    get_lna_dna_rna_dg,
     get_ps_delta_dg,
     get_ps_dna_rna_dg,
 )
@@ -20,13 +20,14 @@ from ..features.hybridization.md_weights import get_moe_md_contribution
 HYBR_ROWWISE_CALCULATION = {
     # DNA/RNA hybrid baseline and its phosphorothioate-modified counterpart.
     "hybr_dna_rna_dg": lambda row: get_dna_rna_dg(row[ASO_SEQUENCE]),
-    "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[ASO_SEQUENCE]),
-    "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[ASO_SEQUENCE]),
+    "hybr_ps_delta_dg": lambda row: get_ps_delta_dg(row[ASO_SEQUENCE], row[PS_PATTERN]),
+    "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[ASO_SEQUENCE], row[PS_PATTERN]),
     # DNA/DNA duplex (SantaLucia & Hicks 2004).
     "hybr_dna_dna_dg": lambda row: calculate_dna(row[ASO_SEQUENCE]),
-    # High-affinity sugar deltas.
-    "hybr_lna_delta_dg": lambda row: calculate_lna(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
-    "hybr_cet_delta_dg": lambda row: calculate_cet(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
+    # High-affinity sugar affinity re-referenced to the RNA target (DNA/RNA baseline + sugar
+    # increment), so cEt/LNA sit on the same RNA-target footing as the 2'-MOE MD terms.
+    "hybr_cet_dna_rna_dg": lambda row: get_cet_dna_rna_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
+    "hybr_lna_dna_rna_dg": lambda row: get_lna_dna_rna_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
     # 2'-MOE MD contribution over the MOE-bearing dinucleotides (MOE oligos only).
     "hybr_moe_md_gb_dg": lambda row: get_moe_md_contribution(
         row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb"
@@ -42,7 +43,10 @@ HYBR_ROWWISE_CALCULATION = {
 
 # Vectorized features derived from the row-wise ones.
 HYBR_DERIVED_FEATURES = [
-    "hybr_dna_rna_selectivity_dg",  # DNA/DNA minus DNA/RNA: preference for a DNA over an RNA target
+    "hybr_dna_dna_minus_dna_rna_dg",  # DNA/DNA minus DNA/RNA: the sequence-dependent gap between the
+    # DNA/DNA reference (native to the LNA/cEt sugar deltas) and the RNA target -- a reference-state
+    # bridge that lets the model relate the DNA-referenced sugar weights to the RNA-bound duplex.
+    # NOT a DNA-vs-RNA target preference.
     "hybr_dna_rna_dg_per_nt",
     "hybr_dna_dna_dg_per_nt",
     "hybr_ps_dna_rna_dg_per_nt",
@@ -86,8 +90,8 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
             return False
         return True
 
-    if "hybr_dna_rna_selectivity_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
-        all_data["hybr_dna_rna_selectivity_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
+    if "hybr_dna_dna_minus_dna_rna_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
+        all_data["hybr_dna_dna_minus_dna_rna_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
 
     seq_len = all_data[ASO_SEQUENCE].str.len()
     normalized = {

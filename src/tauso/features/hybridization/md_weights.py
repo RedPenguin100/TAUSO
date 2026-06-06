@@ -1,9 +1,12 @@
-"""2'-MOE nearest-neighbour weights from MD simulations of MOE-modified RNA duplexes.
+"""2'-MOE nearest-neighbour weights from MD simulations of 2'-MOE-modified DNA/RNA hybrid
+duplexes (the MOE sits on the DNA antisense strand, paired against the RNA target -- the
+gapmer wing-vs-target context).
 
-Source: https://pubs.acs.org/doi/10.1021/acs.jpcb.4c08344
-The table lives next to this module as weights/moe_md.csv. Each dinucleotide key
-carries a sugar marker per base: ' = unmodified, * = 2'-MOE. Mixed-prime keys cover
-the MOE/unmodified junction at the boundary between a MOE wing and the DNA gap.
+Source: Park et al., "Thermodynamic Parameter Estimation for Modified Oligonucleotides Using
+Molecular Dynamics Simulations," J. Phys. Chem. B 2025, 129(11):2934-2945
+(doi:10.1021/acs.jpcb.4c08344). The table lives next to this module as weights/moe_md.csv.
+Each dinucleotide key carries a sugar marker per base: ' = unmodified, * = 2'-MOE. Mixed-prime
+keys cover the MOE/unmodified junction at the boundary between a MOE wing and the DNA gap.
 """
 
 from importlib.resources import files
