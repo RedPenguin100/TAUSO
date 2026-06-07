@@ -55,9 +55,6 @@ HYBR_DERIVED_FEATURES = [
     # DNA/DNA reference (native to the LNA/cEt sugar deltas) and the RNA target -- a reference-state
     # bridge that lets the model relate the DNA-referenced sugar weights to the RNA-bound duplex.
     # NOT a DNA-vs-RNA target preference.
-    "hybr_dna_rna_dg_per_nt",
-    "hybr_dna_dna_dg_per_nt",
-    "hybr_ps_dna_rna_dg_per_nt",
 ]
 
 HYBR_FEATURE_TO_CALCULATION = {
@@ -93,15 +90,5 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
 
     if "hybr_dna_dna_minus_dna_rna_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
         all_data["hybr_dna_dna_minus_dna_rna_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
-
-    seq_len = all_data[ASO_SEQUENCE].str.len()
-    normalized = {
-        "hybr_dna_rna_dg_per_nt": "hybr_dna_rna_dg",
-        "hybr_dna_dna_dg_per_nt": "hybr_dna_dna_dg",
-        "hybr_ps_dna_rna_dg_per_nt": "hybr_ps_dna_rna_dg",
-    }
-    for norm_name, source in normalized.items():
-        if norm_name in features_to_run and _have(source):
-            all_data[norm_name] = all_data[source] / seq_len
 
     return all_data, features_to_run
