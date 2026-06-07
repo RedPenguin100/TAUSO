@@ -8,9 +8,10 @@ logger = logging.getLogger(__name__)
 from ..features.hybridization.hybridization_features import (
     calculate_dna,
     get_cet_dna_rna_dg,
+    get_cet_wing_dg,
     get_dna_rna_dg,
-    get_dna_rna_dg_region,
     get_lna_dna_rna_dg,
+    get_lna_wing_dg,
     get_ps_delta_dg,
     get_ps_dna_rna_dg,
 )
@@ -24,21 +25,28 @@ HYBR_ROWWISE_CALCULATION = {
     "hybr_ps_dna_rna_dg": lambda row: get_ps_dna_rna_dg(row[ASO_SEQUENCE], row[PS_PATTERN]),
     # DNA/DNA duplex (SantaLucia & Hicks 2004).
     "hybr_dna_dna_dg": lambda row: calculate_dna(row[ASO_SEQUENCE]),
-    # High-affinity sugar affinity re-referenced to the RNA target (DNA/RNA baseline + sugar
-    # increment), so cEt/LNA sit on the same RNA-target footing as the 2'-MOE MD terms.
+    # Whole-oligo modified-vs-RNA affinity per high-affinity sugar (NaN when that chemistry is
+    # absent): cEt/LNA = DNA/RNA baseline + sugar increment; 2'-MOE = full MD duplex energy.
     "hybr_cet_dna_rna_dg": lambda row: get_cet_dna_rna_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
     "hybr_lna_dna_rna_dg": lambda row: get_lna_dna_rna_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
-    # 2'-MOE MD contribution over the MOE-bearing dinucleotides (MOE oligos only).
     "hybr_moe_md_gb_dg": lambda row: get_moe_md_contribution(
         row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb"
     ),
     "hybr_moe_md_pb_dg": lambda row: get_moe_md_contribution(
         row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="pb"
     ),
-    # DNA/RNA dG split across the gapmer architecture (5' wing / DNA gap / 3' wing).
-    "hybr_dna_rna_dg_wing5": lambda row: get_dna_rna_dg_region(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
-    "hybr_dna_rna_dg_gap": lambda row: get_dna_rna_dg_region(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "gap"),
-    "hybr_dna_rna_dg_wing3": lambda row: get_dna_rna_dg_region(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
+    # Per-wing high-affinity sugar contribution (5' and 3'); NaN when that chemistry is absent.
+    # cEt/LNA = nearest-neighbour increment over the wing; 2'-MOE = MD energy over the wing (GB).
+    "hybr_cet_wing5_dg": lambda row: get_cet_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
+    "hybr_cet_wing3_dg": lambda row: get_cet_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
+    "hybr_lna_wing5_dg": lambda row: get_lna_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
+    "hybr_lna_wing3_dg": lambda row: get_lna_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
+    "hybr_moe_wing5_dg": lambda row: get_moe_md_contribution(
+        row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb", region="wing5"
+    ),
+    "hybr_moe_wing3_dg": lambda row: get_moe_md_contribution(
+        row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb", region="wing3"
+    ),
 }
 
 # Vectorized features derived from the row-wise ones.
@@ -47,16 +55,6 @@ HYBR_DERIVED_FEATURES = [
     # DNA/DNA reference (native to the LNA/cEt sugar deltas) and the RNA target -- a reference-state
     # bridge that lets the model relate the DNA-referenced sugar weights to the RNA-bound duplex.
     # NOT a DNA-vs-RNA target preference.
-    "hybr_dna_rna_dg_per_nt",
-    "hybr_dna_dna_dg_per_nt",
-    "hybr_ps_dna_rna_dg_per_nt",
-    # Wing/gap asymmetry of the DNA/RNA dG partition. 5'/3' end-stability imbalance is
-    # implicated in RNase H1 cleavage-site selectivity and end-mediated nuclease protection;
-    # the wing-minus-gap pair quantifies how much the high-affinity flanks dominate the
-    # central deoxy region thermodynamically. NaN on non-gapmer rows (no wings to compare).
-    "hybr_dna_rna_wing_dg_imbalance",  # wing5_dg - wing3_dg (sign = which end is more stable)
-    "hybr_dna_rna_wing5_minus_gap_dg",  # wing5_dg - gap_dg
-    "hybr_dna_rna_wing3_minus_gap_dg",  # wing3_dg - gap_dg
 ]
 
 HYBR_FEATURE_TO_CALCULATION = {
@@ -92,48 +90,5 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
 
     if "hybr_dna_dna_minus_dna_rna_dg" in features_to_run and _have("hybr_dna_dna_dg", "hybr_dna_rna_dg"):
         all_data["hybr_dna_dna_minus_dna_rna_dg"] = all_data["hybr_dna_dna_dg"] - all_data["hybr_dna_rna_dg"]
-
-    seq_len = all_data[ASO_SEQUENCE].str.len()
-    normalized = {
-        "hybr_dna_rna_dg_per_nt": "hybr_dna_rna_dg",
-        "hybr_dna_dna_dg_per_nt": "hybr_dna_dna_dg",
-        "hybr_ps_dna_rna_dg_per_nt": "hybr_ps_dna_rna_dg",
-    }
-    for norm_name, source in normalized.items():
-        if norm_name in features_to_run and _have(source):
-            all_data[norm_name] = all_data[source] / seq_len
-
-    # Wing/gap asymmetry features are NaN on non-gapmer rows (no wings to compare). The
-    # routing flag is derived from CHEMICAL_PATTERN so the populate stays standalone.
-    import numpy as np
-
-    from ..common.modifications import get_longest_dna_gap
-
-    def _is_gapmer_pat(pat):
-        if not isinstance(pat, str) or not pat:
-            return False
-        start, end, gap_len = get_longest_dna_gap(pat)
-        return gap_len > 0 and start > 0 and end < len(pat)
-
-    wing_asym_features = (
-        "hybr_dna_rna_wing_dg_imbalance",
-        "hybr_dna_rna_wing5_minus_gap_dg",
-        "hybr_dna_rna_wing3_minus_gap_dg",
-    )
-    is_gapmer_series = (
-        all_data[CHEMICAL_PATTERN].map(_is_gapmer_pat)
-        if any(f in features_to_run for f in wing_asym_features)
-        else None
-    )
-
-    if "hybr_dna_rna_wing_dg_imbalance" in features_to_run and _have("hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_wing3"):
-        raw = all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_wing3"]
-        all_data["hybr_dna_rna_wing_dg_imbalance"] = raw.where(is_gapmer_series, np.nan)
-    if "hybr_dna_rna_wing5_minus_gap_dg" in features_to_run and _have("hybr_dna_rna_dg_wing5", "hybr_dna_rna_dg_gap"):
-        raw = all_data["hybr_dna_rna_dg_wing5"] - all_data["hybr_dna_rna_dg_gap"]
-        all_data["hybr_dna_rna_wing5_minus_gap_dg"] = raw.where(is_gapmer_series, np.nan)
-    if "hybr_dna_rna_wing3_minus_gap_dg" in features_to_run and _have("hybr_dna_rna_dg_wing3", "hybr_dna_rna_dg_gap"):
-        raw = all_data["hybr_dna_rna_dg_wing3"] - all_data["hybr_dna_rna_dg_gap"]
-        all_data["hybr_dna_rna_wing3_minus_gap_dg"] = raw.where(is_gapmer_series, np.nan)
 
     return all_data, features_to_run

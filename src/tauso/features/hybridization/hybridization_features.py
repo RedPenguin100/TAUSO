@@ -76,7 +76,7 @@ def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float
     return total
 
 
-def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="L"):
+def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="L", region=None):
     """High-affinity sugar (LNA/cEt) delta dG (kcal/mol) summed 5'->3'.
 
     ``params`` holds nearest-neighbour increments keyed by the modified-strand dinucleotide
@@ -87,18 +87,28 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
     (SantaLucia & Hicks 2004), i.e. over a DNA target. No complete LNA-DNA/RNA nearest-
     neighbour set has been published, so they are used as a proxy for the A-form RNA-bound
     wing and kept as a standalone feature rather than summed onto the DNA/RNA baseline.
-    """
-    seq = seq.upper()
-    fmt = fmt.upper()
 
+    ``region`` ('wing5'/'wing3') restricts the sum to one wing, split around the longest deoxy gap.
+    """
     if len(seq) != len(fmt):
         return None
 
+    # Detect the deoxy gap on the original pattern (lowercase 'd') before upper-casing.
+    if region is not None:
+        gap_start, gap_end, gap_len = get_longest_dna_gap(fmt)
+        if gap_len == 0:
+            gap_start, gap_end = len(fmt), len(fmt)
+
+    seq = seq.upper()
     temp_k = celsius_to_kelvin(temp_c)
 
     total_dH = 0.0
     total_dS = 0.0
     for i in range(len(seq) - 1):
+        if region == "wing5" and not i < gap_start:
+            continue
+        if region == "wing3" and not i >= gap_end:
+            continue
         b1, b2 = seq[i], seq[i + 1]
         m1, m2 = fmt[i], fmt[i + 1]
 
@@ -126,19 +136,43 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
 
 def get_cet_dna_rna_dg(antisense, chemical_pattern):
     """cEt affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the cEt
-    increment, so it sits on the same RNA-target footing as the 2'-MOE MD terms (the increment is
-    LNA-DNA/DNA, used as a proxy; see calculate_cet_delta). NaN on chemical-pattern length mismatch.
+    increment, on the same RNA-target footing as the 2'-MOE MD terms (the increment is LNA-DNA/DNA,
+    used as a proxy; see calculate_cet_delta). NaN when the oligo carries no cEt or on length mismatch.
     """
+    if not isinstance(chemical_pattern, str) or "C" not in chemical_pattern:
+        return float("nan")
     cet = calculate_cet_delta(antisense, chemical_pattern)
     return float("nan") if cet is None else get_dna_rna_dg(antisense) + cet
 
 
 def get_lna_dna_rna_dg(antisense, chemical_pattern):
     """LNA affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the LNA
-    increment (see calculate_lna_delta). NaN on chemical-pattern length mismatch.
+    increment (see calculate_lna_delta). NaN when the oligo carries no LNA or on length mismatch.
     """
+    if not isinstance(chemical_pattern, str) or "L" not in chemical_pattern:
+        return float("nan")
     lna = calculate_lna_delta(antisense, chemical_pattern)
     return float("nan") if lna is None else get_dna_rna_dg(antisense) + lna
+
+
+def get_cet_wing_dg(antisense, chemical_pattern, region):
+    """cEt wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
+    wing plus the cEt increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
+    as hybr_cet_dna_rna_dg. NaN when the oligo carries no cEt."""
+    if not isinstance(chemical_pattern, str) or "C" not in chemical_pattern:
+        return float("nan")
+    v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C", region=region)
+    return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
+
+
+def get_lna_wing_dg(antisense, chemical_pattern, region):
+    """LNA wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
+    wing plus the LNA increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
+    as hybr_lna_dna_rna_dg. NaN when the oligo carries no LNA."""
+    if not isinstance(chemical_pattern, str) or "L" not in chemical_pattern:
+        return float("nan")
+    v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L", region=region)
+    return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
 
 
 def calculate_lna_delta(antisense, chemical_pattern):
