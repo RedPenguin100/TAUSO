@@ -156,19 +156,23 @@ def get_lna_dna_rna_dg(antisense, chemical_pattern):
 
 
 def get_cet_wing_dg(antisense, chemical_pattern, region):
-    """cEt increment (kcal/mol) over one wing ('wing5'/'wing3'). NaN when the oligo carries no cEt."""
+    """cEt wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
+    wing plus the cEt increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
+    as hybr_cet_dna_rna_dg. NaN when the oligo carries no cEt."""
     if not isinstance(chemical_pattern, str) or "C" not in chemical_pattern:
         return float("nan")
     v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C", region=region)
-    return float("nan") if v is None else v
+    return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
 
 
 def get_lna_wing_dg(antisense, chemical_pattern, region):
-    """LNA increment (kcal/mol) over one wing ('wing5'/'wing3'). NaN when the oligo carries no LNA."""
+    """LNA wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
+    wing plus the LNA increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
+    as hybr_lna_dna_rna_dg. NaN when the oligo carries no LNA."""
     if not isinstance(chemical_pattern, str) or "L" not in chemical_pattern:
         return float("nan")
     v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L", region=region)
-    return float("nan") if v is None else v
+    return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
 
 
 def calculate_lna_delta(antisense, chemical_pattern):
