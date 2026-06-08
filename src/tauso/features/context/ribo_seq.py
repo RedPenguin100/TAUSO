@@ -16,6 +16,7 @@ import pyBigWig
 
 from ...data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
 from ...data.data import get_data_dir
+from ...genome.LocusInfo import StrandType
 
 logger = logging.getLogger(__name__)
 
@@ -144,19 +145,35 @@ def process_gene_group(bw_path, gene_rows, flanks, how, prefix="ribo_40s"):
         bw.close()
 
 
-def add_genomic_coordinates(aso_df, mapper):
+def _gene_coords(locus):
+    """Gene-level {chrom, gene_start, gene_end, strand} from a LocusInfo, or None.
+
+    gene_start is 0-based and the strand is a '+'/'-' string.
+    """
+    if locus is None or getattr(locus, "chrom", None) is None or locus.gene_start is None:
+        return None
+    return {
+        "chrom": locus.chrom,
+        "gene_start": locus.gene_start,
+        "gene_end": locus.gene_end,
+        "strand": "+" if locus.strand == StrandType.POS else "-",
+    }
+
+
+def add_genomic_coordinates(aso_df, gene_to_data):
     """
     Map each ASO row to genomic coordinates.
 
-    Calls the mapper once per unique gene (not once per row), then broadcasts
-    the gene-level info and computes target positions with vectorized arithmetic.
+    Looks up gene-level coordinates once per unique gene from ``gene_to_data``
+    (the LocusInfo dict), then broadcasts and computes target positions with
+    vectorized arithmetic.
     """
     out = aso_df.copy()
 
-    # One mapper call per unique gene
+    # One lookup per unique gene
     unique_genes = out[CANONICAL_GENE_NAME].dropna().unique()
     t0 = time.perf_counter()
-    gene_info = {g: mapper.get_gene_coords(g) for g in unique_genes}
+    gene_info = {g: _gene_coords(gene_to_data.get(g)) for g in unique_genes}
     logger.info(
         "add_genomic_coordinates: %d unique genes looked up in %.2fs",
         len(unique_genes),

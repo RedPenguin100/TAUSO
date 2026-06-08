@@ -24,26 +24,29 @@ def _calculate_nn(seq: str, weights : Mapping[str, float]) -> float:
 
 def get_dna_rna_dg(seq: str) -> float:
     """Unmodified DNA/RNA hybrid dG (kcal/mol), summed 5'->3' over overlapping dinucleotides."""
-    return _calculate_nn(seq, weights=DNA_RNA_DG37_WEIGHTS)
+    seq = _to_rna(seq)
+    total = 0.0
+    for i in range(len(seq) - 1):
+        total += DNA_RNA_DG37_WEIGHTS[seq[i] + seq[i + 1]]
+    return total
 
-def get_ps_delta_dg(seq: str) -> float:
-    """Phosphorothioate backbone contribution relative to the DNA/RNA hybrid (kcal/mol).
+def get_ps_delta_dg(seq: str, ps_pattern: str) -> float:
+    """Phosphorothioate backbone contribution relative to the DNA/DNA hybrid (kcal/mol)."""
+    seq = _to_rna(seq)
+    if not isinstance(ps_pattern, str) or len(ps_pattern) != len(seq) - 1:
+        raise ValueError(f"ps_pattern must be a length-{len(seq) - 1} string for a {len(seq)}-mer, got {ps_pattern!r}")
+    total = 0.0
+    for i in range(len(seq) - 1):
+        if ps_pattern[i] != "*":
+            continue
+        L, R = seq[i], seq[i + 1]
+        total += PS_DELTA_DG37_WEIGHTS[L + R]
+    return total
 
-    This is the per-dinucleotide PS delta added on top of get_dna_rna_dg, not a standalone
-    duplex energy. Positive = the PS backbone destabilises the duplex relative to the
-    unmodified phosphodiester baseline.
-    """
-    return _calculate_nn(seq, weights=PS_DELTA_DG37_WEIGHTS)
 
-
-def get_ps_dna_rna_dg(seq: str) -> float:
-    """PS-modified DNA/RNA hybrid dG (kcal/mol): the DNA/RNA baseline plus the PS delta.
-
-    Heuristic / approximation: the PS delta is derived from DNA/DNA (PO-vs-PS) measurements
-    and assumed transferable to the RNA-bound context, so this is an estimate rather than a
-    directly measured PS-DNA/RNA free energy.
-    """
-    return get_dna_rna_dg(seq) + get_ps_delta_dg(seq)
+def get_ps_dna_rna_dg(seq: str, ps_pattern: str) -> float:
+    """PS-modified DNA/RNA hybrid dG (kcal/mol): the DNA/RNA baseline plus the PS delta."""
+    return get_dna_rna_dg(seq) + get_ps_delta_dg(seq, ps_pattern)
 
 
 def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float:
@@ -80,24 +83,39 @@ def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float
     return total
 
 
-def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="L"):
+def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="L", region=None):
     """High-affinity sugar (LNA/cEt) delta dG (kcal/mol) summed 5'->3'.
 
     ``params`` holds nearest-neighbour increments keyed by the modified-strand dinucleotide
     ('+' marks a modified sugar) over the Watson-Crick complement. Only dinucleotides that
     touch a modified sugar contribute; pure-DNA ('dd') stacks are skipped.
-    """
-    seq = seq.upper()
-    fmt = fmt.upper()
 
+    These increments are LNA-DNA/DNA values defined on top of the DNA/DNA baseline
+    (SantaLucia & Hicks 2004), i.e. over a DNA target. No complete LNA-DNA/RNA nearest-
+    neighbour set has been published, so they are used as a proxy for the A-form RNA-bound
+    wing and kept as a standalone feature rather than summed onto the DNA/RNA baseline.
+
+    ``region`` ('wing5'/'wing3') restricts the sum to one wing, split around the longest deoxy gap.
+    """
     if len(seq) != len(fmt):
         return None
 
+    # Detect the deoxy gap on the original pattern (lowercase 'd') before upper-casing.
+    if region is not None:
+        gap_start, gap_end, gap_len = get_longest_dna_gap(fmt)
+        if gap_len == 0:
+            gap_start, gap_end = len(fmt), len(fmt)
+
+    seq = seq.upper()
     temp_k = celsius_to_kelvin(temp_c)
 
     total_dH = 0.0
     total_dS = 0.0
     for i in range(len(seq) - 1):
+        if region == "wing5" and not i < gap_start:
+            continue
+        if region == "wing3" and not i >= gap_end:
+            continue
         b1, b2 = seq[i], seq[i + 1]
         m1, m2 = fmt[i], fmt[i + 1]
 
@@ -123,15 +141,63 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
     return total_dH - (temp_k * (total_dS / 1000.0))
 
 
-def calculate_lna(antisense, chemical_pattern):
+def get_cet_dna_rna_dg(antisense, chemical_pattern):
+    """cEt affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the cEt
+    increment, on the same RNA-target footing as the 2'-MOE MD terms (the increment is LNA-DNA/DNA,
+    used as a proxy; see calculate_cet_delta). NaN when the oligo carries no cEt or on length mismatch.
+    """
+    if not isinstance(chemical_pattern, str) or "C" not in chemical_pattern:
+        return float("nan")
+    cet = calculate_cet_delta(antisense, chemical_pattern)
+    return float("nan") if cet is None else get_dna_rna_dg(antisense) + cet
+
+
+def get_lna_dna_rna_dg(antisense, chemical_pattern):
+    """LNA affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the LNA
+    increment (see calculate_lna_delta). NaN when the oligo carries no LNA or on length mismatch.
+    """
+    if not isinstance(chemical_pattern, str) or "L" not in chemical_pattern:
+        return float("nan")
+    lna = calculate_lna_delta(antisense, chemical_pattern)
+    return float("nan") if lna is None else get_dna_rna_dg(antisense) + lna
+
+
+def get_cet_wing_dg(antisense, chemical_pattern, region):
+    """cEt wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
+    wing plus the cEt increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
+    as hybr_cet_dna_rna_dg. NaN when the oligo carries no cEt."""
+    if not isinstance(chemical_pattern, str) or "C" not in chemical_pattern:
+        return float("nan")
+    v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C", region=region)
+    return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
+
+
+def get_lna_wing_dg(antisense, chemical_pattern, region):
+    """LNA wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
+    wing plus the LNA increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
+    as hybr_lna_dna_rna_dg. NaN when the oligo carries no LNA."""
+    if not isinstance(chemical_pattern, str) or "L" not in chemical_pattern:
+        return float("nan")
+    v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L", region=region)
+    return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
+
+
+def calculate_lna_delta(antisense, chemical_pattern):
+    """LNA high-affinity-sugar delta dG (kcal/mol).
+
+    Increments are LNA-DNA/DNA nearest-neighbour values (McTigue 2004; Owczarzy 2011), i.e.
+    the LNA strand paired against a DNA target; see calculate_3rd_gen_diff for the reference
+    state and why no LNA-DNA/RNA set is used.
+    """
     return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L")
 
 
-def calculate_cet(antisense, chemical_pattern):
+def calculate_cet_delta(antisense, chemical_pattern):
     """cEt high-affinity-sugar delta dG (kcal/mol).
 
     Heuristic (not a mistake): cEt has no published cEt-specific nearest-neighbour set, so it
     reuses the LNA parameters on structural-homology grounds, matching the article's treatment.
+    Same LNA-DNA/DNA reference state as calculate_lna_delta.
     """
     return calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C")
 

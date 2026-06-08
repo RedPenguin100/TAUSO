@@ -25,7 +25,6 @@ class AssetCache:
         self._gene_to_data_lean = None
         self._genes_u = None
 
-        self._gene_coordinate_mapper = None
         self._gene_registry = None
         self._context_added = False
 
@@ -34,8 +33,6 @@ class AssetCache:
         self.get_halflife_provider()
 
         self.get_rbp_assets()
-
-        self.get_gene_mapper()
 
         # Omitting gene_to_data_lean, get_rbp_expression_matrix
         #          get_transcriptomes, get_gene_registry because they require more context
@@ -124,18 +121,6 @@ class AssetCache:
 
         return self._transcriptomes
 
-    def get_gene_mapper(self):
-        """Lazy loader for the GeneCoordinateMapper."""
-        if self._gene_coordinate_mapper is None:
-            logger.info("Loading GeneCoordinateMapper into memory (happens once)...")
-            from tauso.data.data import get_paths
-            from tauso.genome.TranscriptMapper import GeneCoordinateMapper
-
-            paths = get_paths(self.genome)
-            self._gene_coordinate_mapper = GeneCoordinateMapper(paths["gff_db"])
-
-        return self._gene_coordinate_mapper
-
     def get_lean_gene(self, genes_u):
         if self._gene_to_data_lean is not None and genes_u == self._genes_u:
             # if self._genes_u is None, then the data object is None as well and we skip the if statement
@@ -167,9 +152,8 @@ class AssetCache:
         from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 
         gene_to_data = self.get_lean_gene(genes_u)
-        mapper = self.get_gene_mapper()
 
-        self._gene_registry = build_gene_sequence_registry(genes=genes_u, gene_to_data=gene_to_data, mapper=mapper)
+        self._gene_registry = build_gene_sequence_registry(genes=genes_u, gene_to_data=gene_to_data)
         return self._gene_registry
 
     def set_custom_gene(self, name, sequence):

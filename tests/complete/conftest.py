@@ -18,6 +18,8 @@ def get_n_jobs() -> int:
 @pytest.fixture(scope="session", autouse=True)
 def _configure_n_jobs(request):
     _n_jobs[0] = request.config.getoption("--n-jobs")
+
+
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
@@ -27,16 +29,13 @@ from tauso.algorithms.genomic_context_windows import (
 )
 from tauso.data.consts import *
 from tauso.data.consts import CELL_LINE_DEPMAP
-from tauso.data.data import get_data_dir, get_paths
+from tauso.data.data import get_data_dir
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
 from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.features.rbp.pwm_helper import build_rbp_expression_matrix
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.genome.TranscriptMapper import (
-    GeneCoordinateMapper,
-    build_gene_sequence_registry,
-)
+from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
 
@@ -103,14 +102,6 @@ def target_genes(base_data):
 
 
 @pytest.fixture(scope="session")
-def mapper():
-    """Initializes and returns the GeneCoordinateMapper."""
-    with Timer("Path & Mapper Initialization"):
-        paths = get_paths("GRCh38")
-        return GeneCoordinateMapper(paths["gff_db"])
-
-
-@pytest.fixture(scope="session")
 def gene_to_data(target_genes):
     """Fetches the locus to data dictionary based on target genes."""
     with Timer("Get Locus to Data Dict"):
@@ -145,19 +136,18 @@ def chemistry_data(structure_data):
 
 
 @pytest.fixture(scope="session")
-def ref_registry(target_genes, gene_to_data, mapper):
+def ref_registry(target_genes, gene_to_data):
     """Builds the Gene Sequence Registry."""
     with Timer("Build Gene Sequence Registry"):
-        return build_gene_sequence_registry(genes=target_genes, gene_to_data=gene_to_data, mapper=mapper)
+        return build_gene_sequence_registry(genes=target_genes, gene_to_data=gene_to_data)
 
 
 @pytest.fixture(scope="session")
-def final_data(structure_data, mapper, ref_registry):
+def final_data(structure_data, ref_registry):
     """Runs the optimized context generator to add external mRNA and context columns."""
     with Timer("Add External mRNA & Context Columns"):
         return add_external_mrna_and_context_columns(
             df=structure_data,
-            mapper=mapper,
             gene_registry=ref_registry,
             flank_sizes_premrna=FLANK_SIZES_PREMRNA,
             flank_sizes_cds=CDS_WINDOWS,
