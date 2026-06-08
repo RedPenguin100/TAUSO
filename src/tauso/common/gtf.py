@@ -2,95 +2,59 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+MITO_SEQIDS = ("chrM", "MT", "M")
 
-def filter_gtf_genes(db, filter_mode):
-    """
-    Scans the GTF database and returns a set of gene names matching the criteria.
-    """
+
+def _first_attr(feature, keys):
+    """Return the first present, non-empty attribute value from keys."""
+    for key in keys:
+        val = feature.attributes.get(key, [])
+        if val:
+            return val[0]
+    return None
+
+
+def _filter_genes(db, filter_mode, name_keys, biotype_keys, source_label):
+    if filter_mode not in ("protein_coding", "non_mt"):
+        raise ValueError(f"Unknown filter mode: {filter_mode}")
+
     allowed_names = set()
+    logger.info(f"Querying {source_label} database for {filter_mode} genes...")
 
-    logger.info(f"Querying GTF database for {filter_mode} genes...")
-
-    # Iterate over all features of type 'gene'
-    # Note: adjust 'gene' to 'transcript' if your GTF is transcript-level only,
-    # but usually 'gene' is the standard feature type for this.
     for feature in db.features_of_type("gene"):
-        # 1. Get Attributes safely (handles Gencode vs Ensembl naming)
-        # 'gene_name' is standard, fallback to 'name'
-        gene_name = feature.attributes.get("gene_name", feature.attributes.get("name", [None]))[0]
-
+        gene_name = _first_attr(feature, name_keys)
         if not gene_name:
             continue
 
-        # 'gene_type' (Gencode) or 'gene_biotype' (Ensembl)
-        biotype = feature.attributes.get("gene_type", feature.attributes.get("gene_biotype", [None]))[0]
+        is_mitochondrial = feature.seqid in MITO_SEQIDS
+        if is_mitochondrial:
+            continue
 
-        # 2. Check Mitochondrial Status
-        # Standardize chrom names: 'chrM', 'MT', 'M'
-        is_mitochondrial = feature.seqid in ("chrM", "MT", "M")
-
-        # 3. Apply Filter Logic
         if filter_mode == "protein_coding":
-            # Strict: Must be Protein Coding AND Nuclear (usually implicit in "protein coding" filters for tools like this)
-            if biotype == "protein_coding" and not is_mitochondrial:
-                allowed_names.add(gene_name)
+            biotype = _first_attr(feature, biotype_keys)
+            if biotype != "protein_coding":
+                continue
 
-        elif filter_mode == "non_mt":
-            # Loose: Everything except Mitochondria
-            if not is_mitochondrial:
-                allowed_names.add(gene_name)
-
-        else:
-            raise ValueError(f"Unknown filter mode: {filter_mode}")
+        allowed_names.add(gene_name)
 
     return allowed_names
+
+
+def filter_gtf_genes(db, filter_mode):
+    """Scan a GTF database and return a set of gene names matching the criteria."""
+    return _filter_genes(
+        db, filter_mode,
+        name_keys=("gene_name", "name"),
+        biotype_keys=("gene_type", "gene_biotype"),
+        source_label="GTF",
+    )
 
 
 def filter_gff_genes(db, filter_mode):
-    """
-    Scans the GENCODE GFF3 database and returns a set of gene names matching the criteria.
-
-    GENCODE GFF3 attributes:
-    - Gene name: 'gene_name' (primary), fallback to 'Name', 'gene'
-    - Biotype:   'gene_type' (primary), fallback to 'biotype', 'gene_biotype'
-    """
-    allowed_names = set()
-
-    logger.info(f"Querying GENCODE GFF3 database for {filter_mode} genes...")
-
-    for feature in db.features_of_type("gene"):
-        # --- Gene name (GENCODE priority order) ---
-        gene_name = None
-        for attr in ("gene_name", "Name", "gene"):
-            val = feature.attributes.get(attr, [])
-            if val:
-                gene_name = val[0]
-                break
-
-        if not gene_name:
-            continue
-
-        # --- Biotype (GENCODE priority order) ---
-        biotype = None
-        for attr in ("gene_type", "biotype", "gene_biotype"):
-            val = feature.attributes.get(attr, [])
-            if val:
-                biotype = val[0]
-                break
-
-        # --- Mitochondrial check ---
-        is_mitochondrial = feature.seqid in ("chrM", "MT", "M")
-
-        # --- Filter logic ---
-        if filter_mode == "protein_coding":
-            if biotype == "protein_coding" and not is_mitochondrial:
-                allowed_names.add(gene_name)
-
-        elif filter_mode == "non_mt":
-            if not is_mitochondrial:
-                allowed_names.add(gene_name)
-
-        else:
-            raise ValueError(f"Unknown filter mode: {filter_mode}")
-
-    return allowed_names
+    """Scan a GFF3 database and return a set of gene names matching the criteria."""
+    return _filter_genes(
+        db, filter_mode,
+        name_keys=("gene_name", "Name", "gene"),
+        biotype_keys=("gene_type", "biotype", "gene_biotype"),
+        source_label="GFF3",
+    )

@@ -110,3 +110,32 @@ def batch_iterator(iterator, batch_size: int = 1000):
         if not batch:
             break
         yield batch
+
+def _download_zenodo_md5_set(
+    record_id: str,
+    files: dict[str, str],
+    dest_dir: str,
+    force: bool,
+    label_target: str = "path",
+) -> None:
+    """Download a set of {filename: expected_md5} from a Zenodo record into dest_dir,
+    verifying MD5s and skipping already-present valid files unless force is set."""
+    os.makedirs(dest_dir, exist_ok=True)
+
+    for filename, expected_md5 in files.items():
+        destination = os.path.join(dest_dir, filename)
+        click.echo(f"Target {label_target}: {destination}")
+
+        if os.path.exists(destination) and not force:
+            verify_hash_or_exit(destination, expected_md5, algo="md5")
+            echo_ok(f"Existing {filename} matches expected MD5. Skipping download.")
+            continue
+
+        url = f"https://zenodo.org/api/records/{record_id}/files/{filename}/content"
+        try:
+            download_with_progress(url, destination, label=f"Downloading {filename}")
+            verify_hash_or_exit(destination, expected_md5, algo="md5")
+            echo_ok(f"Downloaded and verified: {destination}")
+        except Exception as e:
+            echo_err(f"Error downloading {filename}: {e}")
+            sys.exit(1)

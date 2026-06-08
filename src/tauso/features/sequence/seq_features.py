@@ -381,39 +381,6 @@ def ta_dinucleotide_fraction(seq: str) -> float:
     return target_count / total_possible_pairs
 
 
-def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
-    """
-    Calculates the fraction of sequence containing poly-pyrimidine stretches (C and T bases).
-
-    Long consecutive pyrimidine runs may cause undesired secondary structures
-    or non-specific binding of antisense oligonucleotides (ASOs).
-
-    Args:
-        seq (str): DNA sequence (A/C/G/T)
-        min_run_length (int): Minimum length of pyrimidine run considered problematic (default=4)
-
-    Returns:
-        float: Normalized poly-pyrimidine stretch score between 0 and 1
-    """
-    seq = seq.upper()
-    pyrimidines = "CT"
-    stretch_count = 0
-    i = 0
-
-    while i < len(seq):
-        run_length = 0
-        while i < len(seq) and seq[i] in pyrimidines:
-            run_length += 1
-            i += 1
-
-        if run_length >= min_run_length:
-            stretch_count += 1
-
-        if run_length == 0:
-            i += 1
-
-    return stretch_count / len(seq) if len(seq) > 0 else 0.0
-
 
 def dinucleotide_entropy(seq: str) -> float:
     """
@@ -470,31 +437,54 @@ def purine_content(seq):
     return count / len(seq)
 
 
-########################################################################################################
-def at_rich_region_score(seq: str, min_run_length: int = 4) -> float:
-    """
-    Calculates the fraction of the sequence containing AT-rich stretches (A and T bases).
-
-    Long consecutive A/T runs may reduce structural stability and impact ASO performance.
-
-    Args:
-        seq (str): DNA sequence (A/C/G/T)
-        min_run_length (int): Minimum length of A/T run considered problematic (default = 4)
-
-    Returns:
-        float: Normalized AT-rich region score (0 to 1)
-    """
+def _run_stretch_score(seq: str, bases: str, min_run_length: int) -> float:
+    """Fraction-normalized count of maximal runs over `bases` that are >= min_run_length."""
     seq = seq.upper()
-    at_bases = "AT"
+    if not seq:
+        return 0.0
+
     stretch_count = 0
     i = 0
     while i < len(seq):
         run_length = 0
-        while i < len(seq) and seq[i] in at_bases:
+        while i < len(seq) and seq[i] in bases:
             run_length += 1
             i += 1
         if run_length >= min_run_length:
             stretch_count += 1
         if run_length == 0:
             i += 1
-    return stretch_count / len(seq) if len(seq) > 0 else 0.0
+    return stretch_count / len(seq)
+
+def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
+    """
+    Score based on poly-pyrimidine stretches (C and T bases) in the sequence.
+
+    Long consecutive pyrimidine runs might contribute to secondary structures
+    or non-specific binding of antisense oligonucleotides (ASOs).
+
+    Args:
+        seq (str): DNA sequence (A/C/G/T)
+        min_run_length (int): Minimum pyrimidine run length to count (default=4)
+
+    Returns:
+        float: Normalized poly-pyrimidine stretch score between 0 and 1
+    """
+    return _run_stretch_score(seq, "CT", min_run_length)
+
+
+def at_rich_region_score(seq: str, min_run_length: int = 4) -> float:
+    """
+    Score based on AT-rich stretches (A and T bases) in the sequence.
+
+    Long consecutive A/T runs may relate to reduced structural stability and
+    could affect ASO performance.
+
+    Args:
+        seq (str): DNA sequence (A/C/G/T)
+        min_run_length (int): Minimum A/T run length to count (default=4)
+
+    Returns:
+        float: Normalized AT-rich region score (0 to 1)
+    """
+    return _run_stretch_score(seq, "AT", min_run_length)

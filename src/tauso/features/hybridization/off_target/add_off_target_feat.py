@@ -117,22 +117,6 @@ def energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, c
     return out
 
 
-def compute_group_batch_multi_cutoff(group_df, exp_map, cutoffs, method, prebuilt_target_path):
-    """Score one ASO group against a prebuilt target for every cutoff, with one RIsearch run.
-
-    Returns {cutoff: Series of scores indexed like group_df}.
-    """
-    indices = group_df.index.tolist()
-    if group_df.empty:
-        return {c: pd.Series(dtype=float) for c in cutoffs}
-
-    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, group_df[ASO_SEQUENCE])]
-    idx_to_gene = {str(idx): gene for idx, gene in zip(indices, group_df[CANONICAL_GENE_NAME])}
-
-    per_cutoff = calculate_risearch_energy_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
-    return energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs)
-
-
 def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs, method, prebuilt_target_path):
     """Score one ASO group for several top_n levels from ONE RIsearch run.
 

@@ -24,14 +24,6 @@ def _chunk_df(df, chunk_size):
     return [df.iloc[i : i + chunk_size] for i in range(0, len(df), chunk_size)]
 
 
-def _score_chunk_multi_cutoff_multi_topn(chunk_df, top_n_to_data, cutoffs, method, target_path):
-    """One RIsearch pass for a chunk against a max(top_n) target, deriving per-top_n
-    results by filtering to each top_n's gene_set. Returns {(top_n, cutoff): Series}."""
-    return compute_group_batch_multi_cutoff_multi_topn(
-        chunk_df, top_n_to_data, cutoffs, method, prebuilt_target_path=target_path
-    )
-
-
 def _build_top_n_to_data(expression_df, top_n_list, gene_to_data, *, require_seq=True):
     """For each top_n, return (exp_map, gene_set) for head(top_n) of expression_df.
 
@@ -109,6 +101,7 @@ def populate_off_target_specific(
     )
 
     TMP_PATH.mkdir(parents=True, exist_ok=True)
+
     # cell_info[cell_line] = {is_known, top_n_to_data, target_path, chunks}
     cell_info: dict = {}
     created_paths: list = []
@@ -140,7 +133,7 @@ def populate_off_target_specific(
             if info["is_known"] and info["target_path"] is not None
             for chunk_idx, chunk_df in enumerate(info["chunks"])
         ]
-        results = run_tasks_parallel(tasks, _score_chunk_multi_cutoff_multi_topn, n_jobs)
+        results = run_tasks_parallel(tasks, compute_group_batch_multi_cutoff_multi_topn, n_jobs)
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:
@@ -213,7 +206,7 @@ def populate_off_target_general(
             for chunk_idx, chunk_df in enumerate(aso_chunks)
         ]
         # results[(chunk_idx,)] = {(top_n, cutoff): Series}
-        results = run_tasks_parallel(tasks, _score_chunk_multi_cutoff_multi_topn, n_jobs)
+        results = run_tasks_parallel(tasks, compute_group_batch_multi_cutoff_multi_topn, n_jobs)
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:

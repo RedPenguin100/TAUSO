@@ -1,4 +1,5 @@
 import logging
+from typing import Mapping
 
 from ...common.modifications import get_longest_dna_gap
 from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, get_nucleotide_watson_crick
@@ -13,15 +14,17 @@ def _to_rna(seq: str) -> str:
     return seq.upper().replace("T", "U")
 
 
-def get_dna_rna_dg(seq: str) -> float:
-    """Unmodified DNA/RNA hybrid dG (kcal/mol), summed 5'->3' over overlapping dinucleotides."""
+def _calculate_nn(seq: str, weights : Mapping[str, float]) -> float:
     seq = _to_rna(seq)
     total = 0.0
     for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        total += DNA_RNA_DG37_WEIGHTS[L + R]
+        total += weights[seq[i] + seq[i + 1]]
     return total
 
+
+def get_dna_rna_dg(seq: str) -> float:
+    """Unmodified DNA/RNA hybrid dG (kcal/mol), summed 5'->3' over overlapping dinucleotides."""
+    return _calculate_nn(seq, weights=DNA_RNA_DG37_WEIGHTS)
 
 def get_ps_delta_dg(seq: str) -> float:
     """Phosphorothioate backbone contribution relative to the DNA/RNA hybrid (kcal/mol).
@@ -30,12 +33,7 @@ def get_ps_delta_dg(seq: str) -> float:
     duplex energy. Positive = the PS backbone destabilises the duplex relative to the
     unmodified phosphodiester baseline.
     """
-    seq = _to_rna(seq)
-    total = 0.0
-    for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        total += PS_DELTA_DG37_WEIGHTS[L + R]
-    return total
+    return _calculate_nn(seq, weights=PS_DELTA_DG37_WEIGHTS)
 
 
 def get_ps_dna_rna_dg(seq: str) -> float:

@@ -25,7 +25,7 @@ from tauso.cli_utils import (
     echo_warn,
     sha1_file,
     sha256_file,
-    verify_hash_or_exit,
+    verify_hash_or_exit, _download_zenodo_md5_set,
 )
 from tauso.data.data import get_data_dir, get_paths
 from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_FILENAME, build_scorer_from_reference
@@ -674,32 +674,16 @@ def setup_attract(force):
     a frozen mirror of the ATtRACT DB. Installs into the 'attract' subfolder of
     TAUSO_DATA_DIR.
     """
-    ZENODO_RECORD = "20366079"
-    FILES = {
-        "RBS_motifs_Homo_sapiens.csv": "12927c0ca4655b4f040ea5e7e3406dc7",
-        "pwm.txt": "7ff45b94c14d1b992680f561e0a038a4",
-    }
-
-    dest_dir = os.path.join(get_data_dir(), "attract")
-    os.makedirs(dest_dir, exist_ok=True)
-    click.echo(f"Target directory: {dest_dir}")
-
-    for name, expected_md5 in FILES.items():
-        destination = os.path.join(dest_dir, name)
-
-        if os.path.exists(destination) and not force:
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Existing {name} matches expected MD5. Skipping download.")
-            continue
-
-        url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{name}/content"
-        try:
-            download_with_progress(url, destination, label=f"Downloading {name}")
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Downloaded and verified: {destination}")
-        except Exception as e:
-            echo_err(f"Error downloading {name}: {e}")
-            sys.exit(1)
+    _download_zenodo_md5_set(
+        record_id="20366079",
+        files={
+            "RBS_motifs_Homo_sapiens.csv": "12927c0ca4655b4f040ea5e7e3406dc7",
+            "pwm.txt": "7ff45b94c14d1b992680f561e0a038a4",
+        },
+        dest_dir=os.path.join(get_data_dir(), "attract"),
+        force=force,
+        label_target="directory",
+    )
 
 
 _RIBOSEQ_ZENODO_RECORD = "20435808"
@@ -721,26 +705,12 @@ def setup_riboseq(force):
     translation proxies, not cell-context: the same value applies to every
     TAUSO row regardless of cell line.
     """
-    data_dir = get_data_dir()
-    os.makedirs(data_dir, exist_ok=True)
-
-    for filename, expected_md5 in _RIBOSEQ_TRACKS:
-        destination = os.path.join(data_dir, filename)
-        click.echo(f"Target path: {destination}")
-
-        if os.path.exists(destination) and not force:
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Existing {filename} matches expected MD5. Skipping download.")
-            continue
-
-        url = f"https://zenodo.org/api/records/{_RIBOSEQ_ZENODO_RECORD}/files/{filename}/content"
-        try:
-            download_with_progress(url, destination, label=f"Downloading {filename}")
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Downloaded and verified: {destination}")
-        except Exception as e:
-            echo_err(f"Error downloading {filename}: {e}")
-            sys.exit(1)
+    _download_zenodo_md5_set(
+        record_id=_RIBOSEQ_ZENODO_RECORD,
+        files=dict(_RIBOSEQ_TRACKS),
+        dest_dir=get_data_dir(),
+        force=force,
+    )
 
 
 @main.command(name="setup-features")

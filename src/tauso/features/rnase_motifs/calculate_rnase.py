@@ -9,6 +9,22 @@ from .rnase_helpers import (
     scan_constrained_window_dinuc,
 )
 
+def _score_row(seq: str, chem: str, weights: dict, scan_func) -> float:
+    if not isinstance(seq, str) or not isinstance(chem, str):
+        return 0.0
+
+    start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
+    if gap_len < 8:
+        return 0.0
+
+    target_rna = get_antisense(seq)
+    L = len(seq)
+
+    gap_start_rc = L - end_aso
+    gap_end_rc = L - start_aso
+
+    return scan_func(target_rna, weights, gap_start_rc, gap_end_rc)
+
 
 def _apply_rnaseh1_dinuc_scoring(
     df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str
@@ -18,28 +34,12 @@ def _apply_rnaseh1_dinuc_scoring(
     seqs = df[ASO_SEQUENCE].tolist()
     chems = df[CHEMICAL_PATTERN].tolist()
 
-    def score_row(seq: str, chem: str, weights: dict) -> float:
-        if not isinstance(seq, str) or not isinstance(chem, str):
-            return 0.0
-
-        start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
-        if gap_len < 8:
-            return 0.0
-
-        target_rna = get_antisense(seq)
-        L = len(seq)
-
-        gap_start_rc = L - end_aso
-        gap_end_rc = L - start_aso
-
-        return scan_constrained_window_dinuc(target_rna, weights, gap_start_rc, gap_end_rc)
-
     for exp in experiments:
         weights = rnaseh1_dict(exp)
         col_name = f"{out_prefix}{exp}_dynamic"
         feature_cols.append(col_name)
 
-        df[col_name] = [score_row(s, c, weights) for s, c in zip(seqs, chems)]
+        df[col_name] = [_score_row(seq, chem, weights, scan_constrained_window_dinuc) for seq, chem in zip(seqs, chems)]
 
     return df, feature_cols
 
@@ -83,21 +83,6 @@ def _apply_rnaseh1_scoring(
 
     # Define the row scorer here to keep the namespace clean.
     # It safely takes 'weights' as an argument, dodging the late-binding trap.
-    def score_row(seq: str, chem: str, weights: dict) -> float:
-        if not isinstance(seq, str) or not isinstance(chem, str):
-            return 0.0
-
-        start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
-        if gap_len < 8:
-            return 0.0
-
-        target_rna = get_antisense(seq)
-        L = len(seq)
-
-        gap_start_rc = L - end_aso
-        gap_end_rc = L - start_aso
-
-        return scan_constrained_window(target_rna, weights, gap_start_rc, gap_end_rc)
 
     for exp in experiments:
         weights = rnaseh1_dict(exp)
@@ -105,7 +90,7 @@ def _apply_rnaseh1_scoring(
         feature_cols.append(col_name)
 
         # Pass the loop variable 'weights' directly into the function call
-        df[col_name] = [score_row(s, c, weights) for s, c in zip(seqs, chems)]
+        df[col_name] = [_score_row(seq, chem, weights, scan_constrained_window) for seq, chem in zip(seqs, chems)]
 
     return df, feature_cols
 
