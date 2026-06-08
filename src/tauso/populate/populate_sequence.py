@@ -23,6 +23,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     # ASO sequence energy
     ("seq_self_energy", self_energy),
     ("seq_internal_fold", internal_fold),
+    ("seq_internal_rna_fold", internal_rna_fold),
     # Basic Composition Features
     ("seq_purine_content", purine_content),
     ("seq_gc_content", gc_fraction),
@@ -53,24 +54,29 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("seq_flexible_dinucleotide_fraction", flexible_dinucleotide_fraction),
     ("seq_cg_dinucleotide_fraction", cg_dinucleotide_fraction),
     ("seq_ta_dinucleotide_fraction", ta_dinucleotide_fraction),
-    ("seq_poly_pyrimidine_stretch", poly_pyrimidine_stretch),
-    ("seq_gc_block_length", gc_block_length),
-    ("seq_at_rich_region_score", at_rich_region_score),
+    ("seq_poly_pyrimidine_run_count", poly_pyrimidine_run_count),
+    ("seq_poly_pyrimidine_longest", poly_pyrimidine_longest),
+    ("seq_gc_longest", gc_longest),
+    ("seq_at_rich_run_count", at_rich_run_count),
+    ("seq_at_rich_longest", at_rich_longest),
     ("seq_gc_content_3prime_end", gc_content_3prime_end),
     ("seq_homooligo_count", homooligo_count),
-    ("seq_absolute_terminal_gc", absolute_terminal_gc),
+    ("seq_terminal_gc_fraction", terminal_gc_fraction),
     ("seq_keto_amino_skew", keto_amino_skew),
     ("seq_ry_transition_fraction", ry_transition_fraction),
 ]
 
 
-def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False) -> None:
+def calc_feature(df: pd.DataFrame, col_name: str, func, seq_series, cpus: int = 1, verbose=False) -> None:
     """
     Computes a feature with timing logs. Uses parallel_apply if available.
+
+    ``seq_series`` is the ASO sequence normalized to uppercase DNA, so every feature is
+    robust to lowercase or RNA (U) input.
     """
     start_time = time.time()
     logger.debug("Starting %s...", col_name)
-    df[col_name] = make_apply_fn(df[SEQUENCE], n_jobs=cpus)(func)
+    df[col_name] = make_apply_fn(seq_series, n_jobs=cpus)(func)
     duration = time.time() - start_time
     logger.debug("Finished %s | Time: %.2fs", col_name, duration)
 
@@ -83,10 +89,22 @@ def populate_sequence_features(
     available = {name: fn for name, fn in FEATURE_SPECS}
     feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
 
+    # Normalize to uppercase DNA once so every feature is robust to lowercase or RNA (U) input.
+    seq_series = df[SEQUENCE].str.upper().str.replace("U", "T", regex=False)
+
+    # Disallow anything but A/C/G/T (e.g. N, gaps, IUPAC ambiguity codes). A feature computed on an
+    # undefined base is silently wrong, which is unacceptable for a design tool — fail loudly instead.
+    invalid = seq_series[seq_series.str.contains(r"[^ACGT]", regex=True, na=True)]
+    if len(invalid) > 0:
+        raise ValueError(
+            f"{len(invalid)} ASO sequence(s) contain non-ACGT characters after upper/U->T normalization "
+            f"(only A/C/G/T/U accepted). Examples: {invalid.head(5).tolist()}"
+        )
+
     for name in feature_names:
         # Wrap each feature calculation in the Timer context manager
         with Timer(name):
-            calc_feature(df, name, available[name], cpus=cpus)
+            calc_feature(df, name, available[name], seq_series, cpus=cpus)
 
     return df, feature_names
 

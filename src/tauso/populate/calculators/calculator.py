@@ -285,10 +285,6 @@ class Calculator:
             "RNaseH1_score_R4a_dynamic",
             "RNaseH1_score_R4b_dynamic",
             "RNaseH1_score_R7_dynamic",
-            "RNaseH1_Potency_TCCC",
-            "RNaseH1_Potency_TTCC",
-            "RNaseH1_Potency_TCTC",
-            "RNaseH1_Inefficacy_GGGG",
         ]
 
         missing = self._get_missing_features(expected_features)

@@ -20,6 +20,7 @@ from ..features.sequence.toxicity_features import (
     g4hunter_max,
     gggg_motif_count,
     hepatotox_gap_motif_count,
+    max_g_run,
     three_prime_g_fraction,
     three_prime_g_free_length,
     tlr9_human_motif_count,
@@ -41,6 +42,8 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     # Literal 4+ G-tract count — catches isolated GGGG runs that G4Hunter's
     # windowed mean can underweight.
     ("tox_gggg_motif_count", lambda s, p: gggg_motif_count(s)),
+    # Longest run of consecutive G's (G-aggregation / quadruplex proxy).
+    ("tox_max_g_run", lambda s, p: max_g_run(s)),
     # Acute neurotoxicity: 3'-end G content and 3'-terminal G-free stretch (Hagedorn et al. 2022).
     ("tox_3prime_g_fraction", lambda s, p: three_prime_g_fraction(s)),
     ("tox_3prime_g_free_len", lambda s, p: three_prime_g_free_length(s)),
