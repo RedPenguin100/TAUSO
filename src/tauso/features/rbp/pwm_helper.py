@@ -13,62 +13,6 @@ from ..codon_usage.find_cai_reference import load_cell_line_gene_expression
 _DATA_DIR = os.path.join(get_data_dir(), "attract")
 
 
-def calculate_total_affinity(sequence, pwm_matrix, background_probs=None, debug=False):
-    # FORCE ARRAY
-    if hasattr(pwm_matrix, "values"):
-        pwm_matrix = pwm_matrix.values
-    else:
-        pwm_matrix = np.array(pwm_matrix)
-
-    if debug:
-        logger.debug("[AFFINITY-INTERNAL] Matrix Shape: %s", pwm_matrix.shape)
-        logger.debug("[AFFINITY-INTERNAL] Seq Length: %d", len(str(sequence)))
-        logger.debug("[AFFINITY-INTERNAL] Sequence Sample: %s...", str(sequence)[:10])
-
-    if pd.isna(sequence) or len(sequence) == 0:
-        if debug:
-            logger.debug("[AFFINITY-INTERNAL] Empty/NaN Sequence")
-        return 0.0
-
-    if background_probs is None:
-        background_probs = np.array([0.25, 0.25, 0.25, 0.25])
-
-    # MATH
-    epsilon = 1e-9
-    weights = np.log2((pwm_matrix + epsilon) / background_probs)
-
-    base_map = {"A": 0, "C": 1, "G": 2, "U": 3, "T": 3}
-    seq_indices = [base_map.get(base, -1) for base in str(sequence).upper()]
-
-    seq_len = len(seq_indices)
-    motif_len = len(pwm_matrix)
-
-    if seq_len < motif_len:
-        if debug:
-            logger.debug("[AFFINITY-INTERNAL] Seq too short (%d < %d)", seq_len, motif_len)
-        return 0.0
-
-    total_score = 0.0
-
-    # SCAN
-    for i in range(seq_len - motif_len + 1):
-        window = seq_indices[i : i + motif_len]
-        if -1 in window:
-            continue
-
-        score = 0.0
-        for pos, base_idx in enumerate(window):
-            score += weights[pos, base_idx]
-
-        if score > 0:
-            total_score += score
-
-    if debug:
-        logger.debug("[AFFINITY-INTERNAL] Final Score: %f", total_score)
-
-    return total_score
-
-
 def build_rbp_expression_matrix(
     cell_lines: list,
     pwm_db: dict,

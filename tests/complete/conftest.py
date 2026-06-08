@@ -64,7 +64,8 @@ def expression_matrix(base_data, rbp_assets):
     """Builds the RBP expression matrix."""
     with Timer("Build RBP Expression Matrix"):
         _, pwm_db = rbp_assets
-        return build_rbp_expression_matrix(df=base_data, pwm_db=pwm_db)
+        cell_lines = base_data[CELL_LINE_DEPMAP].dropna().unique().tolist()
+        return build_rbp_expression_matrix(cell_lines=cell_lines, pwm_db=pwm_db)
 
 
 FLANK_SIZES_PREMRNA = [20, 30, 40, 50, 60, 70]

@@ -1,12 +1,7 @@
 import numpy as np
 
-# Import your actual data loaders and the original function
-# Import your actual data loaders and the affinity function
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.populate.populate_rbp import calculate_total_affinity_numba
-
-# Note: Import your original function FIRST to generate the baseline YAML,
-# then swap to calculate_total_affinity_numba to verify it matches.
 
 
 def test_calculate_total_affinity_regression(data_regression):
@@ -59,7 +54,7 @@ def test_calculate_total_affinity_regression(data_regression):
         if not valid_mids:
             continue
 
-        # Use the first valid matrix exactly like your main code does
+        # Regression-test the scorer on one matrix; production sums the scorer over all of a gene's matrices
         real_pwm_matrix = pwm_db[valid_mids[0]]
 
         # Sub-dictionary for this specific RBP
