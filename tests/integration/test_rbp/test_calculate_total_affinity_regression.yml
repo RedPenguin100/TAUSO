@@ -5,8 +5,6 @@ A1CF:
   au_rich_element_default_bg: 0.00058408
   cug_repeat_custom_bg: 2.0e-07
   cug_repeat_default_bg: 9.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.3e-07
   dna_version_default_bg: 9.0e-08
   empty_seq_custom_bg: 0.0
@@ -46,8 +44,6 @@ ADAR:
   au_rich_element_default_bg: 1.35e-06
   cug_repeat_custom_bg: 0.01575519
   cug_repeat_default_bg: 0.00947868
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.42405569
   dna_version_default_bg: 0.32261633
   empty_seq_custom_bg: 0.0
@@ -87,8 +83,6 @@ AGO1:
   au_rich_element_default_bg: 0.01492917
   cug_repeat_custom_bg: 5.48e-06
   cug_repeat_default_bg: 2.97e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 9.0e-08
   dna_version_default_bg: 7.0e-08
   empty_seq_custom_bg: 0.0
@@ -128,8 +122,6 @@ AGO2:
   au_rich_element_default_bg: 0.00015188
   cug_repeat_custom_bg: 6.16e-06
   cug_repeat_default_bg: 2.24e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.23e-06
   dna_version_default_bg: 1.5e-06
   empty_seq_custom_bg: 0.0
@@ -169,8 +161,6 @@ AKAP1:
   au_rich_element_default_bg: 1.77005696
   cug_repeat_custom_bg: 4.4e-07
   cug_repeat_default_bg: 2.5e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00351812
   dna_version_default_bg: 0.00298837
   empty_seq_custom_bg: 0.0
@@ -210,8 +200,6 @@ ANKHD1:
   au_rich_element_default_bg: 7.81e-05
   cug_repeat_custom_bg: 0.00633388
   cug_repeat_default_bg: 0.00448457
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00569832
   dna_version_default_bg: 0.00410094
   empty_seq_custom_bg: 0.0
@@ -251,8 +239,6 @@ CELF1:
   au_rich_element_default_bg: 0.00114492
   cug_repeat_custom_bg: 9.6e-07
   cug_repeat_default_bg: 3.3e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -292,8 +278,6 @@ CELF2:
   au_rich_element_default_bg: 4.891742
   cug_repeat_custom_bg: 0.6372446
   cug_repeat_default_bg: 0.48306607
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00625248
   dna_version_default_bg: 0.00689701
   empty_seq_custom_bg: 0.0
@@ -333,8 +317,6 @@ CELF4:
   au_rich_element_default_bg: 2.37890148
   cug_repeat_custom_bg: 0.37924026
   cug_repeat_default_bg: 0.2118188
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.355477
   dna_version_default_bg: 0.25950589
   empty_seq_custom_bg: 0.0
@@ -374,8 +356,6 @@ CELF5:
   au_rich_element_default_bg: 1.09056434
   cug_repeat_custom_bg: 0.15525557
   cug_repeat_default_bg: 0.09744493
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.22108906
   dna_version_default_bg: 0.15971591
   empty_seq_custom_bg: 0.0
@@ -415,8 +395,6 @@ CELF6:
   au_rich_element_default_bg: 0.58165395
   cug_repeat_custom_bg: 0.48920723
   cug_repeat_default_bg: 0.26549386
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.13380436
   dna_version_default_bg: 0.09605072
   empty_seq_custom_bg: 0.0
@@ -456,8 +434,6 @@ CMTR1:
   au_rich_element_default_bg: 0.11073479
   cug_repeat_custom_bg: 0.17746665
   cug_repeat_default_bg: 0.110516
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.09652601
   dna_version_default_bg: 0.08912034
   empty_seq_custom_bg: 0.0
@@ -497,8 +473,6 @@ CNOT4:
   au_rich_element_default_bg: 3.901e-05
   cug_repeat_custom_bg: 0.00010577
   cug_repeat_default_bg: 7.411e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.01131148
   dna_version_default_bg: 0.01198072
   empty_seq_custom_bg: 0.0
@@ -538,8 +512,6 @@ CPEB1:
   au_rich_element_default_bg: 4.38976814
   cug_repeat_custom_bg: 0.00597143
   cug_repeat_default_bg: 0.00438268
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00322594
   dna_version_default_bg: 0.00353334
   empty_seq_custom_bg: 0.0
@@ -579,8 +551,6 @@ CPEB2:
   au_rich_element_default_bg: 8.04409745
   cug_repeat_custom_bg: 0.01543558
   cug_repeat_default_bg: 0.00747627
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00447811
   dna_version_default_bg: 0.00468162
   empty_seq_custom_bg: 0.0
@@ -620,8 +590,6 @@ CPEB4:
   au_rich_element_default_bg: 7.76500699
   cug_repeat_custom_bg: 0.00989407
   cug_repeat_default_bg: 0.00468145
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00059209
   dna_version_default_bg: 0.00061898
   empty_seq_custom_bg: 0.0
@@ -661,8 +629,6 @@ CSTF2:
   au_rich_element_default_bg: 3.37e-05
   cug_repeat_custom_bg: 9.6e-07
   cug_repeat_default_bg: 3.3e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -702,8 +668,6 @@ DAZAP1:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -743,8 +707,6 @@ DDX19B:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -784,8 +746,6 @@ DDX58:
   au_rich_element_default_bg: 5.0e-08
   cug_repeat_custom_bg: 0.00083974
   cug_repeat_default_bg: 0.00049531
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.45411101
   dna_version_default_bg: 1.00800631
   empty_seq_custom_bg: 0.0
@@ -825,8 +785,6 @@ DHX58:
   au_rich_element_default_bg: 1.35e-06
   cug_repeat_custom_bg: 0.01575519
   cug_repeat_default_bg: 0.00947868
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.42405569
   dna_version_default_bg: 0.32261633
   empty_seq_custom_bg: 0.0
@@ -866,8 +824,6 @@ DHX9:
   au_rich_element_default_bg: 1.35e-06
   cug_repeat_custom_bg: 0.01575519
   cug_repeat_default_bg: 0.00947868
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.42405569
   dna_version_default_bg: 0.32261633
   empty_seq_custom_bg: 0.0
@@ -907,8 +863,6 @@ EIF4A3:
   au_rich_element_default_bg: 7.37700288
   cug_repeat_custom_bg: 0.00083974
   cug_repeat_default_bg: 0.00049531
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00022763
   dna_version_default_bg: 0.00023376
   empty_seq_custom_bg: 0.0
@@ -948,8 +902,6 @@ EIF4B:
   au_rich_element_default_bg: 0.01204802
   cug_repeat_custom_bg: 0.01230352
   cug_repeat_default_bg: 0.00692183
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.03185321
   dna_version_default_bg: 0.79492317
   empty_seq_custom_bg: 0.0
@@ -989,8 +941,6 @@ ELAVL1:
   au_rich_element_default_bg: 2.04448
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.842e-05
   dna_version_default_bg: 2.225e-05
   empty_seq_custom_bg: 0.0
@@ -1030,8 +980,6 @@ ELAVL2:
   au_rich_element_default_bg: 3.16054528
   cug_repeat_custom_bg: 2.7e-07
   cug_repeat_default_bg: 1.2e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -1071,8 +1019,6 @@ ELAVL3:
   au_rich_element_default_bg: 2.87834152
   cug_repeat_custom_bg: 5.43e-06
   cug_repeat_default_bg: 2.95e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.74e-06
   dna_version_default_bg: 2.23e-06
   empty_seq_custom_bg: 0.0
@@ -1112,8 +1058,6 @@ ELAVL4:
   au_rich_element_default_bg: 0.1041977
   cug_repeat_custom_bg: 9.5e-07
   cug_repeat_default_bg: 3.3e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -1153,8 +1097,6 @@ ENOX1:
   au_rich_element_default_bg: 0.08486808
   cug_repeat_custom_bg: 0.10311235
   cug_repeat_default_bg: 0.04906993
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.53565778
   dna_version_default_bg: 1.50640324
   empty_seq_custom_bg: 0.0
@@ -1194,8 +1136,6 @@ ERI1:
   au_rich_element_default_bg: 0.02635784
   cug_repeat_custom_bg: 0.0013591
   cug_repeat_default_bg: 0.00064142
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00036971
   dna_version_default_bg: 0.00038995
   empty_seq_custom_bg: 0.0
@@ -1235,8 +1175,6 @@ ESRP1:
   au_rich_element_default_bg: 0.00678199
   cug_repeat_custom_bg: 0.00028546
   cug_repeat_default_bg: 0.00016837
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.60733143
   dna_version_default_bg: 0.75593304
   empty_seq_custom_bg: 0.0
@@ -1276,8 +1214,6 @@ ESRP2:
   au_rich_element_default_bg: 0.00464378
   cug_repeat_custom_bg: 0.16344272
   cug_repeat_default_bg: 0.11503
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.03480514
   dna_version_default_bg: 0.03387905
   empty_seq_custom_bg: 0.0
@@ -1317,8 +1253,6 @@ F2:
   au_rich_element_default_bg: 0.00222501
   cug_repeat_custom_bg: 0.17533041
   cug_repeat_default_bg: 0.10920332
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.18921344
   dna_version_default_bg: 0.17470299
   empty_seq_custom_bg: 0.0
@@ -1358,8 +1292,6 @@ FMR1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -1399,8 +1331,6 @@ FUS:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -1440,8 +1370,6 @@ FXR1:
   au_rich_element_default_bg: 0.00814824
   cug_repeat_custom_bg: 0.02745637
   cug_repeat_default_bg: 0.01090794
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.054909
   dna_version_default_bg: 0.04675231
   empty_seq_custom_bg: 0.0
@@ -1481,8 +1409,6 @@ FXR2:
   au_rich_element_default_bg: 0.00088778
   cug_repeat_custom_bg: 0.00504627
   cug_repeat_default_bg: 0.00308661
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0584151
   dna_version_default_bg: 0.04620688
   empty_seq_custom_bg: 0.0
@@ -1522,8 +1448,6 @@ G3BP1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -1563,8 +1487,6 @@ G3BP2:
   au_rich_element_default_bg: 0.3380924
   cug_repeat_custom_bg: 0.01869606
   cug_repeat_default_bg: 0.00884421
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.55188358
   dna_version_default_bg: 0.40925555
   empty_seq_custom_bg: 0.0
@@ -1604,8 +1526,6 @@ GRSF1:
   au_rich_element_default_bg: 2.46e-06
   cug_repeat_custom_bg: 0.00094722
   cug_repeat_default_bg: 0.00069725
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00100229
   dna_version_default_bg: 0.00110813
   empty_seq_custom_bg: 0.0
@@ -1645,8 +1565,6 @@ HNRNPA0:
   au_rich_element_default_bg: 1.96965208
   cug_repeat_custom_bg: 8.31e-06
   cug_repeat_default_bg: 4.9e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.01502673
   dna_version_default_bg: 0.01330012
   empty_seq_custom_bg: 0.0
@@ -1686,8 +1604,6 @@ HNRNPA1:
   au_rich_element_default_bg: 1.2e-07
   cug_repeat_custom_bg: 2.0e-08
   cug_repeat_default_bg: 1.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -1727,8 +1643,6 @@ HNRNPA1L2:
   au_rich_element_default_bg: 0.16818354
   cug_repeat_custom_bg: 0.00461337
   cug_repeat_default_bg: 0.00256159
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.06411182
   dna_version_default_bg: 0.04569766
   empty_seq_custom_bg: 0.0
@@ -1768,8 +1682,6 @@ HNRNPA2B1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 3.0e-07
   cug_repeat_default_bg: 9.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.33e-05
   dna_version_default_bg: 8.68e-06
   empty_seq_custom_bg: 0.0
@@ -1809,8 +1721,6 @@ HNRNPA3:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 3.0e-07
   cug_repeat_default_bg: 9.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.33e-05
   dna_version_default_bg: 8.68e-06
   empty_seq_custom_bg: 0.0
@@ -1850,8 +1760,6 @@ HNRNPAB:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.9e-07
   dna_version_default_bg: 1.4e-07
   empty_seq_custom_bg: 0.0
@@ -1891,8 +1799,6 @@ HNRNPC:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.00110956
   cug_repeat_default_bg: 0.00052575
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.798e-05
   dna_version_default_bg: 1.401e-05
   empty_seq_custom_bg: 0.0
@@ -1932,8 +1838,6 @@ HNRNPCL1:
   au_rich_element_default_bg: 5.98656741
   cug_repeat_custom_bg: 0.00101503
   cug_repeat_default_bg: 0.00048138
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00093046
   dna_version_default_bg: 0.00098706
   empty_seq_custom_bg: 0.0
@@ -1973,8 +1877,6 @@ HNRNPD:
   au_rich_element_default_bg: 2.86130811
   cug_repeat_custom_bg: 5.0e-08
   cug_repeat_default_bg: 2.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00568695
   dna_version_default_bg: 0.00579601
   empty_seq_custom_bg: 0.0
@@ -2014,8 +1916,6 @@ HNRNPDL:
   au_rich_element_default_bg: 4.0e-08
   cug_repeat_custom_bg: 5.0e-08
   cug_repeat_default_bg: 3.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.75e-06
   dna_version_default_bg: 2.23e-06
   empty_seq_custom_bg: 0.0
@@ -2055,8 +1955,6 @@ HNRNPF:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 2.0e-08
   cug_repeat_default_bg: 1.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.0e-08
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -2096,8 +1994,6 @@ HNRNPH1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 2.0e-07
   cug_repeat_default_bg: 9.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.3e-07
   dna_version_default_bg: 9.0e-08
   empty_seq_custom_bg: 0.0
@@ -2137,8 +2033,6 @@ HNRNPH2:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 2.0e-07
   cug_repeat_default_bg: 9.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.3e-07
   dna_version_default_bg: 9.0e-08
   empty_seq_custom_bg: 0.0
@@ -2178,8 +2072,6 @@ HNRNPH3:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 2.0e-07
   cug_repeat_default_bg: 9.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.3e-07
   dna_version_default_bg: 9.0e-08
   empty_seq_custom_bg: 0.0
@@ -2219,8 +2111,6 @@ HNRNPK:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 1.0e-08
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -2260,8 +2150,6 @@ HNRNPL:
   au_rich_element_default_bg: 1.0e-08
   cug_repeat_custom_bg: 3.0e-08
   cug_repeat_default_bg: 2.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 8.6e-07
   dna_version_default_bg: 5.9e-07
   empty_seq_custom_bg: 0.0
@@ -2301,8 +2189,6 @@ HNRNPLL:
   au_rich_element_default_bg: 1.0e-08
   cug_repeat_custom_bg: 3.0e-08
   cug_repeat_default_bg: 2.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 8.6e-07
   dna_version_default_bg: 5.9e-07
   empty_seq_custom_bg: 0.0
@@ -2342,8 +2228,6 @@ HNRNPM:
   au_rich_element_default_bg: 7.67e-06
   cug_repeat_custom_bg: 1.086e-05
   cug_repeat_default_bg: 5.14e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.07226603
   dna_version_default_bg: 0.05154609
   empty_seq_custom_bg: 0.0
@@ -2383,8 +2267,6 @@ HNRNPU:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -2424,8 +2306,6 @@ IFIH1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.00265851
   cug_repeat_default_bg: 0.00115653
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 6.0e-08
   dna_version_default_bg: 6.0e-08
   empty_seq_custom_bg: 0.0
@@ -2465,8 +2345,6 @@ IGF2BP1:
   au_rich_element_default_bg: 1.39e-05
   cug_repeat_custom_bg: 0.00142102
   cug_repeat_default_bg: 0.00061807
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.22352514
   dna_version_default_bg: 1.21315039
   empty_seq_custom_bg: 0.0
@@ -2506,8 +2384,6 @@ IGF2BP2:
   au_rich_element_default_bg: 0.14387734
   cug_repeat_custom_bg: 0.00080327
   cug_repeat_default_bg: 0.00047666
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 3.51811516
   dna_version_default_bg: 3.35115834
   empty_seq_custom_bg: 0.0
@@ -2547,8 +2423,6 @@ IGF2BP3:
   au_rich_element_default_bg: 3.53121098
   cug_repeat_custom_bg: 0.00539419
   cug_repeat_default_bg: 0.00375648
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.84035063
   dna_version_default_bg: 2.77187639
   empty_seq_custom_bg: 0.0
@@ -2588,8 +2462,6 @@ IGHMBP2:
   au_rich_element_default_bg: 1.529e-05
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 7.5e-07
   dna_version_default_bg: 6.4e-07
   empty_seq_custom_bg: 0.0
@@ -2629,8 +2501,6 @@ KHDRBS1:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -2670,8 +2540,6 @@ KHDRBS2:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -2711,8 +2579,6 @@ KHDRBS3:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -2752,8 +2618,6 @@ KHSRP:
   au_rich_element_default_bg: 3.02169006
   cug_repeat_custom_bg: 1.0e-08
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -2793,8 +2657,6 @@ LIN28A:
   au_rich_element_default_bg: 0.00026419
   cug_repeat_custom_bg: 0.00090616
   cug_repeat_default_bg: 0.00064137
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -2834,8 +2696,6 @@ MATR3:
   au_rich_element_default_bg: 1.65912837
   cug_repeat_custom_bg: 0.1777315
   cug_repeat_default_bg: 0.08499926
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.33261568
   dna_version_default_bg: 0.35078969
   empty_seq_custom_bg: 0.0
@@ -2875,8 +2735,6 @@ MBNL1:
   au_rich_element_default_bg: 3.0e-08
   cug_repeat_custom_bg: 0.08131945
   cug_repeat_default_bg: 0.02985614
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00041204
   dna_version_default_bg: 0.00022481
   empty_seq_custom_bg: 0.0
@@ -2916,8 +2774,6 @@ MSI1:
   au_rich_element_default_bg: 1.40633882
   cug_repeat_custom_bg: 0.11912434
   cug_repeat_default_bg: 0.05695821
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.04441509
   dna_version_default_bg: 0.04281543
   empty_seq_custom_bg: 0.0
@@ -2957,8 +2813,6 @@ NELFE:
   au_rich_element_default_bg: 2.98e-06
   cug_repeat_custom_bg: 1.356e-05
   cug_repeat_default_bg: 5.9e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 7.0e-08
   dna_version_default_bg: 4.0e-08
   empty_seq_custom_bg: 0.0
@@ -2998,8 +2852,6 @@ NONO:
   au_rich_element_default_bg: 1.0e-08
   cug_repeat_custom_bg: 3.0e-08
   cug_repeat_default_bg: 2.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.4e-06
   dna_version_default_bg: 1.14e-06
   empty_seq_custom_bg: 0.0
@@ -3039,8 +2891,6 @@ NOVA1:
   au_rich_element_default_bg: 0.20606218
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.87213485
   dna_version_default_bg: 1.83949578
   empty_seq_custom_bg: 0.0
@@ -3080,8 +2930,6 @@ NOVA2:
   au_rich_element_default_bg: 6.0e-08
   cug_repeat_custom_bg: 2.9e-07
   cug_repeat_default_bg: 9.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 6.0e-08
   dna_version_default_bg: 6.0e-08
   empty_seq_custom_bg: 0.0
@@ -3121,8 +2969,6 @@ NUDT21:
   au_rich_element_default_bg: 0.72247089
   cug_repeat_custom_bg: 0.01279558
   cug_repeat_default_bg: 0.0094366
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.29091434
   dna_version_default_bg: 0.31925266
   empty_seq_custom_bg: 0.0
@@ -3162,8 +3008,6 @@ NXF1:
   au_rich_element_default_bg: 0.00013568
   cug_repeat_custom_bg: 0.02811682
   cug_repeat_default_bg: 0.01662231
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.01509844
   dna_version_default_bg: 0.01339691
   empty_seq_custom_bg: 0.0
@@ -3203,8 +3047,6 @@ OAS1:
   au_rich_element_default_bg: 0.00694546
   cug_repeat_custom_bg: 0.00028271
   cug_repeat_default_bg: 0.00016676
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.45403857
   dna_version_default_bg: 1.00790952
   empty_seq_custom_bg: 0.0
@@ -3244,8 +3086,6 @@ PABPC1:
   au_rich_element_default_bg: 1.529e-05
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 7.5e-07
   dna_version_default_bg: 6.4e-07
   empty_seq_custom_bg: 0.0
@@ -3285,8 +3125,6 @@ PABPC3:
   au_rich_element_default_bg: 0.00237571
   cug_repeat_custom_bg: 1.858e-05
   cug_repeat_default_bg: 1.08e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.02152039
   dna_version_default_bg: 0.01530459
   empty_seq_custom_bg: 0.0
@@ -3326,8 +3164,6 @@ PABPC4:
   au_rich_element_default_bg: 4.912e-05
   cug_repeat_custom_bg: 1.734e-05
   cug_repeat_default_bg: 8.19e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.005397
   dna_version_default_bg: 0.00395381
   empty_seq_custom_bg: 0.0
@@ -3367,8 +3203,6 @@ PABPC5:
   au_rich_element_default_bg: 0.06942466
   cug_repeat_custom_bg: 0.00130547
   cug_repeat_default_bg: 0.0009131
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.03468151
   dna_version_default_bg: 0.02504317
   empty_seq_custom_bg: 0.0
@@ -3408,8 +3242,6 @@ PABPN1:
   au_rich_element_default_bg: 9.63e-05
   cug_repeat_custom_bg: 6.881e-05
   cug_repeat_default_bg: 4.867e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00035743
   dna_version_default_bg: 0.00031827
   empty_seq_custom_bg: 0.0
@@ -3449,8 +3281,6 @@ PCBP1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 9.6e-07
   cug_repeat_default_bg: 3.3e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -3490,8 +3320,6 @@ PCBP2:
   au_rich_element_default_bg: 2.23e-06
   cug_repeat_custom_bg: 8.14e-06
   cug_repeat_default_bg: 2.95e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 7.0e-08
   dna_version_default_bg: 4.0e-08
   empty_seq_custom_bg: 0.0
@@ -3531,8 +3359,6 @@ PHAX:
   au_rich_element_default_bg: 0.11073479
   cug_repeat_custom_bg: 0.00539419
   cug_repeat_default_bg: 0.00375648
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0967634
   dna_version_default_bg: 0.08933912
   empty_seq_custom_bg: 0.0
@@ -3572,8 +3398,6 @@ PIWIL1:
   au_rich_element_default_bg: 0.17667202
   cug_repeat_custom_bg: 3.93070605
   cug_repeat_default_bg: 3.46505497
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.84035063
   dna_version_default_bg: 2.77187639
   empty_seq_custom_bg: 0.0
@@ -3613,8 +3437,6 @@ PPIE:
   au_rich_element_default_bg: 7.37700288
   cug_repeat_custom_bg: 0.00083974
   cug_repeat_default_bg: 0.00049531
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00022763
   dna_version_default_bg: 0.00023376
   empty_seq_custom_bg: 0.0
@@ -3654,8 +3476,6 @@ PPRC1:
   au_rich_element_default_bg: 1.294e-05
   cug_repeat_custom_bg: 2.50650285
   cug_repeat_default_bg: 1.56217434
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.42798523
   dna_version_default_bg: 0.33019343
   empty_seq_custom_bg: 0.0
@@ -3695,8 +3515,6 @@ PTBP1:
   au_rich_element_default_bg: 0.00336713
   cug_repeat_custom_bg: 9.6e-07
   cug_repeat_default_bg: 3.3e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -3736,8 +3554,6 @@ PTBP2:
   au_rich_element_default_bg: 0.01688548
   cug_repeat_custom_bg: 0.00083974
   cug_repeat_default_bg: 0.00049531
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00022763
   dna_version_default_bg: 0.00023376
   empty_seq_custom_bg: 0.0
@@ -3777,8 +3593,6 @@ PUM1:
   au_rich_element_default_bg: 0.00113379
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -3818,8 +3632,6 @@ PUM2:
   au_rich_element_default_bg: 0.00153365
   cug_repeat_custom_bg: 0.00351709
   cug_repeat_default_bg: 0.00199225
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00236284
   dna_version_default_bg: 0.00200705
   empty_seq_custom_bg: 0.0
@@ -3859,8 +3671,6 @@ QKI:
   au_rich_element_default_bg: 4.472e-05
   cug_repeat_custom_bg: 1.0e-08
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.842e-05
   dna_version_default_bg: 2.225e-05
   empty_seq_custom_bg: 0.0
@@ -3900,8 +3710,6 @@ RALY:
   au_rich_element_default_bg: 6.35063342
   cug_repeat_custom_bg: 0.00385846
   cug_repeat_default_bg: 0.00190985
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00081508
   dna_version_default_bg: 0.00076731
   empty_seq_custom_bg: 0.0
@@ -3941,8 +3749,6 @@ RBFOX1:
   au_rich_element_default_bg: 0.00103119
   cug_repeat_custom_bg: 0.08989296
   cug_repeat_default_bg: 0.06395798
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 3.9786927
   dna_version_default_bg: 3.96996201
   empty_seq_custom_bg: 0.0
@@ -3982,8 +3788,6 @@ RBFOX2:
   au_rich_element_default_bg: 0.00694611
   cug_repeat_custom_bg: 0.02839396
   cug_repeat_default_bg: 0.01678577
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 3.99897043
   dna_version_default_bg: 3.99883632
   empty_seq_custom_bg: 0.0
@@ -4023,8 +3827,6 @@ RBM14:
   au_rich_element_default_bg: 1.6e-07
   cug_repeat_custom_bg: 0.37209616
   cug_repeat_default_bg: 0.1823034
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.03967496
   dna_version_default_bg: 0.0298728
   empty_seq_custom_bg: 0.0
@@ -4064,8 +3866,6 @@ RBM24:
   au_rich_element_default_bg: 0.00863795
   cug_repeat_custom_bg: 0.0015262
   cug_repeat_default_bg: 0.00073657
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.14205471
   dna_version_default_bg: 0.10175789
   empty_seq_custom_bg: 0.0
@@ -4105,8 +3905,6 @@ RBM25:
   au_rich_element_default_bg: 1.48e-05
   cug_repeat_custom_bg: 4.392e-05
   cug_repeat_default_bg: 2.487e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00234559
   dna_version_default_bg: 0.00199239
   empty_seq_custom_bg: 0.0
@@ -4146,8 +3944,6 @@ RBM28:
   au_rich_element_default_bg: 0.1165692
   cug_repeat_custom_bg: 0.06705513
   cug_repeat_default_bg: 0.03191239
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.03626677
   dna_version_default_bg: 0.0378404
   empty_seq_custom_bg: 0.0
@@ -4187,8 +3983,6 @@ RBM4:
   au_rich_element_default_bg: 0.00778588
   cug_repeat_custom_bg: 0.01702214
   cug_repeat_default_bg: 0.00772876
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00852288
   dna_version_default_bg: 0.00579657
   empty_seq_custom_bg: 0.0
@@ -4228,8 +4022,6 @@ RBM41:
   au_rich_element_default_bg: 2.27416954
   cug_repeat_custom_bg: 0.03138475
   cug_repeat_default_bg: 0.01485883
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.5993674
   dna_version_default_bg: 2.61968952
   empty_seq_custom_bg: 0.0
@@ -4269,8 +4061,6 @@ RBM42:
   au_rich_element_default_bg: 0.27540188
   cug_repeat_custom_bg: 0.02146541
   cug_repeat_default_bg: 0.01521071
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00224197
   dna_version_default_bg: 0.00232044
   empty_seq_custom_bg: 0.0
@@ -4310,8 +4100,6 @@ RBM46:
   au_rich_element_default_bg: 0.96075598
   cug_repeat_custom_bg: 0.06315008
   cug_repeat_default_bg: 0.03004809
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.13678496
   dna_version_default_bg: 1.18401079
   empty_seq_custom_bg: 0.0
@@ -4351,8 +4139,6 @@ RBM5:
   au_rich_element_default_bg: 0.00396059
   cug_repeat_custom_bg: 0.00017092
   cug_repeat_default_bg: 7.743e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 5.8e-07
   dna_version_default_bg: 5.9e-07
   empty_seq_custom_bg: 0.0
@@ -4392,8 +4178,6 @@ RBM6:
   au_rich_element_default_bg: 0.0987585
   cug_repeat_custom_bg: 0.02599409
   cug_repeat_default_bg: 0.01230289
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.44873751
   dna_version_default_bg: 2.47564355
   empty_seq_custom_bg: 0.0
@@ -4433,8 +4217,6 @@ RBM8A:
   au_rich_element_default_bg: 0.00018091
   cug_repeat_custom_bg: 1.37911077
   cug_repeat_default_bg: 0.74633802
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.08526261
   dna_version_default_bg: 0.94291772
   empty_seq_custom_bg: 0.0
@@ -4474,8 +4256,6 @@ RBMS1:
   au_rich_element_default_bg: 0.8429519
   cug_repeat_custom_bg: 0.00229021
   cug_repeat_default_bg: 0.00109139
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.09603547
   dna_version_default_bg: 0.08838963
   empty_seq_custom_bg: 0.0
@@ -4515,8 +4295,6 @@ RBMS3:
   au_rich_element_default_bg: 3.3782955
   cug_repeat_custom_bg: 0.00402293
   cug_repeat_default_bg: 0.00192736
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.65950005
   dna_version_default_bg: 0.5192569
   empty_seq_custom_bg: 0.0
@@ -4556,8 +4334,6 @@ RBMX:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00059113
   dna_version_default_bg: 0.00057835
   empty_seq_custom_bg: 0.0
@@ -4597,8 +4373,6 @@ RBMY1A1:
   au_rich_element_default_bg: 5.18e-06
   cug_repeat_custom_bg: 3.3e-07
   cug_repeat_default_bg: 1.8e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00073207
   dna_version_default_bg: 0.0005182
   empty_seq_custom_bg: 0.0
@@ -4638,8 +4412,6 @@ RC3H1:
   au_rich_element_default_bg: 3.01e-06
   cug_repeat_custom_bg: 2.653e-05
   cug_repeat_default_bg: 1.154e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.9e-07
   dna_version_default_bg: 1.4e-07
   empty_seq_custom_bg: 0.0
@@ -4679,8 +4451,6 @@ RNASEL:
   au_rich_element_default_bg: 0.04698536
   cug_repeat_custom_bg: 5.343e-05
   cug_repeat_default_bg: 3.72e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00407596
   dna_version_default_bg: 0.00375648
   empty_seq_custom_bg: 0.0
@@ -4720,8 +4490,6 @@ SAMD4A:
   au_rich_element_default_bg: 3.36e-06
   cug_repeat_custom_bg: 2.52393073
   cug_repeat_default_bg: 1.78617581
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.93679045
   dna_version_default_bg: 1.59678692
   empty_seq_custom_bg: 0.0
@@ -4761,8 +4529,6 @@ SART3:
   au_rich_element_default_bg: 0.00078594
   cug_repeat_custom_bg: 4.519e-05
   cug_repeat_default_bg: 3.05e-05
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.01152835
   dna_version_default_bg: 0.00818766
   empty_seq_custom_bg: 0.0
@@ -4802,8 +4568,6 @@ SF1:
   au_rich_element_default_bg: 0.00029208
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 5.85e-06
   dna_version_default_bg: 5.73e-06
   empty_seq_custom_bg: 0.0
@@ -4843,8 +4607,6 @@ SFPQ:
   au_rich_element_default_bg: 3.0e-08
   cug_repeat_custom_bg: 2.983e-05
   cug_repeat_default_bg: 8.68e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.9e-07
   dna_version_default_bg: 1.4e-07
   empty_seq_custom_bg: 0.0
@@ -4884,8 +4646,6 @@ SNRNP70:
   au_rich_element_default_bg: 0.03319557
   cug_repeat_custom_bg: 0.00332012
   cug_repeat_default_bg: 0.00156726
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.38708694
   dna_version_default_bg: 0.40793693
   empty_seq_custom_bg: 0.0
@@ -4925,8 +4685,6 @@ SNRPA:
   au_rich_element_default_bg: 5.94e-06
   cug_repeat_custom_bg: 3.69e-06
   cug_repeat_default_bg: 1.6e-06
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0003876
   dna_version_default_bg: 0.00037729
   empty_seq_custom_bg: 0.0
@@ -4966,8 +4724,6 @@ SNRPB2:
   au_rich_element_default_bg: 4.45e-06
   cug_repeat_custom_bg: 0.00082162
   cug_repeat_default_bg: 0.00029778
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 6.78e-06
   dna_version_default_bg: 4.42e-06
   empty_seq_custom_bg: 0.0
@@ -5007,8 +4763,6 @@ SRP14:
   au_rich_element_default_bg: 2.0e-07
   cug_repeat_custom_bg: 0.01702214
   cug_repeat_default_bg: 0.00772876
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00568694
   dna_version_default_bg: 0.005796
   empty_seq_custom_bg: 0.0
@@ -5048,8 +4802,6 @@ SRP19:
   au_rich_element_default_bg: 4.343e-05
   cug_repeat_custom_bg: 0.74988799
   cug_repeat_default_bg: 0.3990234
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0093363
   dna_version_default_bg: 0.00689701
   empty_seq_custom_bg: 0.0
@@ -5089,8 +4841,6 @@ SRP54:
   au_rich_element_default_bg: 4.343e-05
   cug_repeat_custom_bg: 0.74988799
   cug_repeat_default_bg: 0.3990234
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0093363
   dna_version_default_bg: 0.00689701
   empty_seq_custom_bg: 0.0
@@ -5130,8 +4880,6 @@ SRP68:
   au_rich_element_default_bg: 0.00861251
   cug_repeat_custom_bg: 4.99583764
   cug_repeat_default_bg: 4.99435495
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.2954904
   dna_version_default_bg: 0.32261633
   empty_seq_custom_bg: 0.0
@@ -5171,8 +4919,6 @@ SRSF1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 1.0e-08
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -5212,8 +4958,6 @@ SRSF10:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.9e-07
   dna_version_default_bg: 1.4e-07
   empty_seq_custom_bg: 0.0
@@ -5253,8 +4997,6 @@ SRSF11:
   au_rich_element_default_bg: 0.00019945
   cug_repeat_custom_bg: 0.00027997
   cug_repeat_default_bg: 0.00016514
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00767135
   dna_version_default_bg: 0.0101058
   empty_seq_custom_bg: 0.0
@@ -5294,8 +5036,6 @@ SRSF2:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 1.0e-08
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -5335,8 +5075,6 @@ SRSF3:
   au_rich_element_default_bg: 0.01515178
   cug_repeat_custom_bg: 0.00055592
   cug_repeat_default_bg: 0.00030073
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00041086
   dna_version_default_bg: 0.00022336
   empty_seq_custom_bg: 0.0
@@ -5376,8 +5114,6 @@ SRSF4:
   au_rich_element_default_bg: 5.7e-07
   cug_repeat_custom_bg: 1.68e-06
   cug_repeat_default_bg: 7.6e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 5.725e-05
   dna_version_default_bg: 5.807e-05
   empty_seq_custom_bg: 0.0
@@ -5417,8 +5153,6 @@ SRSF5:
   au_rich_element_default_bg: 5.7e-07
   cug_repeat_custom_bg: 1.68e-06
   cug_repeat_default_bg: 7.6e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 5.725e-05
   dna_version_default_bg: 5.807e-05
   empty_seq_custom_bg: 0.0
@@ -5458,8 +5192,6 @@ SRSF6:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 9.5e-07
   cug_repeat_default_bg: 3.3e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -5499,8 +5231,6 @@ SRSF7:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 1.0e-08
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -5540,8 +5270,6 @@ SRSF9:
   au_rich_element_default_bg: 0.02610134
   cug_repeat_custom_bg: 0.00136976
   cug_repeat_default_bg: 0.00064645
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.03653095
   dna_version_default_bg: 0.03875576
   empty_seq_custom_bg: 0.0
@@ -5581,8 +5309,6 @@ SSB:
   au_rich_element_default_bg: 0.00977518
   cug_repeat_custom_bg: 1.20592957
   cug_repeat_default_bg: 0.65414669
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 5.725e-05
   dna_version_default_bg: 5.807e-05
   empty_seq_custom_bg: 0.0
@@ -5622,8 +5348,6 @@ SUPV3L1:
   au_rich_element_default_bg: 5.0e-08
   cug_repeat_custom_bg: 0.0283967
   cug_repeat_default_bg: 0.01678739
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00044788
   dna_version_default_bg: 0.00036324
   empty_seq_custom_bg: 0.0
@@ -5663,8 +5387,6 @@ SYNCRIP:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -5704,8 +5426,6 @@ TARDBP:
   au_rich_element_default_bg: 3.4e-07
   cug_repeat_custom_bg: 3.0e-08
   cug_repeat_default_bg: 1.0e-08
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 7.105e-05
   dna_version_default_bg: 5.562e-05
   empty_seq_custom_bg: 0.0
@@ -5745,8 +5465,6 @@ TIA1:
   au_rich_element_default_bg: 3.16054528
   cug_repeat_custom_bg: 2.7e-07
   cug_repeat_default_bg: 1.2e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -5786,8 +5504,6 @@ TIAL1:
   au_rich_element_default_bg: 0.25543547
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -5827,8 +5543,6 @@ TRA2A:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 4.2e-07
   dna_version_default_bg: 3.3e-07
   empty_seq_custom_bg: 0.0
@@ -5868,8 +5582,6 @@ TRA2B:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 0.0
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0
   dna_version_default_bg: 0.0
   empty_seq_custom_bg: 0.0
@@ -5909,8 +5621,6 @@ TUT1:
   au_rich_element_default_bg: 2.95038341
   cug_repeat_custom_bg: 2.02834927
   cug_repeat_default_bg: 1.62785096
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.01028479
   dna_version_default_bg: 0.77650011
   empty_seq_custom_bg: 0.0
@@ -5950,8 +5660,6 @@ U2AF2:
   au_rich_element_default_bg: 7.93561263
   cug_repeat_custom_bg: 0.00093025
   cug_repeat_default_bg: 0.00065274
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 1.443e-05
   dna_version_default_bg: 1.275e-05
   empty_seq_custom_bg: 0.0
@@ -5991,8 +5699,6 @@ XPO5:
   au_rich_element_default_bg: 2.38392537
   cug_repeat_custom_bg: 0.17889098
   cug_repeat_default_bg: 0.11182869
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.09652601
   dna_version_default_bg: 0.08912034
   empty_seq_custom_bg: 0.0
@@ -6032,8 +5738,6 @@ YBX1:
   au_rich_element_default_bg: 0.0
   cug_repeat_custom_bg: 1.0e-08
   cug_repeat_default_bg: 0.0
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 2.8e-07
   dna_version_default_bg: 2.2e-07
   empty_seq_custom_bg: 0.0
@@ -6073,8 +5777,6 @@ YBX2:
   au_rich_element_default_bg: 0.00306144
   cug_repeat_custom_bg: 0.02682879
   cug_repeat_default_bg: 0.01901737
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.0310981
   dna_version_default_bg: 0.02223428
   empty_seq_custom_bg: 0.0
@@ -6114,8 +5816,6 @@ YTHDC1:
   au_rich_element_default_bg: 0.00016708
   cug_repeat_custom_bg: 0.02839396
   cug_repeat_default_bg: 0.01678577
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 3.99931357
   dna_version_default_bg: 3.99883632
   empty_seq_custom_bg: 0.0
@@ -6155,8 +5855,6 @@ ZC3H10:
   au_rich_element_default_bg: 5.495e-05
   cug_repeat_custom_bg: 2.02131033
   cug_repeat_default_bg: 1.30043195
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.16790729
   dna_version_default_bg: 0.17423588
   empty_seq_custom_bg: 0.0
@@ -6196,8 +5894,6 @@ ZCRB1:
   au_rich_element_default_bg: 3.5238775
   cug_repeat_custom_bg: 0.00078798
   cug_repeat_default_bg: 0.00044592
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.04490689
   dna_version_default_bg: 0.03822425
   empty_seq_custom_bg: 0.0
@@ -6237,8 +5933,6 @@ ZFP36:
   au_rich_element_default_bg: 5.80730123
   cug_repeat_custom_bg: 1.71e-06
   cug_repeat_default_bg: 7.7e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 8.518e-05
   dna_version_default_bg: 5.807e-05
   empty_seq_custom_bg: 0.0
@@ -6278,8 +5972,6 @@ ZFP36L2:
   au_rich_element_default_bg: 5.80730123
   cug_repeat_custom_bg: 1.71e-06
   cug_repeat_default_bg: 7.7e-07
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 8.518e-05
   dna_version_default_bg: 5.807e-05
   empty_seq_custom_bg: 0.0
@@ -6319,8 +6011,6 @@ ZNF346:
   au_rich_element_default_bg: 0.00776318
   cug_repeat_custom_bg: 0.64014713
   cug_repeat_default_bg: 0.48306607
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.00322594
   dna_version_default_bg: 0.00353334
   empty_seq_custom_bg: 0.0
@@ -6360,8 +6050,6 @@ ZNF638:
   au_rich_element_default_bg: 1.5880183
   cug_repeat_custom_bg: 3.63446542
   cug_repeat_default_bg: 2.70044819
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 0.17429371
   dna_version_default_bg: 0.17827138
   empty_seq_custom_bg: 0.0
@@ -6401,8 +6089,6 @@ ZRANB2:
   au_rich_element_default_bg: 9.5e-07
   cug_repeat_custom_bg: 1.20593123
   cug_repeat_default_bg: 0.65414745
-  dirty_seq_custom_bg: 0.0
-  dirty_seq_default_bg: 0.0
   dna_version_custom_bg: 8.6e-07
   dna_version_default_bg: 5.9e-07
   empty_seq_custom_bg: 0.0

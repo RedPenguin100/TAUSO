@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.populate.populate_rbp import calculate_total_affinity_numba
@@ -12,7 +13,7 @@ def test_calculate_total_affinity_regression(data_regression):
     # 1. Load the real matrices
     rbp_map, pwm_db = load_attract_data()
 
-    # 2. Define 20 test sequences covering motifs, overlaps, repeats, and edge cases
+    # 2. Define 19 test sequences covering motifs, overlaps, repeats, and edge cases
     test_sequences = {
         # Overlapping & well-known biological motifs
         "fox_overlap": "UGCAUGCAUGCAUGCAUGCA",  # RBFOX overlapping motifs
@@ -37,7 +38,6 @@ def test_calculate_total_affinity_regression(data_regression):
         "short_seq": "AUG",  # Should trigger the 0.0 short circuit
         "empty_seq": "",  # Should trigger the 0.0 empty circuit
         "nan_seq": np.nan,  # Pandas missing data
-        "dirty_seq": "AUGNNNUGAXXXC",  # Unknown bases should be ignored/skipped
     }
 
     # Custom background probs to ensure that logic path is tested (e.g., A/T rich background)
@@ -81,3 +81,10 @@ def test_calculate_total_affinity_regression(data_regression):
     # On the first run, this generates the baseline YAML file.
     # On future runs, it compares against it.
     data_regression.check(results)
+
+
+def test_unknown_base_raises():
+    """A sequence with an unknown base (N/etc.) must fail loudly, not be silently scored."""
+    pwm = np.array([[0.25, 0.25, 0.25, 0.25]])
+    with pytest.raises(ValueError):
+        calculate_total_affinity_numba("AUGNNNUGA", pwm)

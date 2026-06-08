@@ -21,6 +21,12 @@ def _occupancy_from_log2_odds(score):
 
 @njit(fastmath=True)
 def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
+    """Return the total motif-occupancy affinity of one PWM over one sequence.
+
+    seq_indices: ints, one per nucleotide (A=0, C=1, G=2, U/T=3); -1 is not allowed.
+    pwm_matrix: (motif_len, 4) PPM, columns P(A),P(C),P(G),P(U), each row summing to ~1.
+    background_probs: null base frequencies [pA, pC, pG, pU].
+    """
     seq_len = len(seq_indices)
     motif_len = pwm_matrix.shape[0]
 
@@ -33,18 +39,9 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
 
     for i in range(seq_len - motif_len + 1):
         score = 0.0
-        valid_window = True
-
         for pos in range(motif_len):
-            base_idx = seq_indices[i + pos]
-            if base_idx == -1:
-                valid_window = False
-                break
-
-            score += weights[pos, base_idx]
-
-        if valid_window:
-            total_score += _occupancy_from_log2_odds(score)
+            score += weights[pos, seq_indices[i + pos]]
+        total_score += _occupancy_from_log2_odds(score)
 
     return total_score
 
@@ -73,6 +70,11 @@ def calculate_total_affinity_numba(sequence, pwm_matrix, background_probs=None, 
     # 4. Map string to integers (Pure Python is fine here before handing off to Numba)
     base_map = {"A": 0, "C": 1, "G": 2, "U": 3, "T": 3}
     seq_indices = np.array([base_map.get(base, -1) for base in seq_str.upper()], dtype=np.int8)
+
+    # Unknown bases are not allowed: the scorer needs the full sequence, so fail loudly.
+    if (seq_indices == -1).any():
+        unknown = sorted(set(seq_str.upper()) - {"A", "C", "G", "U", "T"})
+        raise ValueError(f"Unknown base(s) {unknown} in sequence {seq_str!r}; only A/C/G/U/T are allowed.")
 
     # 5. Execute the compiled loop
     # We enforce float64 to ensure math precision matches your original numpy logic perfectly
