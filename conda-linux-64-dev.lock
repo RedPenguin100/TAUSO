@@ -75,7 +75,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libxcrypt-4.4.36-hd590300_1.cond
 https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-haa7fec5_0.conda#7a3bff861a6583f1889021facefc08b1
 https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_1.conda#c01af13bdc553d1a8fbfff6e8db075f0
 https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-h853b02a_0.conda#d7d95fc8287ea7bf33e0e7116d2b95ec
-https://conda.anaconda.org/conda-forge/linux-64/uv-0.11.19-h26efc2c_0.conda#1109c2afdae2f3d06b40ab73f82d9b6f
+https://conda.anaconda.org/conda-forge/linux-64/uv-0.11.20-h26efc2c_0.conda#ab060fce1a93fdd5311f8541ab00a01b
 https://conda.anaconda.org/conda-forge/linux-64/wayland-1.25.0-hd6090a7_0.conda#996583ea9c796e5b915f7d7580b51ea6
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libsm-1.2.6-he73a12e_0.conda#1c74ff8c35dcadf952a16f752ca5aa49
 https://conda.anaconda.org/conda-forge/linux-64/xz-gpl-tools-5.8.3-ha02ee65_0.conda#8f5e2c6726c1339287a3c76a2c138ac7
@@ -141,7 +141,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libhwloc-2.13.0-default_he001693
 https://conda.anaconda.org/conda-forge/linux-64/liblapack-3.11.0-8_h47877c9_openblas.conda#809be8ba8712c77bc7d44c2d99390dc4
 https://conda.anaconda.org/conda-forge/linux-64/libxkbcommon-1.13.2-hca5e8e5_0.conda#dc8b067e22b414172bedd8e3f03f3c95
 https://conda.anaconda.org/conda-forge/linux-64/markupsafe-3.0.3-py311h3778330_1.conda#f9efdf9b0f3d0cc309d56af6edf2a6b0
-https://conda.anaconda.org/conda-forge/noarch/nest-asyncio-1.6.0-pyhd8ed1ab_1.conda#598fd7d4d0de2455fb74f56063969a97
+https://conda.anaconda.org/conda-forge/noarch/nest-asyncio2-1.7.2-pyhcf101f3_0.conda#fcd832bfd4749e9b246112b6894f97fc
 https://conda.anaconda.org/conda-forge/noarch/packaging-26.2-pyhc364b38_0.conda#4c06a92e74452cfa53623a81592e8934
 https://conda.anaconda.org/conda-forge/noarch/pandocfilters-1.5.0-pyhd8ed1ab_0.tar.bz2#457c2c8c08e54905d6954e79cb5b5db9
 https://conda.anaconda.org/conda-forge/noarch/parso-0.8.7-pyhcf101f3_0.conda#39894c952938276405a1bd30e4ce2caf
@@ -223,7 +223,7 @@ https://conda.anaconda.org/conda-forge/noarch/arrow-1.4.0-pyhcf101f3_0.conda#85c
 https://conda.anaconda.org/conda-forge/linux-64/at-spi2-core-2.40.3-h0630a04_0.tar.bz2#8cb2fc4cd6cc63f1369cfa318f581cc3
 https://conda.anaconda.org/conda-forge/noarch/beautifulsoup4-4.15.0-pyha770c72_0.conda#3b261da3fe9b4168738712832410b022
 https://conda.anaconda.org/conda-forge/noarch/bleach-with-css-6.4.0-hac0b51c_0.conda#5f710eab1f3c4e773c75686f5e8e6481
-https://conda.anaconda.org/bioconda/linux-64/bowtie-1.3.1-py311h5fe0eda_10.tar.bz2#041e045e0b79b6427363d1ba4a5af6dd
+https://conda.anaconda.org/bioconda/linux-64/bowtie-1.3.1-hb82490e_11.conda#007449bdcc7c6289936e03d8b8d67650
 https://conda.anaconda.org/conda-forge/linux-64/cupy-core-14.1.1-py311hb94af43_0.conda#3688c52239058965bdc5fe222e0c2d2e
 https://conda.anaconda.org/conda-forge/noarch/fqdn-1.5.1-pyhd8ed1ab_1.conda#d3549fd50d450b6d9e7dddff25dd2110
 https://conda.anaconda.org/conda-forge/noarch/ipython-9.14.1-pyh53cf698_0.conda#fbd58549b374103c1a80577f09a328ef
@@ -241,7 +241,7 @@ https://conda.anaconda.org/conda-forge/linux-64/at-spi2-atk-2.38.0-h0630a04_3.ta
 https://conda.anaconda.org/conda-forge/linux-64/cupy-14.1.1-py311he6f25ab_0.conda#13221baf2145fb6ef462aa88ce2a7e1b
 https://conda.anaconda.org/conda-forge/linux-64/epoxy-1.5.10-hb03c661_2.conda#057083b06ccf1c2778344b6dabace38b
 https://conda.anaconda.org/conda-forge/noarch/httpcore-1.0.9-pyh29332c3_0.conda#4f14640d58e2cc0aa0819d9d8ba125bb
-https://conda.anaconda.org/conda-forge/noarch/ipykernel-7.2.0-pyha191276_1.conda#8b267f517b81c13594ed68d646fd5dcb
+https://conda.anaconda.org/conda-forge/noarch/ipykernel-7.3.0-pyha191276_0.conda#2b47a10e4d98334f8171ff60aea05ff3
 https://conda.anaconda.org/conda-forge/noarch/isoduration-20.11.0-pyhd8ed1ab_1.conda#0b0154421989637d424ccf0f104be51a
 https://conda.anaconda.org/conda-forge/noarch/jsonschema-4.26.0-pyhcf101f3_0.conda#ada41c863af263cc4c5fcbaff7c3e4dc
 https://conda.anaconda.org/conda-forge/linux-64/librsvg-2.62.3-h4c96295_0.conda#492c8d9b1c564c2e948b6cb4ba0f8261
