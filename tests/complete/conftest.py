@@ -33,7 +33,6 @@ from tauso.data.data import get_data_dir
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
 from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
 from tauso.features.rbp.load_rbp import load_attract_data
-from tauso.features.rbp.pwm_helper import build_rbp_expression_matrix
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
@@ -57,15 +56,6 @@ def rbp_assets():
     """Loads ATTRACT RBP data returning (rbp_map, pwm_db)."""
     with Timer("Load ATTRACT RBP data"):
         return load_attract_data()
-
-
-@pytest.fixture(scope="session")
-def expression_matrix(base_data, rbp_assets):
-    """Builds the RBP expression matrix."""
-    with Timer("Build RBP Expression Matrix"):
-        _, pwm_db = rbp_assets
-        cell_lines = base_data[CELL_LINE_DEPMAP].dropna().unique().tolist()
-        return build_rbp_expression_matrix(cell_lines=cell_lines, pwm_db=pwm_db)
 
 
 FLANK_SIZES_PREMRNA = [20, 30, 40, 50, 60, 70]
