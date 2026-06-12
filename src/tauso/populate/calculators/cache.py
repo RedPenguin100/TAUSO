@@ -16,8 +16,6 @@ class AssetCache:
         # RBP
         self._rbp_map = None
         self._pwm_db = None
-        self._rbp_expr_matrix = None
-        self._cell_lines_depmap = None
 
         self._halflife_provider = None
         self._transcriptomes = None
@@ -34,8 +32,8 @@ class AssetCache:
 
         self.get_rbp_assets()
 
-        # Omitting gene_to_data_lean, get_rbp_expression_matrix
-        #          get_transcriptomes, get_gene_registry because they require more context
+        # Omitting gene_to_data_lean, get_transcriptomes, get_gene_registry
+        # because they require more context
 
     def get_genome(self):
         return self._genome
@@ -59,25 +57,6 @@ class AssetCache:
 
             self._rbp_map, self._pwm_db = load_attract_data()
         return self._rbp_map, self._pwm_db
-
-    def get_rbp_expression_matrix(self, cell_lines_depmap):  # TODO: think about this parameter
-        """Lazy loader for the RBP Expression Matrix."""
-        if self._rbp_expr_matrix is not None and self._cell_lines_depmap == cell_lines_depmap:
-            return self._rbp_expr_matrix
-
-        if cell_lines_depmap != self._cell_lines_depmap:
-            logger.warning(
-                "Cells %s differ from cached genes %s, regenerating cache.", cell_lines_depmap, self._genes_u
-            )
-
-        logger.info("Building RBP expression matrix (happens once)...")
-        from tauso.features.rbp.pwm_helper import build_rbp_expression_matrix
-
-        # Ensure the raw map and db are loaded first
-        _, pwm_db = self.get_rbp_assets()
-        self._rbp_expr_matrix = build_rbp_expression_matrix(cell_lines=cell_lines_depmap, pwm_db=pwm_db)
-
-        return self._rbp_expr_matrix
 
     def get_halflife_provider(self):
         """Lazy loader for the mRNA Half-Life Provider."""

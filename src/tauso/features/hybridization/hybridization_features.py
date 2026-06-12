@@ -134,12 +134,25 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
     return total_dH - (temp_k * (total_dS / 1000.0))
 
 
+def _sole_high_affinity_sugar(chemical_pattern, sugar):
+    """True iff the pattern is built only from this high-affinity ``sugar`` and DNA ('d'), so the
+    single-sugar affinity model applies. Anything else in the string -- a different modified sugar
+    (mixmer) or any other/unknown code -- makes it False. ``sugar`` must appear at least once.
+    """
+    return (
+        isinstance(chemical_pattern, str)
+        and sugar in chemical_pattern
+        and not (set(chemical_pattern) - {sugar, "d"})
+    )
+
+
 def get_cet_dna_rna_dg(antisense, chemical_pattern):
     """cEt affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the cEt
     increment, on the same RNA-target footing as the 2'-MOE MD terms (the increment is LNA-DNA/DNA,
-    used as a proxy; see calculate_cet_delta). NaN when the oligo carries no cEt or on length mismatch.
+    used as a proxy; see calculate_cet_delta). NaN unless the oligo is built only from cEt and DNA
+    (so mixmers and any other modified sugar are excluded), or on length mismatch.
     """
-    if not isinstance(chemical_pattern, str) or "C" not in chemical_pattern:
+    if not _sole_high_affinity_sugar(chemical_pattern, "C"):
         return float("nan")
     cet = calculate_cet_delta(antisense, chemical_pattern)
     return float("nan") if cet is None else get_dna_rna_dg(antisense) + cet
@@ -147,9 +160,10 @@ def get_cet_dna_rna_dg(antisense, chemical_pattern):
 
 def get_lna_dna_rna_dg(antisense, chemical_pattern):
     """LNA affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline plus the LNA
-    increment (see calculate_lna_delta). NaN when the oligo carries no LNA or on length mismatch.
+    increment (see calculate_lna_delta). NaN unless the oligo is built only from LNA and DNA (so
+    mixed-chemistry oligos are excluded), or on length mismatch.
     """
-    if not isinstance(chemical_pattern, str) or "L" not in chemical_pattern:
+    if not _sole_high_affinity_sugar(chemical_pattern, "L"):
         return float("nan")
     lna = calculate_lna_delta(antisense, chemical_pattern)
     return float("nan") if lna is None else get_dna_rna_dg(antisense) + lna
@@ -158,8 +172,9 @@ def get_lna_dna_rna_dg(antisense, chemical_pattern):
 def get_cet_wing_dg(antisense, chemical_pattern, region):
     """cEt wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
     wing plus the cEt increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
-    as hybr_cet_dna_rna_dg. NaN when the oligo carries no cEt."""
-    if not isinstance(chemical_pattern, str) or "C" not in chemical_pattern:
+    as hybr_cet_dna_rna_dg. NaN unless the oligo is built only from cEt and DNA (mixmers / any other
+    modified sugar excluded)."""
+    if not _sole_high_affinity_sugar(chemical_pattern, "C"):
         return float("nan")
     v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="C", region=region)
     return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
@@ -168,8 +183,9 @@ def get_cet_wing_dg(antisense, chemical_pattern, region):
 def get_lna_wing_dg(antisense, chemical_pattern, region):
     """LNA wing affinity re-referenced to the RNA target (kcal/mol): the DNA/RNA baseline over the
     wing plus the LNA increment over the same wing ('wing5'/'wing3'), on the same RNA-target footing
-    as hybr_lna_dna_rna_dg. NaN when the oligo carries no LNA."""
-    if not isinstance(chemical_pattern, str) or "L" not in chemical_pattern:
+    as hybr_lna_dna_rna_dg. NaN unless the oligo is built only from LNA and DNA (mixed-chemistry
+    oligos excluded)."""
+    if not _sole_high_affinity_sugar(chemical_pattern, "L"):
         return float("nan")
     v = calculate_3rd_gen_diff(antisense, chemical_pattern, LNA_DNA_WEIGHTS, letter="L", region=region)
     return float("nan") if v is None else get_dna_rna_dg_region(antisense, chemical_pattern, region) + v
