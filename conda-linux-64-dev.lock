@@ -31,7 +31,7 @@ https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.34.6-hb03c661_0.conda#9
 https://conda.anaconda.org/conda-forge/linux-64/fribidi-1.0.16-hb03c661_0.conda#f9f81ea472684d75b9dd8d0b328cf655
 https://conda.anaconda.org/conda-forge/linux-64/keyutils-1.6.3-hb9d3cd8_0.conda#b38117a3c920364aff79f870c984b4a3
 https://conda.anaconda.org/conda-forge/linux-64/libdeflate-1.25-h17f619e_0.conda#6c77a605a7a689d17d4819c0f8ac9a00
-https://conda.anaconda.org/conda-forge/linux-64/libexpat-2.8.1-hecca717_0.conda#93764a5ca80616e9c10106cdaec92f74
+https://conda.anaconda.org/conda-forge/linux-64/libexpat-2.8.1-hecca717_1.conda#b24d3c612f71e7aa74158d92106318b2
 https://conda.anaconda.org/conda-forge/linux-64/libffi-3.5.2-h3435931_0.conda#a360c33a5abe61c07959e449fa1453eb
 https://conda.anaconda.org/conda-forge/linux-64/libgcc-ng-15.2.0-h69a702a_19.conda#331ee9b72b9dff570d56b1302c5ab37d
 https://conda.anaconda.org/conda-forge/linux-64/libgfortran5-15.2.0-h68bc16d_19.conda#85072b0ad177c966294f129b7c04a2d5
@@ -75,7 +75,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libxcrypt-4.4.36-hd590300_1.cond
 https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-haa7fec5_0.conda#7a3bff861a6583f1889021facefc08b1
 https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_1.conda#c01af13bdc553d1a8fbfff6e8db075f0
 https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-h853b02a_0.conda#d7d95fc8287ea7bf33e0e7116d2b95ec
-https://conda.anaconda.org/conda-forge/linux-64/uv-0.11.20-h26efc2c_0.conda#ab060fce1a93fdd5311f8541ab00a01b
+https://conda.anaconda.org/conda-forge/linux-64/uv-0.11.21-h26efc2c_0.conda#bc8a3f6c735e986f4d3048da2122c01d
 https://conda.anaconda.org/conda-forge/linux-64/wayland-1.25.0-hd6090a7_0.conda#996583ea9c796e5b915f7d7580b51ea6
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libsm-1.2.6-he73a12e_0.conda#1c74ff8c35dcadf952a16f752ca5aa49
 https://conda.anaconda.org/conda-forge/linux-64/xz-gpl-tools-5.8.3-ha02ee65_0.conda#8f5e2c6726c1339287a3c76a2c138ac7
