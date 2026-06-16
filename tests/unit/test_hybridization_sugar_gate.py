@@ -1,5 +1,6 @@
 """The cEt/LNA hybridization features apply only to a single-high-affinity-sugar
 oligo (that sugar + DNA). Mixmers, mixed chemistries, and unknown codes -> NaN."""
+
 import math
 
 import pytest
@@ -28,13 +29,16 @@ def test_sole_high_affinity_sugar_predicate():
     assert _sole_high_affinity_sugar("LLLddddddddddLLL", "L")
 
 
-@pytest.mark.parametrize("pattern", [
-    "MMCddddddddddCCM",  # cEt + MOE (mixmer)
-    "CCLddddddddddLCC",  # cEt + LNA
-    "CCXddddddddddXCC",  # cEt + unknown
-    "MMMddddddddddMMM",  # no cEt
-    "dddddddddddddddd",  # PS-DNA
-])
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        "MMCddddddddddCCM",  # cEt + MOE (mixmer)
+        "CCLddddddddddLCC",  # cEt + LNA
+        "CCXddddddddddXCC",  # cEt + unknown
+        "MMMddddddddddMMM",  # no cEt
+        "dddddddddddddddd",  # PS-DNA
+    ],
+)
 def test_cet_is_nan_unless_pure_cet(pattern):
     a = SEQ[: len(pattern)]
     assert _is_nan(get_cet_dna_rna_dg(a, pattern))

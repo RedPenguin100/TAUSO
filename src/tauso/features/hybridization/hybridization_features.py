@@ -140,9 +140,7 @@ def _sole_high_affinity_sugar(chemical_pattern, sugar):
     (mixmer) or any other/unknown code -- makes it False. ``sugar`` must appear at least once.
     """
     return (
-        isinstance(chemical_pattern, str)
-        and sugar in chemical_pattern
-        and not (set(chemical_pattern) - {sugar, "d"})
+        isinstance(chemical_pattern, str) and sugar in chemical_pattern and not (set(chemical_pattern) - {sugar, "d"})
     )
 
 
