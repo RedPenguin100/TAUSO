@@ -1019,7 +1019,9 @@ class Calculator:
             return
 
         logger.info("Computing RBP affinity pipeline...")
-        self._ensure_genomic_context(cds_windows=[20, 30, 40, 50, 60, 70])
+        # RBP uses only the +-5 pre-mRNA flank, which _ensure_genomic_context always builds; it
+        # needs no CDS windows, so none are requested.
+        self._ensure_genomic_context(cds_windows=[])
         rbp_map, pwm_db = self.cache.get_rbp_assets()
 
         from tauso.populate.populate_rbp import (
@@ -1027,10 +1029,11 @@ class Calculator:
             populate_rbp_affinity_features,
         )
 
-        # Uniform background: an empty gene_to_data makes every row fall back to the
-        # [.25, .25, .25, .25] default, so no per-transcript composition is used.
+        # Empty gene->data map: every row falls back to the uniform [.25]*4 background, so no
+        # per-transcript composition is used.
+        uniform_background = {}
         self.data, ind_feats = populate_rbp_affinity_features(
-            self.data, rbp_map, pwm_db, {}, window_col, n_jobs=self.cpus
+            self.data, rbp_map, pwm_db, uniform_background, window_col, n_jobs=self.cpus
         )
         self.data, glob_feats = populate_complexity_features(
             self.data, ind_feats, suffix=str(flank_size), type="generic"
