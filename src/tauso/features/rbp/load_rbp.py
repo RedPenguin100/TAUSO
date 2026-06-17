@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 _DATA_DIR = os.path.join(get_data_dir(), "attract")
 
 _MIN_MOTIF_LEN = 6
-_MIN_TOTAL_IC = (
-    0.0  # bits; keep ALL RBP motifs -- IC filtering (6/8/10/12/14, total or per-position) was ablated and adds nothing
-)
+# Minimum total information content (bits) a PWM must have to be kept. Increase to restrict the
+# RBP set to higher-confidence motifs; 0 keeps all of them.
+_MIN_TOTAL_IC = 0.0
 _DB_RANK = {"S": 3, "R": 2, "C": 1}
 
 

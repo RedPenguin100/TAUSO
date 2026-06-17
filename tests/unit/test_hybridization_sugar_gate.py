@@ -6,10 +6,10 @@ import math
 import pytest
 
 from tauso.features.hybridization.hybridization_features import (
-    _sole_high_affinity_sugar,
     get_cet_dna_rna_dg,
     get_cet_wing_dg,
     get_lna_dna_rna_dg,
+    is_single_sugar_mod,
 )
 
 SEQ = "ACGTACGTACGTACGTACGT"
@@ -19,14 +19,14 @@ def _is_nan(x):
     return isinstance(x, float) and math.isnan(x)
 
 
-def test_sole_high_affinity_sugar_predicate():
-    assert _sole_high_affinity_sugar("CCCddddddddddCCC", "C")
-    assert not _sole_high_affinity_sugar("MMCddddddddddCCM", "C")  # mixmer (also MOE)
-    assert not _sole_high_affinity_sugar("CCLddddddddddLCC", "C")  # also LNA
-    assert not _sole_high_affinity_sugar("CCXddddddddddXCC", "C")  # unknown code
-    assert not _sole_high_affinity_sugar("dddddddddddddddd", "C")  # no cEt
-    assert not _sole_high_affinity_sugar(None, "C")
-    assert _sole_high_affinity_sugar("LLLddddddddddLLL", "L")
+def test_single_sugar_mod_predicate():
+    assert is_single_sugar_mod("CCCddddddddddCCC", "C")
+    assert not is_single_sugar_mod("MMCddddddddddCCM", "C")  # mixmer (also MOE)
+    assert not is_single_sugar_mod("CCLddddddddddLCC", "C")  # also LNA
+    assert not is_single_sugar_mod("CCXddddddddddXCC", "C")  # unknown code
+    assert not is_single_sugar_mod("dddddddddddddddd", "C")  # no cEt
+    assert not is_single_sugar_mod(None, "C")
+    assert is_single_sugar_mod("LLLddddddddddLLL", "L")
 
 
 @pytest.mark.parametrize(

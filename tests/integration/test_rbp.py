@@ -13,7 +13,6 @@ def test_calculate_total_affinity_regression(data_regression):
     # 1. Load the real matrices
     rbp_map, pwm_db = load_attract_data()
 
-    # 2. Define 19 test sequences covering motifs, overlaps, repeats, and edge cases
     test_sequences = {
         # Overlapping & well-known biological motifs
         "fox_overlap": "UGCAUGCAUGCAUGCAUGCA",  # RBFOX overlapping motifs
