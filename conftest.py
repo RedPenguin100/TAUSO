@@ -1,10 +1,8 @@
 """Root conftest: CLI options and marker gating.
 
-These hooks must live at the rootdir. Since pytest 9.1, `pytest_addoption` is only
-collected from the rootdir conftest (and the invocation/arg paths), not from conftests
-in subdirectories. CI runs `pytest` from the repo root with no path argument, so an
-`--n-jobs` option defined only in tests/conftest.py was never registered, failing with
-"unrecognized arguments: --n-jobs".
+pytest collects `pytest_addoption` only from the rootdir conftest and the paths named on
+the command line, not from subdirectory conftests, so these option hooks must live here at
+the repo root -- the test command runs `pytest` from the root with no path argument.
 """
 
 import pytest

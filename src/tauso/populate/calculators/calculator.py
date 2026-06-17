@@ -1005,11 +1005,9 @@ class Calculator:
         """RBP motif-occupancy affinity features.
 
         For each RBP, the summed binding occupancy of its ATtRACT motif(s) over the ASO
-        target window (sense pre-mRNA, flank +-5), scored against a UNIFORM background,
-        plus the total-load and Shannon-diversity summaries. This is the lean affinity-
-        only design: the expression-weighted ("interaction"), functional stabilizer/
-        destabilizer, gene-composition background and motif information-content filter
-        variants were all ablated and add nothing over this set, so they are not computed.
+        target window (sense pre-mRNA, flank +-5), scored against a uniform background,
+        plus the total-load and Shannon-diversity summaries. All RBPs are kept and only
+        the affinity (not expression-weighted) features are produced.
         """
         flank_size = 5
         window_col = f"flank_sequence_{flank_size}"
