@@ -33,6 +33,7 @@ from ...data.consts import (
     STRUCTURE_SENSE_TYPE,
     TRANSFECTION_RAW,
 )
+from ...features.interaction_features import protein_affinity_gymnosis
 from ...timer import Timer
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
 from ..populate_context import (
@@ -768,6 +769,28 @@ class Calculator:
         else:
             logger.info("All backbone features exist. Skipping.")
 
+    def calculate_interaction(self):
+        """Cross-feature interaction features."""
+        feature = "interaction_protein_affinity_gymnosis"
+        if not self._get_missing_features([feature]):
+            logger.info("%s exists. Skipping.", feature)
+            return
+
+        from tauso.data.consts import CHEMICAL_PATTERN, PS_PATTERN
+
+        self._load_features_into_data(["seq_internal_fold"])
+        self._check_dependencies([PS_PATTERN, CHEMICAL_PATTERN, "seq_internal_fold"])
+
+        if "transfection_gymnosis" in self.data.columns:
+            gymnosis = self.data["transfection_gymnosis"]
+        else:
+            logger.warning("transfection_gymnosis not in data; %s will be 0 for all rows.", feature)
+            gymnosis = None
+        self.data[feature] = protein_affinity_gymnosis(
+            self.data[PS_PATTERN], self.data[CHEMICAL_PATTERN], self.data["seq_internal_fold"], gymnosis
+        )
+        self._save_calculated_feature(feature_name=feature)
+
     def calculate_ribo_seq(self):
         """Calculates ribosome profiling (Ribo-seq) features for both 40S and 80S subunits."""
         flanks = (0, 10, 20, 50, 100, 125, 150)
@@ -1093,6 +1116,7 @@ class Calculator:
             self.calculate_modification,
             self.calculate_hybridization,
             self.calculate_backbone_features,
+            self.calculate_interaction,
             self.calculate_ribo_seq,
             self.calculate_off_target_general,
             self.calculate_off_target_single,
