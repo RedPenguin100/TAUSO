@@ -3,6 +3,7 @@ global_features:
 - rbp_diversity_global_50_generic
 individual_features:
 - rbp_a1cf_aff_50
+- rbp_aco1_aff_50
 - rbp_adar_aff_50
 - rbp_ago1_aff_50
 - rbp_ago2_aff_50
@@ -104,6 +105,7 @@ individual_features:
 - rbp_rbm24_aff_50
 - rbp_rbm25_aff_50
 - rbp_rbm28_aff_50
+- rbp_rbm3_aff_50
 - rbp_rbm4_aff_50
 - rbp_rbm41_aff_50
 - rbp_rbm42_aff_50

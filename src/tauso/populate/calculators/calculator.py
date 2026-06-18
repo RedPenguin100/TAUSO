@@ -1002,83 +1002,44 @@ class Calculator:
             logger.info("All mRNA half-life features exist. Skipping.")
 
     def calculate_rbp(self):
-        """Calculates all RBP Affinity, Interaction, Functional, and Regional features."""
+        """RBP motif-occupancy affinity features.
+
+        For each RBP, the summed binding occupancy of its ATtRACT motif(s) over the ASO
+        target window (sense pre-mRNA, flank +-5), scored against a uniform background,
+        plus the total-load and Shannon-diversity summaries. All RBPs are kept and only
+        the affinity (not expression-weighted) features are produced.
+        """
         flank_size = 5
         window_col = f"flank_sequence_{flank_size}"
 
-        # 1. Define "Sentinel" features.
-        # If these summary features exist, we know the block successfully completed.
-        expected_interaction = [f"rbp_interaction_total_{flank_size}_expression"]
-        expected_affinity = [f"rbp_interaction_total_{flank_size}_generic"]
-        expected_functional = [f"rbp_interaction_stabilizer_{flank_size}"]
-
-        # Check disk
-        missing_int = self._get_missing_features(expected_interaction)
-        missing_aff = self._get_missing_features(expected_affinity)
-        missing_func = self._get_missing_features(expected_functional)
-
-        if not any([missing_int, missing_aff, missing_func]):
+        # Sentinel: if the summary feature exists on disk the block already completed.
+        expected = [f"rbp_interaction_total_{flank_size}_generic"]
+        if not self._get_missing_features(expected):
             logger.info("All RBP features exist. Skipping.")
             return
 
-        logger.info("Computing RBP Pipeline...")
-
-        # --- THE FIX: Ensure context exists instead of just checking for it ---
-        # We pass the standard cds_windows so it matches what CUB needs later/earlier
-        self._ensure_genomic_context(cds_windows=[20, 30, 40, 50, 60, 70])
-
-        # 2. Lazy load the shared heavy assets
+        logger.info("Computing RBP affinity pipeline...")
+        # RBP uses only the +-5 pre-mRNA flank, which _ensure_genomic_context always builds; it
+        # needs no CDS windows, so none are requested.
+        self._ensure_genomic_context(cds_windows=[])
         rbp_map, pwm_db = self.cache.get_rbp_assets()
-        unique_cell_lines = self.data[CELL_LINE_DEPMAP].dropna().unique().tolist()
-        expression_matrix = self.cache.get_rbp_expression_matrix(unique_cell_lines)
-        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-        from tauso.features.rbp.rbp_annotations import rbp_role_map_strict
         from tauso.populate.populate_rbp import (
             populate_complexity_features,
-            populate_functional_features,
             populate_rbp_affinity_features,
-            populate_rbp_interaction_features,
         )
 
-        # ==========================================
-        # BLOCK A: Interaction Features
-        # ==========================================
-        if missing_int:
-            logger.info("Processing Interaction Features...")
-            self.data, ind_feats = populate_rbp_interaction_features(
-                self.data, rbp_map, pwm_db, expression_matrix, gene_to_data, window_col, n_jobs=self.cpus
-            )
-            self.data, glob_feats = populate_complexity_features(
-                self.data, ind_feats, suffix=str(flank_size), type="expression"
-            )
-            for feature in ind_feats + glob_feats:
-                self._save_calculated_feature(feature_name=feature)
-
-        # ==========================================
-        # BLOCK B: Affinity Features
-        # ==========================================
-        if missing_aff:
-            logger.info("Processing Affinity Features...")
-            self.data, ind_feats = populate_rbp_affinity_features(
-                self.data, rbp_map, pwm_db, gene_to_data, window_col, n_jobs=self.cpus
-            )
-            self.data, glob_feats = populate_complexity_features(
-                self.data, ind_feats, suffix=str(flank_size), type="generic"
-            )
-            for feature in ind_feats + glob_feats:
-                self._save_calculated_feature(feature_name=feature)
-
-        # ==========================================
-        # BLOCK C: Functional Features
-        # ==========================================
-        if missing_func:
-            logger.info("Processing Functional Features...")
-            self.data, functional_features = populate_functional_features(
-                self.data, rbp_role_map_strict, flank_size=flank_size
-            )
-            for feature in functional_features:
-                self._save_calculated_feature(feature_name=feature)
+        # Empty gene->data map: every row falls back to the uniform [.25]*4 background, so no
+        # per-transcript composition is used.
+        uniform_background = {}
+        self.data, ind_feats = populate_rbp_affinity_features(
+            self.data, rbp_map, pwm_db, uniform_background, window_col, n_jobs=self.cpus
+        )
+        self.data, glob_feats = populate_complexity_features(
+            self.data, ind_feats, suffix=str(flank_size), type="generic"
+        )
+        for feature in ind_feats + glob_feats:
+            self._save_calculated_feature(feature_name=feature)
 
     def calculate_oligowalk(self):
         import shutil
