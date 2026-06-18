@@ -35,6 +35,7 @@ STRUCTURE_SENSE_DIST_TO_CANONICAL_START = "structure_sense_dist_to_canonical_sta
 STRUCTURE_SENSE_DIST_TO_CLOSEST_START = "structure_sense_dist_to_closest_start"
 STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP = "structure_sense_mrna_dist_to_canonical_stop"
 STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP = "structure_sense_mrna_dist_to_closest_stop"
+STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXON_SIGNED = "structure_sense_dist_to_splice_junction_exon_signed"
 PRE_MRNA_SEQUENCE = "pre_mrna_sequence"
 CELL_LINE_DEPMAP_PROXY = "cell_line_depmap_proxy"
 CELL_LINE_DEPMAP = "cell_line_depmap"

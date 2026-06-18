@@ -5,6 +5,7 @@ from tauso.data.consts import (
     STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
     STRUCT_SENSE_IN_EXON,
     STRUCT_SENSE_IN_INTRON,
+    STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXON_SIGNED,
     STRUCTURE_SENSE_LENGTH,
     STRUCTURE_SENSE_START,
     STRUCTURE_SENSE_START_FROM_END,
@@ -40,6 +41,7 @@ def test_structure_features_regression(sampled_base_data, target_genes, gene_to_
         STRUCT_SENSE_IN_CDS,
         STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE,
         STRUCTURE_SENSE_TYPE,
+        STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXON_SIGNED,
     ]
 
     dataframe_regression.check(processed_data[features])
