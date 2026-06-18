@@ -72,6 +72,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_dist_closest_start = np.full(n_rows, np.nan, dtype=np.float64)
     out_mrna_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float64)
     out_mrna_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float64)
+    out_dist_sj_exon_signed = np.full(n_rows, np.nan, dtype=np.float64)
 
     all_data["__temp_idx"] = np.arange(n_rows)
 
@@ -112,6 +113,15 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         else:
             # Map the center to the positive strand's absolute genomic coordinate
             gen_coords = locus_info.gene_start + v_idxs + center_offsets
+
+        # Signed distance to the nearest splice junction (intron boundary): positive when the
+        # ASO site is exonic, negative when intronic; small magnitude = near a junction, large
+        # = deep in its compartment. Single-exon genes have no introns -> NaN.
+        junctions = [c for s, e in locus_info._intron_indices for c in (s, e)]
+        if junctions:
+            dist = np.abs(gen_coords[:, None] - np.array(junctions)).min(axis=1)
+            in_exon = _in_intervals(gen_coords, locus_info._exon_indices)
+            out_dist_sj_exon_signed[v_row_idxs] = np.where(in_exon, dist, -dist)
 
         # Normalized positions: sense_start / gene_length, sense_start_from_end / gene_length.
         # Range [0, 1]; tells the model "how far into the pre-mRNA is the target?"
@@ -241,6 +251,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_START] = out_dist_closest_start
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out_mrna_dist_canonical_stop
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out_mrna_dist_closest_stop
+    all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXON_SIGNED] = out_dist_sj_exon_signed
 
     all_data.drop(columns=["__temp_idx", "__temp_sense"], inplace=True)
     return all_data
