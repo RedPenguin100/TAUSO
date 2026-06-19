@@ -63,13 +63,27 @@ def self_energy(seq: str) -> float:
 
 
 def internal_fold(seq: str) -> float:
-    """Self-structure ΔG (kcal/mol) of the ASO via ViennaRNA.
+    """Self-structure ΔG (kcal/mol) of the DNA ASO, folded with ViennaRNA's DNA (Mathews 2004) parameters.
 
-    ViennaRNA has no DNA or modified-sugar energy model, so the oligo is folded with RNA
-    parameters as a proxy for its self-complementarity. The value is the unmodified-RNA
-    self-fold, not the true chemically-modified self-structure energy.
+    The antisense oligo is a deoxy molecule, so it is folded with DNA nearest-neighbor energetics.
+    DNA parameters are loaded into ViennaRNA's global model and the RNA (Turner 2004) defaults are
+    restored afterwards, so other RNA folds are unaffected. Chemical modifications (PS, 2'-sugars)
+    are not modeled, so this is a sequence-level proxy for self-complementarity.
     """
-    return RNA.fold(seq)[1]
+    RNA.params_load_DNA_Mathews2004()
+    try:
+        return RNA.fold(seq)[1]
+    finally:
+        RNA.params_load_RNA_Turner2004()
+
+
+def internal_rna_fold(seq: str) -> float:
+    """Self-structure ΔG (kcal/mol) of the RNA target window, folded with RNA (Turner 2004) parameters.
+
+    Folds the sense strand (the reverse complement of the ASO, i.e. the target mRNA sequence) as RNA,
+    capturing the intrinsic local structure of the target site with no flanking context.
+    """
+    return RNA.fold(get_antisense(seq))[1]
 
 
 def hairpin_dG_energy(seq: str):

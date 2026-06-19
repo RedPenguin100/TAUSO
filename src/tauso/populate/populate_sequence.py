@@ -23,6 +23,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     # ASO sequence energy
     ("seq_self_energy", self_energy),
     ("seq_internal_fold", internal_fold),
+    ("seq_internal_rna_fold", internal_rna_fold),
     # Basic Composition Features
     ("seq_purine_content", purine_content),
     ("seq_gc_content", gc_fraction),
