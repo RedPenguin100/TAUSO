@@ -1,4 +1,5 @@
 import logging
+import math
 
 import numpy as np
 import pandas as pd
@@ -20,8 +21,12 @@ def _occupancy_from_log2_odds(score):
 
 
 @njit(fastmath=True)
-def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
-    """Return the total motif-occupancy affinity of one PWM over one sequence.
+def _log_unbound_numba_core(seq_indices, pwm_matrix, background_probs):
+    """Log-probability that this PWM leaves every site unoccupied over the sequence.
+
+    Returns the sum over gapless placements of log(1 - o), where o = 1/(1 + 2^-s) is the
+    placement's occupancy. Working in log space keeps the value stable when occupancies
+    approach 1.
 
     seq_indices: ints, one per nucleotide (A=0, C=1, G=2, U/T=3); -1 is not allowed.
     pwm_matrix: (motif_len, 4) PPM, columns P(A),P(C),P(G),P(U), each row summing to ~1.
@@ -35,18 +40,20 @@ def _calculate_affinity_numba_core(seq_indices, pwm_matrix, background_probs):
 
     weights = np.log2((pwm_matrix + 1e-9) / background_probs)
 
-    total_score = 0.0
+    log_unbound = 0.0
 
     for i in range(seq_len - motif_len + 1):
         score = 0.0
         for pos in range(motif_len):
             score += weights[pos, seq_indices[i + pos]]
-        total_score += _occupancy_from_log2_odds(score)
+        log_unbound += math.log1p(-_occupancy_from_log2_odds(score))  # log(1 - o)
 
-    return total_score
+    return log_unbound
 
 
-def calculate_total_affinity_numba(sequence, pwm_matrix, background_probs=None, debug=False):
+def motif_log_unbound_numba(sequence, pwm_matrix, background_probs=None):
+    """Σ log(1 - o) over a PWM's gapless placements (the log-probability it occupies no site).
+    NaN/empty sequences contribute 0 (an unoccupied factor). See _log_unbound_numba_core."""
     # 1. Type guard the matrix
     if hasattr(pwm_matrix, "values"):
         pwm_matrix = pwm_matrix.values
@@ -76,26 +83,26 @@ def calculate_total_affinity_numba(sequence, pwm_matrix, background_probs=None, 
         unknown = sorted(set(seq_str.upper()) - {"A", "C", "G", "U", "T"})
         raise ValueError(f"Unknown base(s) {unknown} in sequence {seq_str!r}; only A/C/G/U/T are allowed.")
 
-    # 5. Execute the compiled loop
-    # We enforce float64 to ensure math precision matches your original numpy logic perfectly
-    return _calculate_affinity_numba_core(seq_indices, pwm_matrix.astype(np.float64), background_probs)
+    # 5. Execute the compiled loop (float64 for precision)
+    return _log_unbound_numba_core(seq_indices, pwm_matrix.astype(np.float64), background_probs)
 
 
 def process_rbp(task, sequences, background_probs_arr):
-    """
-    Worker function: Processes ONE RBP for ALL sequences.
-    Sums per-PWM affinities across every PWM that ATtRACT lists for this RBP.
+    """Worker function: processes ONE RBP for ALL sequences.
+
+    The per-RBP score is the probability that the protein occupies at least one site in the
+    window -- a noisy-OR, 1 - prod(1 - o), over the placements of all of its PWMs.
     """
     matrices = task["matrices"]
     col_name = task["col_name"]
     n_rows = len(sequences)
 
-    scores = np.zeros(n_rows, dtype=np.float64)
+    log_unbound = np.zeros(n_rows, dtype=np.float64)
     for matrix in matrices:
         for i in range(n_rows):
-            scores[i] += calculate_total_affinity_numba(sequences[i], matrix, background_probs_arr[i])
+            log_unbound[i] += motif_log_unbound_numba(sequences[i], matrix, background_probs_arr[i])
 
-    return col_name, scores
+    return col_name, 1.0 - np.exp(log_unbound)
 
 
 def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_col="flank_sequence_50", n_jobs=32):
