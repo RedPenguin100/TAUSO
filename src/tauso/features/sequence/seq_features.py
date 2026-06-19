@@ -46,16 +46,13 @@ def keto_amino_skew(seq: str) -> float:
     return (keto_count - amino_count) / total
 
 
-def absolute_terminal_gc(seq: str) -> float:
-    """
-    Calculates the raw GC count of the absolute terminal ends (first 2 and last 2 bases).
-    Max score is 4.
-    """
+def terminal_gc_fraction(seq: str) -> float:
+    """Fraction of the four terminal bases (first two + last two) that are G or C."""
     if len(seq) < 4:
         return 0.0
 
     terminals = (seq[:2] + seq[-2:]).upper()
-    return sum(1 for b in terminals if b in "GC")
+    return sum(1 for b in terminals if b in "GC") / 4.0
 
 
 def self_energy(seq: str) -> float:
@@ -68,7 +65,7 @@ def internal_fold(seq: str) -> float:
     The antisense oligo is a deoxy molecule, so it is folded with DNA nearest-neighbor energetics.
     DNA parameters are loaded into ViennaRNA's global model and the RNA (Turner 2004) defaults are
     restored afterwards, so other RNA folds are unaffected. Chemical modifications (PS, 2'-sugars)
-    are not modeled, so this is a sequence-level proxy for self-complementarity.
+    are not modeled.
     """
     RNA.params_load_DNA_Mathews2004()
     try:
@@ -140,7 +137,7 @@ def homooligo_count(seq: str) -> float:
     if current_run > 2:
         tot_count += current_run
 
-    return tot_count / (seq_len + 1)
+    return tot_count / seq_len
 
 
 def seq_entropy(seq: str) -> float:
@@ -182,10 +179,7 @@ def hairpin_score(seq: str, min_overlap: int = 4) -> float:
 
 
 def gc_skew(seq: str) -> float:
-    """
-    Computes GC skew = (G - C) / (G + C)
-    A measure of strand asymmetry in G/C content, can affect hybridization and folding.
-    """
+    """GC skew = (G - C) / (G + C): strand asymmetry in G/C content."""
     seq = seq.upper()
     G_counts = seq.count("G")
     C_counts = seq.count("C")
@@ -209,10 +203,7 @@ def gc_content_3prime_end(aso_sequence: str, window: int = 5) -> float:
 
 
 def gc_skew_ends(seq: str, window: int = 5) -> float:
-    """
-    Calculates the GC-content difference between the 5' and 3' ends of the sequence.
-    Measures thermodynamic asymmetry between ends.
-    """
+    """GC-content difference between the 5' and 3' terminal windows of the sequence."""
     if len(seq) < 2 * window:
         return 0.0
 
@@ -248,10 +239,7 @@ def dispersed_repeats_score(seq: str, min_unit: int = 2, max_unit: int = 6) -> f
 
 
 def at_skew(seq: str) -> float:
-    """
-    Calculates AT skew = (A - T) / (A + T)
-    A measure of asymmetry in A/T content, can affect flexibility and binding dynamics.
-    """
+    """AT skew = (A - T) / (A + T): asymmetry in A/T content."""
     # Count both cases to avoid creating a new string in memory with .upper()
     A_counts = seq.count("A") + seq.count("a")
     T_counts = seq.count("T") + seq.count("t")
@@ -272,9 +260,10 @@ def dinucleotide_diversity(seq: str) -> float:
 
 def tandem_repeats_score(seq: str, min_unit=2, max_unit=6) -> float:
     """
-    Calculates how many short motifs (2–6 nt) repeat consecutively (tandem repeats).
-    Useful for detecting repetitive structures that may form hairpins or reduce specificity.
+    Counts short motifs (2–6 nt) that repeat consecutively (tandem repeats), normalized by length.
     """
+    if len(seq) == 0:
+        return 0.0
     score = 0
     for unit_len in range(min_unit, max_unit + 1):
         for i in range(len(seq) - unit_len * 2 + 1):
@@ -372,16 +361,13 @@ def cg_dinucleotide_fraction(seq: str) -> float:
 
 def ta_dinucleotide_fraction(seq: str) -> float:
     """
-    Calculate the fraction of 'UA' or 'TA' dinucleotides within a sequence.
-
-    These dinucleotides are often highly susceptible to cleavage by endonucleases,
-    affecting the stability and half-life of the sequence.
+    Fraction of 'TA'/'UA' dinucleotides within a sequence, normalized by length.
 
     Args:
         seq (str): Nucleic acid sequence (handles both T and U)
 
     Returns:
-        float: UA/TA dinucleotide fraction (normalized between 0 and 1)
+        float: TA/UA dinucleotide fraction (normalized between 0 and 1)
     """
     seq = seq.upper()
     total_possible_pairs = len(seq) - 1
@@ -395,19 +381,20 @@ def ta_dinucleotide_fraction(seq: str) -> float:
     return target_count / total_possible_pairs
 
 
-def poly_pyrimidine_stretch(seq: str, min_run_length: int = 4) -> float:
+def poly_pyrimidine_run_count(seq: str, min_run_length: int = 4) -> float:
     """
-    Calculates the fraction of sequence containing poly-pyrimidine stretches (C and T bases).
+    Counts poly-pyrimidine (C/T) runs of length >= min_run_length, normalized by sequence length.
 
-    Long consecutive pyrimidine runs may cause undesired secondary structures
-    or non-specific binding of antisense oligonucleotides (ASOs).
+    Long consecutive pyrimidine runs may cause undesired secondary structures or non-specific binding
+    of antisense oligonucleotides (ASOs). This is the NUMBER of such runs (not their length); the
+    length of the longest run is captured separately by ``poly_pyrimidine_longest``.
 
     Args:
         seq (str): DNA sequence (A/C/G/T)
         min_run_length (int): Minimum length of pyrimidine run considered problematic (default=4)
 
     Returns:
-        float: Normalized poly-pyrimidine stretch score between 0 and 1
+        float: number of qualifying runs divided by sequence length
     """
     seq = seq.upper()
     pyrimidines = "CT"
@@ -455,28 +442,14 @@ def dinucleotide_entropy(seq: str) -> float:
 
 
 ##############################################################################
-def gc_block_length(seq):
-    """
-    find the length of the longest consecutive G/C block in the sequence
-    """
-    seq = seq.upper()
-    max_len = 0
-    curr_len = 0
-    for base in seq:
-        if base in "GC":
-            curr_len += 1
-            max_len = max(max_len, curr_len)
-        else:
-            curr_len = 0
-    return max_len
+def gc_longest(seq: str) -> float:
+    """Longest consecutive G/C run, normalized by sequence length."""
+    return _longest_run_fraction(seq, "GC")
 
 
 ################################################################################
 def purine_content(seq):
-    """
-    Calculates the fraction of purine bases (A and G) in the sequence.
-    Purine-rich sequences may be more stable and bind better to RNA targets.
-    """
+    """Fraction of purine bases (A and G) in the sequence."""
     seq = seq.upper()
     count = seq.count("A") + seq.count("G")
     if len(seq) == 0:
@@ -485,18 +458,19 @@ def purine_content(seq):
 
 
 ########################################################################################################
-def at_rich_region_score(seq: str, min_run_length: int = 4) -> float:
+def at_rich_run_count(seq: str, min_run_length: int = 4) -> float:
     """
-    Calculates the fraction of the sequence containing AT-rich stretches (A and T bases).
+    Counts AT-rich (A/T) runs of length >= min_run_length, normalized by sequence length.
 
-    Long consecutive A/T runs may reduce structural stability and impact ASO performance.
+    Long consecutive A/T runs may reduce structural stability and impact ASO performance. This is the
+    NUMBER of such runs (not their length); the longest run is captured by ``at_rich_longest``.
 
     Args:
         seq (str): DNA sequence (A/C/G/T)
         min_run_length (int): Minimum length of A/T run considered problematic (default = 4)
 
     Returns:
-        float: Normalized AT-rich region score (0 to 1)
+        float: number of qualifying runs divided by sequence length
     """
     seq = seq.upper()
     at_bases = "AT"
@@ -512,3 +486,37 @@ def at_rich_region_score(seq: str, min_run_length: int = 4) -> float:
         if run_length == 0:
             i += 1
     return stretch_count / len(seq) if len(seq) > 0 else 0.0
+
+
+def _longest_run_fraction(seq: str, bases: str) -> float:
+    """Length of the longest consecutive run drawn from ``bases``, normalized by sequence length."""
+    seq = seq.upper()
+    n = len(seq)
+    if n == 0:
+        return 0.0
+    longest = current = 0
+    for base in seq:
+        if base in bases:
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return longest / n
+
+
+def poly_pyrimidine_longest(seq: str) -> float:
+    """Longest consecutive pyrimidine (C/T) run, normalized by sequence length.
+
+    Complements ``poly_pyrimidine_run_count`` (which counts how many runs of length >= 4 occur): this
+    captures the length of the single worst tract rather than how many tracts there are.
+    """
+    return _longest_run_fraction(seq, "CT")
+
+
+def at_rich_longest(seq: str) -> float:
+    """Longest consecutive A/T run, normalized by sequence length.
+
+    Complements ``at_rich_run_count`` (a count of A/T runs of length >= 4): this captures the
+    length of the single longest A/T tract.
+    """
+    return _longest_run_fraction(seq, "AT")
