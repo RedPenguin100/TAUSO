@@ -2,13 +2,14 @@ import numpy as np
 import pytest
 
 from tauso.features.rbp.load_rbp import load_attract_data
-from tauso.populate.populate_rbp import calculate_total_affinity_numba
+from tauso.populate.populate_rbp import motif_log_unbound_numba
 
 
-def test_calculate_total_affinity_regression(data_regression):
+def test_motif_log_unbound_regression(data_regression):
     """
-    Comprehensive regression test for affinity math using ALL real TAUSO PWM matrices
-    against a highly varied sequence set (including overlapping motifs).
+    Comprehensive regression test for the per-motif scorer (the log-probability of leaving
+    every site unbound, Sum log(1 - o)) using ALL real TAUSO PWM matrices against a highly
+    varied sequence set (including overlapping motifs).
     """
     # 1. Load the real matrices
     rbp_map, pwm_db = load_attract_data()
@@ -53,7 +54,7 @@ def test_calculate_total_affinity_regression(data_regression):
         if not valid_mids:
             continue
 
-        # Regression-test the scorer on one matrix; production sums the scorer over all of a gene's matrices
+        # Regression-test the scorer on one matrix; production noisy-OR-combines it over all of a gene's matrices
         real_pwm_matrix = pwm_db[valid_mids[0]]
 
         # Sub-dictionary for this specific RBP
@@ -61,11 +62,11 @@ def test_calculate_total_affinity_regression(data_regression):
 
         for seq_name, seq_val in test_sequences.items():
             # Test with default background (None)
-            score_default = calculate_total_affinity_numba(
+            score_default = motif_log_unbound_numba(
                 sequence=seq_val, pwm_matrix=real_pwm_matrix, background_probs=None
             )
             # Test with custom background
-            score_custom = calculate_total_affinity_numba(
+            score_custom = motif_log_unbound_numba(
                 sequence=seq_val, pwm_matrix=real_pwm_matrix, background_probs=custom_bg
             )
 
@@ -86,4 +87,4 @@ def test_unknown_base_raises():
     """A sequence with an unknown base (N/etc.) must fail loudly, not be silently scored."""
     pwm = np.array([[0.25, 0.25, 0.25, 0.25]])
     with pytest.raises(ValueError):
-        calculate_total_affinity_numba("AUGNNNUGA", pwm)
+        motif_log_unbound_numba("AUGNNNUGA", pwm)

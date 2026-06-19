@@ -1027,13 +1027,7 @@ class Calculator:
             logger.info("All mRNA half-life features exist. Skipping.")
 
     def calculate_rbp(self):
-        """RBP motif-occupancy affinity features.
-
-        For each RBP, the summed binding occupancy of its ATtRACT motif(s) over the ASO
-        target window (sense pre-mRNA, flank +-5), scored against a uniform background,
-        plus the total-load and Shannon-diversity summaries. All RBPs are kept and only
-        the affinity (not expression-weighted) features are produced.
-        """
+        """RBP motif-occupancy features."""
         flank_size = 5
         window_col = f"flank_sequence_{flank_size}"
 
