@@ -77,6 +77,15 @@ def internal_fold(seq: str) -> float:
         RNA.params_load_RNA_Turner2004()
 
 
+def internal_rna_fold(seq: str) -> float:
+    """Self-structure ΔG (kcal/mol) of the RNA target window, folded with RNA (Turner 2004) parameters.
+
+    Folds the sense strand (the reverse complement of the ASO, i.e. the target mRNA sequence) as RNA,
+    capturing the intrinsic local structure of the target site with no flanking context.
+    """
+    return RNA.fold(get_antisense(seq))[1]
+
+
 def hairpin_dG_energy(seq: str):
     """
     Returns the raw ΔG (Gibbs free energy, primer3 units) of the predicted hairpin structure.
