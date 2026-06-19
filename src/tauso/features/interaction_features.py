@@ -2,9 +2,7 @@
 
 from ..common.modifications import deoxy_sugar_fraction, phosphorothioate_fraction
 
-# Scaling constant (kcal/mol per nucleotide) that renders the per-nucleotide self-folding energy
-# dimensionless and comparable to the [0,1] sugar/backbone fractions. Scale-setting, not fitted: the
-# feature is beneficial across kappa in [0.125, 0.5] (a 4x range), so its exact value is not critical.
+# Scale-setting constant (kcal/mol/nt) putting the per-nucleotide self-fold energy on the fractions' scale.
 STACK_REF_KCAL_PER_NT = 0.25
 
 
