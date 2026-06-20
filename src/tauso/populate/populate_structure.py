@@ -115,15 +115,14 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
             # Map the center to the positive strand's absolute genomic coordinate
             gen_coords = locus_info.gene_start + v_idxs + center_offsets
 
-        # Distance to the nearest splice junction, anchored on the boundary LINE between the
-        # last exonic and first intronic base (s - 0.5), so the exon- and intron-side bases
-        # flanking a junction are both 0.5 bp away. Reported as two non-negative columns: the
-        # exonic-side distance (NaN at intronic sites) and the intronic-side distance (NaN at
-        # exonic sites), each a depth into its own compartment. Single-exon genes have no
-        # junctions -> NaN.
-        boundaries = np.array([c - 0.5 for s, e in locus_info._intron_indices for c in (s, e)])
-        if boundaries.size:
-            dist = np.abs(gen_coords[:, None] - boundaries).min(axis=1)
+        # Distance (bp) from the ASO center to the nearest splice-junction coordinate (an
+        # intron start or end). Reported as two non-negative columns: the exonic-side distance
+        # (NaN at intronic sites) and the intronic-side distance (NaN at exonic sites), each a
+        # depth into its own compartment. Splitting by side keeps a 0 unambiguous (exon vs
+        # intron boundary). Single-exon genes have no junctions -> NaN.
+        junctions = np.array([c for s, e in locus_info._intron_indices for c in (s, e)])
+        if junctions.size:
+            dist = np.abs(gen_coords[:, None] - junctions).min(axis=1)
             in_exon = _in_intervals(gen_coords, locus_info._exon_indices)
             out_dist_sj_exonic[v_row_idxs] = np.where(in_exon, dist, np.nan)
             out_dist_sj_intronic[v_row_idxs] = np.where(in_exon, np.nan, dist)
