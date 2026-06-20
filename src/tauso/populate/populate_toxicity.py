@@ -1,6 +1,6 @@
 """Populates sequence-derived toxicity / liability features (the tox_* family).
 
-Flags distinct ASO safety liabilities (hepatotoxicity, TLR9 immunostimulation,
+Flags distinct ASO safety liabilities (TLR9 immunostimulation,
 G-quadruplex aggregation, acute neurotoxicity). Toxicity is a separate axis from efficacy;
 whether these correlate with Inhibition(%) is an empirical question. See
 tauso.features.sequence.toxicity_features for the per-mechanism citations.
@@ -20,7 +20,6 @@ from ..features.sequence.toxicity_features import (
     cpg_ps_count,
     g4hunter_max,
     gggg_motif_count,
-    hepatotox_gap_motif_count,
     three_prime_g_fraction,
     three_prime_g_free_length,
     tlr9_human_motif_count,
@@ -31,8 +30,6 @@ from ..timer import Timer
 # Each feature receives (sequence, chemical_pattern, ps_pattern); features that only need a
 # subset just ignore the rest. Keeps the dispatcher signature uniform.
 FEATURE_SPECS: list[tuple[str, callable]] = [
-    # Hepatotoxicity: TCC/TGC in the deoxy gap (Burdick et al. 2014).
-    ("tox_hepatotox_gap_tcc_tgc", lambda s, p, b: hepatotox_gap_motif_count(s, p)),
     # TLR9 immunostimulation: CpG dinucleotide count (Krieg et al. 1995).
     ("tox_cpg_count", lambda s, p, b: cpg_count(s)),
     # TLR9 amplified by PS backbone: CpG dinucleotides whose bond is PS, the modality used
