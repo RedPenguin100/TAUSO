@@ -890,7 +890,7 @@ class Calculator:
 
         # Define the parameter spaces
         methods = [AggregationMethod.BOLTZMANN_SUM]
-        top_ns = [25, 50, 100, 200]
+        top_ns = [50, 100, 200]
         cutoffs = [800, 1000, 1200]
 
         # Generate all combinations dynamically
