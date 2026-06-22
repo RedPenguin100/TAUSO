@@ -1150,33 +1150,5 @@ def setup_raccess(ctx, force_clone, march):
         sys.exit(1)
 
 
-@main.command(name="setup-data")
-@click.option("--cpus", default=1, show_default=True, type=int, help="CPUs for the structure step (step 3).")
-@click.option("--skip-process", is_flag=True, help="Stop after indexing; skip step 3 (which needs the genome).")
-def setup_data(cpus, skip_process):
-    """
-    Build the training data from the frozen Zenodo raw: download -> split -> canonical gene ->
-    index -> process + average. Writes into notebooks/data/OligoAI/raw_data/ (gitignored). The
-    feature pipeline reads the indexed table; the model reads the averaged table. Step 3 needs
-    the genome -- run `tauso setup-genome` first.
-    """
-    scripts_dir = Path(__file__).resolve().parents[2] / "notebooks" / "data" / "OligoAI"
-    steps = ["1_download.py", "1_5_assign_split.py", "2_assign_canonical_gene.py", "2_5_index.py"]
-    if not skip_process:
-        steps.append("3_process_data.py")
-
-    for name in steps:
-        script = scripts_dir / name
-        if not script.exists():
-            echo_err(f"Pipeline script not found: {script}")
-            sys.exit(1)
-        cmd = [sys.executable, str(script)]
-        if name == "3_process_data.py":
-            cmd += ["--cpus", str(cpus)]
-        click.echo(f"--- {name} ---")
-        subprocess.run(cmd, check=True)
-    echo_ok("Data ready under notebooks/data/OligoAI/raw_data/")
-
-
 if __name__ == "__main__":
     main()
