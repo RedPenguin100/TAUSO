@@ -6,7 +6,9 @@ NOTEBOOK_PATH = PROJECT_ROOT / "notebooks"
 
 OLIGO_AI_DATA_PATH = NOTEBOOK_PATH / "data" / "OligoAI" / "raw_data"
 ORIGINAL_OLIGO_CSV_FLANK_100 = OLIGO_AI_DATA_PATH / "aso_inhibitions_21_08_25_incl_context_w_flank_100_df.csv.gz"
-ORIGINAL_OLIGO_CSV = OLIGO_AI_DATA_PATH / "aso_inhibitions_21_08_25_incl_context_w_flank_50_df.csv.withsplit.csv.gz"
+# Raw flank-50 as downloaded from Zenodo (record 20794660); 1_5_assign_split adds the split column.
+ORIGINAL_OLIGO_CSV_RAW = OLIGO_AI_DATA_PATH / "aso_inhibitions_21_08_25_incl_context_w_flank_50_df.csv.gz"
+ORIGINAL_OLIGO_CSV = OLIGO_AI_DATA_PATH / "aso_inhibitions_21_08_25_incl_context_w_flank_50_df.original_split.csv.gz"
 ORIGINAL_OLIGO_CSV_WITH_CANONICAL = OLIGO_AI_DATA_PATH / "aso_inhibitions_with_canonical_gene.csv.gz"
 
 # Raw OligoAI data with our indexing so order doesn't matter
