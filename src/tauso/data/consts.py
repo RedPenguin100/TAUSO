@@ -45,8 +45,7 @@ CELL_LINE_DEPMAP = "cell_line_depmap"
 SUGAR_MODS = "sugar_mods"
 BACKBONE_MODS = "backbone_mods"
 
-# SMILES, LINKAGE_LOCATION live in notebooks/data/ASOptimizer/consts.py;
-# ISIS / LINKAGE / TARGET_GENE were unused and have been removed entirely.
+# ASOptimizer source-column constants live in notebooks/data/ASOptimizer/consts.py.
 
 PS_PATTERN = "ps_pattern"
 
