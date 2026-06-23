@@ -62,11 +62,9 @@ STRICT_GAPMER_PATTERNS = ["MMMMMddddddddddMMMMM", "CCCddddddddddCCC"]  # 5-10-5 
 
 
 def _keep(data, mask, reason):
-    """Keep rows where mask is True, logging how many were dropped."""
+    """Keep rows where mask is True, logging how many were dropped (including 0, so every filter is visible)."""
     kept = data[mask].copy()
-    dropped = len(data) - len(kept)
-    if dropped:
-        logger.info("  dropped %7d  %s", dropped, reason)
+    logger.info("  dropped %7d  %s", len(data) - len(kept), reason)
     return kept
 
 
