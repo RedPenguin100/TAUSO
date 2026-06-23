@@ -83,7 +83,6 @@ def _filter_supported_chemistry(data):
 def _filter_valid_target(data):
     data = _keep(data, data["steric_blocking"] == False, "steric blocking")
     data = _keep(data, data[CANONICAL_GENE_NAME].notna(), "missing canonical gene")
-    data = _keep(data, ~data[CANONICAL_GENE_NAME].str.contains(";", na=False), "multi-gene target")
     data = _keep(data, data[INHIBITION_PERCENT].notna(), "missing inhibition")
     data = _keep(data, data[CELL_LINE].notna(), "missing cell line")
     return data
