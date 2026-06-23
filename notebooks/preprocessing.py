@@ -82,8 +82,8 @@ def _filter_supported_chemistry(data):
 
 def _filter_valid_target(data):
     data = _keep(data, data["steric_blocking"] == False, "steric blocking")
-    data = _keep(data, data[CANONICAL_GENE_NAME].notna(), "missing canonical gene")
     data = _keep(data, data[INHIBITION_PERCENT].notna(), "missing inhibition")
+    data = _keep(data, data[CANONICAL_GENE_NAME].notna(), "missing canonical gene")
     data = _keep(data, data[CELL_LINE].notna(), "missing cell line")
     return data
 
@@ -119,9 +119,11 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     data = _standardize(data.copy())
     logger.info("process_oligo_data: %d rows in", len(data))
 
-    data = _filter_supported_chemistry(data)
-    data = _filter_valid_target(data)
-    data = _filter_mapped(data)
+    # Ordered from intrinsic / unfixable exclusions to ones addressable in principle with more
+    # effort (mapping every binding site, supporting mixmers).
+    data = _filter_valid_target(data)         # steric, missing inhibition, missing gene, missing cell line
+    data = _filter_supported_chemistry(data)  # mixmer
+    data = _filter_mapped(data)               # sequence unmapped
     if strict_gapmer_patterns:
         data = _filter_strict_gapmers(data)
     if min_cohort_size > 1 or min_cell_line_asos > 1:
