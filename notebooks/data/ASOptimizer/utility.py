@@ -5,8 +5,8 @@ import pandas as pd
 from notebooks.data.ASOptimizer.consts import LINKAGE_LOCATION_ASOPT, SMILES_ASOPT, TRANSFECTION_ASOPT
 from notebooks.data.OligoAI.parse_chemistry import assign_backbone
 from notebooks.data.utility import standardize_cell_line
-from notebooks.notebook_utils import log_correction
-from notebooks.preprocessing import get_filtered_human_data, get_unique_genes, process_row
+from notebooks.notebook_utils import get_unique_genes, log_correction
+from notebooks.preprocessing import process_row
 
 from tauso.data.consts import (
     ASO_SEQUENCE,
@@ -14,7 +14,9 @@ from tauso.data.consts import (
     CELL_LINE,
     CELL_LINE_DEPMAP,
     CELL_LINE_DEPMAP_PROXY,
+    CELL_LINE_ORGANISM,
     CHEMICAL_PATTERN,
+    INHIBITION_PERCENT,
     STRUCTURE_SENSE_LENGTH,
     STRUCTURE_SENSE_SEQUENCE,
     STRUCTURE_SENSE_START,
@@ -110,6 +112,16 @@ def standardize_asoptimizer_data(df: pd.DataFrame) -> pd.DataFrame:
 
     result = standardize_cell_line(result)
     return result
+
+
+def get_filtered_human_data(df):
+    """
+    Filters the raw DataFrame for Human entries and removes rows with missing Inhibition data.
+    Returns a copy to avoid SettingWithCopy warnings.
+    """
+    # Filter: Organism is Human AND Inhibition is not NaN
+    condition = (df[CELL_LINE_ORGANISM] == "human") & (df[INHIBITION_PERCENT].notna())
+    return df[condition].copy()
 
 
 def preprocess_asoptimizer_data(csv_path, include_smiles: bool = False):

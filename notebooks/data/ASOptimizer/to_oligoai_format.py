@@ -27,7 +27,7 @@ from notebooks.data.ASOptimizer.utility import (
     transform_linkage_to_oligo,
     transform_pattern_to_oligo,
 )
-from notebooks.preprocessing import get_unique_genes
+from notebooks.notebook_utils import get_unique_genes
 
 from tauso.data.consts import (
     BACKBONE_MODS,

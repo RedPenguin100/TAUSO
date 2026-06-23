@@ -1,30 +1,6 @@
-import numpy as np
-
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from tauso.data.consts import *
 from tauso.util import get_antisense
-
-
-def get_unique_genes(df):
-    """
-    Extracts unique genes from a dataframe, excluding blacklist items.
-    """
-    genes = df[CANONICAL_GENE_NAME].unique()
-    genes_to_remove = {"HBV", "negative_control", np.nan}
-
-    # Filter using list comprehension
-    genes_clean = [g for g in genes if g not in genes_to_remove]
-    return genes_clean
-
-
-def get_filtered_human_data(df):
-    """
-    Filters the raw DataFrame for Human entries and removes rows with missing Inhibition data.
-    Returns a copy to avoid SettingWithCopy warnings.
-    """
-    # Filter: Organism is Human AND Inhibition is not NaN
-    condition = (df[CELL_LINE_ORGANISM] == "human") & (df[INHIBITION_PERCENT].notna())
-    return df[condition].copy()
 
 
 def process_row(row, gene_to_data):
