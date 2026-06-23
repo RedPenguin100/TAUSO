@@ -4,13 +4,6 @@ from pathlib import Path
 PROJECT_ROOT = Path(os.path.dirname(os.path.dirname(__file__)))
 NOTEBOOK_PATH = PROJECT_ROOT / "notebooks"
 
-# NOTE: ASOptimizer data paths are intentionally NOT defined here. The ASOptimizer
-# pipeline lives in notebooks/data/ASOptimizer/ as a parked module that will be
-# re-integrated separately once its column-naming convention is translated to
-# TAUSO's canonical names (Linkage / ISIS / Smiles / Sugar_mods / Backbone_mods
-# all still carry the old shape). Do not add ASOPTIMIZER_DATA_PATH or its CSVs
-# back to this file until that translation is done.
-
 OLIGO_AI_DATA_PATH = NOTEBOOK_PATH / "data" / "OligoAI" / "raw_data"
 ORIGINAL_OLIGO_CSV_FLANK_100 = OLIGO_AI_DATA_PATH / "aso_inhibitions_21_08_25_incl_context_w_flank_100_df.csv.gz"
 ORIGINAL_OLIGO_CSV = OLIGO_AI_DATA_PATH / "aso_inhibitions_21_08_25_incl_context_w_flank_50_df.csv.withsplit.csv.gz"

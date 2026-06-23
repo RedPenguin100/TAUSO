@@ -69,7 +69,6 @@ DATASETS = {
             'calculate_rbp',
         ],
     },
-    # 'asoptimizer': { ... }  # TODO: add when needed
 }
 
 
