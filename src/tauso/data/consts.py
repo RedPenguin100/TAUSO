@@ -5,7 +5,7 @@ INHIBITION_PERCENT = "inhibition_percent"
 CANONICAL_GENE_NAME = "canonical_gene_name"
 CELL_LINE_ORGANISM = "cell_line_organism"
 VOLUME_NM = "volume_nm"
-CHEMICAL_PATTERN = "chemical_pattern"  # LNA / MOE / cEt
+CHEMICAL_PATTERN = "chemical_pattern"  # MMMdddMMM or CCCdddCCC etc
 TREATMENT_PERIOD_HOURS = "treatment_period_hours"
 CELL_LINE = "cell_line"
 # Raw transfection column from the source data: not a model feature; downstream
@@ -13,7 +13,7 @@ CELL_LINE = "cell_line"
 # NaN on anything outside {Electroporation, Gymnosis, Lipofection}.
 TRANSFECTION_RAW = "transfection_raw"
 DENSITY_CELLS_PER_WELL = "density_cells_per_well"
-MODIFICATION_STRING = "modification_string"  # MMMdddMMM or CCCdddCCC etc
+MODIFICATION_STRING = "modification_string"  # LNA / MOE / cEt
 STRUCTURE_SENSE_START = "structure_sense_start"
 STRUCTURE_SENSE_START_FROM_END = "structure_sense_start_from_end"
 STRUCTURE_SENSE_LENGTH = "structure_sense_length"

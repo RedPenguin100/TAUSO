@@ -2,7 +2,7 @@ import re
 
 import numpy as np
 import pandas as pd
-from notebooks.data.ASOptimizer.consts import LINKAGE_LOCATION_ASOPT, SMILES_ASOPT
+from notebooks.data.ASOptimizer.consts import LINKAGE_LOCATION_ASOPT, SMILES_ASOPT, TRANSFECTION_ASOPT
 from notebooks.data.OligoAI.parse_chemistry import assign_backbone
 from notebooks.data.utility import standardize_cell_line
 from notebooks.notebook_utils import log_correction
@@ -18,7 +18,6 @@ from tauso.data.consts import (
     STRUCTURE_SENSE_LENGTH,
     STRUCTURE_SENSE_SEQUENCE,
     STRUCTURE_SENSE_START,
-    TRANSFECTION_RAW,
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
@@ -73,7 +72,7 @@ def transform_pattern_to_oligo(sequence_string, lna_as_cet=True):
 
 def transfection_to_oligo(df):
     # Ensure the Transfection column is string type and handle NaNs
-    col = df[TRANSFECTION_RAW].astype(str).str.lower()
+    col = df[TRANSFECTION_ASOPT].astype(str).str.lower()
 
     # Define conditions
     # 1. Gymnosis: matches "free uptake" or "uptake"

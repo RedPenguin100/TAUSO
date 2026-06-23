@@ -15,6 +15,10 @@ ASOPTIMIZER_DATA_PATH = NOTEBOOK_PATH / "data" / "ASOptimizer" / "raw_data"
 ORIGINAL_CSV = ASOPTIMIZER_DATA_PATH / "asoptimizer_data_original.csv"
 PROCESSED_CSV = ASOPTIMIZER_DATA_PATH / "asoptimizer_data_processed.csv"
 
+# mRNA context window (nt per side) for the OligoAI-format adapter; encoded in its filename.
+CONTEXT_FLANK = 50
+ADAPTED_CSV = ASOPTIMIZER_DATA_PATH / f"asoptimizer_adapted_to_oligoai_flank{CONTEXT_FLANK}.csv"
+
 # --- raw ASOptimizer source columns ---
 ISIS_ASOPT = "ISIS"
 TARGET_GENE_ASOPT = "Target_gene"
