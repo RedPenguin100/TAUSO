@@ -125,7 +125,10 @@ def process_oligo_data(data, min_cohort_size=1, min_cell_line_asos=1, strict_gap
     data = _filter_mapped(data)
     if strict_gapmer_patterns:
         data = _filter_strict_gapmers(data)
-    data = _filter_sparse(data, min_cohort_size, min_cell_line_asos)
+    if min_cohort_size > 1 or min_cell_line_asos > 1:
+        data = _filter_sparse(data, min_cohort_size, min_cell_line_asos)
+    else:
+        logger.info("  %7s  sparse cohort/cell-line filter inactive (min size = 1)", "-")
 
     data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(resolve_depmap_proxy)
     data[CELL_LINE_DEPMAP] = data[CELL_LINE].map(resolve_depmap_id)
