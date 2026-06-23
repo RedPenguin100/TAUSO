@@ -50,7 +50,14 @@ CELL_LINE_FIXES = {
     "hSKM": "hSKMc",  # consolidate skeletal muscle variants
     "iCell cardiomyocytes (R1017)": "iCell cardiomyocytes2",
 }
-SUPPORTED_CHEMISTRIES = ["MOE/5-methylcytosines/deoxy", "cEt/5-methylcytosines/deoxy", "DNA"]
+# Single high-affinity sugar (MOE / cEt / LNA) or plain DNA. LNA is supported even though the
+# ASO Atlas contains none. Mixed-sugar oligos ("mixmer", >1 high-affinity sugar) are excluded.
+SUPPORTED_CHEMISTRIES = [
+    "MOE/5-methylcytosines/deoxy",
+    "cEt/5-methylcytosines/deoxy",
+    "LNA/5-methylcytosines/deoxy",
+    "DNA",
+]
 STRICT_GAPMER_PATTERNS = ["MMMMMddddddddddMMMMM", "CCCddddddddddCCC"]  # 5-10-5 MOE, 3-10-3 cEt
 
 
@@ -72,7 +79,7 @@ def _standardize(data):
 
 def _filter_supported_chemistry(data):
     return _keep(data, data[MODIFICATION_STRING].isin(SUPPORTED_CHEMISTRIES),
-                 "unsupported chemistry (mixmer / LNA)")
+                 "mixed-sugar chemistry (mixmer)")
 
 
 def _filter_valid_target(data):
