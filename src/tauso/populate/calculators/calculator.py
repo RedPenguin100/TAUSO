@@ -10,6 +10,7 @@ from pympler import asizeof
 from ...data.consts import (
     CANONICAL_GENE_NAME,
     CELL_LINE_DEPMAP,
+    DENSITY_CELLS_PER_WELL,
     STRUCT_SENSE_IN_3UTR,
     STRUCT_SENSE_IN_5UTR,
     STRUCT_SENSE_IN_CDS,
@@ -33,6 +34,7 @@ from ...data.consts import (
     STRUCTURE_SENSE_START_NORM,
     STRUCTURE_SENSE_TYPE,
     TRANSFECTION_RAW,
+    VOLUME_NM,
 )
 from ...features.interaction_features import protein_affinity_gymnosis
 from ...timer import Timer
@@ -780,7 +782,7 @@ class Calculator:
 
         from tauso.data.consts import CHEMICAL_PATTERN, PS_PATTERN
 
-        self._load_features_into_data(["seq_internal_fold"])
+        self._load_features_into_data(["seq_internal_fold", "transfection_gymnosis"])
         self._check_dependencies([PS_PATTERN, CHEMICAL_PATTERN, "seq_internal_fold"])
 
         if "transfection_gymnosis" in self.data.columns:
@@ -792,6 +794,22 @@ class Calculator:
             self.data[PS_PATTERN], self.data[CHEMICAL_PATTERN], self.data["seq_internal_fold"], gymnosis
         )
         self._save_calculated_feature(feature_name=feature)
+
+    def calculate_experimental_conditions(self):
+        """Pass-through experimental-condition features: ASO dose and plating density.
+
+        Both arrive on the loaded data (renamed from the raw OligoAI columns) and are stored as
+        raw values -- XGBoost is monotone-invariant, so no log transform is applied.
+        """
+        expected = [VOLUME_NM, DENSITY_CELLS_PER_WELL]
+        missing = self._get_missing_features(expected)
+        if not missing:
+            logger.info("Experimental-condition features exist. Skipping.")
+            return
+
+        self._check_dependencies(missing)
+        for feature in missing:
+            self._save_calculated_feature(feature_name=feature)
 
     def calculate_ribo_seq(self):
         """Calculates ribosome profiling (Ribo-seq) features for both 40S and 80S subunits."""
@@ -1100,6 +1118,7 @@ class Calculator:
             self.calculate_structure,
             self.calculate_cub,
             self.calculate_basic,
+            self.calculate_experimental_conditions,
             self.calculate_sequence,
             self.calculate_expression,
             self.calculate_rnase,
