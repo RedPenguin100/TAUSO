@@ -119,11 +119,8 @@ jobs:
           os: ${{ runner.os }}
           data_dir: ${{ env.TAUSO_DATA_DIR }}
 
-      - name: Process Oligo Data
-        run: python -m notebooks.data.OligoAI.assign_canonical_gene
-
-      - name: Index Oligo Data
-        run: python -m notebooks.utils.data
+      - name: Build Oligo Data (download, split, canonical gene, index)
+        run: python notebooks/data/OligoAI/setup_data.py --skip-process
 
       - name: Cache mRNA Half Life
         uses: actions/cache@v4

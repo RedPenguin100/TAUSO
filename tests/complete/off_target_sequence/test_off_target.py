@@ -1,7 +1,6 @@
-import os
-
 import pandas as pd
-from notebooks.data.OligoAI.assign_canonical_gene import process_and_assign_genes_bulk
+
+from notebooks.data.OligoAI.curate_gene_labels import alignment_stats
 
 
 def generate_200_test_sequences():
@@ -42,73 +41,41 @@ def generate_200_test_sequences():
 TEST_DATA = generate_200_test_sequences()
 
 
-def test_process_and_assign_genes_bulk_real_genome(tmp_path):
-    """
-    A true integration test hitting the real GRCh38 genome and Bowtie binary.
-    No mocks are used.
-    """
+def test_alignment_stats_real_genome(tmp_path):
+    """A true integration test hitting the real GRCh38 genome and Bowtie binary (no mocks).
 
-    # 1. Setup isolated file paths using pytest's tmp_path
+    `alignment_stats` is the diagnostic that aligns each ASO to the genome and, per patent
+    target_gene, reports the gene its ASOs most often hit. 40 KRAS-derived windows must all
+    align to KRAS; scrambled controls must align to nothing.
+    """
     input_csv = tmp_path / "test_oligos_input.csv"
-    output_csv = tmp_path / "test_oligos_output.csv"
-    stats_csv = tmp_path / "test_oligos_output_STATS.csv"
+    pd.DataFrame(TEST_DATA).to_csv(input_csv, index=False)
 
-    # 2. Create the physical input CSV
-    df_input = pd.DataFrame(TEST_DATA)
-    df_input.to_csv(input_csv, index=False)
+    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", seq_col="rna_sequence", threads=4)
 
-    # 3. Execute the actual function
-    # Note: Ensure genome="GRCh38" is installed in your env before running
-    df_out, ambiguous_genes, df_stats = process_and_assign_genes_bulk(
-        input_csv=str(input_csv),
-        output_csv=str(output_csv),
-        genome="GRCh38",
-        sequence_col="rna_sequence",
-    )
-
-    # --- 4. ASSERTIONS ---
-
-    # Check that the files were actually physically created
-    assert os.path.exists(output_csv), "Output CSV was not created."
-    assert os.path.exists(stats_csv), "Stats CSV was not created."
-
-    # Check that the temp FASTA file was successfully cleaned up
-    # (Your code uses a dynamic UUID, so we just ensure no fasta files are left in the test root)
-    fasta_files = list(tmp_path.glob("*.fasta"))
-    assert len(fasta_files) == 0, f"Temporary FASTA files were not deleted: {fasta_files}"
-
-    # --- Validate Output DataFrames ---
-
-    # Verify Stats DataFrame structure
-    assert not df_stats.empty
-    expected_stat_columns = [
+    assert not stats.empty
+    expected_columns = [
         "original_target_gene",
-        "total_asos_tested",
-        "most_popular_canonical",
+        "total_asos",
+        "most_popular_alignment",
+        "original_hit_count",
         "popular_hit_count",
-        "match_rate",
-        "all_hit_frequencies",
     ]
-    for col in expected_stat_columns:
-        assert col in df_stats.columns, f"Missing expected column in stats: {col}"
+    for col in expected_columns:
+        assert col in stats.columns, f"Missing expected column in stats: {col}"
 
-    # Verify the logic accurately counted our inputs
-    # We fed it 40 KRAS sequences, 40 SMN, 40 APOL1, 40 MYO6, 6 UNKNOWN
+    # We fed 40 KRAS / 40 SMN / 40 APOL1 / 40 MYO6 windows and 6 UNKNOWN controls.
+    kras_stats = stats[stats["original_target_gene"] == "KRAS"].iloc[0]
+    smn_stats = stats[stats["original_target_gene"] == "SMN"].iloc[0]
+    assert kras_stats["total_asos"] == 40
+    assert smn_stats["total_asos"] == 40
 
-    # Extract specific rows for testing
-    kras_stats = df_stats[df_stats["original_target_gene"] == "KRAS"].iloc[0]
-    smn_stats = df_stats[df_stats["original_target_gene"] == "SMN"].iloc[0]
+    # Bowtie resolves the gene: every KRAS window aligns to KRAS.
+    assert kras_stats["most_popular_alignment"] == "KRAS"
+    assert kras_stats["original_hit_count"] == 40
 
-    # Assert counts
-    assert kras_stats["total_asos_tested"] == 40
-    assert smn_stats["total_asos_tested"] == 40
-
-    # Assuming Bowtie actually finds these in GRCh38, verify the canonical assignment worked
-    assert kras_stats["most_popular_canonical"] == "KRAS"
-    assert "40/40" in kras_stats["match_rate"]
-
-    # Check the negative control (UNKNOWN gene)
-    unknown_stats = df_stats[df_stats["original_target_gene"] == "UNKNOWN"].iloc[0]
-    assert unknown_stats["total_asos_tested"] == 6
-    assert pd.isna(unknown_stats["most_popular_canonical"])  # Should be NaN since it won't hit anything
+    # Negative control: scrambled sequences hit nothing.
+    unknown_stats = stats[stats["original_target_gene"] == "UNKNOWN"].iloc[0]
+    assert unknown_stats["total_asos"] == 6
+    assert pd.isna(unknown_stats["most_popular_alignment"])
     assert unknown_stats["popular_hit_count"] == 0
