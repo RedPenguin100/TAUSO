@@ -35,6 +35,7 @@ COMPETITION = [
     "miranda_score",
     "miranda_energy",
     "oligo_ai_score",
+    "ClinASO_score",
 ]
 
 
@@ -128,6 +129,8 @@ def get_dtype_for_feature(filename, index_col_name):
     elif name.startswith("PFRED_") or name.startswith("OW_"):
         feat_type = "float64"
     elif name.startswith("sfold_") or name.startswith("oligo_ai_") or name.startswith("miranda_"):
+        feat_type = "float64"
+    elif filename.startswith("ClinASO"):
         feat_type = "float64"
     else:
         logger.warning("Filename not assigned: %s", filename)
