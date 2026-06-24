@@ -2,23 +2,22 @@
 
 This step prepares the antisense-oligonucleotide dataset used to train and test TAUSO's models. It is **not** required to compute features or run off-target analysis — only to train models or run the test suite.
 
-It builds on a completed [data setup](DATA_SETUP.md): canonical-gene assignment uses the genome and the bowtie off-target index, so both must already be in place.
+It builds on a completed [data setup](DATA_SETUP.md): the canonical-gene and structure steps use the genome and the bowtie off-target index, so both must already be in place.
 
 ## Pipeline
 
+One command runs the whole pipeline — download, split, canonical-gene assignment, indexing, then filter/average:
+
 ```bash
-# 1. Assign a canonical target gene to every ASO via bulk off-target search
-python -m notebooks.data.OligoAI.assign_canonical_gene
-
-# 2. Index the data (assign a stable per-oligo id)
-python -m notebooks.utils.data
-
-# 3. Filter and average into the training dataset
-python -m notebooks.data.OligoAI.process_data [--cpus N]
+python notebooks/data/OligoAI/setup_data.py [--cpus N]
 ```
 
-1. **Canonical genes** — maps each ASO sequence back to a canonical target gene with `find_all_gene_off_targets_BULK`, which is why the genome and bowtie index must be set up first.
-2. **Indexing** — assigns each oligo a stable `index_oligo` for downstream joins.
-3. **Processing** — standardizes columns, computes structural features, filters out unsupported chemistries, unmapped sequences, and non-standard gapmers, then averages replicate measurements into the dataset the model reads. It also writes diagnostic plots and tables.
+It orchestrates the numbered steps in `notebooks/data/OligoAI/`, writing each stage to `raw_data/` (gitignored, reproducible from Zenodo):
 
-On a cluster, run `process_data` with `python -u` (or `PYTHONUNBUFFERED=1`) so logs stream live.
+1. **`1_download`** — fetch the frozen raw ASO dataset from Zenodo.
+2. **`1_5_assign_split`** — reproduce the patent-grouped train/val/test split.
+3. **`2_assign_canonical_gene`** — label each ASO with its target gene (patent label plus curated corrections).
+4. **`2_5_index`** — assign each oligo a stable `index_oligo` over the full raw set, so downstream joins are order-independent.
+5. **`3_process_data`** — compute structure features, filter (unsupported chemistries, unmapped sequences, missing labels), and average replicate measurements into the dataset the model reads.
+
+Step 3 needs the genome (`tauso setup-genome`); pass `--skip-process` to stop after indexing (enough for the feature pipeline, which reads the indexed table). On a cluster, run with `python -u` (or `PYTHONUNBUFFERED=1`) so logs stream live.

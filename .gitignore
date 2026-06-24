@@ -38,3 +38,6 @@ notebooks/models/SimpleModels/
 
 # Per-feature CSVs (regenerable from bigWigs + ASO data via tauso populate / notebooks/features/feature_extraction)
 notebooks/saved_features_oligo/
+
+# Competitor scored data (regenerable by running the competitor model on the dataset)
+notebooks/competitors/OligoAI/*.csv

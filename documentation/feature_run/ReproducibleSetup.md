@@ -115,8 +115,8 @@ It runs (verified against `cli.py`):
    bigWig. (So the omics sub-steps are *not* called separately — that would be
    redundant.)
 2. `tauso build-cell-context` — cohort, per-cell expression, CAI weights, tGCN.
-3. `assign_canonical_gene` — process the oligo data.
-4. `notebooks.utils.data` — index the oligo data.
+3. `notebooks/data/OligoAI/setup_data.py --skip-process` — build the OligoAI
+   training data (download → split → canonical gene → index).
 
 - `setup-all` is idempotent (hash-checks, skips existing; `--force` to rebuild).
   The only repeat in the chain is `setup-tgcn` (run by both `setup-all` and

@@ -52,9 +52,7 @@ tauso build-cell-context HEPG2 HELA A549 # custom cohort (append)
 tauso build-cell-context --reset HEPG2   # replace cohort
 
 # Training data (only to train models / run tests — see TRAINING_DATA.md)
-python -m notebooks.data.OligoAI.assign_canonical_gene
-python -m notebooks.utils.data
-python -m notebooks.data.OligoAI.process_data
+python notebooks/data/OligoAI/setup_data.py
 ```
 
 ## Command options
@@ -142,9 +140,7 @@ tauso build-cell-context
 # Model training (adds the training data — see TRAINING_DATA.md)
 tauso setup-all -t $(nproc)
 tauso build-cell-context
-python -m notebooks.data.OligoAI.assign_canonical_gene
-python -m notebooks.utils.data
-python -m notebooks.data.OligoAI.process_data
+python notebooks/data/OligoAI/setup_data.py
 ```
 
 ## See also
