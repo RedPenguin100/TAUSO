@@ -47,16 +47,13 @@ mkdir -p "$TAUSO_DATA_DIR"
 cd "$REPO"
 run() { "$MM" run -n "$ENV" "$@"; }
 
-echo ">>> [1/4] setup-all  (genome, bowtie, omics[depmap/mrna/tgcn/attract/riboseq], raccess -march=$RACCESS_MARCH)"
+echo ">>> [1/3] setup-all  (genome, bowtie, omics[depmap/mrna/tgcn/attract/riboseq], raccess -march=$RACCESS_MARCH)"
 run tauso setup-all -t "$THREADS" --mem-per-thread "$MEM_PER_THREAD"
 
-echo ">>> [2/4] build-cell-context  (cohort, cohort expression, CAI weights, tGCN)"
+echo ">>> [2/3] build-cell-context  (cohort, cohort expression, CAI weights, tGCN)"
 run tauso build-cell-context
 
-echo ">>> [3/4] assign canonical genes  (process oligo data)"
-run python -u -m notebooks.data.OligoAI.assign_canonical_gene
-
-echo ">>> [4/4] index oligo data"
-run python -u -m notebooks.utils.data
+echo ">>> [3/3] build OligoAI training data  (download, split, canonical gene, index)"
+run python -u notebooks/data/OligoAI/setup_data.py --skip-process
 
 echo ">>> data setup complete. TAUSO_DATA_DIR=$TAUSO_DATA_DIR"
