@@ -154,3 +154,16 @@ def mini_sampled_data(request, final_data):
     n_samples = getattr(request, "param", 1000)
     actual_samples = min(n_samples, len(final_data))
     return final_data.sample(n=actual_samples, random_state=42).copy()
+
+
+@pytest.fixture(scope="session")
+def common_gene_sample(request, base_data):
+    """A small, deterministic slice: `max_per_gene` ASOs from each of the `n_genes` most-
+    represented genes. Parametrize indirectly via (n_genes, max_per_gene); defaults to (2, 6).
+
+    Tests must call .copy() before mutating the returned DataFrame.
+    """
+    n_genes, max_per_gene = getattr(request, "param", (2, 6))
+    genes = base_data[CANONICAL_GENE_NAME].value_counts().index[:n_genes].tolist()
+    sub = base_data[base_data[CANONICAL_GENE_NAME].isin(genes)]
+    return sub.groupby(CANONICAL_GENE_NAME, group_keys=False).head(max_per_gene).reset_index(drop=True)
