@@ -40,8 +40,8 @@ def test_sfold_runs(common_gene_sample, gene_to_data):
 
 
 @pytest.mark.skipif(not pfred_container_running(), reason="'pfred' Docker container not running")
-def test_pfred_regression(common_gene_sample, dataframe_regression):
+def test_pfred_regression(common_gene_sample, dataframe_regression, tmp_path):
     from notebooks.competitors.PFRED.pfred_glue import populate_pfred
 
-    df, feats = populate_pfred(common_gene_sample.copy(), seq_col=ASO_SEQUENCE)
+    df, feats = populate_pfred(common_gene_sample.copy(), seq_col=ASO_SEQUENCE, temp_dir=str(tmp_path))
     dataframe_regression.check(df[["index_oligo"] + list(feats)].reset_index(drop=True))
