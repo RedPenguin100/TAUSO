@@ -1,11 +1,10 @@
 """Shared helpers for the competitor-score regeneration scripts."""
 import pandas as pd
-from scipy.stats import spearmanr
 
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.notebook_utils import get_unique_genes
 from notebooks.preprocessing import process_oligo_data_rename
-from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE, INHIBITION_PERCENT
+from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 
@@ -22,20 +21,9 @@ def load_gene_mapped():
     return df, gene_to_data
 
 
-def validate_and_report(df, feature_cols):
-    """Fail loudly if a feature came out degenerate (tool failure); else report per-cohort
-    (gene x cell) median Spearman vs inhibition so a bad run is obvious."""
+def validate_features(df, feature_cols):
+    """Fail loudly if a feature came out degenerate (all NaN/constant) -- the tool likely failed."""
     for col in feature_cols:
         if df[col].nunique(dropna=True) <= 1:
             raise SystemExit(f"{col}: degenerate output (all NaN/constant) -- the tool likely failed "
                              f"(check binary / version / DATAPATH).")
-
-    if INHIBITION_PERCENT not in df.columns:
-        return
-    cohort = df[CANONICAL_GENE_NAME].astype(str) + "_" + df[CELL_LINE].astype(str)
-    for col in feature_cols:
-        def cohort_spearman(g, _col=col):
-            g = g[[_col, INHIBITION_PERCENT]].dropna()
-            return spearmanr(g[_col], g[INHIBITION_PERCENT]).correlation if len(g) >= 5 else float("nan")
-        med = df.groupby(cohort, group_keys=False).apply(cohort_spearman).median()
-        print(f"  {col}: per-cohort median Spearman vs inhibition = {med:.4f}")

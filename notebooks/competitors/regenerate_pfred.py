@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tauso.data.consts import ASO_SEQUENCE
 from notebooks.competitors.PFRED.pfred_glue import populate_pfred, validate_docker_container
-from notebooks.competitors.regen_common import load_indexed, validate_and_report
+from notebooks.competitors.regen_common import load_indexed, validate_features
 from notebooks.features.feature_extraction import save_feature
 
 
@@ -28,7 +28,7 @@ def main():
 
     data = load_indexed()
     data, features = populate_pfred(data, seq_col=ASO_SEQUENCE, container_name=args.container)
-    validate_and_report(data, list(features))
+    validate_features(data, list(features))
     for f in features:
         save_feature(data, f, overwrite=True, version="oligo")
     print("pfred done:", list(features))
