@@ -28,15 +28,15 @@ def test_miranda_regression(common_gene_sample, gene_to_data, dataframe_regressi
 
 
 @pytest.mark.skipif(tool_missing("sfold"), reason="sfold not on PATH")
-def test_sfold_runs(common_gene_sample, gene_to_data):
-    # sfold is stochastic (Boltzmann sampling), so sanity-check the output instead of pinning exact values.
+def test_sfold_regression(common_gene_sample, gene_to_data, dataframe_regression):
+    # sfold's sampled probabilities vary by ~0.005 run-to-run, so use a loose tolerance.
     from notebooks.competitors.sfold_utils import calculate_sfold_accessibility
 
-    acc = calculate_sfold_accessibility(df=common_gene_sample.copy(), gene_to_data=gene_to_data, n_cores=2)["sfold_accessibility"]
-    assert len(acc) == len(common_gene_sample)
-    assert acc.notna().any(), "sfold produced all-NaN -- the binary likely failed"
-    valid = acc.dropna()
-    assert ((valid >= 0) & (valid <= 1)).all(), "sfold_accessibility must be a probability in [0, 1]"
+    df = calculate_sfold_accessibility(df=common_gene_sample.copy(), gene_to_data=gene_to_data, n_cores=2)
+    dataframe_regression.check(
+        df[["index_oligo", "sfold_accessibility"]].reset_index(drop=True),
+        default_tolerance=dict(atol=0.02),
+    )
 
 
 @pytest.mark.skipif(not pfred_container_running(), reason="'pfred' Docker container not running")
