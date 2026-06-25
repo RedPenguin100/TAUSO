@@ -745,7 +745,12 @@ def setup_riboseq(force):
 @main.command(name="setup-features")
 @click.option("--run", default="oligo", show_default=True, help="Feature-set run to download.")
 @click.option("--force", is_flag=True, help="Force redownload even if present.")
-def setup_features(run, force):
+@click.option(
+    "--include-competition",
+    is_flag=True,
+    help="Also download the competitor-score shards (OligoWalk/miRanda/sFold/PFRED/OligoAI).",
+)
+def setup_features(run, force, include_competition):
     """
     Download the frozen feature cache (one wide parquet) from Zenodo into
     TAUSO_DATA_DIR/features/<run>/.
@@ -754,8 +759,11 @@ def setup_features(run, force):
     modeling/notebooks don't recompute the full feature matrix. Computing features for new
     inputs goes through the calculators and does not need it. The cache sits in the store
     folder alongside any per-feature dev shards.
+
+    With --include-competition, also fetches the competitor-score shards into
+    features/<run>/_patches/ -- the opt-in baselines loaded only when load_competition=True.
     """
-    from tauso.populate.feature_cache import ensure_cache
+    from tauso.populate.feature_cache import ensure_cache, ensure_competition_cache
 
     try:
         dest = ensure_cache(run, force=force)
@@ -763,6 +771,10 @@ def setup_features(run, force):
         echo_err(str(e))
         sys.exit(1)
     echo_ok(f"Feature cache ready: {dest}")
+
+    if include_competition:
+        paths = ensure_competition_cache(run, force=force)
+        echo_ok(f"Competition shards ready: {len(paths)} files")
 
 
 GENCODE_HUMAN_RELEASE = "38"
