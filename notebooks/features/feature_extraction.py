@@ -8,7 +8,9 @@ import pyarrow.parquet as pq
 from tauso.populate.feature_cache import (
     FEATURE_CACHE_FILES,
     LOOSE_SHARD_SUBDIR,
+    ZENODO_COMPETITION_SHARDS,
     ensure_cache,
+    ensure_competition_cache,
     feature_store_dir,
     loose_shard_dir,
     save_feature_internal,
@@ -31,6 +33,7 @@ COMPETITION = [
     "OW_Tm",
     "OW_Intra_Oligo",
     "OW_Duplex",
+    "OW_Break_Target",
     "sfold_accessibility",
     "miranda_score",
     "miranda_energy",
@@ -154,6 +157,12 @@ def _maybe_fetch_cache(version, feature_dir):
     return cache_file
 
 
+def _maybe_fetch_competition(version, load_competition):
+    """Fetch the competition shards from Zenodo into _patches/ when requested and registered."""
+    if load_competition and version in ZENODO_COMPETITION_SHARDS:
+        ensure_competition_cache(version)
+
+
 def _feature_name(path):
     return os.path.basename(path).removesuffix(".parquet").removesuffix(".csv")
 
@@ -180,6 +189,7 @@ def _list_loose_files(feature_dir, cache_file):
             if f.startswith(".") or not (f.endswith(".parquet") or f.endswith(".csv")):
                 continue
             out.append(os.path.join(patches_dir, f))
+    patches_names = {_feature_name(p) for p in out}
 
     cache_name = os.path.basename(cache_file) if cache_file else None
     WIDE_CACHE_COL_THRESHOLD = 5  # single-feature files have 2 cols (index + value)
@@ -193,6 +203,8 @@ def _list_loose_files(feature_dir, cache_file):
         if f == cache_name:
             continue
         full_path = os.path.join(feature_dir, f)
+        if _feature_name(full_path) in patches_names:
+            continue  # superseded by the canonical _patches shard
         if f.endswith(".parquet"):
             try:
                 n_cols = len(pq.read_schema(full_path).names)
@@ -248,6 +260,7 @@ def _read_cache(cache_file, index_col, excluded_cols, keep_name):
 def load_all_features(filenames=None, light=True, verbose=False, version="oligo", load_competition=False):
     feature_dir = _get_saved_features_dir(version)
     cache_file = _maybe_fetch_cache(version, feature_dir)
+    _maybe_fetch_competition(version, load_competition)
 
     keep = _keep_filter(light=light, load_competition=load_competition, wanted=filenames)
     loose_files = [p for p in _list_loose_files(feature_dir, cache_file) if keep(_feature_name(p))]
@@ -279,6 +292,7 @@ def iter_all_features(batch_size=5000, light=True, version="oligo", load_competi
     cache_file = _maybe_fetch_cache(version, feature_dir)
     if cache_file is None:
         raise FileNotFoundError(f"iter_all_features needs a registered cache for run '{version}'")
+    _maybe_fetch_competition(version, load_competition)
 
     keep = _keep_filter(light=light, load_competition=load_competition, wanted=filenames)
     idx = _index_col(version)

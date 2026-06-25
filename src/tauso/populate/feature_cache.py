@@ -11,13 +11,31 @@ logger = logging.getLogger(__name__)
 
 # Per run: the wide cache parquet on Zenodo + the index column it uses. Add a new entry
 # (e.g. "oligo_v2") to ship a new version; runs can share `index_col` across versions.
-ZENODO_FEATURES_RECORD = "20825097"
+ZENODO_FEATURES_RECORD = "20845264"
 FEATURE_CACHE_FILES = {
     "oligo": {
         "filename": "oligo_features_v10.parquet",
         "md5": "5399a9a76590048b92dc15aac73a5e84",
         "index_col": "index_oligo",
     },
+}
+
+# Competition features (external-tool baselines) ship as loose shards in the same Zenodo
+# record; fetched on demand by ensure_competition_cache when load_competition=True.
+ZENODO_COMPETITION_SHARDS = {
+    "oligo": [
+        ("OW_Break_Target.parquet", "c8455fc6f9420d3d2ea43a84e96f8e2f"),
+        ("OW_Duplex.parquet", "0d0224d44f6f6153fd9d1f10179e01fa"),
+        ("OW_Intra_Oligo.parquet", "688e89bb556e340d7a4831901403b17e"),
+        ("OW_Overall.parquet", "bb532ac154abd6d584b96343e228130b"),
+        ("OW_Tm.parquet", "9de0d925f6a5ee2a4d18e3162439822e"),
+        ("PFRED_PLS.parquet", "bb3270d124b2e5c3e87440a11c48e5e2"),
+        ("PFRED_SVM.parquet", "aedc8af145cc2cedd2496d7884539ba2"),
+        ("miranda_energy.parquet", "16f71032d9a22b57c9b41e14fdebb67c"),
+        ("miranda_score.parquet", "3446b7dd4f150fc62b484b02e4306b86"),
+        ("oligo_ai_score.csv", "c1fc1f253b828321b6aa03c0b4b93d4d"),
+        ("sfold_accessibility.parquet", "ffed48f312f00ee4d19bab91887f3a82"),
+    ],
 }
 
 # Per-feature shards (overrides + features not yet folded into the wide pack) live here,
@@ -70,6 +88,21 @@ def ensure_cache(run, force=False):
     verify_hash_or_exit(dest, expected, algo="md5")
     echo_ok(f"Downloaded feature cache: {dest}")
     return dest
+
+
+def ensure_competition_cache(run, force=False):
+    """Fetch the competition-feature shards for `run` from Zenodo into the loose-shard dir."""
+    out_dir = loose_shard_dir(feature_store_dir(run))
+    os.makedirs(out_dir, exist_ok=True)
+    paths = []
+    for filename, expected in ZENODO_COMPETITION_SHARDS.get(run, []):
+        dest = os.path.join(out_dir, filename)
+        if force or not os.path.exists(dest):
+            url = f"https://zenodo.org/api/records/{ZENODO_FEATURES_RECORD}/files/{filename}/content"
+            download_with_progress(url, dest, label=f"Downloading {filename}")
+        verify_hash_or_exit(dest, expected, algo="md5")
+        paths.append(dest)
+    return paths
 
 
 def save_feature_internal(df, feature_name, overwrite=False, version=None, saved_dir_func=None):
