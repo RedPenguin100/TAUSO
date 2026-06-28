@@ -1,0 +1,19 @@
+Step 3 -- selection-criterion choice on [pair_exp], nested gene-grouped CV (no test)
+
+CV exp_med by ranking criterion  (performance; common yardstick):
+  criterion  K=510 K=300 K=200 K=150 K=100 K= 70 K= 40    mean
+  exp_med    0.509 0.504 0.502 0.501 0.486 0.480 0.457   0.491
+  exp_mean   0.509 0.505 0.501 0.494 0.497 0.484 0.457   0.492
+  wexp_mean  0.509 0.507 0.502 0.501 0.498 0.488 0.463   0.496
+  gxc_med    0.509 0.494 0.493 0.490 0.472 0.461 0.428   0.478
+  rmse       0.509 0.509 0.499 0.500 0.496 0.487 0.483   0.498
+
+ranking stability -- top-K overlap across folds  (low = a very different model each fold):
+  criterion  K=510 K=300 K=200 K=150 K=100 K= 70 K= 40
+  exp_med     1.00  0.63  0.50  0.42  0.34  0.35  0.39
+  exp_mean    1.00  0.66  0.58  0.54  0.47  0.48  0.54
+  wexp_mean   1.00  0.67  0.59  0.56  0.53  0.53  0.59
+  gxc_med     1.00  0.60  0.47  0.41  0.36  0.34  0.29
+  rmse        1.00  0.92  0.85  0.84  0.86  0.88  0.86
+
+winner (best mean CV exp_med): rmse   (mean stability 0.89)  -> step 4 ranks by this

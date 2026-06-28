@@ -96,9 +96,16 @@ def _filter_strict_gapmers(data):
     return _keep(data, data[CHEMICAL_PATTERN].isin(STRICT_GAPMER_PATTERNS), "non-strict gapmer pattern")
 
 
-def _filter_sparse(data, min_cohort_size, min_cell_line_asos):
+def assign_cohort(data):
+    """Add the cohort_id column: one cohort per (canonical gene, cell line). The single source of truth
+    for the cohort grouping used by both the sparse filter here and the model's cohort-level metrics."""
     data["cohort_id"] = (data[CANONICAL_GENE_NAME].astype(str).str.strip() + "_"
                          + data[CELL_LINE].astype(str).str.strip())
+    return data
+
+
+def _filter_sparse(data, min_cohort_size, min_cell_line_asos):
+    data = assign_cohort(data)
     cohort_counts = data["cohort_id"].value_counts()
     data = _keep(data, data["cohort_id"].isin(cohort_counts[cohort_counts >= min_cohort_size].index),
                  f"cohort with < {min_cohort_size} ASOs")

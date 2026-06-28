@@ -1,0 +1,5 @@
+# Generated artifacts (regenerate via 5_final_model.py). Reports/rankings (*.txt) are tracked.
+# The deployment model is tracked so inference runs without retraining.
+*.json
+*.npz
+!final_model_clean_exp_K450_all.json

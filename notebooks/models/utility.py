@@ -124,14 +124,21 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
     common_cols = sorted(set(loaded_features.columns) & set(data.columns) - {index})
 
     # 3. Validation: ensure every shared column has identical values across sources.
-    # Compare values not dtypes — the wide cache compresses some int columns to int8
-    # for storage, while the same value in the source CSV stays int64.
+    # Compare values not dtypes — the wide cache stores floats as float32 and compresses
+    # some int columns to int8, while the same value in the source CSV stays float64/int64,
+    # so floats are compared with a tolerance rather than exact equality.
     for col in common_cols:
         check_df = pd.merge(loaded_features[[index, col]], data[[index, col]], on=index)
         a, b = check_df[f"{col}_x"], check_df[f"{col}_y"]
-        if a.isna().equals(b.isna()) and (a.dropna().to_numpy() == b.dropna().to_numpy()).all():
-            del check_df
-            continue
+        if a.isna().equals(b.isna()):
+            av, bv = a.dropna().to_numpy(), b.dropna().to_numpy()
+            if np.issubdtype(av.dtype, np.floating) or np.issubdtype(bv.dtype, np.floating):
+                same = np.allclose(av.astype(np.float64), bv.astype(np.float64), rtol=1e-5, atol=1e-6)
+            else:
+                same = (av == bv).all()
+            if same:
+                del check_df
+                continue
         raise ValueError(f"Integrity Check Failed: '{col}' differs between sources.")
 
     # 4. Drop the shared columns from `data` so the merge produces no _x/_y suffixes
