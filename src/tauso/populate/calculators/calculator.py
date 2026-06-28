@@ -36,7 +36,7 @@ from ...data.consts import (
     TRANSFECTION_RAW,
     VOLUME_NM,
 )
-from ...features.interaction_features import protein_affinity_gymnosis
+from ...features.interaction_features import internal_fold_gymnosis
 from ...timer import Timer
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
 from ..populate_context import (
@@ -775,24 +775,20 @@ class Calculator:
 
     def calculate_interaction(self):
         """Cross-feature interaction features."""
-        feature = "interaction_protein_affinity_gymnosis"
+        feature = "interaction_internal_fold_gymnosis"
         if not self._get_missing_features([feature]):
             logger.info("%s exists. Skipping.", feature)
             return
 
-        from tauso.data.consts import CHEMICAL_PATTERN, PS_PATTERN
-
         self._load_features_into_data(["seq_internal_fold", "transfection_gymnosis"])
-        self._check_dependencies([PS_PATTERN, CHEMICAL_PATTERN, "seq_internal_fold"])
+        self._check_dependencies(["seq_internal_fold"])
 
         if "transfection_gymnosis" in self.data.columns:
             gymnosis = self.data["transfection_gymnosis"]
         else:
             logger.warning("transfection_gymnosis not in data; %s will be 0 for all rows.", feature)
             gymnosis = None
-        self.data[feature] = protein_affinity_gymnosis(
-            self.data[PS_PATTERN], self.data[CHEMICAL_PATTERN], self.data["seq_internal_fold"], gymnosis
-        )
+        self.data[feature] = internal_fold_gymnosis(self.data["seq_internal_fold"], gymnosis)
         self._save_calculated_feature(feature_name=feature)
 
     def calculate_experimental_conditions(self):
