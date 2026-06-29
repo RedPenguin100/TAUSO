@@ -174,5 +174,14 @@ jobs:
       - name: Build cell context (default cohort + expression + CAI weights + tGCN)
         run: tauso build-cell-context
 
+      - name: Cache rRNA reference
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/rrna_reference.fa
+          key: rrna-reference-v1
+
+      - name: Setup rRNA reference (off-target)
+        run: tauso setup-rrna
+
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs --durations=0 --n-jobs 4

@@ -58,6 +58,7 @@ include-package-data = true
 ]
 "tauso.features.rnase_motifs" = ["weights/*.json"]
 "tauso.features.hybridization" = ["weights/*.csv"]
+"tauso.inference" = ["model/*.json", "model/*.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
