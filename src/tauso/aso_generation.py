@@ -1,5 +1,6 @@
 import logging
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -207,17 +208,35 @@ def design_asos(
     config = config or default_config()
     if cell_line is not None:
         config.cell_line = cell_line
+    aso_sizes = _validate_aso_sizes(aso_sizes)
+    if resolve_depmap_proxy(config.cell_line) is None:
+        logger.warning(
+            f"cell line {config.cell_line!r} does not resolve to a DepMap line; expression features will be uninformative."
+        )
+
     if cache is None:
         cache = AssetCache(genome="GRCm39" if config.organism_name == "mouse" else "GRCh38")
     if gene_sequence is not None:
+        gene_sequence = _normalize_target_sequence(gene_sequence)
         cache.set_custom_gene(name=target_gene, sequence=gene_sequence)
     else:
-        gene_sequence = cache.get_full_gene_data()[target_gene].full_mrna
+        gene_data = cache.get_full_gene_data()
+        if target_gene not in gene_data:
+            raise ValueError(
+                f"gene {target_gene!r} not found in the genome cache; pass gene_sequence= for a custom target."
+            )
+        gene_sequence = gene_data[target_gene].full_mrna
+    if max(aso_sizes) > len(gene_sequence):
+        raise ValueError(f"max aso_size ({max(aso_sizes)}) exceeds target length ({len(gene_sequence)}).")
 
-    candidates = get_initial_data(gene_sequence, aso_sizes=list(aso_sizes), canonical_name=target_gene)
+    candidates = get_initial_data(gene_sequence, aso_sizes=aso_sizes, canonical_name=target_gene)
     if first_n is not None:
         candidates = candidates.head(first_n).copy()
     _apply_standard_metadata(candidates, config)
+    logger.info(
+        f"design_asos: target={target_gene!r} cell_line={config.cell_line!r} model={version}; "
+        f"scoring {len(candidates)} candidate ASOs through the feature pipeline."
+    )
 
     featured, _ = generate_aso_features(candidates, cache, n_jobs=n_jobs)
     _, model_features = load_model(version)
@@ -226,4 +245,124 @@ def design_asos(
     col = score_column(version)
     featured[col] = predict(featured, version)
     ranked = featured.sort_values(col, ascending=False, kind="stable").reset_index(drop=True)
-    return ranked.head(top_n) if top_n is not None else ranked
+    if top_n is not None:
+        ranked = ranked.head(top_n)
+    logger.info(f"design_asos: ranked {len(ranked)} candidate ASOs by {col}.")
+    return ranked
+
+
+_DNA_ALPHABET = set("ACGT")
+
+
+def _validate_aso_sizes(aso_sizes):
+    sizes = list(aso_sizes)
+    if not sizes or any(not isinstance(s, int) or s < 1 for s in sizes):
+        raise ValueError(f"aso_sizes must be a non-empty list of positive integers, got {aso_sizes!r}")
+    return sizes
+
+
+def _normalize_target_sequence(seq):
+    """Uppercase, strip whitespace, map U->T, and validate the DNA alphabet."""
+    s = "".join(str(seq).split()).upper().replace("U", "T")
+    if not s:
+        raise ValueError("gene_sequence is empty")
+    bad = sorted(set(s) - _DNA_ALPHABET)
+    if bad:
+        raise ValueError(f"gene_sequence has non-ACGU characters: {bad[:5]}")
+    return s
+
+
+# --- Result views for consumers -------------------------------------------------------------------
+
+_REGION_COLS = [
+    ("5'UTR", "struct_sense_in_5utr"),
+    ("CDS", "struct_sense_in_cds"),
+    ("3'UTR", "struct_sense_in_3utr"),
+    ("intron", "struct_sense_in_intron"),
+]
+
+# Representative top-N / cutoff for the off-target summary (the store carries several; show one).
+_OFFTARGET_SPECIFIC = "off_target_score_specific_BOLTZ_n100_c1000"
+_OFFTARGET_GENERAL = "off_target_score_general_BOLTZ_n100_c1000"
+_RRNA_TOTAL = "off_target_single_rRNA_total_c1000"
+_RNASEH1_FIT = "rnase_krel_score_R4a_krel_dynamic"
+G4HUNTER_LIABILITY = 1.5  # |G4Hunter| at/above ~1.5 indicates a likely G-quadruplex
+
+
+def _col_or_nan(df, name):
+    return df[name] if name in df.columns else pd.Series(np.nan, index=df.index)
+
+
+def _target_region(ranked):
+    """One region label per candidate from the (mutually exclusive) struct_sense_in_* one-hots."""
+    region = pd.Series("unknown", index=ranked.index)
+    for name, col in _REGION_COLS:
+        if col in ranked.columns:
+            region = region.mask((region == "unknown") & ranked[col].astype(bool), name)
+    return region
+
+
+def summarize_design(ranked, model_version=None):
+    """Trim a `design_asos` result to the consumer-facing columns: rank, gene, ASO sequence, length,
+    transcript start + region, and the efficacy ranking score (`tauso_score_<version>`). The score is
+    a within-experiment RANK (higher = better predicted knockdown), not a percent-inhibition value."""
+    from tauso.inference import DEFAULT_VERSION, score_column
+
+    col = score_column(model_version or DEFAULT_VERSION)
+    return pd.DataFrame(
+        {
+            "rank": range(1, len(ranked) + 1),
+            "gene": ranked[CANONICAL_GENE_NAME].to_numpy(),
+            "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
+            "length": ranked[STRUCTURE_SENSE_LENGTH].to_numpy(),
+            "target_start": _col_or_nan(ranked, "structure_sense_start").to_numpy(),
+            "target_region": _target_region(ranked).to_numpy(),
+            col: ranked[col].to_numpy(),
+        }
+    )
+
+
+def design_details(ranked):
+    """Per-candidate safety / liability detail, computed from the full feature frame so it is surfaced
+    whether or not these features were selected into the model: transcriptome & rRNA off-target burden,
+    RNase H1 cleavage fit, and toxicity motifs (CpG/immune, G-quadruplex / G-run). Returns raw values
+    plus liability flags and an implications note -- flags mark candidates to scrutinise, not confirmed
+    toxicity."""
+
+    def g(name):
+        return _col_or_nan(ranked, name)
+
+    out = pd.DataFrame(
+        {
+            "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
+            "offtarget_transcriptome": g(_OFFTARGET_SPECIFIC).to_numpy(),
+            "offtarget_genomewide": g(_OFFTARGET_GENERAL).to_numpy(),
+            "offtarget_rrna": g(_RRNA_TOTAL).to_numpy(),
+            "rnaseh1_cleavage_fit": g(_RNASEH1_FIT).to_numpy(),
+            "tox_cpg_count": g("tox_cpg_count").to_numpy(),
+            "tox_tlr9_motif": g("tox_tlr9_gtcgtt").to_numpy(),
+            "tox_g4hunter_max": g("tox_g4hunter_max").to_numpy(),
+            "tox_grun_count": g("tox_gggg_motif_count").to_numpy(),
+        }
+    )
+    out["flag_immune_cpg"] = out["tox_cpg_count"].fillna(0) > 0
+    out["flag_hepatotox_g4_grun"] = (out["tox_g4hunter_max"].abs() >= G4HUNTER_LIABILITY) | (
+        out["tox_grun_count"].fillna(0) > 0
+    )
+    out["flag_binds_rrna"] = out["offtarget_rrna"].fillna(0) > 0
+    out["liabilities"] = [
+        _liability_note(cpg, g4, rrna)
+        for cpg, g4, rrna in zip(out["flag_immune_cpg"], out["flag_hepatotox_g4_grun"], out["flag_binds_rrna"])
+    ]
+    return out
+
+
+def _liability_note(immune_cpg, hepatotox, binds_rrna):
+    notes = []
+    if immune_cpg:
+        notes.append("CpG motif (TLR9/immunostimulation)")
+    if binds_rrna:
+        notes.append("rRNA off-target binding")
+    if hepatotox:
+        notes.append("G-quadruplex / G-run (hepatotoxicity/aggregation)")
+    return "; ".join(notes) if notes else "none flagged"
