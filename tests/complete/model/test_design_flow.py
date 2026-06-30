@@ -41,9 +41,12 @@ def test_design_asos_full_circle(dataframe_regression):
 @pytest.mark.parametrize(
     "kwargs, match",
     [
-        (dict(gene_sequence="ACGT", aso_sizes=[]), "aso_sizes"),
+        (dict(gene_sequence="ACGT", aso_sizes=[]), "non-empty"),
+        (dict(gene_sequence="ACGT", aso_sizes=[30]), "within"),  # over the 28 nt upper bound
+        (dict(gene_sequence="ACGT", aso_sizes=[10]), "within"),  # under the 12 nt lower bound
+        (dict(gene_sequence="ACG ACG"), "whitespace"),
         (dict(gene_sequence="ACGZT"), "non-ACGU"),
-        (dict(gene_sequence="ACGT", aso_sizes=[20]), "exceeds target length"),
+        (dict(gene_sequence="ACGTACGTACGTACGT", aso_sizes=[20]), "exceeds target length"),
     ],
 )
 def test_design_asos_input_validation(kwargs, match):

@@ -253,17 +253,30 @@ def design_asos(
 
 _DNA_ALPHABET = set("ACGT")
 
+# ASO-length bounds = the range observed in the training data (shortest 12-mer, longest 28-mer);
+# the model is not calibrated outside it, so design_asos rejects out-of-range lengths.
+MIN_ASO_LENGTH = 12
+MAX_ASO_LENGTH = 28
+
 
 def _validate_aso_sizes(aso_sizes):
     sizes = list(aso_sizes)
-    if not sizes or any(not isinstance(s, int) or s < 1 for s in sizes):
-        raise ValueError(f"aso_sizes must be a non-empty list of positive integers, got {aso_sizes!r}")
+    if not sizes or any(not isinstance(s, int) for s in sizes):
+        raise ValueError(f"aso_sizes must be a non-empty list of integers, got {aso_sizes!r}")
+    out_of_range = [s for s in sizes if not (MIN_ASO_LENGTH <= s <= MAX_ASO_LENGTH)]
+    if out_of_range:
+        raise ValueError(
+            f"aso_sizes must be within [{MIN_ASO_LENGTH}, {MAX_ASO_LENGTH}] nt (the model's training range); got {out_of_range}"
+        )
     return sizes
 
 
 def _normalize_target_sequence(seq):
-    """Uppercase, strip whitespace, map U->T, and validate the DNA alphabet."""
-    s = "".join(str(seq).split()).upper().replace("U", "T")
+    """Uppercase and map U->T; validate the DNA alphabet. Rejects whitespace rather than stripping it."""
+    s = str(seq)
+    if any(c.isspace() for c in s):
+        raise ValueError("gene_sequence must not contain whitespace")
+    s = s.upper().replace("U", "T")
     if not s:
         raise ValueError("gene_sequence is empty")
     bad = sorted(set(s) - _DNA_ALPHABET)
