@@ -183,6 +183,8 @@ def design_asos(
     first_n=None,
     top_n=None,
     model_version=None,
+    cds_start=None,
+    cds_end=None,
     config=None,
     cache=None,
     n_jobs=1,
@@ -199,6 +201,8 @@ def design_asos(
     first_n:       featurize only the first N candidates (a full tiling can be thousands of ASOs).
     top_n:         return only the best N after scoring.
     model_version: which bundled model to score with (default the package default).
+    cds_start/cds_end: optional 0-based, half-open coding span for a custom `gene_sequence`, so
+                   5'UTR/CDS/3'UTR and start/stop features are annotated; ignored for a genome lookup.
 
     Returns the candidates with their features and the `tauso_score_<version>` column, sorted best-first.
     """
@@ -218,7 +222,7 @@ def design_asos(
         cache = AssetCache(genome="GRCm39" if config.organism_name == "mouse" else "GRCh38")
     if gene_sequence is not None:
         gene_sequence = _normalize_target_sequence(gene_sequence)
-        cache.set_custom_gene(name=target_gene, sequence=gene_sequence)
+        cache.set_custom_gene(name=target_gene, sequence=gene_sequence, cds_start=cds_start, cds_end=cds_end)
     else:
         gene_data = cache.get_full_gene_data()
         if target_gene not in gene_data:

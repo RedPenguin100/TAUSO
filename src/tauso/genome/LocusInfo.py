@@ -162,7 +162,7 @@ class LocusInfo:
         "utr_indices",
     )
 
-    def __init__(self, seq=None):
+    def __init__(self, seq=None, cds_start=None, cds_end=None):
         self._exon_indices = []
         self._intron_indices = []
         self._5utr_indices = []
@@ -187,6 +187,26 @@ class LocusInfo:
             self.strand = StrandType.POS
             self.gene_type = GeneType.UNKNOWN
             self.full_mrna = seq
+            if (cds_start is None) != (cds_end is None):
+                raise ValueError("pass both cds_start and cds_end (0-based, half-open), or neither")
+            if cds_start is not None:
+                self._annotate_single_exon_cds(cds_start, cds_end)
+
+    def _annotate_single_exon_cds(self, cds_start, cds_end):
+        """Annotate [cds_start, cds_end) (0-based, half-open) as the coding region of a single-exon
+        custom transcript -- marks it PROTEIN_CODING with flanking 5'/3'UTRs and start/stop codons,
+        so struct_sense_in_5utr/cds/3utr and the start/stop-distance features come out correct."""
+        n = len(self.full_mrna)
+        if not (0 <= cds_start < cds_end <= n) or (cds_end - cds_start) % 3 != 0:
+            raise ValueError(f"cds {(cds_start, cds_end)} is not a valid in-frame coding span for length {n}")
+        self.gene_type = GeneType.PROTEIN_CODING
+        self._5utr_indices = [(0, cds_start)] if cds_start > 0 else []
+        self._3utr_indices = [(cds_end, n)] if cds_end < n else []
+        self.utr_indices = self._5utr_indices + self._3utr_indices
+        self.five_prime_utr = self.full_mrna[:cds_start]
+        self.three_prime_utr = self.full_mrna[cds_end:]
+        self.start_codons = self.all_start_codons = [(cds_start, cds_start + 3)]
+        self.stop_codons = self.all_stop_codons = [(cds_end - 3, cds_end)]
 
     def _get_sequence_slice(self, start, end):
         if not self.full_mrna or self.gene_start is None or self.gene_end is None:
