@@ -121,11 +121,12 @@ class Calculator:
 
     def _load_features_into_data(self, feature_names: list):
         """Reads saved feature shards (or the wide cache) back into self.data for in-memory dependencies."""
+        to_load = [f for f in feature_names if f not in self.data.columns]
+        if not to_load:  # dependencies already in memory (e.g. the in-memory generation path)
+            return
         feature_dir = self.get_feature_dir_func(self.data_version)
         cache_cols, cache = self._cache_columns()
-        for feature in feature_names:
-            if feature in self.data.columns:
-                continue
+        for feature in to_load:
             src = self._resolve_feature_source(feature_dir, feature, cache_cols, cache)
             if src is None:
                 raise FileNotFoundError(
