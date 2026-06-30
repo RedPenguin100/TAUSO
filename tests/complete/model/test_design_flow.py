@@ -1,21 +1,23 @@
-"""Full-circle integration test for the ASO design flow.
+"""Full-circle integration test for the ASO design flow + brief input-validation tests.
 
-Tiles candidate ASOs across a target, featurizes them through the real pipeline, and scores them
-with the bundled efficacy model -- end to end. Needs the full feature-pipeline assets (genome,
-off-target rRNA, expression, ...); provisioned in CI by the setup-* steps in ci.yml and locally by
-`tauso setup-*`. If an asset is missing the test fails loudly rather than skipping silently.
+The full-circle test tiles candidate ASOs across a target, featurizes them through the real pipeline,
+scores them with the bundled efficacy model, and regression-checks the consumer view. Needs the full
+feature-pipeline assets (genome, off-target rRNA, expression, ...); provisioned in CI by the setup-*
+steps and locally by `tauso setup-*`. If an asset is missing it fails loudly rather than skipping.
+The validation tests are fast (they raise before any featurization).
 """
 
 import numpy as np
+import pytest
 
-from tauso.aso_generation import design_asos
+from tauso.aso_generation import design_asos, design_details, summarize_design
 from tauso.data.consts import ASO_SEQUENCE
 from tauso.inference import score_column
 
 TMSB10_PREMRNA = "GTTTCTTGCTGCAGCAACGCGAGTGGGAGCACCAGGATCTCGGGCTCGGAACGAGACTGCACGGTGAGTGCGGCGCCGGGGCGGGGGGCCCACCCAGGGTGTGGTCGGATCCGGTGCACCGGGCGGGCGCGCCGCAACCGCGACAGGCGCCCTTCTCGGACCGGACGCAGGGGCCGGCGACCACGCCCTGGGACCGAGAAGAGGGGTGCGGGACGCGCCCAGATCCTCGGCCTTGGGGCTGCTCGGCACGCCTTGGCGCGAGTGCCACGTCGAGAGGCGTCGGCGGGGAGCGCGGAAGGGGACGCTGGCCCCCAGGCCCAGGTCAAGCGCCTTGGTTTGCCCACTAGGATTGTTTTAAGAAAATGGCAGACAAACCAGACATGGGGGAAATCGCCAGCTTCGATAAGGCCAAGCTGAAGAAAACGGAGACGCAGGAGAAGAACACCCTGCCGACCAAAGAGAGTGAGTGTGCCTCGGTCTCCCGCGCCCCAGCCCAGCCCCTCACCCTGCTCTTCCTTGCAAACCCACTCCTCCACCCCCCACCCCGCCGTTGTCCCCGGTGTGGGCGGCCCCGGCCACTCTTTCAGTTTCACAAAGCGCCTTGTTTCTCCCCAGCCCCAAGCTTCCTTCTAAATCCCCACACCTCGTGGGTGCCTCGCCCACACCGGGAAGCACCTCGGTTGCGGGTGGGGGTTGCAGCTCCCCTCCAGCGCCCGCTTCCCGCTCTCCACAGCCATTGAGCAGGAGAAGCGGAGTGAAATTTCCTAAGATCCTGGAGGATTTCCTACCCCCGTCCTCTTCGAGACCCCAGTCGTGATGTGGAGGAAGAGCCACCTGCAAGATGGACACGAGCCACAAGCTGCACTGTGAACCTGGGCACTCCGCGCCGATGCCACCGGCCTGTGGGTCTCTGAAGGGACCCCCCCCCAATCGGACTGCCAAATTCTCCGGTTTGCCCCGGGATATTATAGAAAATTATTTGTATGAATAATGAAAATAAAACACACCTCGTGGCA"
 
 
-def test_design_asos_full_circle():
+def test_design_asos_full_circle(dataframe_regression):
     ranked = design_asos("USER_TMSB10", gene_sequence=TMSB10_PREMRNA, first_n=5, top_n=5, n_jobs=1)
 
     col = score_column()
@@ -25,3 +27,25 @@ def test_design_asos_full_circle():
     assert np.isfinite(scores).all()
     assert list(scores) == sorted(scores, reverse=True)  # ranked best-first
     assert ranked[ASO_SEQUENCE].str.len().eq(20).all()  # 20-mer candidates
+
+    # consumer + safety views
+    summary = summarize_design(ranked)
+    assert list(summary["rank"]) == [1, 2, 3, 4, 5]
+    details = design_details(ranked)
+    assert {"flag_immune_cpg", "flag_binds_rrna", "flag_hepatotox_g4_grun", "liabilities"} <= set(details.columns)
+
+    # regression-check the slim consumer view (stable columns; tolerance on the float score)
+    dataframe_regression.check(summary, default_tolerance={"atol": 1e-4, "rtol": 1e-4})
+
+
+@pytest.mark.parametrize(
+    "kwargs, match",
+    [
+        (dict(gene_sequence="ACGT", aso_sizes=[]), "aso_sizes"),
+        (dict(gene_sequence="ACGZT"), "non-ACGU"),
+        (dict(gene_sequence="ACGT", aso_sizes=[20]), "exceeds target length"),
+    ],
+)
+def test_design_asos_input_validation(kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        design_asos("USER_TEST", **kwargs)

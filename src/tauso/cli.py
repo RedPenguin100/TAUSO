@@ -59,6 +59,10 @@ DEPMAP_FILES_SHA1 = {
     "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "22ac03aa45a6b9ef4f60e9ed8bb574e64dcb56f6",
 }
 
+# rRNA off-target reference: human cytoplasmic 18S/5.8S/28S/5S RefSeq records, frozen on Zenodo.
+ZENODO_RRNA_RECORD = "21071791"
+RRNA_SHA1 = "377ded75d51e57a12eee899c333f30431de0f7ff"
+
 
 def _zenodo_file_url(record_id: str, filename: str) -> str:
     return f"https://zenodo.org/records/{record_id}/files/{filename}"
@@ -585,37 +589,26 @@ def setup_mrna_halflife(force):
 
 
 @main.command()
-@click.option("--force", is_flag=True, help="Force refetch if file exists.")
+@click.option("--force", is_flag=True, help="Force redownload.")
 def setup_rrna(force):
-    """Fetch the cytoplasmic rRNA reference FASTA (RefSeq 18S/5.8S/28S/5S) into the data dir."""
-    from io import StringIO
+    """Download the cytoplasmic rRNA reference FASTA from a pinned Zenodo mirror
+    (https://zenodo.org/records/21071791) into the data dir, verifying its SHA1.
 
-    from Bio import SeqIO
+    Origin: the four human cytoplasmic rRNA RefSeq records -- 18S NR_003286.4, 5.8S NR_003285.3,
+    28S NR_003287.4, 5S NR_023363.1 -- fetched once from NCBI nuccore and frozen on Zenodo for
+    reproducibility (avoids per-run NCBI rate limits).
+    """
+    from tauso.features.hybridization.off_target.rrna_targets import REFERENCE_FILENAME, reference_path
 
-    from tauso.data.ncbi import fetch_nuccore_fasta
-    from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS, reference_path
-    from tauso.genome.fasta import write_fasta
-
-    path = reference_path()
-    if path.exists() and not force:
-        echo_ok(f"{path.name} already present. Skipping.")
+    dest = str(reference_path())
+    if os.path.exists(dest) and not force and sha1_file(dest) == RRNA_SHA1:
+        echo_ok(f"{REFERENCE_FILENAME} exists (SHA1 verified).")
         return
-    try:
-        # NOTE: download orchestration lives here for now; refactor into a fetch module later.
-        sequences = {}
-        for name, (acc, expected_len) in RRNA_ACCESSIONS.items():
-            click.echo(f"Fetching {name} ({acc}) from NCBI...")
-            seq = str(SeqIO.read(StringIO(fetch_nuccore_fasta(acc)), "fasta").seq)
-            if not seq:
-                raise RuntimeError(f"Empty sequence fetched for {name} ({acc}).")
-            if abs(len(seq) - expected_len) > 5:
-                click.echo(f"  warning: {name} ({acc}) length {len(seq)} differs from expected ~{expected_len} nt.")
-            sequences[name] = seq
-        write_fasta(sequences, path)
-        echo_ok(f"Fetched {len(sequences)} rRNA sequences: {path}")
-    except Exception as e:
-        echo_err(f"Error fetching rRNA reference: {e}")
-        sys.exit(1)
+    download_with_progress(
+        _zenodo_file_url(ZENODO_RRNA_RECORD, REFERENCE_FILENAME), dest, label=f"    {REFERENCE_FILENAME}"
+    )
+    verify_hash_or_exit(dest, RRNA_SHA1, algo="sha1")
+    echo_ok(f"Downloaded {REFERENCE_FILENAME} (SHA1 verified).")
 
 
 @main.command(name="setup-tgcn")

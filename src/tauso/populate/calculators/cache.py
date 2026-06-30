@@ -136,6 +136,9 @@ class AssetCache:
         return self._gene_registry
 
     def set_custom_gene(self, name, sequence):
-        locus_info = LocusInfo(seq=sequence)
-        if self.custom_gene is None:
-            self.custom_gene = name, locus_info
+        """Register a user-provided gene sequence, replacing any previous custom gene and
+        invalidating the cached gene data so the new sequence is used on the next access
+        (otherwise a reused cache would silently keep scoring the first gene)."""
+        self.custom_gene = (name, LocusInfo(seq=sequence))
+        self._gene_to_data_full = None
+        self._gene_registry = None
