@@ -1,13 +1,16 @@
 """Design ASOs against the DIAPH3 plasmid construct.
 
 Tiles every 20-mer across the DIAPH3 plasmid sequence, scores each with the bundled
-`tauso_score_v1` efficacy model, and writes two CSVs to ``notebooks/prediction/output/``:
+`tauso_score_v1` efficacy model, and writes three CSVs to ``notebooks/prediction/output/``
+(all keyed by chemistry + aso_sequence so multiple chemistries can be compared):
 
-  * ``DIAPH3_designed_asos.csv``  -- ranked sequences (rank, gene, aso_sequence, length,
-    target_start, target_region, tauso_score_v1). Higher score = better predicted knockdown
+  * ``DIAPH3_designed_asos.csv``  -- raw results: rank, gene, chemistry, aso_sequence, length,
+    target_start, target_region, tauso_score_v1. Higher score = better predicted knockdown
     (a within-experiment rank, not a percent-inhibition value).
-  * ``DIAPH3_safety_detail.csv``  -- per-ASO off-target / rRNA / RNase H1 fit and toxicity
-    liabilities (CpG/immune, G-quadruplex / G-run), with flags and an implications note.
+  * ``DIAPH3_tox.csv``            -- sequence-intrinsic toxicity: CpG/immune and G-quadruplex /
+    G-run motifs, with flags and an implications note.
+  * ``DIAPH3_features.csv``       -- feature-like quantities: transcriptome / genome-wide / rRNA
+    off-target burden and RNase H1 cleavage fit (raw values).
 
 Run:  python notebooks/prediction/design_DIAPH3.py            # full transcript
       python notebooks/prediction/design_DIAPH3.py --first-n 20   # quick smoke run
@@ -17,7 +20,7 @@ import argparse
 import os
 from pathlib import Path
 
-from tauso.aso_generation import design_asos, design_details, summarize_design
+from tauso.aso_generation import design_asos, feature_details, summarize_design, tox_details
 from tauso.genome.fasta import read_single_rna_fasta
 
 HERE = Path(__file__).resolve().parent
@@ -48,9 +51,9 @@ def main():
     )
 
     designed = summarize_design(ranked)
-    safety = design_details(ranked)
     designed.to_csv(args.out_dir / "DIAPH3_designed_asos.csv", index=False)
-    safety.to_csv(args.out_dir / "DIAPH3_safety_detail.csv", index=False)
+    tox_details(ranked).to_csv(args.out_dir / "DIAPH3_tox.csv", index=False)
+    feature_details(ranked).to_csv(args.out_dir / "DIAPH3_features.csv", index=False)
 
     print(f"DIAPH3: {len(ranked)} candidate ASOs designed -> {args.out_dir}")
     print(designed.head(10).to_string(index=False))

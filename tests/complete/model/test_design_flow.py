@@ -10,7 +10,7 @@ The validation tests are fast (they raise before any featurization).
 import numpy as np
 import pytest
 
-from tauso.aso_generation import design_asos, design_details, summarize_design
+from tauso.aso_generation import design_asos, feature_details, summarize_design, tox_details
 from tauso.data.consts import ASO_SEQUENCE
 from tauso.inference import score_column
 
@@ -28,11 +28,14 @@ def test_design_asos_full_circle(dataframe_regression):
     assert list(scores) == sorted(scores, reverse=True)  # ranked best-first
     assert ranked[ASO_SEQUENCE].str.len().eq(20).all()  # 20-mer candidates
 
-    # consumer + safety views
+    # consumer + tox + feature views (each keyed by chemistry + sequence)
     summary = summarize_design(ranked)
     assert list(summary["rank"]) == [1, 2, 3, 4, 5]
-    details = design_details(ranked)
-    assert {"flag_immune_cpg", "flag_binds_rrna", "flag_hepatotox_g4_grun", "liabilities"} <= set(details.columns)
+    assert "chemistry" in summary.columns
+    tox = tox_details(ranked)
+    assert {"chemistry", "flag_immune_cpg", "flag_hepatotox_g4_grun", "liabilities"} <= set(tox.columns)
+    feats = feature_details(ranked)
+    assert {"chemistry", "offtarget_transcriptome", "offtarget_rrna", "rnaseh1_cleavage_fit"} <= set(feats.columns)
 
     # regression-check the slim consumer view (stable columns; tolerance on the float score)
     dataframe_regression.check(summary, default_tolerance={"atol": 1e-4, "rtol": 1e-4})

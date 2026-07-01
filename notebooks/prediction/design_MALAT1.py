@@ -6,10 +6,12 @@ no CDS annotation); consequently every candidate's ``target_region`` is reported
 (there is no 5'UTR / CDS / 3'UTR to assign).
 
 Tiles every 20-mer across the transcript, scores each with the bundled ``tauso_score_v1`` model,
-and writes two CSVs to ``notebooks/prediction/output/`` (same schema as design_DIAPH3.py):
+and writes three CSVs to ``notebooks/prediction/output/`` (same schema as design_DIAPH3.py, all
+keyed by chemistry + aso_sequence):
 
-  * ``MALAT1_designed_asos.csv``  -- ranked sequences.
-  * ``MALAT1_safety_detail.csv``  -- per-ASO off-target / rRNA / RNase H1 fit and toxicity flags.
+  * ``MALAT1_designed_asos.csv``  -- raw results (rank, gene, chemistry, sequence, position, score).
+  * ``MALAT1_tox.csv``            -- sequence-intrinsic toxicity motifs, flags, implications note.
+  * ``MALAT1_features.csv``       -- off-target burden + RNase H1 cleavage fit (raw values).
 
 Run:  python notebooks/prediction/design_MALAT1.py            # full transcript (~8.8 kb)
       python notebooks/prediction/design_MALAT1.py --first-n 20   # quick smoke run
@@ -19,7 +21,7 @@ import argparse
 import os
 from pathlib import Path
 
-from tauso.aso_generation import design_asos, design_details, summarize_design
+from tauso.aso_generation import design_asos, feature_details, summarize_design, tox_details
 
 HERE = Path(__file__).resolve().parent
 ASO_SIZE = 20
@@ -41,9 +43,9 @@ def main():
     )
 
     designed = summarize_design(ranked)
-    safety = design_details(ranked)
     designed.to_csv(args.out_dir / "MALAT1_designed_asos.csv", index=False)
-    safety.to_csv(args.out_dir / "MALAT1_safety_detail.csv", index=False)
+    tox_details(ranked).to_csv(args.out_dir / "MALAT1_tox.csv", index=False)
+    feature_details(ranked).to_csv(args.out_dir / "MALAT1_features.csv", index=False)
 
     print(f"MALAT1: {len(ranked)} candidate ASOs designed -> {args.out_dir}")
     print(designed.head(10).to_string(index=False))

@@ -320,9 +320,11 @@ def _target_region(ranked):
 
 
 def summarize_design(ranked, model_version=None):
-    """Trim a `design_asos` result to the consumer-facing columns: rank, gene, ASO sequence, length,
-    transcript start + region, and the efficacy ranking score (`tauso_score_<version>`). The score is
-    a within-experiment RANK (higher = better predicted knockdown), not a percent-inhibition value."""
+    """Trim a `design_asos` result to the consumer-facing columns: rank, gene, chemistry, ASO
+    sequence, length, transcript start + region, and the efficacy ranking score (`tauso_score_<version>`).
+    `chemistry` is the per-position modification pattern the candidate was scored under, so results
+    from different chemistries can be compared side by side. The score is a within-experiment RANK
+    (higher = better predicted knockdown), not a percent-inhibition value."""
     from tauso.inference import DEFAULT_VERSION, score_column
 
     col = score_column(model_version or DEFAULT_VERSION)
@@ -330,6 +332,7 @@ def summarize_design(ranked, model_version=None):
         {
             "rank": range(1, len(ranked) + 1),
             "gene": ranked[CANONICAL_GENE_NAME].to_numpy(),
+            "chemistry": ranked[CHEMICAL_PATTERN].to_numpy(),
             "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
             "length": ranked[STRUCTURE_SENSE_LENGTH].to_numpy(),
             "target_start": _col_or_nan(ranked, "structure_sense_start").to_numpy(),
@@ -339,23 +342,20 @@ def summarize_design(ranked, model_version=None):
     )
 
 
-def design_details(ranked):
-    """Per-candidate safety / liability detail, computed from the full feature frame so it is surfaced
-    whether or not these features were selected into the model: transcriptome & rRNA off-target burden,
-    RNase H1 cleavage fit, and toxicity motifs (CpG/immune, G-quadruplex / G-run). Returns raw values
-    plus liability flags and an implications note -- flags mark candidates to scrutinise, not confirmed
-    toxicity."""
+def tox_details(ranked):
+    """Per-candidate sequence-intrinsic toxicity liabilities, keyed by chemistry + sequence:
+    CpG / TLR9 immunostimulation and G-quadruplex / G-run (hepatotoxicity / aggregation) motifs, with
+    flags and an implications note. Flags mark candidates to scrutinise, not confirmed toxicity.
+    Off-target burden and RNase H1 cleavage fit are specificity/feature quantities, not toxicity, and
+    live in `feature_details`."""
 
     def g(name):
         return _col_or_nan(ranked, name)
 
     out = pd.DataFrame(
         {
+            "chemistry": ranked[CHEMICAL_PATTERN].to_numpy(),
             "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
-            "offtarget_transcriptome": g(_OFFTARGET_SPECIFIC).to_numpy(),
-            "offtarget_genomewide": g(_OFFTARGET_GENERAL).to_numpy(),
-            "offtarget_rrna": g(_RRNA_TOTAL).to_numpy(),
-            "rnaseh1_cleavage_fit": g(_RNASEH1_FIT).to_numpy(),
             "tox_cpg_count": g("tox_cpg_count").to_numpy(),
             "tox_tlr9_motif": g("tox_tlr9_gtcgtt").to_numpy(),
             "tox_g4hunter_max": g("tox_g4hunter_max").to_numpy(),
@@ -366,20 +366,36 @@ def design_details(ranked):
     out["flag_hepatotox_g4_grun"] = (out["tox_g4hunter_max"].abs() >= G4HUNTER_LIABILITY) | (
         out["tox_grun_count"].fillna(0) > 0
     )
-    out["flag_binds_rrna"] = out["offtarget_rrna"].fillna(0) > 0
     out["liabilities"] = [
-        _liability_note(cpg, g4, rrna)
-        for cpg, g4, rrna in zip(out["flag_immune_cpg"], out["flag_hepatotox_g4_grun"], out["flag_binds_rrna"])
+        _liability_note(cpg, g4) for cpg, g4 in zip(out["flag_immune_cpg"], out["flag_hepatotox_g4_grun"])
     ]
     return out
 
 
-def _liability_note(immune_cpg, hepatotox, binds_rrna):
+def feature_details(ranked):
+    """Per-candidate feature-like quantities kept separate from toxicity, keyed by chemistry +
+    sequence: transcriptome and genome-wide off-target binding burden, rRNA off-target burden, and
+    RNase H1 cleavage fit. Raw model values (no transform)."""
+
+    def g(name):
+        return _col_or_nan(ranked, name)
+
+    return pd.DataFrame(
+        {
+            "chemistry": ranked[CHEMICAL_PATTERN].to_numpy(),
+            "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
+            "offtarget_transcriptome": g(_OFFTARGET_SPECIFIC).to_numpy(),
+            "offtarget_genomewide": g(_OFFTARGET_GENERAL).to_numpy(),
+            "offtarget_rrna": g(_RRNA_TOTAL).to_numpy(),
+            "rnaseh1_cleavage_fit": g(_RNASEH1_FIT).to_numpy(),
+        }
+    )
+
+
+def _liability_note(immune_cpg, hepatotox):
     notes = []
     if immune_cpg:
         notes.append("CpG motif (TLR9/immunostimulation)")
-    if binds_rrna:
-        notes.append("rRNA off-target binding")
     if hepatotox:
         notes.append("G-quadruplex / G-run (hepatotoxicity/aggregation)")
     return "; ".join(notes) if notes else "none flagged"
