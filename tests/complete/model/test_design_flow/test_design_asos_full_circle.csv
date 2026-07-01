@@ -1,6 +1,6 @@
-,rank,gene,chemistry,aso_sequence,length,target_start,target_region,tauso_score_v1
-0,1,USER_TMSB10,MMMMMddddddddddMMMMM,CTCGCGTTGCTGCAGCAAGA,20,3,unknown,-12.95989990234375
-1,2,USER_TMSB10,MMMMMddddddddddMMMMM,TCGCGTTGCTGCAGCAAGAA,20,2,unknown,-14.867766380310059
-2,3,USER_TMSB10,MMMMMddddddddddMMMMM,GCGTTGCTGCAGCAAGAAAC,20,0,unknown,-15.443395614624023
-3,4,USER_TMSB10,MMMMMddddddddddMMMMM,CGCGTTGCTGCAGCAAGAAA,20,1,unknown,-15.554222106933594
-4,5,USER_TMSB10,MMMMMddddddddddMMMMM,ACTCGCGTTGCTGCAGCAAG,20,4,unknown,-15.955319404602051
+,rank,gene,chemical_pattern,modification,ps_pattern,aso_sequence,length,target_start,target_region,tauso_score_v1,idt_notation
+0,1,USER_TMSB10,MMMMMddddddddddMMMMM,MOE/5-methylcytosines/deoxy,*******************,CTCGCGTTGCTGCAGCAAGA,20,3,unknown,-12.95989990234375,/52MOErC/*/i2MOErT/*/i2MOErC/*/i2MOErG/*/i2MOErC/*G*T*T*G*C*T*G*C*A*G*/i2MOErC/*/i2MOErA/*/i2MOErA/*/i2MOErG/*/32MOErA/
+1,2,USER_TMSB10,MMMMMddddddddddMMMMM,MOE/5-methylcytosines/deoxy,*******************,TCGCGTTGCTGCAGCAAGAA,20,2,unknown,-14.867766380310059,/52MOErT/*/i2MOErC/*/i2MOErG/*/i2MOErC/*/i2MOErG/*T*T*G*C*T*G*C*A*G*C*/i2MOErA/*/i2MOErA/*/i2MOErG/*/i2MOErA/*/32MOErA/
+2,3,USER_TMSB10,MMMMMddddddddddMMMMM,MOE/5-methylcytosines/deoxy,*******************,GCGTTGCTGCAGCAAGAAAC,20,0,unknown,-15.443395614624023,/52MOErG/*/i2MOErC/*/i2MOErG/*/i2MOErT/*/i2MOErT/*G*C*T*G*C*A*G*C*A*A*/i2MOErG/*/i2MOErA/*/i2MOErA/*/i2MOErA/*/32MOErC/
+3,4,USER_TMSB10,MMMMMddddddddddMMMMM,MOE/5-methylcytosines/deoxy,*******************,CGCGTTGCTGCAGCAAGAAA,20,1,unknown,-15.554222106933594,/52MOErC/*/i2MOErG/*/i2MOErC/*/i2MOErG/*/i2MOErT/*T*G*C*T*G*C*A*G*C*A*/i2MOErA/*/i2MOErG/*/i2MOErA/*/i2MOErA/*/32MOErA/
+4,5,USER_TMSB10,MMMMMddddddddddMMMMM,MOE/5-methylcytosines/deoxy,*******************,ACTCGCGTTGCTGCAGCAAG,20,4,unknown,-15.955319404602051,/52MOErA/*/i2MOErC/*/i2MOErT/*/i2MOErC/*/i2MOErG/*C*G*T*T*G*C*T*G*C*A*/i2MOErG/*/i2MOErC/*/i2MOErA/*/i2MOErA/*/32MOErG/

@@ -22,6 +22,7 @@ from tauso.data.consts import (
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
+from tauso.common.modifications import to_idt_notation
 from tauso.populate.calculators.cache import AssetCache
 from tauso.populate.calculators.calculator import Calculator
 from tauso.util import get_antisense
@@ -319,12 +320,39 @@ def _target_region(ranked):
     return region
 
 
+def _chemistry_columns(ranked):
+    """The chemistry descriptor columns shared by every design view -- separate axes so results from
+    different chemistries can be compared side by side: the per-position sugar pattern, the
+    modified-sugar chemistry, and the phosphorothioate backbone pattern."""
+    return {
+        "chemical_pattern": ranked[CHEMICAL_PATTERN].to_numpy(),
+        "modification": ranked[MODIFICATION_STRING].to_numpy(),
+        "ps_pattern": ranked[PS_PATTERN].to_numpy(),
+    }
+
+
+def _idt_notation_column(ranked):
+    """IDT order string per candidate, rendered from sequence + chemical/PS pattern. Empty for any
+    chemistry the renderer cannot express (see `to_idt_notation`)."""
+
+    def render(seq, chem, ps):
+        try:
+            return to_idt_notation(seq, chem, ps)
+        except ValueError:
+            return ""
+
+    return [
+        render(s, c, p)
+        for s, c, p in zip(ranked[ASO_SEQUENCE], ranked[CHEMICAL_PATTERN], ranked[PS_PATTERN])
+    ]
+
+
 def summarize_design(ranked, model_version=None):
-    """Trim a `design_asos` result to the consumer-facing columns: rank, gene, chemistry, ASO
-    sequence, length, transcript start + region, and the efficacy ranking score (`tauso_score_<version>`).
-    `chemistry` is the per-position modification pattern the candidate was scored under, so results
-    from different chemistries can be compared side by side. The score is a within-experiment RANK
-    (higher = better predicted knockdown), not a percent-inhibition value."""
+    """Trim a `design_asos` result to the consumer-facing columns: rank, gene, the chemistry columns
+    (chemical_pattern / modification / ps_pattern), ASO sequence, length, transcript start + region,
+    the efficacy ranking score (`tauso_score_<version>`), and an `idt_notation` order string. The
+    score is a within-experiment RANK (higher = better predicted knockdown), not a percent-inhibition
+    value."""
     from tauso.inference import DEFAULT_VERSION, score_column
 
     col = score_column(model_version or DEFAULT_VERSION)
@@ -332,29 +360,30 @@ def summarize_design(ranked, model_version=None):
         {
             "rank": range(1, len(ranked) + 1),
             "gene": ranked[CANONICAL_GENE_NAME].to_numpy(),
-            "chemistry": ranked[CHEMICAL_PATTERN].to_numpy(),
+            **_chemistry_columns(ranked),
             "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
             "length": ranked[STRUCTURE_SENSE_LENGTH].to_numpy(),
             "target_start": _col_or_nan(ranked, "structure_sense_start").to_numpy(),
             "target_region": _target_region(ranked).to_numpy(),
             col: ranked[col].to_numpy(),
+            "idt_notation": _idt_notation_column(ranked),
         }
     )
 
 
 def tox_details(ranked):
-    """Per-candidate sequence-intrinsic toxicity liabilities, keyed by chemistry + sequence:
-    CpG / TLR9 immunostimulation and G-quadruplex / G-run (hepatotoxicity / aggregation) motifs, with
-    flags and an implications note. Flags mark candidates to scrutinise, not confirmed toxicity.
-    Off-target burden and RNase H1 cleavage fit are specificity/feature quantities, not toxicity, and
-    live in `feature_details`."""
+    """Per-candidate sequence-intrinsic toxicity liabilities, keyed by the chemistry columns +
+    sequence: CpG / TLR9 immunostimulation and G-quadruplex / G-run (hepatotoxicity / aggregation)
+    motifs, with flags and an implications note. Flags mark candidates to scrutinise, not confirmed
+    toxicity. Off-target burden and RNase H1 cleavage fit are specificity/feature quantities, not
+    toxicity, and live in `feature_details`."""
 
     def g(name):
         return _col_or_nan(ranked, name)
 
     out = pd.DataFrame(
         {
-            "chemistry": ranked[CHEMICAL_PATTERN].to_numpy(),
+            **_chemistry_columns(ranked),
             "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
             "tox_cpg_count": g("tox_cpg_count").to_numpy(),
             "tox_tlr9_motif": g("tox_tlr9_gtcgtt").to_numpy(),
@@ -373,16 +402,16 @@ def tox_details(ranked):
 
 
 def feature_details(ranked):
-    """Per-candidate feature-like quantities kept separate from toxicity, keyed by chemistry +
-    sequence: transcriptome and genome-wide off-target binding burden, rRNA off-target burden, and
-    RNase H1 cleavage fit. Raw model values (no transform)."""
+    """Per-candidate feature-like quantities kept separate from toxicity, keyed by the chemistry
+    columns + sequence: transcriptome and genome-wide off-target binding burden, rRNA off-target
+    burden, and RNase H1 cleavage fit. Raw model values (no transform)."""
 
     def g(name):
         return _col_or_nan(ranked, name)
 
     return pd.DataFrame(
         {
-            "chemistry": ranked[CHEMICAL_PATTERN].to_numpy(),
+            **_chemistry_columns(ranked),
             "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
             "offtarget_transcriptome": g(_OFFTARGET_SPECIFIC).to_numpy(),
             "offtarget_genomewide": g(_OFFTARGET_GENERAL).to_numpy(),

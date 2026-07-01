@@ -28,14 +28,15 @@ def test_design_asos_full_circle(dataframe_regression):
     assert list(scores) == sorted(scores, reverse=True)  # ranked best-first
     assert ranked[ASO_SEQUENCE].str.len().eq(20).all()  # 20-mer candidates
 
-    # consumer + tox + feature views (each keyed by chemistry + sequence)
+    # consumer + tox + feature views (each keyed by the chemistry columns + sequence)
+    chem = {"chemical_pattern", "modification", "ps_pattern"}
     summary = summarize_design(ranked)
     assert list(summary["rank"]) == [1, 2, 3, 4, 5]
-    assert "chemistry" in summary.columns
+    assert chem <= set(summary.columns)
     tox = tox_details(ranked)
-    assert {"chemistry", "flag_immune_cpg", "flag_hepatotox_g4_grun", "liabilities"} <= set(tox.columns)
+    assert (chem | {"flag_immune_cpg", "flag_hepatotox_g4_grun", "liabilities"}) <= set(tox.columns)
     feats = feature_details(ranked)
-    assert {"chemistry", "offtarget_transcriptome", "offtarget_rrna", "rnaseh1_cleavage_fit"} <= set(feats.columns)
+    assert (chem | {"offtarget_transcriptome", "offtarget_rrna", "rnaseh1_cleavage_fit"}) <= set(feats.columns)
 
     # regression-check the slim consumer view (stable columns; tolerance on the float score)
     dataframe_regression.check(summary, default_tolerance={"atol": 1e-4, "rtol": 1e-4})
