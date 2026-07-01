@@ -135,10 +135,14 @@ class AssetCache:
         self._gene_registry = build_gene_sequence_registry(genes=genes_u, gene_to_data=gene_to_data)
         return self._gene_registry
 
-    def set_custom_gene(self, name, sequence):
+    def set_custom_gene(self, name, sequence, cds_start=None, cds_end=None):
         """Register a user-provided gene sequence, replacing any previous custom gene and
         invalidating the cached gene data so the new sequence is used on the next access
-        (otherwise a reused cache would silently keep scoring the first gene)."""
-        self.custom_gene = (name, LocusInfo(seq=sequence))
+        (otherwise a reused cache would silently keep scoring the first gene).
+
+        Pass ``cds_start``/``cds_end`` (0-based, half-open) to annotate the coding region so the
+        5'UTR/CDS/3'UTR and start/stop-distance features are computed; omit them to leave the
+        sequence unannotated (the previous behaviour)."""
+        self.custom_gene = (name, LocusInfo(seq=sequence, cds_start=cds_start, cds_end=cds_end))
         self._gene_to_data_full = None
         self._gene_registry = None
