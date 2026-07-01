@@ -5,6 +5,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+from tauso.common.modifications import to_idt_notation
 from tauso.data.consts import (
     ASO_SEQUENCE,
     CANONICAL_GENE_NAME,
@@ -22,7 +23,6 @@ from tauso.data.consts import (
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
-from tauso.common.modifications import to_idt_notation
 from tauso.populate.calculators.cache import AssetCache
 from tauso.populate.calculators.calculator import Calculator
 from tauso.util import get_antisense
@@ -341,10 +341,7 @@ def _idt_notation_column(ranked):
         except ValueError:
             return ""
 
-    return [
-        render(s, c, p)
-        for s, c, p in zip(ranked[ASO_SEQUENCE], ranked[CHEMICAL_PATTERN], ranked[PS_PATTERN])
-    ]
+    return [render(s, c, p) for s, c, p in zip(ranked[ASO_SEQUENCE], ranked[CHEMICAL_PATTERN], ranked[PS_PATTERN])]
 
 
 def summarize_design(ranked, model_version=None):

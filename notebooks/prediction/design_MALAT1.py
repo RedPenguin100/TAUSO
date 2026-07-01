@@ -1,21 +1,6 @@
-"""Design ASOs against MALAT1 (nuclear lncRNA).
-
-MALAT1 is a single-exon, nuclear-retained long non-coding RNA -- a classic gapmer target -- so
-it has no coding region. The target transcript is looked up from the genome cache (no FASTA and
-no CDS annotation); consequently every candidate's ``target_region`` is reported as ``unknown``
-(there is no 5'UTR / CDS / 3'UTR to assign).
-
-Tiles every 20-mer across the transcript, scores each with the bundled ``tauso_score_v1`` model,
-and writes three CSVs to ``notebooks/prediction/output/`` (same schema as design_DIAPH3.py, all
-keyed by chemistry + aso_sequence):
-
-  * ``MALAT1_designed_asos.csv``  -- raw results (rank, gene, chemistry, sequence, position, score).
-  * ``MALAT1_tox.csv``            -- sequence-intrinsic toxicity motifs, flags, implications note.
-  * ``MALAT1_features.csv``       -- off-target burden + RNase H1 cleavage fit (raw values).
-
-Run:  python notebooks/prediction/design_MALAT1.py            # full transcript (~8.8 kb)
-      python notebooks/prediction/design_MALAT1.py --first-n 20   # quick smoke run
-"""
+"""Design ASOs against MALAT1 (nuclear lncRNA; looked up from the genome cache, no CDS so
+target_region is `unknown`). Writes ranked / tox / feature CSVs to
+notebooks/prediction/output/vanilla/. Use --first-n for a quick partial run."""
 
 import argparse
 import os
@@ -31,7 +16,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--first-n", type=int, default=None, help="featurize only the first N candidates (default: whole transcript)")
     parser.add_argument("--n-jobs", type=int, default=min(os.cpu_count() or 1, 24), help="worker processes")
-    parser.add_argument("--out-dir", type=Path, default=HERE / "output")
+    parser.add_argument("--out-dir", type=Path, default=HERE / "output" / "vanilla")
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
