@@ -160,7 +160,7 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
             ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
-          key: depmap-25Q3-v3
+          key: depmap-25Q3-v4
 
       - name: Setup DepMap
         run: tauso setup-depmap
