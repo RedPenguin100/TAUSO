@@ -1,28 +1,39 @@
 """Hidden-test metrics, all against actual inhibition: within-experiment (custom_id) and cohort (gene x cell)
 Spearman, top-5% predicted mean actual inhibition, precision@k, global Pearson, RMSE/MAE."""
+import os
+
 import numpy as np
 from scipy.stats import pearsonr, spearmanr
 
+# Minimum ASOs in a group to score it. Set once per whole run via the environment so every step agrees.
+MIN_GROUP_N = int(os.environ.get("TAUSO_MIN_GROUP_N", 5))              # per-group Spearman (custom_id / cohort_id)
+MIN_GROUP_N_TOPK = int(os.environ.get("TAUSO_MIN_GROUP_N_TOPK", 20))  # top-5% mean inhib / precision@k (custom_id)
 
-def _grouped_spearman(pred, y, group, min_size=5):
-    out = []
-    for g in np.unique(group):
-        m = group == g
-        if m.sum() >= min_size and len(np.unique(y[m])) > 1:
-            r = spearmanr(pred[m], y[m]).correlation
-            if np.isfinite(r):
-                out.append(r)
-    return out
+
+def grouped_spearman(pred, y, groups, min_n=MIN_GROUP_N, return_sizes=False):
+    """Spearman(pred, y) within each group of >= min_n members and >1 distinct label. A group whose
+    PREDICTIONS are all tied (undefined correlation) scores 0 -- a failed ranking is penalised, not
+    dropped, so every model/criterion is scored on the same data-determined set of groups. Groups whose
+    TRUE labels are all tied are unrankable and excluded. Returns correlations (+ sizes if requested)."""
+    corrs, sizes = [], []
+    for g in np.unique(groups):
+        m = groups == g
+        n = int(m.sum())
+        if n >= min_n and len(np.unique(y[m])) > 1:
+            r = spearmanr(pred[m], y[m]).correlation if len(np.unique(pred[m])) > 1 else 0.0
+            corrs.append(r if np.isfinite(r) else 0.0)
+            sizes.append(n)
+    return (np.array(corrs), np.array(sizes)) if return_sizes else np.array(corrs)
 
 
 def evaluate(pred, y, custom_id, cohort):
-    exp = _grouped_spearman(pred, y, custom_id)
-    gxc = _grouped_spearman(pred, y, cohort)
+    exp = grouped_spearman(pred, y, custom_id)
+    gxc = grouped_spearman(pred, y, cohort)
     top5, p5, p10 = [], [], []
     for c in np.unique(custom_id):
         m = custom_id == c
         n = m.sum()
-        if n >= 20 and len(np.unique(y[m])) > 1:
+        if n >= MIN_GROUP_N_TOPK and len(np.unique(y[m])) > 1:
             order, truth = np.argsort(-pred[m]), np.argsort(-y[m])
             k = max(1, int(np.ceil(0.05 * n)))
             top5.append(y[m][order[:k]].mean())

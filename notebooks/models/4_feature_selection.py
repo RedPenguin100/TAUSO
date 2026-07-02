@@ -1,22 +1,4 @@
-"""Step 4 -- feature selection on the chosen objective (clean_exp).
-
-Produces a single RMSE-importance RANKING of the 510 features plus the CV performance curve as a function of
-how many top features are kept. There is no fixed "chosen K" here -- the ranking IS the result: to get a
-K-feature model, take the top K of feature_ranking.txt and train clean_exp on them. K is chosen separately.
-
-Method: nested gene-grouped CV (the held-out test is not used). In each fold features are ranked on that
-fold's TRAINING data only -- permutation importance by the INCREASE in RMSE on the within-experiment-demeaned
-target (a smooth ranker; median-based rankers order features poorly) -- and each top-K prefix is scored on
-that fold's held-out VAL in CANONICAL column order, so the feature *set*, not its order, decides the model.
-The ranking saved to disk is computed over all of train+val.
-
-Outputs: feature_selection.txt (the K-curve + best-CV K + 1-SE K* + ranking stability at a few K),
-         feature_ranking.txt (all 510 features ordered most->least important; line N = the Nth-kept feature,
-         so the top-K is your K-feature model).
-Deterministic -- run twice, identical output.
-
-Run:  python notebooks/models/4_feature_selection.py --variant clean_exp
-"""
+"""Step 4 -- feature selection: RMSE-importance ranking + CV K-curve on the chosen objective (train+val only)."""
 import argparse
 import sys
 from pathlib import Path
@@ -28,9 +10,6 @@ from notebooks.models import common
 from tauso.data.consts import INHIBITION_PERCENT
 
 VARIANT = "clean_exp"   # default; override with --variant
-PARAMS = dict(tree_method="hist", device="cuda", max_depth=6, learning_rate=0.05,
-              subsample=0.8, colsample_bytree=0.6, min_child_weight=20, reg_lambda=5.0, reg_alpha=1.0)
-ROUNDS = 700
 KGRID = [510, 450, 400, 350, 300, 275, 250, 225, 200, 180, 160, 150, 140,
          120, 100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20]
 STABILITY_KS = [400, 250, 150, 100, 60]   # report ranking stability (fold overlap) at a few K, for whichever you pick
@@ -48,7 +27,7 @@ def rank_features(train_df, features, units):
     """Permutation-importance ranking by the RMSE increase on the demeaned target (train_df only).
     Per-ASO features are shuffled per row; group-constant features are block-permuted at their level
     (common.permutation_units)."""
-    model = common.train(train_df, features, VARIANT, PARAMS, ROUNDS)
+    model = common.train(train_df, features, VARIANT, common.PARAMS, common.ROUNDS)
     sample = train_df.sample(n=min(PERM_ROWS, len(train_df)), random_state=RANK_SEED)
     X = np.ascontiguousarray(sample[features].to_numpy(np.float64))
     dy = (sample[INHIBITION_PERCENT]
@@ -83,7 +62,7 @@ def main():
         scores = {}
         for K in KGRID:
             cols = canon(ranking[:K], features)
-            scores[K] = common.metrics_on(common.train(tr, cols, VARIANT, PARAMS, ROUNDS), va, cols)
+            scores[K] = common.metrics_on(common.train(tr, cols, VARIANT, common.PARAMS, common.ROUNDS), va, cols)
         per_fold.append(scores)
     curve = {f"K={K}": common.mean_std([pf[K] for pf in per_fold]) for K in KGRID}
 

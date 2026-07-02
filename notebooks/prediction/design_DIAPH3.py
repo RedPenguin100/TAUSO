@@ -23,11 +23,12 @@ def main():
     parser.add_argument("--chemistry", choices=list(CHEMISTRIES), default="moe_5_10_5", help="ASO chemistry preset")
     parser.add_argument("--first-n", type=int, default=None, help="featurize only the first N candidates (default: whole transcript)")
     parser.add_argument("--n-jobs", type=int, default=min(os.cpu_count() or 1, 24), help="worker processes")
-    parser.add_argument("--out-dir", type=Path, default=HERE / "output" / "vanilla")
+    parser.add_argument("--out-dir", type=Path, default=HERE / "output")
     args = parser.parse_args()
-    args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    config, aso_size, label = build_config(default_config, args.chemistry)
+    config, aso_size, subdir = build_config(default_config, args.chemistry)
+    out_dir = args.out_dir / subdir
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     _, seq = read_single_rna_fasta(str(FASTA))
     ranked = design_asos(
@@ -42,11 +43,11 @@ def main():
     )
 
     designed = summarize_design(ranked)
-    designed.to_csv(args.out_dir / f"DIAPH3_{label}designed_asos.csv", index=False)
-    tox_details(ranked).to_csv(args.out_dir / f"DIAPH3_{label}tox.csv", index=False)
-    feature_details(ranked).to_csv(args.out_dir / f"DIAPH3_{label}features.csv", index=False)
+    designed.to_csv(out_dir / "DIAPH3_designed_asos.csv", index=False)
+    tox_details(ranked).to_csv(out_dir / "DIAPH3_tox.csv", index=False)
+    feature_details(ranked).to_csv(out_dir / "DIAPH3_features.csv", index=False)
 
-    print(f"DIAPH3 [{args.chemistry}]: {len(ranked)} candidate ASOs designed -> {args.out_dir}")
+    print(f"DIAPH3 [{args.chemistry}]: {len(ranked)} candidate ASOs designed -> {out_dir}")
     print(designed.head(10).to_string(index=False))
 
 

@@ -1,21 +1,14 @@
-"""Parameter choice -- stock XGBoost (default) vs our regularized config (custom), evaluated by frozen
-gene-grouped CV on train+val. Shown on the plain reg objective and across all objectives; the held-out test
-is never used here. Deterministic (no RNG in the split/folds; XGBoost seeded) -- run twice, identical report.
-
-Run:  python notebooks/models/1_parameter_choice.py
-"""
+"""Step 1 -- parameter choice: default vs regularized XGBoost, by gene-grouped CV on train+val."""
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # repo root, for the notebooks.* imports
 from notebooks.models import common
 
-# default = the stock XGBoost values made explicit (so the report states them); custom = our regularized config.
+# default = the stock XGBoost values made explicit (so the report states them); custom = our tuned config.
 DEFAULT = dict(tree_method="hist", device="cuda", max_depth=6, learning_rate=0.3,
                subsample=1.0, colsample_bytree=1.0, min_child_weight=1, reg_lambda=1.0, reg_alpha=0.0)
-CUSTOM = dict(tree_method="hist", device="cuda", max_depth=6, learning_rate=0.05,
-              subsample=0.8, colsample_bytree=0.6, min_child_weight=20, reg_lambda=5.0, reg_alpha=1.0)
-CONFIGS = {"default": (DEFAULT, 100), "custom": (CUSTOM, 700)}   # (params, num_boost_round)
+CONFIGS = {"default": (DEFAULT, 100), "custom": (common.PARAMS, common.ROUNDS)}   # (params, num_boost_round)
 HEADLINE = "reg"
 OBJECTIVES = ["reg", "clean_exp", "clean_gene", "pair_exp", "pair_gene"]
 

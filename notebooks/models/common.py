@@ -10,12 +10,18 @@ import xgboost as xgb
 from sklearn.model_selection import GroupKFold
 
 from notebooks.models.utility import load_and_validate_final_data
-from notebooks.models.evaluate import evaluate
+from notebooks.models.evaluate import evaluate, grouped_spearman, MIN_GROUP_N, MIN_GROUP_N_TOPK
 from notebooks.preprocessing import assign_cohort
 from tauso.data.consts import CANONICAL_GENE_NAME, INHIBITION_PERCENT
 
 METRICS = ("exp_med", "exp_mean", "gxc_med", "gxc_mean", "top5", "p5", "p10", "globP")
 RESULTS_DIR = Path(__file__).parent / "results"
+
+# The deployed XGBoost config: the clean_exp Optuna-tuned regularized params + boosting rounds.
+# Single source for steps 1-5 -- step 1 benchmarks it against stock defaults, steps 2-5 train with it.
+PARAMS = dict(tree_method="hist", device="cuda", max_depth=8, learning_rate=0.015,
+              subsample=0.9, colsample_bytree=0.55, min_child_weight=70, reg_lambda=0.8, reg_alpha=2.0)
+ROUNDS = 1300
 
 
 def load_dataset():
