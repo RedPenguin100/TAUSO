@@ -23,7 +23,7 @@ from notebooks.models.evaluate import evaluate
 from tauso.data.consts import INHIBITION_PERCENT
 
 VARIANT = "clean_exp"
-K = 450
+K = 350
 PARAMS = dict(tree_method="hist", device="cuda", max_depth=6, learning_rate=0.05,
               subsample=0.8, colsample_bytree=0.6, min_child_weight=20, reg_lambda=5.0, reg_alpha=1.0)
 ROUNDS = 700

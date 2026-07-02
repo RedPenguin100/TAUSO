@@ -71,22 +71,26 @@ def criteria(pred, df):
             "rmse": float(np.sqrt(np.mean((pred - dy) ** 2)))}
 
 
-def rank_all(train_df, features):
-    """One model + ONE shared permutation per feature -> importance under EVERY criterion from the same draws,
-    so the criteria differ only by metric, never by randomization. Returns {criterion: ordered features}."""
+def rank_all(train_df, features, units):
+    """One model + ONE shared permutation per unit -> importance under EVERY criterion from the same draws,
+    so the criteria differ only by metric, never by randomization. Per-ASO features are shuffled per row;
+    group-constant features are block-permuted at their level (common.permutation_units). Returns
+    {criterion: ordered features}."""
     model = common.train(train_df, features, VARIANT, PARAMS, ROUNDS)
     sample = train_df.sample(n=min(PERM_ROWS, len(train_df)), random_state=SEED)
     X = np.ascontiguousarray(sample[features].to_numpy(np.float64))
     base = criteria(model.inplace_predict(X), sample)
     imp = {c: np.empty(len(features)) for c in CRITERIA}
     rng = np.random.default_rng(SEED)
-    for j in range(len(features)):
-        col = X[:, j].copy()
-        X[:, j] = rng.permutation(col)                           # the SAME permuted column feeds all criteria
+    for cols, group_col in units:
+        saved = X[:, cols].copy()
+        common.permute_unit(X, cols, group_col, sample, rng)     # the SAME permuted unit feeds all criteria
         m = criteria(model.inplace_predict(X), sample)
-        X[:, j] = col
+        X[:, cols] = saved
         for c in CRITERIA:
-            imp[c][j] = (base[c] - m[c]) if HIGHER[c] else (m[c] - base[c])
+            val = (base[c] - m[c]) if HIGHER[c] else (m[c] - base[c])
+            for j in cols:
+                imp[c][j] = val
     return {c: [features[i] for i in np.argsort(-imp[c])] for c in CRITERIA}
 
 
@@ -97,17 +101,18 @@ def main():
     VARIANT = ap.parse_args().variant
     df, features = common.load_dataset()
     trv, _ = common.split(df)                                    # train+val only (no test)
+    units = common.permutation_units(trv, features)             # per-feature permutation grouping (once)
 
     fold_rankings = []
     exp_med = {c: {K: [] for K in KGRID} for c in CRITERIA}
     for tr, va in common.gene_cv_folds(trv):
-        rankings = rank_all(tr, features)
+        rankings = rank_all(tr, features, units)
         fold_rankings.append(rankings)
         for c in CRITERIA:
             for K in KGRID:
                 cols = canon(rankings[c][:K], features)
                 exp_med[c][K].append(common.metrics_on(common.train(tr, cols, VARIANT, PARAMS, ROUNDS), va, cols)["exp_med"])
-    final = rank_all(trv, features)                              # final ranking per criterion (stability reference)
+    final = rank_all(trv, features, units)                      # final ranking per criterion (stability reference)
 
     perf = {c: {K: float(np.mean(exp_med[c][K])) for K in KGRID} for c in CRITERIA}
     stab = {c: {K: float(np.mean([len(set(fr[c][:K]) & set(final[c][:K])) / K for fr in fold_rankings])) for K in KGRID}

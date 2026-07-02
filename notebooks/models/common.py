@@ -5,6 +5,7 @@ Keeps each script thin and consistent, and the split/CV definition in exactly on
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import GroupKFold
 
@@ -41,6 +42,53 @@ def gene_cv_folds(trv, n_splits=5):
     Deterministic (GroupKFold uses no RNG), so the folds are identical on every run."""
     for tr, va in GroupKFold(n_splits).split(trv, groups=trv[CANONICAL_GENE_NAME]):
         yield trv.iloc[tr], trv.iloc[va]
+
+
+# Levels a feature can be constant within, finest-signal first (gene -> cell -> gene x cell -> experiment).
+_PERM_LEVELS = (CANONICAL_GENE_NAME, "cell_line", "cohort_id", "custom_id")
+
+
+def permutation_units(df, features):
+    """Group `features` into permutation-importance units, each tagged with the column to block-permute
+    by (None = the standard per-row shuffle, for per-ASO features). Returns a list of (col_indices, group_col).
+
+    A feature that is constant within a gene / cell line / gene x cell / experiment carries its signal at
+    that level; a per-row shuffle would fabricate within-group variation the model never saw and hand it
+    spurious importance. Such a feature is block-permuted at the finest level it is constant within
+    (shuffling which group's value each group receives). The transfection one-hots are a single joint unit
+    (the categorical delivery label), so a permuted row stays a legal one-hot -- or all-NaN 'Other' -- and
+    never an impossible mix. Group_col assignment is structural (fold-invariant), so compute it once."""
+    idx = {f: i for i, f in enumerate(features)}
+    const = {col: (df.groupby(col)[features].nunique().max() <= 1) for col in _PERM_LEVELS}
+
+    def level(f):
+        for col in _PERM_LEVELS:
+            if const[col][f]:
+                return col
+        return None
+
+    transfection = [f for f in features if f.startswith("transfection_")]
+    units = []
+    if transfection:
+        units.append(([idx[f] for f in transfection], "custom_id"))
+    used = set(transfection)
+    units += [([idx[f]], level(f)) for f in features if f not in used]
+    return units
+
+
+def permute_unit(X, cols, group_col, sample, rng):
+    """Permute the columns `cols` of X in place. Per-row shuffle when group_col is None; otherwise a
+    block permutation -- shuffle which group's value-vector each group receives (a group->group bijection),
+    so every column stays constant within its group and multi-column units (transfection) stay coherent."""
+    if group_col is None:
+        for c in cols:
+            X[:, c] = rng.permutation(X[:, c])
+        return
+    codes, uniques = pd.factorize(sample[group_col].to_numpy(), sort=False)
+    _, first = np.unique(codes, return_index=True)          # first row index of each group
+    donor = first[rng.permutation(len(uniques))][codes]     # per-row donor row (group -> donor-group's value)
+    for c in cols:
+        X[:, c] = X[donor, c]
 
 
 def predict(model, df, features):
