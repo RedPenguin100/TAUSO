@@ -1,6 +1,9 @@
 import pandas as pd
+import pytest
 
 from notebooks.data.OligoAI.curate_gene_labels import alignment_stats
+from tauso.off_target.search import annotate_hits, run_bowtie_search
+from tauso.util import get_antisense
 
 
 def generate_200_test_sequences():
@@ -79,3 +82,26 @@ def test_alignment_stats_real_genome(tmp_path):
     assert unknown_stats["total_asos"] == 6
     assert pd.isna(unknown_stats["most_popular_alignment"])
     assert unknown_stats["popular_hit_count"] == 0
+
+
+_CLINICAL_ASOS = [
+    ("TCTTGGTTACATGAAATCCC", "TTR"),  # Inotersen
+    ("GCCTCAGTCTGCTTCGCACC", "APOB"),  # Mipomersen
+]
+
+
+@pytest.mark.parametrize("aso, gene", _CLINICAL_ASOS)
+def test_annotate_hits_antisense_maps_to_target_gene(aso, gene):
+    hits, _ = run_bowtie_search(aso, max_mismatches=0)
+    on_target = annotate_hits(hits).query("gene_name == @gene")
+    assert not on_target.empty
+    assert (on_target["mismatches"] == 0).any()
+    assert on_target["region_type"].isin(["exon", "CDS", "intron", "gene"]).all()
+
+
+@pytest.mark.parametrize("aso, gene", _CLINICAL_ASOS)
+def test_annotate_hits_sense_strand_is_not_counted_as_the_gene(aso, gene):
+    sense = get_antisense(aso)
+    hits, _ = run_bowtie_search(sense, max_mismatches=0)
+    assert hits
+    assert gene not in set(annotate_hits(hits)["gene_name"])
