@@ -188,6 +188,9 @@ def design_asos(
     config=None,
     cache=None,
     n_jobs=1,
+    off_targets=False,
+    off_target_max_distance=2,
+    off_target_exclude_genes=None,
 ):
     """Design ASOs for a target end-to-end: tile candidate ASOs across the gene, compute their
     features, score them with the bundled efficacy model, and return them ranked best-first.
@@ -203,8 +206,19 @@ def design_asos(
     model_version: which bundled model to score with (default the package default).
     cds_start/cds_end: optional 0-based, half-open coding span for a custom `gene_sequence`, so
                    5'UTR/CDS/3'UTR and start/stop features are annotated; ignored for a genome lookup.
+    off_targets:   if True, also align every ranked candidate to the genome with Bowtie and return a
+                   per-hit sequence off-target table (see below). Informational only -- it does not
+                   affect the features or the ranking. Needs the Bowtie index (`tauso setup-bowtie`).
+    off_target_max_distance: max mismatch distance to report off-target hits for (Bowtie -v).
+    off_target_exclude_genes: extra gene symbols to treat as on-target and drop from the off-target
+                   table. The candidates' own target gene is always excluded; for a custom
+                   `gene_sequence` whose real symbol isn't `target_gene`, pass it here.
 
-    Returns the candidates with their features and the `tauso_score_<version>` column, sorted best-first.
+    Returns the candidates with their features and the `tauso_score_<version>` column, sorted
+    best-first. If `off_targets` is True, returns a tuple `(ranked, offtargets)` where `offtargets`
+    is a tidy table with one row per off-target hit -- columns rank, aso_sequence, off_target_gene,
+    distance (exact mismatch count), region (exon/intron/...), chrom, start, strand -- so the hits
+    for one ASO are `offtargets[offtargets.aso_sequence == seq]`.
     """
     from tauso.inference import DEFAULT_VERSION, load_model, predict, score_column
 
@@ -252,6 +266,17 @@ def design_asos(
     if top_n is not None:
         ranked = ranked.head(top_n)
     logger.info(f"design_asos: ranked {len(ranked)} candidate ASOs by {col}.")
+
+    if off_targets:
+        genome = "GRCm39" if config.organism_name == "mouse" else "GRCh38"
+        offtargets = _sequence_offtarget_table(
+            ranked, genome=genome, max_distance=off_target_max_distance, exclude_genes=off_target_exclude_genes
+        )
+        logger.info(
+            f"design_asos: {len(offtargets)} sequence off-target hits (<= {off_target_max_distance} mismatches) "
+            f"across {len(ranked)} candidates."
+        )
+        return ranked, offtargets
     return ranked
 
 
@@ -383,3 +408,62 @@ def _liability_note(immune_cpg, hepatotox, binds_rrna):
     if hepatotox:
         notes.append("G-quadruplex / G-run (hepatotoxicity/aggregation)")
     return "; ".join(notes) if notes else "none flagged"
+
+
+_OFFTARGET_COLS = ["rank", "aso_sequence", "off_target_gene", "distance", "region", "chrom", "start", "strand"]
+
+
+def _sequence_offtarget_table(ranked, *, genome, max_distance, exclude_genes):
+    """Build the tidy sequence off-target table for a set of ranked candidates (see `design_asos`).
+
+    Aligns each candidate ASO to `genome` with Bowtie up to `max_distance` mismatches and returns one
+    row per hit to a gene OTHER than the intended target: rank, aso_sequence, off_target_gene, the
+    exact mismatch `distance`, the genomic `region` (exon/intron/...), and the locus (chrom/start/
+    strand). The candidates' own target gene plus any `exclude_genes` are dropped.
+
+    Requires the Bowtie index; raises with a `tauso setup-bowtie` instruction if it is missing, rather
+    than triggering a multi-GB index build.
+    """
+    import os
+
+    from tauso.data.data import get_paths
+    from tauso.off_target.search import annotate_hits, run_bowtie_search
+
+    paths = get_paths(genome)
+    sentinel = os.path.join(os.path.dirname(paths["fasta"]), f"{genome}_bowtie_index", "SUCCESS")
+    if not os.path.exists(sentinel):
+        raise FileNotFoundError(
+            f"Bowtie index for {genome} not found; run `tauso setup-bowtie --genome {genome}` to use "
+            "off_targets=True (it needs the sequence off-target index)."
+        )
+
+    exclude = set(exclude_genes or []) | set(pd.Series(ranked[CANONICAL_GENE_NAME]).dropna().unique())
+    rank_of = {seq: i + 1 for i, seq in enumerate(ranked[ASO_SEQUENCE].tolist())}
+
+    unique_seqs = list(dict.fromkeys(ranked[ASO_SEQUENCE].tolist()))
+    all_hits = []
+    for seq in unique_seqs:
+        hits, _ = run_bowtie_search(seq, genome=genome, max_mismatches=max_distance)
+        all_hits.extend(hits)
+    annotated = annotate_hits(all_hits, genome=genome)
+
+    if annotated.empty:
+        return pd.DataFrame(columns=_OFFTARGET_COLS)
+    keep = annotated["gene_name"].notna() & ~annotated["gene_name"].isin(exclude)
+    tbl = annotated[keep]
+    if tbl.empty:
+        return pd.DataFrame(columns=_OFFTARGET_COLS)
+
+    out = pd.DataFrame(
+        {
+            "rank": tbl["sequence"].map(rank_of).to_numpy(),
+            "aso_sequence": tbl["sequence"].to_numpy(),
+            "off_target_gene": tbl["gene_name"].to_numpy(),
+            "distance": tbl["mismatches"].to_numpy(),
+            "region": tbl["region_type"].to_numpy(),
+            "chrom": tbl["chrom"].to_numpy(),
+            "start": tbl["start"].to_numpy(),
+            "strand": tbl["strand"].to_numpy(),
+        }
+    )
+    return out.sort_values(["rank", "distance", "off_target_gene", "start"]).reset_index(drop=True)
