@@ -229,9 +229,8 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
 
 
 def annotate_hits(hits_list, genome="GRCh38"):
-    """
-    Annotates hits using the specific genome database.
-    """
+    """Annotate each hit with its gene and region, counting a gene only when the ASO is antisense to
+    it (hit strand opposite the gene's). Same-strand overlaps are ignored, so the hit is Intergenic."""
     if not hits_list:
         return pd.DataFrame()
 
@@ -254,6 +253,10 @@ def annotate_hits(hits_list, genome="GRCh38"):
         current_priority = 0
 
         for feat in features:
+            # Skip sense overlaps: keep only genes the ASO is antisense to.
+            if feat.strand == hit["strand"]:
+                continue
+
             f_type = feat.featuretype
 
             # --- UPDATED PRIORITY LOGIC ---
