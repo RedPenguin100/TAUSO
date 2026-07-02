@@ -383,3 +383,76 @@ def _liability_note(immune_cpg, hepatotox, binds_rrna):
     if hepatotox:
         notes.append("G-quadruplex / G-run (hepatotoxicity/aggregation)")
     return "; ".join(notes) if notes else "none flagged"
+
+
+def design_offtargets(ranked, *, genome=None, max_mismatches=2, exclude_genes=None, top_genes=5):
+    """Per-candidate sequence off-target report for a `design_asos` result: align each ASO to the
+    genome with Bowtie (up to `max_mismatches`) and count the distinct OTHER genes it matches. This
+    is purely informational -- it does not feed the model or the ranking; it is a separate view to
+    save alongside `summarize_design` / `design_details`.
+
+    genome:        genome to align against; inferred from the candidates' organism if None.
+    max_mismatches: Bowtie -v threshold (0 = perfect-match hits only).
+    exclude_genes: extra gene symbols to treat as on-target and drop from the counts. The candidates'
+                   own target gene (CANONICAL_GENE_NAME) is always excluded; for a CUSTOM gene_sequence
+                   whose real symbol isn't the design's target name, pass it here or its own matches
+                   will be reported as off-targets.
+    top_genes:     how many off-target gene names to list per candidate.
+
+    Requires the Bowtie index (`tauso setup-bowtie`); raises with that instruction if it is missing
+    (rather than triggering a multi-GB index build).
+    """
+    import os
+
+    from tauso.data.data import get_paths
+    from tauso.off_target.search import annotate_hits, run_bowtie_search
+
+    if genome is None:
+        organism = ranked[CELL_LINE_ORGANISM].iloc[0] if (CELL_LINE_ORGANISM in ranked.columns and len(ranked)) else "human"
+        genome = "GRCm39" if organism == "mouse" else "GRCh38"
+
+    paths = get_paths(genome)
+    sentinel = os.path.join(os.path.dirname(paths["fasta"]), f"{genome}_bowtie_index", "SUCCESS")
+    if not os.path.exists(sentinel):
+        raise FileNotFoundError(
+            f"Bowtie index for {genome} not found; run `tauso setup-bowtie --genome {genome}` before "
+            "design_offtargets (it needs the sequence off-target index)."
+        )
+
+    exclude = set(exclude_genes or []) | set(pd.Series(ranked[CANONICAL_GENE_NAME]).dropna().unique())
+
+    unique_seqs = list(dict.fromkeys(ranked[ASO_SEQUENCE].tolist()))
+    all_hits = []
+    for seq in unique_seqs:
+        hits, _ = run_bowtie_search(seq, genome=genome, max_mismatches=max_mismatches)
+        all_hits.extend(hits)
+    annotated = annotate_hits(all_hits, genome=genome)
+
+    genes_0mm = {s: set() for s in unique_seqs}
+    genes_within = {s: set() for s in unique_seqs}
+    min_mm = {s: {} for s in unique_seqs}
+    if not annotated.empty:
+        for seq, gene, mm in zip(annotated["sequence"], annotated["gene_name"], annotated["mismatches"]):
+            if gene is None or pd.isna(gene) or gene in exclude:
+                continue
+            genes_within[seq].add(gene)
+            if mm == 0:
+                genes_0mm[seq].add(gene)
+            if gene not in min_mm[seq] or mm < min_mm[seq][gene]:
+                min_mm[seq][gene] = mm
+
+    def _top(seq):
+        items = sorted(min_mm[seq].items(), key=lambda kv: (kv[1], kv[0]))[:top_genes]
+        return "; ".join(f"{g} ({mm}mm)" for g, mm in items)
+
+    seqs = ranked[ASO_SEQUENCE].to_numpy()
+    return pd.DataFrame(
+        {
+            "rank": range(1, len(ranked) + 1),
+            "gene": ranked[CANONICAL_GENE_NAME].to_numpy(),
+            "aso_sequence": seqs,
+            "offtarget_genes_0mm": [len(genes_0mm[s]) for s in seqs],
+            "offtarget_genes_within_mm": [len(genes_within[s]) for s in seqs],
+            "offtarget_top_genes": [_top(s) for s in seqs],
+        }
+    )
