@@ -38,6 +38,42 @@ def test_design_asos_full_circle(dataframe_regression):
     dataframe_regression.check(summary, default_tolerance={"atol": 1e-4, "rtol": 1e-4})
 
 
+@pytest.mark.integration
+def test_design_asos_off_targets_table():
+    """off_targets=True returns a tidy per-hit sequence off-target table next to the ranking.
+
+    Needs the Bowtie index (`tauso setup-bowtie`), so it runs under --run-integration. TMSB10 is a
+    custom gene here, so its own on-target gene symbol is passed via off_target_exclude_genes.
+    """
+    ranked, offtargets = design_asos(
+        "USER_TMSB10",
+        gene_sequence=TMSB10_PREMRNA,
+        first_n=5,
+        top_n=5,
+        off_targets=True,
+        off_target_max_distance=2,
+        off_target_exclude_genes=["TMSB10"],
+        n_jobs=1,
+    )
+
+    assert len(ranked) == 5
+    assert list(offtargets.columns) == [
+        "rank",
+        "aso_sequence",
+        "off_target_gene",
+        "distance",
+        "region",
+        "chrom",
+        "start",
+        "strand",
+    ]
+    if not offtargets.empty:
+        assert offtargets["distance"].between(0, 2).all()  # exact distance within the requested range
+        assert set(offtargets["aso_sequence"]).issubset(set(ranked[ASO_SEQUENCE]))
+        assert offtargets["rank"].between(1, 5).all()
+        assert "TMSB10" not in set(offtargets["off_target_gene"])  # on-target gene excluded
+
+
 @pytest.mark.parametrize(
     "kwargs, match",
     [
