@@ -11,12 +11,11 @@ logger = logging.getLogger(__name__)
 
 # Per run: the wide cache parquet on Zenodo + the index column it uses. Add a new entry
 # (e.g. "oligo_v2") to ship a new version; runs can share `index_col` across versions.
-ZENODO_FEATURES_RECORD = "20981280"
+ZENODO_FEATURES_RECORD = "21169271"
 FEATURE_CACHE_FILES = {
     "oligo": {
         # v12: vanilla one-hot (ohe_pos0..27) replaced by terminal one-hots (ohe_pos0..5 + ohe_3p0..5);
-        # term5p_* dropped (subsumed by ohe_pos0_*). TODO: upload v12 to Zenodo and bump
-        # ZENODO_FEATURES_RECORD -- until then this resolves from the local store only.
+        # term5p_* dropped (subsumed by ohe_pos0_*).
         "filename": "oligo_features_v12.parquet",
         "md5": "57106552761bcdff593a91dba828add0",
         "index_col": "index_oligo",
