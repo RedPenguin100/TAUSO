@@ -233,37 +233,7 @@ class Calculator:
             logger.info("All basic chemistry features exist. Skipping.")
 
         # ==========================================
-        # 2. 5'-Terminal Nucleotide Features (term5p_*)
-        # ==========================================
-        # 5'-terminal base identity. RNase H1 has a documented sequence preference at the
-        # cleavage site (Wu & Lima, JBC 2004; Lima et al., JBC 2004) and the 5' base of
-        # the ASO drives that preference. Stored as DNA letters so seq[0] == 'U' is also
-        # accepted as 'T' in term5p_is_t.
-        expected_term5p = ["term5p_is_purine", "term5p_is_g", "term5p_is_t"]
-        missing_term5p = self._get_missing_features(expected_term5p)
-
-        if missing_term5p:
-            logger.info("Computing %d 5'-terminal base features...", len(missing_term5p))
-
-            from tauso.data.consts import ASO_SEQUENCE
-
-            self._check_dependencies([ASO_SEQUENCE])
-
-            seq_5p = self.data[ASO_SEQUENCE].str[0]
-            if "term5p_is_purine" in missing_term5p:
-                self.data["term5p_is_purine"] = seq_5p.isin(["A", "G"]).astype(int)
-            if "term5p_is_g" in missing_term5p:
-                self.data["term5p_is_g"] = (seq_5p == "G").astype(int)
-            if "term5p_is_t" in missing_term5p:
-                self.data["term5p_is_t"] = seq_5p.isin(["T", "U"]).astype(int)
-
-            for feature in missing_term5p:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All 5'-terminal base features exist. Skipping.")
-
-        # ==========================================
-        # 3. Transfection Features
+        # 2. Transfection Features
         # ==========================================
         expected_transfection = ["transfection_electroporation", "transfection_gymnosis", "transfection_lipofection"]
         missing_transfection = self._get_missing_features(expected_transfection)
@@ -531,34 +501,27 @@ class Calculator:
             logger.info("All sense accessibility features exist. Skipping.")
 
     def calculate_sequence_one_hot(self):
-        """Calculates one-hot encoded sequence features."""
+        """Calculates terminal one-hot sequence features: the first 6 bases from each terminus
+        (ohe_pos0.._pos5 at the 5' end, ohe_3p0.._3p5 at the 3' end), each x {A, C, G, T}."""
+        from tauso.populate.populate_sequence import (
+            TERMINAL_3P,
+            TERMINAL_5P,
+            populate_sequence_one_hot_encoded,
+        )
 
-        # 1. Determine the expected names BEFORE running the heavy function
-        # We need the max sequence length from the data to predict the names
-        from tauso.data.consts import ASO_SEQUENCE
-
-        max_len = int(self.data[ASO_SEQUENCE].str.len().max())
-
-        expected_features = []
-        for pos in range(max_len):
-            for nuc in ["A", "C", "G", "T"]:
-                expected_features.append(f"ohe_pos{pos}_{nuc}")
+        expected_features = [f"ohe_pos{p}_{nuc}" for p in range(TERMINAL_5P) for nuc in ("A", "C", "G", "T")]
+        expected_features += [f"ohe_3p{o}_{nuc}" for o in range(TERMINAL_3P) for nuc in ("A", "C", "G", "T")]
 
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("Computing sequence one-hot features...")
-            from tauso.populate.populate_sequence import populate_sequence_one_hot_encoded
-
-            # Pass max_len so it strictly aligns with our expected features
-            self.data, generated_features = populate_sequence_one_hot_encoded(
-                self.data, max_len=max_len, cpus=self.cpus
-            )
+            logger.info("Computing terminal one-hot features...")
+            self.data, generated_features = populate_sequence_one_hot_encoded(self.data, cpus=self.cpus)
             for feature in generated_features:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
         else:
-            logger.info("All sequence one-hot features exist. Skipping.")
+            logger.info("All terminal one-hot features exist. Skipping.")
 
     def calculate_sequence_chemistry(self):
         """Calculates sequence chemistry features."""

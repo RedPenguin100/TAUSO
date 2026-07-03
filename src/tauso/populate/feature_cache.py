@@ -14,8 +14,11 @@ logger = logging.getLogger(__name__)
 ZENODO_FEATURES_RECORD = "20981280"
 FEATURE_CACHE_FILES = {
     "oligo": {
-        "filename": "oligo_features_v11.parquet",
-        "md5": "f056c919f5b791e501dccdc49d807f80",
+        # v12: vanilla one-hot (ohe_pos0..27) replaced by terminal one-hots (ohe_pos0..5 + ohe_3p0..5);
+        # term5p_* dropped (subsumed by ohe_pos0_*). TODO: upload v12 to Zenodo and bump
+        # ZENODO_FEATURES_RECORD -- until then this resolves from the local store only.
+        "filename": "oligo_features_v12.parquet",
+        "md5": "84d2732f048f7895a9a2639a8ed51cef",
         "index_col": "index_oligo",
     },
 }

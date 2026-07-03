@@ -159,10 +159,10 @@ def _apply_standard_metadata(data, config):
 
 
 def _fill_out_of_range_one_hots(featured, model_features):
-    """Add the model's high-position one-hot columns that short candidates lack, as all-zero (an
-    out-of-range one-hot position is zero by definition). Errors on any other missing model feature."""
+    """Add any terminal one-hot columns (ohe_pos* / ohe_3p*) that a short candidate lacks, as all-zero (an
+    out-of-range terminal position is zero by definition). Errors on any other missing model feature."""
     missing = [f for f in model_features if f not in featured.columns]
-    unexpected = [f for f in missing if not f.startswith("ohe_pos")]
+    unexpected = [f for f in missing if not (f.startswith("ohe_pos") or f.startswith("ohe_3p"))]
     if unexpected:
         raise ValueError(f"generated candidates are missing non-positional model features: {unexpected[:5]}")
     for f in missing:

@@ -115,74 +115,52 @@ from typing import Optional, Tuple
 import pandas as pd
 
 
-def populate_sequence_one_hot_encoded(
-    df: pd.DataFrame, max_len: Optional[int] = None, cpus: int = 1
-) -> Tuple[pd.DataFrame, list[str]]:
-    """
-    One-hot encodes ASO sequences with zero-padding to handle varying lengths.
-    Flattens the output into tabular columns (e.g., ohe_pos0_A, ohe_pos0_C...).
+TERMINAL_5P = 6  # one-hot the first 6 bases from the 5' end: ohe_pos0.._pos5
+TERMINAL_3P = 6  # and the first 6 bases from the 3' end:     ohe_3p0.._3p5
 
-    Returns:
-        Tuple containing the updated DataFrame and a list of the new feature names.
+
+def populate_sequence_one_hot_encoded(
+    df: pd.DataFrame, n5: int = TERMINAL_5P, n3: int = TERMINAL_3P, cpus: int = 1
+) -> Tuple[pd.DataFrame, list[str]]:
+    """One-hot encodes the ASO's TERMINAL bases only.
+
+    The first `n5` bases from the 5' end become ohe_pos{0..n5-1}_{A,C,G,T}, and the first `n3` bases from
+    the 3' end become ohe_3p{0..n3-1}_{A,C,G,T} (ohe_3p0 = the 3'-terminal base). U is encoded on the T
+    channel; an unknown base or an out-of-range position (ASO shorter than the block) is all-zero. Anchoring
+    the second block at the 3' terminus keeps it aligned across ASO lengths (16-mer cEt vs 20-mer MOE
+    gapmers), which a single 5'-anchored absolute grid cannot do.
+
+    Returns the updated DataFrame and the list of new feature names.
     """
     start_time = time.time()
+    seqs = df[ASO_SEQUENCE].fillna("").astype(str).str.upper()
 
-    logger.debug("Starting One-Hot Encoding with Zero-Padding...")
+    def onehot(chars, base):
+        hit = chars == base
+        if base == "T":  # RNA U shares the T channel
+            hit = hit | (chars == "U")
+        return hit.to_numpy().astype("int8")
 
-    # 1. Determine max length for padding (if not manually provided)
-    if max_len is None:
-        max_len = int(df[ASO_SEQUENCE].str.len().max())
-        logger.debug("Determined max_len automatically: %d", max_len)
+    columns, feature_names = {}, []
+    for i in range(n5):  # 5' end: absolute positions 0..n5-1
+        chars = seqs.str.slice(i, i + 1)  # empty when the ASO is shorter than i+1
+        for nuc in ("A", "C", "G", "T"):
+            name = f"ohe_pos{i}_{nuc}"
+            columns[name] = onehot(chars, nuc)
+            feature_names.append(name)
+    for o in range(n3):  # 3' end: o-th base in from the 3' terminus
+        chars = seqs.str[-1 - o]  # NaN when the ASO is shorter than o+1
+        for nuc in ("A", "C", "G", "T"):
+            name = f"ohe_3p{o}_{nuc}"
+            columns[name] = onehot(chars, nuc)
+            feature_names.append(name)
 
-    # 2. Map nucleotides to lists (includes U for RNA compatibility)
-    # Unknowns or Ns will map to [0, 0, 0, 0]
-    nuc_map = {
-        "A": [1, 0, 0, 0],
-        "C": [0, 1, 0, 0],
-        "G": [0, 0, 1, 0],
-        "T": [0, 0, 0, 1],
-        "U": [0, 0, 0, 1],
-    }
-    pad_vec = [0, 0, 0, 0]
-
-    def encode_and_pad(seq: str) -> list[int]:
-        if not isinstance(seq, str):
-            seq = ""
-
-        encoded = []
-        # Encode up to max_len (truncates if sequence exceeds max_len)
-        for nuc in seq[:max_len]:
-            encoded.extend(nuc_map.get(nuc.upper(), pad_vec))
-
-        # Post-pad with zeros if sequence is shorter than max_len
-        pad_length = max_len - len(seq)
-        if pad_length > 0:
-            encoded.extend(pad_vec * pad_length)
-
-        return encoded
-
-    # 3. Apply function
-    encoded_series = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(encode_and_pad)
-
-    # 4. Generate the new feature names
-    feature_names = []
-    for pos in range(max_len):
-        for nuc in ["A", "C", "G", "T"]:
-            feature_names.append(f"ohe_pos{pos}_{nuc}")
-
-    # 5. Expand the lists into DataFrame columns
-    # (Doing this via pd.DataFrame conversion is significantly faster than looping column-wise)
-    encoded_df = pd.DataFrame(encoded_series.tolist(), columns=feature_names, index=df.index)
-
-    # 6. Safety check: Drop existing OHE columns if re-running to avoid duplication
+    encoded_df = pd.DataFrame(columns, index=df.index)
     existing_cols = [c for c in feature_names if c in df.columns]
     if existing_cols:
         df = df.drop(columns=existing_cols)
-
-    # Concat the new features back to the main dataframe
     df = pd.concat([df, encoded_df], axis=1)
 
-    duration = time.time() - start_time
-    logger.debug("Finished One-Hot Encoding | Added %d features | Time: %.2fs", len(feature_names), duration)
-
+    logger.debug("Finished terminal one-hot | Added %d features | Time: %.2fs",
+                 len(feature_names), time.time() - start_time)
     return df, feature_names
