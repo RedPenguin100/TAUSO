@@ -18,7 +18,7 @@ FEATURE_CACHE_FILES = {
         # term5p_* dropped (subsumed by ohe_pos0_*). TODO: upload v12 to Zenodo and bump
         # ZENODO_FEATURES_RECORD -- until then this resolves from the local store only.
         "filename": "oligo_features_v12.parquet",
-        "md5": "84d2732f048f7895a9a2639a8ed51cef",
+        "md5": "57106552761bcdff593a91dba828add0",
         "index_col": "index_oligo",
     },
 }
