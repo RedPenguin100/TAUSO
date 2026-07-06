@@ -24,6 +24,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("seq_self_energy", self_energy),
     ("seq_internal_fold", internal_fold),
     ("seq_internal_rna_fold", internal_rna_fold),
+    ("seq_internal_fold_rna", internal_fold_rna),
     # Basic Composition Features
     ("seq_purine_content", purine_content),
     ("seq_gc_content", gc_fraction),

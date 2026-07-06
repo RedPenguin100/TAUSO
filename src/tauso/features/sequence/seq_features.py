@@ -83,6 +83,15 @@ def internal_rna_fold(seq: str) -> float:
     return RNA.fold(get_antisense(seq))[1]
 
 
+def internal_fold_rna(seq: str) -> float:
+    """Self-structure ΔG (kcal/mol) of the ASO folded with RNA (Turner 2004) parameters.
+
+    Companion to ``internal_fold`` (DNA parameters); a gapmer's 2'-modified wings are ribose-like, so RNA
+    nearest-neighbour energetics can fit better. The ASO is read 5'->3' with T mapped to U.
+    """
+    return RNA.fold(seq.upper().replace("T", "U"))[1]
+
+
 def hairpin_dG_energy(seq: str):
     """
     Returns the raw ΔG (Gibbs free energy, primer3 units) of the predicted hairpin structure.

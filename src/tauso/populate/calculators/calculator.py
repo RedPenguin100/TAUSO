@@ -427,25 +427,34 @@ class Calculator:
             logger.info("All specific off-target features exist. Skipping.")
 
     def calculate_on_target_hybridization(self):
-        """Calculates on-target total hybridization features."""
+        """On-target total hybridization AND site multiplicity (one RIsearch pass per gene)."""
         cutoffs = [800, 1000, 1200]
-        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs]
+        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs] + [
+            f"on_target_log_number_of_sites_{c}" for c in cutoffs
+        ]
 
         missing = self._get_missing_features(expected_features)
 
         if missing:
             logger.info("Computing %d on-target hybridization features...", len(missing))
 
-            from tauso.features.hybridization.off_target.off_target_specific_gene import on_target_total_hybridization
+            from tauso.features.hybridization.off_target.off_target_specific_gene import (
+                on_target_hybridization_with_multiplicity,
+            )
 
             # Optimization: We can reuse the lean dictionary because on-target
             # only evaluates against the canonical gene of each row.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-            # All cutoffs come from ONE RIsearch pass per (gene, ASO batch).
-            needed_cutoffs = [c for c in cutoffs if f"on_target_total_hybridization_{c}" in missing]
+            # Both columns per cutoff come from ONE RIsearch pass; recompute a cutoff if either is missing.
+            needed_cutoffs = [
+                c
+                for c in cutoffs
+                if f"on_target_total_hybridization_{c}" in missing
+                or f"on_target_log_number_of_sites_{c}" in missing
+            ]
             if needed_cutoffs:
-                self.data, generated_names = on_target_total_hybridization(
+                self.data, generated_names = on_target_hybridization_with_multiplicity(
                     self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
                 )
                 for feature_name in generated_names:
@@ -776,21 +785,27 @@ class Calculator:
 
     def calculate_interaction(self):
         """Cross-feature interaction features."""
-        feature = "interaction_internal_fold_gymnosis"
-        if not self._get_missing_features([feature]):
-            logger.info("%s exists. Skipping.", feature)
+        # (self-fold column, gymnosis-gated feature name) for both the DNA- and RNA-parameter self-folds
+        pairs = [
+            ("seq_internal_fold", "interaction_internal_fold_gymnosis"),
+            ("seq_internal_fold_rna", "interaction_internal_fold_rna_gymnosis"),
+        ]
+        missing_pairs = [(fold, feat) for fold, feat in pairs if self._get_missing_features([feat])]
+        if not missing_pairs:
+            logger.info("Interaction features exist. Skipping.")
             return
 
-        self._load_features_into_data(["seq_internal_fold", "transfection_gymnosis"])
-        self._check_dependencies(["seq_internal_fold"])
+        self._load_features_into_data(["seq_internal_fold", "seq_internal_fold_rna", "transfection_gymnosis"])
+        self._check_dependencies([fold for fold, _ in missing_pairs])
 
         if "transfection_gymnosis" in self.data.columns:
             gymnosis = self.data["transfection_gymnosis"]
         else:
-            logger.warning("transfection_gymnosis not in data; %s will be 0 for all rows.", feature)
+            logger.warning("transfection_gymnosis not in data; interaction features will be 0 for all rows.")
             gymnosis = None
-        self.data[feature] = internal_fold_gymnosis(self.data["seq_internal_fold"], gymnosis)
-        self._save_calculated_feature(feature_name=feature)
+        for fold, feature in missing_pairs:
+            self.data[feature] = internal_fold_gymnosis(self.data[fold], gymnosis)
+            self._save_calculated_feature(feature_name=feature)
 
     def calculate_experimental_conditions(self):
         """Pass-through experimental-condition features: ASO dose and plating density.
@@ -1107,12 +1122,116 @@ class Calculator:
             if feature != "error":
                 self._save_calculated_feature(feature_name=feature)
 
+    def calculate_junction_logdist(self):
+        """log1p of the splice-junction distance, split by side: exonic for exon-sited ASOs, intronic for
+        intron-sited ones (``struct_sense_in_intron``), NaN on the other side (distinct from distance 0)."""
+        from tauso.data.consts import (
+            STRUCT_SENSE_IN_INTRON,
+            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
+            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+        )
+
+        feat_ex = "structure_sense_junction_logdist_exonic"
+        feat_in = "structure_sense_junction_logdist_intronic"
+        if not self._get_missing_features([feat_ex, feat_in]):
+            logger.info("Junction log-distance features exist. Skipping.")
+            return
+
+        deps = [
+            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
+            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+            STRUCT_SENSE_IN_INTRON,
+        ]
+        self._load_features_into_data(deps)
+        self._check_dependencies(deps)
+
+        in_intron = self.data[STRUCT_SENSE_IN_INTRON].to_numpy(dtype=float)
+        dist_ex = self.data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC].to_numpy(dtype=float)
+        dist_in = self.data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC].to_numpy(dtype=float)
+        with np.errstate(invalid="ignore"):
+            self.data[feat_ex] = np.where(in_intron < 0.5, np.log1p(dist_ex), np.nan)
+            self.data[feat_in] = np.where(in_intron > 0.5, np.log1p(dist_in), np.nan)
+        self._save_calculated_feature(feature_name=feat_ex)
+        self._save_calculated_feature(feature_name=feat_in)
+
+    def calculate_flank_features(self):
+        """Base composition of the +/-20 nt pre-mRNA flanks around the ASO target site: ``flank_at_skew_20``
+        = (A-T)/(A+T) and ``flank_gc_content_20`` = (G+C)/(A+C+G+T). NaN when the gene/start is unavailable."""
+        feats = ["flank_at_skew_20", "flank_gc_content_20"]
+        if not self._get_missing_features(feats):
+            logger.info("Flank composition features exist. Skipping.")
+            return
+        self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
+
+        # The transcript-sense pre-mRNA registry is what structure_sense_start indexes into (for
+        # minus-strand genes it differs from the lean gene's full_mrna orientation).
+        gene_registry = self.cache.get_gene_registry(self._get_unique_genes())
+        FLANK = 20
+        starts = self.data[STRUCTURE_SENSE_START].to_numpy()
+        lengths = self.data[STRUCTURE_SENSE_LENGTH].to_numpy()
+        genes = self.data[CANONICAL_GENE_NAME].to_numpy()
+        skew = np.full(len(self.data), np.nan)
+        gc = np.full(len(self.data), np.nan)
+        for i in range(len(self.data)):
+            idx = starts[i]
+            if not np.isfinite(idx) or idx < 0:
+                continue
+            rec = gene_registry.get(genes[i]) if hasattr(gene_registry, "get") else None
+            pre = rec.get("pre_mrna_sequence") if isinstance(rec, dict) else None
+            if not pre:
+                continue
+            idx = int(idx)
+            ln = int(lengths[i])
+            flank = (pre[max(0, idx - FLANK):idx] + pre[idx + ln:idx + ln + FLANK]).upper()
+            if flank:
+                a, t, g, c = flank.count("A"), flank.count("T"), flank.count("G"), flank.count("C")
+                skew[i] = (a - t) / (a + t) if (a + t) else 0.0
+                gc[i] = (g + c) / (a + c + g + t) if (a + c + g + t) else 0.0
+        self.data["flank_at_skew_20"] = skew
+        self.data["flank_gc_content_20"] = gc
+        self._save_calculated_feature(feature_name="flank_at_skew_20")
+        self._save_calculated_feature(feature_name="flank_gc_content_20")
+
+    def calculate_duplication(self):
+        """Distinct near-full-length copies of the ASO target in its own pre-mRNA: ``dup_exact`` (exact)
+        and ``dup_near`` (<=1 mismatch). See :mod:`tauso.features.duplication_features`."""
+        from tauso.data.consts import ASO_SEQUENCE
+        from tauso.features.duplication_features import aso_target_rna, distinct_matches
+
+        feats = ["dup_exact", "dup_near"]
+        if not self._get_missing_features(feats):
+            logger.info("Duplication features exist. Skipping.")
+            return
+
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+        mrna = {
+            g: str(gene_to_data[g].full_mrna).upper().replace("T", "U")
+            for g in gene_to_data
+            if getattr(gene_to_data[g], "full_mrna", None)
+        }
+        genes = self.data[CANONICAL_GENE_NAME].to_numpy()
+        asos = self.data[ASO_SEQUENCE].astype(str).to_numpy()
+        de = np.zeros(len(self.data))
+        dn = np.zeros(len(self.data))
+        for i in range(len(self.data)):
+            tx = mrna.get(genes[i], "")
+            if not tx:
+                continue
+            t = aso_target_rna(asos[i])
+            de[i] = distinct_matches(tx, t, 0)
+            dn[i] = distinct_matches(tx, t, 1)
+        self.data["dup_exact"] = de
+        self.data["dup_near"] = dn
+        self._save_calculated_feature(feature_name="dup_exact")
+        self._save_calculated_feature(feature_name="dup_near")
+
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
 
         # 1. Define the pipeline as a list of functions (no parentheses!)
         pipeline_steps = [
             self.calculate_structure,
+            self.calculate_junction_logdist,
             self.calculate_cub,
             self.calculate_basic,
             self.calculate_experimental_conditions,
@@ -1122,6 +1241,8 @@ class Calculator:
             self.calculate_on_target_hybridization,
             self.calculate_mfe,
             self.calculate_sense_accessibility,
+            self.calculate_flank_features,
+            self.calculate_duplication,
             self.calculate_sequence_one_hot,
             self.calculate_sequence_chemistry,
             self.calculate_toxicity,

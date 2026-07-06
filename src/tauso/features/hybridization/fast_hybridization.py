@@ -573,6 +573,52 @@ def sum_exp_by_trigger_multi_cutoff(cutoffs, RT: float = 0.616) -> RisearchAggre
     return RisearchAggregation(columns=("trigger", "score", "energy"), combine=combine, finalize=finalize)
 
 
+def sum_and_min_energy_by_trigger_multi_cutoff(cutoffs, RT: float = 0.616) -> RisearchAggregation:
+    """Per-trigger ``(sum_exp, min_energy)`` for several cutoffs from ONE loose RIsearch pass.
+
+    Companion to :func:`sum_exp_by_trigger_multi_cutoff` that also keeps the strongest single-site energy,
+    so a site-multiplicity term ``log(sum_exp) - (-Emin/RT)`` can be derived downstream. ``sum_exp`` is
+    identical to that function, so the on-target total is unchanged.
+
+    Returns ``{cutoff: {trigger: (sum_exp, min_energy)}}``.
+    """
+    import pyarrow as pa
+
+    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
+
+    def _empty():
+        return pa.table({"cutoff": pa.array([], pa.int64()), "trigger": pa.array([], pa.string()),
+                         "_exp": pa.array([], pa.float64()), "_emin": pa.array([], pa.float64())})
+
+    def combine(batch):
+        import pyarrow.compute as pc
+
+        exp_col = pc.exp(pc.divide(batch.column("energy"), -RT))
+        base = pa.table({"trigger": batch.column("trigger"), "score": batch.column("score"),
+                         "energy": batch.column("energy"), "_exp": exp_col})
+        parts = []
+        for c in sorted_cutoffs:
+            sub = base.filter(pc.greater(base.column("score"), c))
+            if sub.num_rows == 0:
+                continue
+            agg = sub.group_by("trigger").aggregate([("_exp", "sum"), ("energy", "min")]).rename_columns(
+                ["trigger", "_exp", "_emin"])
+            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
+            parts.append(agg.select(["cutoff", "trigger", "_exp", "_emin"]))
+        return pa.concat_tables(parts) if parts else _empty()
+
+    def finalize(table):
+        final = table.group_by(["cutoff", "trigger"]).aggregate([("_exp", "sum"), ("_emin", "min")]).rename_columns(
+            ["cutoff", "trigger", "_exp", "_emin"])
+        result: dict = {c: {} for c in sorted_cutoffs}
+        for c, trig, s, e in zip(final.column("cutoff").to_pylist(), final.column("trigger").to_pylist(),
+                                 final.column("_exp").to_pylist(), final.column("_emin").to_pylist()):
+            result[c][trig] = (float(s), float(e))
+        return result
+
+    return RisearchAggregation(columns=("trigger", "score", "energy"), combine=combine, finalize=finalize)
+
+
 def _parse_mfe_scores_2(result):
     if not result:
         return [[]]
