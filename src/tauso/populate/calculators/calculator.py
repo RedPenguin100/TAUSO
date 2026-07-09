@@ -776,9 +776,8 @@ class Calculator:
 
     def calculate_interaction(self):
         """Cross-feature interaction features."""
-        # (self-fold column, gymnosis-gated feature name) for both the DNA- and RNA-parameter self-folds
+        # (self-fold column, gymnosis-gated feature name) for the RNA-parameter self-fold
         pairs = [
-            ("seq_internal_fold_dna", "interaction_internal_fold_dna_gymnosis"),
             ("seq_internal_fold_rna", "interaction_internal_fold_rna_gymnosis"),
         ]
         missing_pairs = [(fold, feat) for fold, feat in pairs if self._get_missing_features([feat])]
@@ -786,7 +785,7 @@ class Calculator:
             logger.info("Interaction features exist. Skipping.")
             return
 
-        self._load_features_into_data(["seq_internal_fold_dna", "seq_internal_fold_rna", "transfection_gymnosis"])
+        self._load_features_into_data(["seq_internal_fold_rna", "transfection_gymnosis"])
         self._check_dependencies([fold for fold, _ in missing_pairs])
 
         if "transfection_gymnosis" in self.data.columns:
