@@ -47,7 +47,7 @@ hybr_moe_wing3_dg
 hybr_moe_wing5_dg
 hybr_ps_delta_dg
 hybr_ps_dna_rna_dg
-interaction_internal_fold_gymnosis
+interaction_internal_fold_dna_gymnosis
 mod_ps_end_score
 mod_ps_frac_dna
 mod_ps_frac_mod

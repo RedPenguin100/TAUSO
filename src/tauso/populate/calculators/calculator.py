@@ -778,7 +778,7 @@ class Calculator:
         """Cross-feature interaction features."""
         # (self-fold column, gymnosis-gated feature name) for both the DNA- and RNA-parameter self-folds
         pairs = [
-            ("seq_internal_fold_dna", "interaction_internal_fold_gymnosis"),
+            ("seq_internal_fold_dna", "interaction_internal_fold_dna_gymnosis"),
             ("seq_internal_fold_rna", "interaction_internal_fold_rna_gymnosis"),
         ]
         missing_pairs = [(fold, feat) for fold, feat in pairs if self._get_missing_features([feat])]
