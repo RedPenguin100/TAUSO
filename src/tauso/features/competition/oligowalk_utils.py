@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from tauso.data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 
-from ...util import get_antisense
+from ...util import get_antisense_u
 
 # =====================================================================
 # MULTIPROCESSING GLOBALS
@@ -52,9 +52,9 @@ def _infer_datapath():
 
 
 def get_target_site_seq(aso_seq_str):
-    """Converts ASO to Target Site (RevComp)."""
+    """Converts ASO to its mRNA target site (reverse complement, RNA/U alphabet)."""
     clean_seq = "".join(c for c in str(aso_seq_str) if c.isalpha()).upper()
-    return get_antisense(clean_seq)
+    return get_antisense_u(clean_seq)
 
 
 def _run_single_aso_worker(row_tuple):
@@ -79,7 +79,8 @@ def _run_single_aso_worker(row_tuple):
         return idx, metrics
 
     try:
-        full_target_seq = _WORKER_GENE_DATA[gene_name].full_mrna
+        # full_mrna is DNA (T) for some genes, RNA (U) for others -> normalize to U.
+        full_target_seq = str(_WORKER_GENE_DATA[gene_name].full_mrna).upper().replace("T", "U")
     except AttributeError:
         metrics["error"] = "No mRNA seq"
         return idx, metrics
@@ -87,7 +88,7 @@ def _run_single_aso_worker(row_tuple):
     target_site = get_target_site_seq(aso_seq)
 
     # 2. Find Window
-    target_idx = full_target_seq.upper().find(target_site.upper())
+    target_idx = full_target_seq.find(target_site)
     if target_idx == -1:
         metrics["error"] = "Site not found"
         return idx, metrics
