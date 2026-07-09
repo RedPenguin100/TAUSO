@@ -400,7 +400,7 @@ seq_hairpin_dG_energy
 seq_hairpin_score
 seq_hairpin_tm
 seq_homooligo_count
-seq_internal_fold
+seq_internal_fold_dna
 seq_internal_rna_fold
 seq_keto_amino_skew
 seq_poly_pyrimidine_longest

@@ -22,7 +22,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     ("seq_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in "GC" else 0.0),
     # ASO sequence energy
     ("seq_self_energy", self_energy),
-    ("seq_internal_fold", internal_fold),
+    ("seq_internal_fold_dna", internal_fold),
     ("seq_internal_rna_fold", internal_rna_fold),
     ("seq_internal_fold_rna", internal_fold_rna),
     # Basic Composition Features
