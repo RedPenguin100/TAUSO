@@ -427,34 +427,25 @@ class Calculator:
             logger.info("All specific off-target features exist. Skipping.")
 
     def calculate_on_target_hybridization(self):
-        """On-target total hybridization AND site multiplicity (one RIsearch pass per gene)."""
+        """Calculates on-target total hybridization features."""
         cutoffs = [800, 1000, 1200]
-        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs] + [
-            f"on_target_log_number_of_sites_{c}" for c in cutoffs
-        ]
+        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs]
 
         missing = self._get_missing_features(expected_features)
 
         if missing:
             logger.info("Computing %d on-target hybridization features...", len(missing))
 
-            from tauso.features.hybridization.off_target.off_target_specific_gene import (
-                on_target_hybridization_with_multiplicity,
-            )
+            from tauso.features.hybridization.off_target.off_target_specific_gene import on_target_total_hybridization
 
             # Optimization: We can reuse the lean dictionary because on-target
             # only evaluates against the canonical gene of each row.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-            # Both columns per cutoff come from ONE RIsearch pass; recompute a cutoff if either is missing.
-            needed_cutoffs = [
-                c
-                for c in cutoffs
-                if f"on_target_total_hybridization_{c}" in missing
-                or f"on_target_log_number_of_sites_{c}" in missing
-            ]
+            # All cutoffs come from ONE RIsearch pass per (gene, ASO batch).
+            needed_cutoffs = [c for c in cutoffs if f"on_target_total_hybridization_{c}" in missing]
             if needed_cutoffs:
-                self.data, generated_names = on_target_hybridization_with_multiplicity(
+                self.data, generated_names = on_target_total_hybridization(
                     self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
                 )
                 for feature_name in generated_names:
