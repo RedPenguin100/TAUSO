@@ -17,7 +17,7 @@ from ...util import get_antisense
 # =====================================================================
 # MULTIPROCESSING GLOBALS
 # =====================================================================
-_WORKER_GENE_DATA = None
+_WORKER_GENE_DATA: dict = {}
 _WINDOW_SIZE = 800
 _DATAPATH = ""
 
@@ -61,7 +61,7 @@ def _run_single_aso_worker(row_tuple):
     """Core logic to run OligoWalk for one row."""
     idx, row = row_tuple
 
-    metrics = {
+    metrics: dict[str, float | str | None] = {
         "OW_Overall": None,
         "OW_Duplex": None,
         "OW_Tm": None,
@@ -146,7 +146,7 @@ def _run_single_aso_worker(row_tuple):
     return idx, metrics
 
 
-def populate_oligowalk(df: pd.DataFrame, gene_data: dict, window_size: int = 800, num_workers: int = None):
+def populate_oligowalk(df: pd.DataFrame, gene_data: dict, window_size: int = 800, num_workers: int | None = None):
     """
     Runs OligoWalk sequentially across a DataFrame and appends the features.
 

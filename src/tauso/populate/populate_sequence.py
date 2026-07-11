@@ -2,6 +2,7 @@ import logging
 import time
 from typing import Iterable, Optional, Tuple
 
+import pandas as pd
 from Bio.SeqUtils import gc_fraction
 
 logger = logging.getLogger(__name__)
@@ -107,12 +108,6 @@ def populate_sequence_features(
             calc_feature(df, name, available[name], seq_series, cpus=cpus)
 
     return df, feature_names
-
-
-import time
-from typing import Optional, Tuple
-
-import pandas as pd
 
 
 def populate_sequence_one_hot_encoded(
