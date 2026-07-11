@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def _build_multilength_index(text: bytes, lengths: set):
-    """text: bytes, lengths: set of int -> {L: {substring: position}} (last occurrence wins), per L."""
+    """Map each length-L substring of `text` to its position (last occurrence wins), per L."""
     return {L: {text[i : i + L]: i for i in range(len(text) - L, -1, -1)} for L in lengths}
 
 
 def _in_intervals(coords: np.ndarray, intervals: list) -> np.ndarray:
-    """coords: int array, intervals: list of (start, end) -> bool array: is each coord in any interval."""
+    """Whether each coord falls in any [start, end) interval."""
     inside = np.zeros(len(coords), dtype=bool)
     for s, e in intervals:
         inside |= (coords >= s) & (coords < e)
@@ -24,8 +24,7 @@ def _in_intervals(coords: np.ndarray, intervals: list) -> np.ndarray:
 
 
 def _host_interval_len(coords: np.ndarray, intervals: list) -> np.ndarray:
-    """coords: int array, intervals: list of (start, end) -> float array: length of the interval each coord
-    is in, else 0."""
+    """Length of the [start, end) interval each coord falls in, else 0."""
     length = np.zeros(len(coords), dtype=np.float64)
     for s, e in intervals:
         length[(coords >= s) & (coords < e)] = e - s
@@ -33,7 +32,7 @@ def _host_interval_len(coords: np.ndarray, intervals: list) -> np.ndarray:
 
 
 def _codon_midpoints(codons) -> np.ndarray:
-    """codons: list of (start, end) -> float array of interval midpoints."""
+    """Genomic midpoints of the [start, end) codon intervals."""
     return np.array([(s + e) / 2.0 for s, e in codons], dtype=np.float64)
 
 
