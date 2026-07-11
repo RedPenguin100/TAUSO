@@ -779,7 +779,7 @@ class Calculator:
             logger.info("All backbone features exist. Skipping.")
 
     def calculate_interaction(self):
-        """ASO self-fold (RNA parameters) gated to gymnotic (carrier-free) uptake."""
+        """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
         feature = "interaction_internal_fold_rna_gymnosis"
         if not self._get_missing_features([feature]):
             logger.info("Interaction features exist. Skipping.")
