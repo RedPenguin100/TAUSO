@@ -875,7 +875,7 @@ def build_annotation_db(
             keep_ord = fmt == "GTF"
             sort_attrs = fmt == "GTF"
 
-            db = gffutils.create_db(
+            gffutils.create_db(
                 progress_wrapper(),
                 dbfn=db_path,
                 force=True,
@@ -1150,7 +1150,7 @@ def setup_raccess(ctx, force_clone, march):
     click.echo(f"+ {' '.join(cmd)} (RACCESS_MARCH={env.get('RACCESS_MARCH', 'native')})")
     try:
         subprocess.run(cmd, check=True, env=env)
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         logger.error("install_raccess.sh failed, consider installing zlib1g-dev")
         sys.exit(1)
 

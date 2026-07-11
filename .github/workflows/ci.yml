@@ -33,6 +33,12 @@ jobs:
       - name: Run Ruff Format (Style)
         run: micromamba run -n tauso ruff format --check src/
 
+      - name: Type check (mypy, informational — non-blocking)
+        continue-on-error: true
+        run: |
+          micromamba run -n tauso uv pip install mypy
+          micromamba run -n tauso mypy || true
+
   build:
     strategy:
       fail-fast: false

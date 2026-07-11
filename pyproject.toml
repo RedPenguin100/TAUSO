@@ -7,7 +7,7 @@ name = "tauso"
 version = "1.0.0"
 description = "TAUSO: ASO design toolkit"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [{name = "Michael Kovaliov"}]
 
@@ -43,6 +43,7 @@ dev = [
     "matplotlib",
     "seaborn",
     "optuna",
+    "mypy",
     "pandas-stubs",
     "scipy-stubs",
 ]
@@ -69,24 +70,27 @@ include = ["tauso*"]
 tauso = "tauso.cli:main"
 
 [tool.ruff]
-# Target the Python version you're using for TAUSO
-target-version = "py38"
+target-version = "py311"
 line-length = 120
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["F401", "I", "B", "UP", "TID"]
+select = ["F401", "F841", "I", "B", "UP", "TID"]
 fixable = ["F401", "I", "B", "UP"]
 ignore = [
     "B905",   # Zip strict
     "B904",   # Raise from
     "UP015",  # Redundant 'r' in open
-    "UP045",  # Using different type of optional type
-    "UP006",  # Using different type of list type
-    "UP007",  # Using | for annotations
     "UP022",  # capture_output instead of stdout and stderr
     "TID252", # Allow relative imports
-] # Ignore zip strict, raise from
+    # Type/idiom modernization deferred to a dedicated pass (report item 1); py311 target
+    # activates these, but the rewrites are churn we want to land separately.
+    "UP045",  # X | None over Optional[X]
+    "UP006",  # list over List
+    "UP007",  # X | Y over Union
+    "UP035",  # import from collections.abc, not typing
+    "UP033",  # functools.cache over lru_cache(maxsize=None)
+]
 
 [tool.ruff.lint.isort]
 # Groups your internal 'tauso' imports separately from 3rd party libs
@@ -99,3 +103,10 @@ combine-as-imports = true
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["TID251"]
 "notebooks/**/*" = ["TID251"]
+
+[tool.mypy]
+# Advisory only: mypy runs non-blocking in CI (continue-on-error) — it reports, it does not gate.
+# Tighten per-module over time as annotation coverage improves.
+python_version = "3.11"
+files = ["src/tauso"]
+ignore_missing_imports = true
