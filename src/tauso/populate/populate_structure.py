@@ -1,4 +1,5 @@
 import logging
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -10,17 +11,223 @@ logger = logging.getLogger(__name__)
 
 
 def _build_multilength_index(text: bytes, lengths: set):
-    """Builds a lookup index for finding sequence matches efficiently."""
+    """Map each length-L substring of `text` to its position (last occurrence wins), per L."""
     return {L: {text[i : i + L]: i for i in range(len(text) - L, -1, -1)} for L in lengths}
 
 
 def _in_intervals(coords: np.ndarray, intervals: list) -> np.ndarray:
-    """Returns a boolean array indicating if coords fall within any [start, end) interval."""
-    if not intervals or len(intervals) == 0:
-        return np.zeros(len(coords), dtype=bool)
+    """Whether each coord falls in any [start, end) interval."""
+    inside = np.zeros(len(coords), dtype=bool)
+    for s, e in intervals:
+        inside |= (coords >= s) & (coords < e)
+    return inside
 
-    arr = np.array(intervals)
-    return ((coords[:, None] >= arr[:, 0]) & (coords[:, None] < arr[:, 1])).any(axis=1)
+
+def _host_interval_len(coords: np.ndarray, intervals: list) -> np.ndarray:
+    """Length of the [start, end) interval each coord falls in, else 0."""
+    length = np.zeros(len(coords), dtype=np.float64)
+    for s, e in intervals:
+        length[(coords >= s) & (coords < e)] = e - s
+    return length
+
+
+def _codon_midpoints(codons) -> np.ndarray:
+    """Genomic midpoints of the [start, end) codon intervals."""
+    return np.array([(s + e) / 2.0 for s, e in codons], dtype=np.float64)
+
+
+def _genomic_to_mrna(coords, sorted_exons, cum_pre, neg_strand):
+    """Map genomic coords to spliced-mRNA positions; NaN for intronic coords."""
+    out = np.full(len(coords), np.nan, dtype=np.float64)
+    for (s, e), pre in zip(sorted_exons, cum_pre):
+        mask = (coords >= s) & (coords < e)
+        out[mask] = pre + (e - 1 - coords[mask] if neg_strand else coords[mask] - s)
+    return out
+
+
+def _validate_gene_lengths(genes, gene_to_data):
+    """Fail loudly if any processed gene has non-positive genomic length (would break normalization)."""
+    bad = [g for g in genes if gene_to_data[g].gene_end <= gene_to_data[g].gene_start]
+    if bad:
+        raise ValueError(f"genes with non-positive genomic length: {bad}")
+
+
+def _validate_codons(genes, gene_to_data):
+    """Fail loudly if any processed protein-coding gene lacks a canonical start or stop codon (broken CDS
+    annotation -- such a gene should not be an ASO target)."""
+    bad = [
+        g
+        for g in genes
+        if gene_to_data[g].gene_type == GeneType.PROTEIN_CODING
+        and (gene_to_data[g].stop_codon is None or gene_to_data[g].start_codon is None)
+    ]
+    if bad:
+        raise ValueError(f"protein-coding genes missing a canonical start/stop codon (broken annotation): {bad}")
+
+
+def _match_positions(pre_mrna, senses_b) -> np.ndarray:
+    """Start position of each antisense-RNA sequence within the pre-mRNA (bytes), or -1 if absent."""
+    index = _build_multilength_index(pre_mrna, {len(s) for s in senses_b})
+    return np.array([index[len(s)].get(s, -1) for s in senses_b], dtype=np.int32)
+
+
+def _genetic_coordinates(hit_pos, match_lengths, locus_info) -> np.ndarray:
+    """Genomic coordinate of each match's 5'-tilted center (len 20 -> +9, len 21 -> +10)."""
+    center = (match_lengths - 1) // 2
+    if locus_info.strand == StrandType.NEG:
+        return locus_info.gene_end - 1 - hit_pos - center
+    return locus_info.gene_start + hit_pos + center
+
+
+# --- per-gene feature writers: each computes one feature block for the matched rows (`hit_rows`) and
+#     writes it into the shared outputs object `out`. Rows they don't touch keep their default (NaN / 0). ---
+
+
+def assign_target_position(out, hit_rows, hit_pos, pre_mrna_len, locus_info):
+    """Target start within the pre-mRNA (from each end), raw and normalized to [0, 1] (length-invariant)."""
+    gene_length = float(locus_info.gene_end - locus_info.gene_start)
+    out.start[hit_rows] = hit_pos
+    out.start_end[hit_rows] = pre_mrna_len - hit_pos
+    out.start_norm[hit_rows] = hit_pos / gene_length
+    out.start_end_norm[hit_rows] = (gene_length - hit_pos) / gene_length
+
+
+def assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinates, locus_info):
+    """Distance (bp) to the nearest CANONICAL-transcript intron boundary, filed by exon/intron side so a 0
+    is unambiguous, both raw and log1p (the model-facing form). Single-exon genes stay NaN."""
+    splice_junction = np.array(locus_info._intron_indices).flatten()
+    if splice_junction.size == 0:
+        return
+    dist = np.abs(genetic_coordinates[:, None] - splice_junction).min(axis=1)
+    in_exon = _in_intervals(genetic_coordinates, locus_info._exon_indices)
+    in_intron = _in_intervals(genetic_coordinates, locus_info._intron_indices)
+    out.dist_sj_exonic[hit_rows] = np.where(in_exon, dist, np.nan)
+    out.dist_sj_intronic[hit_rows] = np.where(in_exon, np.nan, dist)
+    out.junction_logdist_exonic[hit_rows] = np.where(in_exon, np.log1p(dist), np.nan)
+    out.junction_logdist_intronic[hit_rows] = np.where(in_intron, np.log1p(dist), np.nan)
+
+
+def assign_closest_splice_junction_distance(out, hit_rows, genetic_coordinates, locus_info):
+    """Distance to the nearest splice junction across ALL transcript isoforms (side-agnostic, single value),
+    raw and log1p (the model-facing form). NaN if the gene is single-exon in every isoform."""
+    sj = np.asarray(locus_info.all_splice_junctions)
+    if sj.size == 0:
+        return
+    dist = np.abs(genetic_coordinates[:, None] - sj).min(axis=1)
+    out.dist_closest_sj[hit_rows] = dist
+    out.junction_logdist_closest[hit_rows] = np.log1p(dist)
+
+
+def assign_host_lengths(out, hit_rows, genetic_coordinates, locus_info):
+    """log length of the host exon / intron the coord sits in (exon wins overlaps). NaN if in neither."""
+    exon_len = _host_interval_len(genetic_coordinates, locus_info._exon_indices)
+    intron_len = _host_interval_len(genetic_coordinates, locus_info._intron_indices)
+    in_exon = exon_len > 0
+    in_intron = (intron_len > 0) & ~in_exon
+    out.host_exon_log_len[hit_rows[in_exon]] = np.log(np.maximum(exon_len[in_exon], 1))
+    out.host_intron_log_len[hit_rows[in_intron]] = np.log(np.maximum(intron_len[in_intron], 1))
+
+
+def assign_distance_to_special_codons(out, hit_rows, genetic_coordinates, locus_info):
+    """Genomic (intron-inclusive) distance to the nearest special codon -- start / stop, canonical
+    transcript (a single codon) and across all isoforms. Non-coding genes (no such codons) stay NaN."""
+    stop, start = locus_info.stop_codon, locus_info.start_codon
+    for codons, target in (
+        ([stop] if stop else [], out.dist_canonical_stop),
+        (locus_info.all_stop_codons, out.dist_closest_stop),
+        ([start] if start else [], out.dist_canonical_start),
+        (locus_info.all_start_codons, out.dist_closest_start),
+    ):
+        if codons:
+            mids = _codon_midpoints(codons)
+            target[hit_rows] = np.min(np.abs(genetic_coordinates[:, None] - mids[None, :]), axis=1)
+
+
+def assign_mrna_stop_distance(out, hit_rows, genetic_coordinates, locus_info):
+    """Spliced-mRNA distance to the nearest stop codon (canonical + all-isoform), walking canonical exons
+    5'->3' so introns are excluded. Non-coding genes stay NaN."""
+    neg = locus_info.strand == StrandType.NEG
+    exons = sorted(locus_info._exon_indices, key=(lambda x: -x[0]) if neg else (lambda x: x[0]))
+    cum_pre = np.cumsum([0] + [e - s for s, e in exons])[:-1]  # cumulative exon length before each exon
+    aso_mrna = None
+    stop = locus_info.stop_codon
+    for codons, target in (
+        ([stop] if stop else [], out.mrna_dist_canonical_stop),
+        (locus_info.all_stop_codons, out.mrna_dist_closest_stop),
+    ):
+        if not codons:
+            continue
+        if aso_mrna is None:
+            aso_mrna = _genomic_to_mrna(genetic_coordinates.astype(np.float64), exons, cum_pre, neg)
+        stop_mrna = _genomic_to_mrna(_codon_midpoints(codons), exons, cum_pre, neg)
+        stop_mrna = stop_mrna[~np.isnan(stop_mrna)]
+        if len(stop_mrna):
+            target[hit_rows] = np.min(np.abs(aso_mrna[:, None] - stop_mrna[None, :]), axis=1)
+
+
+def assign_region(out, hit_rows, genetic_coordinates, locus_info):
+    """Exclusive region assignment: type + in_exon / intron / 3UTR / 5UTR / CDS flags. Priority
+    3UTR > 5UTR > exon; intron only outside exons; CDS only on protein-coding genes (keeps lncRNAs at 0)."""
+    in_exon = _in_intervals(genetic_coordinates, locus_info._exon_indices)
+    in_intron = _in_intervals(genetic_coordinates, locus_info._intron_indices)
+    in_3utr = _in_intervals(genetic_coordinates, locus_info._3utr_indices)
+    in_5utr = _in_intervals(genetic_coordinates, locus_info._5utr_indices)
+    in_generic_utr = _in_intervals(genetic_coordinates, locus_info.utr_indices)
+
+    utr3 = in_3utr
+    utr5 = in_5utr & ~utr3
+    exon = in_exon & ~(utr3 | utr5 | in_generic_utr)
+    intron = in_intron & ~in_exon
+
+    out.type[hit_rows[exon]] = "exon"
+    out.type[hit_rows[intron]] = "intron"
+    out.type[hit_rows[utr3]] = "3UTR"
+    out.type[hit_rows[utr5]] = "5UTR"
+    out.exon[hit_rows[exon]] = 1
+    out.exon_non_exclusive[hit_rows[in_exon]] = 1
+    out.intron[hit_rows[intron]] = 1
+    out.utr3[hit_rows[utr3]] = 1
+    out.utr5[hit_rows[utr5]] = 1
+    if locus_info.gene_type == GeneType.PROTEIN_CODING:
+        out.cds[hit_rows[exon]] = 1
+        out.cds_non_exclusive[hit_rows[in_exon]] = 1
+
+
+def _init_outputs(n_rows):
+    """One array per feature. Float features default to NaN (unmapped rows, genes with no codons, ...);
+    int flags default to 0; start defaults to -1."""
+
+    def nan():
+        return np.full(n_rows, np.nan, dtype=np.float64)
+
+    return SimpleNamespace(
+        start=np.full(n_rows, -1, dtype=np.int64),
+        start_end=np.zeros(n_rows, dtype=np.int64),
+        type=np.full(n_rows, "unannotated", dtype=object),
+        exon=np.zeros(n_rows, dtype=np.int8),
+        exon_non_exclusive=np.zeros(n_rows, dtype=np.int8),
+        intron=np.zeros(n_rows, dtype=np.int8),
+        utr3=np.zeros(n_rows, dtype=np.int8),
+        utr5=np.zeros(n_rows, dtype=np.int8),
+        cds=np.zeros(n_rows, dtype=np.int8),
+        cds_non_exclusive=np.zeros(n_rows, dtype=np.int8),
+        start_norm=nan(),
+        start_end_norm=nan(),
+        dist_canonical_stop=nan(),
+        dist_closest_stop=nan(),
+        dist_canonical_start=nan(),
+        dist_closest_start=nan(),
+        mrna_dist_canonical_stop=nan(),
+        mrna_dist_closest_stop=nan(),
+        dist_sj_exonic=nan(),
+        dist_sj_intronic=nan(),
+        dist_closest_sj=nan(),
+        host_exon_log_len=nan(),
+        host_intron_log_len=nan(),
+        junction_logdist_exonic=nan(),
+        junction_logdist_intronic=nan(),
+        junction_logdist_closest=nan(),
+    )
 
 
 def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask=True):
@@ -35,228 +242,70 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         return all_data
 
     trans_table = str.maketrans("tT", "uU")
-
-    # Encode sequences to bytes outside the loop for speed
-    unique_seqs = all_data[ASO_SEQUENCE].unique()
-    sense_cache = {seq: get_antisense_rna(seq).encode() for seq in unique_seqs}
-
+    sense_cache = {seq: get_antisense_rna(seq).encode() for seq in all_data[ASO_SEQUENCE].unique()}
     all_data["__temp_sense"] = all_data[ASO_SEQUENCE].map(sense_cache)
+    all_data["__temp_idx"] = np.arange(n_rows)
     seq_lengths = all_data[ASO_SEQUENCE].str.len().values
-
     pre_mrna_cache = {
         g: gene_to_data[g].full_mrna.upper().translate(trans_table).encode() for g in genes_u if g in gene_to_data
     }
+    _validate_gene_lengths(pre_mrna_cache.keys(), gene_to_data)
+    _validate_codons(pre_mrna_cache.keys(), gene_to_data)
 
-    # Initialize tracking arrays
-    out_start = np.full(n_rows, -1, dtype=np.int64)
-    out_start_end = np.zeros(n_rows, dtype=np.int64)
-    out_type = np.full(n_rows, "unannotated", dtype=object)  # Initialize all as unannotated
-
-    out_exon = np.zeros(n_rows, dtype=np.int8)
-    out_exon_non_exclusive = np.zeros(n_rows, dtype=np.int8)
-    out_intron = np.zeros(n_rows, dtype=np.int8)
-    out_3utr = np.zeros(n_rows, dtype=np.int8)
-    out_5utr = np.zeros(n_rows, dtype=np.int8)
-    out_cds = np.zeros(n_rows, dtype=np.int8)
-    out_cds_non_exclusive = np.zeros(n_rows, dtype=np.int8)
-
-    # Normalized sense positions and codon-distance features.
-    # NaN for unmapped rows (no gene match), for rows on genes without codon
-    # annotations (lncRNAs), and for mRNA-distance features on rows whose
-    # genomic coord lies in an intron (no mRNA position exists there).
-    out_start_norm = np.full(n_rows, np.nan, dtype=np.float64)
-    out_start_end_norm = np.full(n_rows, np.nan, dtype=np.float64)
-    out_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float64)
-    out_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float64)
-    out_dist_canonical_start = np.full(n_rows, np.nan, dtype=np.float64)
-    out_dist_closest_start = np.full(n_rows, np.nan, dtype=np.float64)
-    out_mrna_dist_canonical_stop = np.full(n_rows, np.nan, dtype=np.float64)
-    out_mrna_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float64)
-    out_dist_sj_exonic = np.full(n_rows, np.nan, dtype=np.float64)
-    out_dist_sj_intronic = np.full(n_rows, np.nan, dtype=np.float64)
-
-    all_data["__temp_idx"] = np.arange(n_rows)
+    out = _init_outputs(n_rows)
 
     for gene_name, group in all_data.groupby(CANONICAL_GENE_NAME, observed=True):
         if gene_name not in pre_mrna_cache:
             continue
-
         locus_info = gene_to_data[gene_name]
         pre_mrna = pre_mrna_cache[gene_name]
 
-        row_idxs = group["__temp_idx"].values
-        group_senses_b = group["__temp_sense"].values
-
-        group_lengths = set(len(s) for s in group_senses_b)
-        index = _build_multilength_index(pre_mrna, group_lengths)
-        idxs = np.array([index[len(s)].get(s, -1) for s in group_senses_b], dtype=np.int32)
-
-        valid_mask = idxs != -1
-        if not valid_mask.any():
+        # setup: locate each ASO's target in the pre-mRNA and map the match to a genomic coordinate.
+        group_rows = group["__temp_idx"].values
+        match_pos = _match_positions(pre_mrna, group["__temp_sense"].values)
+        found = match_pos != -1
+        if not found.any():
             continue
+        hit_rows = group_rows[found]
+        hit_pos = match_pos[found]
+        genetic_coordinates = _genetic_coordinates(hit_pos, seq_lengths[hit_rows], locus_info)
 
-        v_row_idxs = row_idxs[valid_mask]
-        v_idxs = idxs[valid_mask]
+        assign_target_position(out, hit_rows, hit_pos, len(pre_mrna), locus_info)
+        assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinates, locus_info)
+        assign_closest_splice_junction_distance(out, hit_rows, genetic_coordinates, locus_info)
+        assign_host_lengths(out, hit_rows, genetic_coordinates, locus_info)
+        assign_distance_to_special_codons(out, hit_rows, genetic_coordinates, locus_info)
+        assign_mrna_stop_distance(out, hit_rows, genetic_coordinates, locus_info)
+        assign_region(out, hit_rows, genetic_coordinates, locus_info)
 
-        out_start[v_row_idxs] = v_idxs
-        out_start_end[v_row_idxs] = len(pre_mrna) - v_idxs
-
-        # Get lengths of the valid matches
-        v_seq_lengths = seq_lengths[v_row_idxs]
-
-        # Calculate the 5'-tilted center offset
-        # Len 20 -> offset 9, Len 21 -> offset 10
-        center_offsets = (v_seq_lengths - 1) // 2
-
-        if locus_info.strand == StrandType.NEG:
-            # Map the center to the negative strand's absolute genomic coordinate
-            gen_coords = locus_info.gene_end - 1 - v_idxs - center_offsets
-        else:
-            # Map the center to the positive strand's absolute genomic coordinate
-            gen_coords = locus_info.gene_start + v_idxs + center_offsets
-
-        # Distance (bp) from the ASO center to the nearest splice-junction coordinate (an
-        # intron start or end). Reported as two non-negative columns: the exonic-side distance
-        # (NaN at intronic sites) and the intronic-side distance (NaN at exonic sites), each a
-        # depth into its own compartment. Splitting by side keeps a 0 unambiguous (exon vs
-        # intron boundary). Single-exon genes have no junctions -> NaN.
-        junctions = np.array([c for s, e in locus_info._intron_indices for c in (s, e)])
-        if junctions.size:
-            dist = np.abs(gen_coords[:, None] - junctions).min(axis=1)
-            in_exon = _in_intervals(gen_coords, locus_info._exon_indices)
-            out_dist_sj_exonic[v_row_idxs] = np.where(in_exon, dist, np.nan)
-            out_dist_sj_intronic[v_row_idxs] = np.where(in_exon, np.nan, dist)
-
-        # Normalized positions: sense_start / gene_length, sense_start_from_end / gene_length.
-        # Range [0, 1]; tells the model "how far into the pre-mRNA is the target?"
-        # length-invariant across genes (PSD3 ~640k vs APOL1 ~15k).
-        gene_length = float(locus_info.gene_end - locus_info.gene_start)
-        if gene_length > 0:
-            out_start_norm[v_row_idxs] = v_idxs.astype(np.float64) / gene_length
-            out_start_end_norm[v_row_idxs] = (gene_length - v_idxs).astype(np.float64) / gene_length
-
-        # Genomic distance from the ASO center to the nearest canonical /
-        # any-transcript stop or start codon. NaN for genes with no codon
-        # annotation (lncRNAs etc). Distance is in genomic bp (intron-inclusive);
-        # mRNA-distance variants live below.
-        if locus_info.stop_codons:
-            stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64)
-            out_dist_canonical_stop[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - stop_mids[None, :]), axis=1)
-        if locus_info.all_stop_codons:
-            all_stop_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64)
-            out_dist_closest_stop[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - all_stop_mids[None, :]), axis=1)
-        if locus_info.start_codons:
-            start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.start_codons], dtype=np.float64)
-            out_dist_canonical_start[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - start_mids[None, :]), axis=1)
-        if locus_info.all_start_codons:
-            all_start_mids = np.array([(s + e) / 2.0 for s, e in locus_info.all_start_codons], dtype=np.float64)
-            out_dist_closest_start[v_row_idxs] = np.min(np.abs(gen_coords[:, None] - all_start_mids[None, :]), axis=1)
-
-        # mRNA-distance variants for stop codons. Walk the canonical exon set in
-        # 5'->3' order and map a genomic coord to its position in the spliced
-        # mRNA. Intronic positions return NaN (no mRNA position exists).
-        if locus_info.stop_codons or locus_info.all_stop_codons:
-            sorted_exons = sorted(
-                locus_info._exon_indices,
-                key=(lambda x: -x[0]) if locus_info.strand == StrandType.NEG else (lambda x: x[0]),
-            )
-            cum_pre = np.zeros(len(sorted_exons), dtype=np.int64)
-            running = 0
-            for i, (s, e) in enumerate(sorted_exons):
-                cum_pre[i] = running
-                running += e - s
-
-            def _gen_to_mrna(coords, sorted_exons=sorted_exons, cum_pre=cum_pre, locus_info=locus_info):
-                """Vectorized: genomic coords → mRNA positions (NaN if intronic)."""
-                out_mrna = np.full(len(coords), np.nan, dtype=np.float64)
-                for (s, e), pre in zip(sorted_exons, cum_pre):
-                    mask = (coords >= s) & (coords < e)
-                    if not np.any(mask):
-                        continue
-                    if locus_info.strand == StrandType.NEG:
-                        out_mrna[mask] = pre + (e - 1 - coords[mask])
-                    else:
-                        out_mrna[mask] = pre + (coords[mask] - s)
-                return out_mrna
-
-            aso_mrna = _gen_to_mrna(gen_coords.astype(np.float64))
-
-            if locus_info.stop_codons:
-                stop_mids_arr = np.array([(s + e) / 2.0 for s, e in locus_info.stop_codons], dtype=np.float64)
-                stop_mrna = _gen_to_mrna(stop_mids_arr)
-                # min over stops, NaN-aware
-                valid_stops = stop_mrna[~np.isnan(stop_mrna)]
-                if len(valid_stops) > 0:
-                    dists = np.min(np.abs(aso_mrna[:, None] - valid_stops[None, :]), axis=1)
-                    out_mrna_dist_canonical_stop[v_row_idxs] = dists
-            if locus_info.all_stop_codons:
-                all_stop_mids_arr = np.array([(s + e) / 2.0 for s, e in locus_info.all_stop_codons], dtype=np.float64)
-                all_stop_mrna = _gen_to_mrna(all_stop_mids_arr)
-                valid_all_stops = all_stop_mrna[~np.isnan(all_stop_mrna)]
-                if len(valid_all_stops) > 0:
-                    dists_all = np.min(np.abs(aso_mrna[:, None] - valid_all_stops[None, :]), axis=1)
-                    out_mrna_dist_closest_stop[v_row_idxs] = dists_all
-
-        # Much cleaner interval checking
-        is_exon = _in_intervals(gen_coords, locus_info._exon_indices)
-        is_intron = _in_intervals(gen_coords, locus_info._intron_indices)
-        is_3utr = _in_intervals(gen_coords, locus_info._3utr_indices)
-        is_5utr = _in_intervals(gen_coords, locus_info._5utr_indices)
-        is_generic_utr = _in_intervals(gen_coords, locus_info.utr_indices)
-
-        # --- EXCLUSIVE ASSIGNMENTS & TYPE ---
-        # Note: generic_utr_mask was completely unused for exclusive flagging, so it's removed.
-        mask_3utr = is_3utr
-        mask_5utr = is_5utr & ~mask_3utr
-        mask_exon = is_exon & ~(mask_3utr | mask_5utr | is_generic_utr)
-        mask_intron = is_intron & ~is_exon
-
-        out_type[v_row_idxs[mask_exon]] = "exon"
-        out_type[v_row_idxs[mask_intron]] = "intron"
-        out_type[v_row_idxs[mask_3utr]] = "3UTR"
-        out_type[v_row_idxs[mask_5utr]] = "5UTR"
-
-        out_exon[v_row_idxs[mask_exon]] = 1
-        out_exon_non_exclusive[v_row_idxs[is_exon]] = 1
-        out_intron[v_row_idxs[mask_intron]] = 1
-        out_3utr[v_row_idxs[mask_3utr]] = 1
-        out_5utr[v_row_idxs[mask_5utr]] = 1
-
-        # sense_cds and sense_cds_non_exclusive = exon hit AND the gene is
-        # protein-coding, in exclusive (mask_exon, UTR excluded) vs non-exclusive
-        # (is_exon, any exonic hit including UTRs that overlap exons) forms.
-        # The biotype guard keeps both at zero on lncRNAs (MALAT1, SNHG14, …)
-        # where no UTRs are annotated to mask and every exonic hit would
-        # otherwise spuriously look like CDS.
-        if locus_info.gene_type == GeneType.PROTEIN_CODING:
-            out_cds[v_row_idxs[mask_exon]] = 1
-            out_cds_non_exclusive[v_row_idxs[is_exon]] = 1
-
-    # Apply exclusive features
-    all_data[STRUCTURE_SENSE_START] = out_start
-    all_data[STRUCTURE_SENSE_START_FROM_END] = out_start_end
+    all_data[STRUCTURE_SENSE_START] = out.start
+    all_data[STRUCTURE_SENSE_START_FROM_END] = out.start_end
     all_data[STRUCTURE_SENSE_LENGTH] = seq_lengths
-    all_data[STRUCT_SENSE_IN_EXON] = out_exon
-    all_data[STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE] = out_exon_non_exclusive
-    all_data[STRUCT_SENSE_IN_INTRON] = out_intron
-    all_data[STRUCT_SENSE_IN_UTR] = out_3utr | out_5utr
-    all_data[STRUCT_SENSE_IN_3UTR] = out_3utr
-    all_data[STRUCT_SENSE_IN_5UTR] = out_5utr
-    all_data[STRUCT_SENSE_IN_CDS] = out_cds
-    all_data[STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE] = out_cds_non_exclusive
-    all_data[STRUCTURE_SENSE_TYPE] = out_type
-
-    # Normalized positions + codon distances (genomic + mRNA)
-    all_data[STRUCTURE_SENSE_START_NORM] = out_start_norm
-    all_data[STRUCTURE_SENSE_START_FROM_END_NORM] = out_start_end_norm
-    all_data[STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP] = out_dist_canonical_stop
-    all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP] = out_dist_closest_stop
-    all_data[STRUCTURE_SENSE_DIST_TO_CANONICAL_START] = out_dist_canonical_start
-    all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_START] = out_dist_closest_start
-    all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out_mrna_dist_canonical_stop
-    all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out_mrna_dist_closest_stop
-    all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC] = out_dist_sj_exonic
-    all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC] = out_dist_sj_intronic
+    all_data[STRUCT_SENSE_IN_EXON] = out.exon
+    all_data[STRUCT_SENSE_IN_EXON_NON_EXCLUSIVE] = out.exon_non_exclusive
+    all_data[STRUCT_SENSE_IN_INTRON] = out.intron
+    all_data[STRUCT_SENSE_IN_UTR] = out.utr3 | out.utr5
+    all_data[STRUCT_SENSE_IN_3UTR] = out.utr3
+    all_data[STRUCT_SENSE_IN_5UTR] = out.utr5
+    all_data[STRUCT_SENSE_IN_CDS] = out.cds
+    all_data[STRUCT_SENSE_IN_CDS_NON_EXCLUSIVE] = out.cds_non_exclusive
+    all_data[STRUCTURE_SENSE_TYPE] = out.type
+    all_data[STRUCTURE_SENSE_START_NORM] = out.start_norm
+    all_data[STRUCTURE_SENSE_START_FROM_END_NORM] = out.start_end_norm
+    all_data[STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP] = out.dist_canonical_stop
+    all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP] = out.dist_closest_stop
+    all_data[STRUCTURE_SENSE_DIST_TO_CANONICAL_START] = out.dist_canonical_start
+    all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_START] = out.dist_closest_start
+    all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out.mrna_dist_canonical_stop
+    all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out.mrna_dist_closest_stop
+    all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC] = out.dist_sj_exonic
+    all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC] = out.dist_sj_intronic
+    all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_SPLICE_JUNCTION] = out.dist_closest_sj
+    all_data[STRUCTURE_SENSE_HOST_EXON_LOG_LENGTH] = out.host_exon_log_len
+    all_data[STRUCTURE_SENSE_HOST_INTRON_LOG_LENGTH] = out.host_intron_log_len
+    all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC] = out.junction_logdist_exonic
+    all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC] = out.junction_logdist_intronic
+    all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_CLOSEST] = out.junction_logdist_closest
 
     all_data.drop(columns=["__temp_idx", "__temp_sense"], inplace=True)
     return all_data

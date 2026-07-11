@@ -153,10 +153,11 @@ class LocusInfo:
         "_intron_indices",
         "_5utr_indices",
         "_3utr_indices",
-        "stop_codons",
+        "stop_codon",
         "all_stop_codons",
-        "start_codons",
+        "start_codon",
         "all_start_codons",
+        "all_splice_junctions",
         "five_prime_utr",
         "three_prime_utr",
         "full_mrna",
@@ -172,10 +173,11 @@ class LocusInfo:
         self._intron_indices = []
         self._5utr_indices = []
         self._3utr_indices = []
-        self.stop_codons = []
+        self.stop_codon = None
         self.all_stop_codons = []
-        self.start_codons = []
+        self.start_codon = None
         self.all_start_codons = []
+        self.all_splice_junctions = []
         self.five_prime_utr = ""
         self.three_prime_utr = ""
         self.full_mrna = None
@@ -210,8 +212,10 @@ class LocusInfo:
         self.utr_indices = self._5utr_indices + self._3utr_indices
         self.five_prime_utr = self.full_mrna[:cds_start]
         self.three_prime_utr = self.full_mrna[cds_end:]
-        self.start_codons = self.all_start_codons = [(cds_start, cds_start + 3)]
-        self.stop_codons = self.all_stop_codons = [(cds_end - 3, cds_end)]
+        self.start_codon = (cds_start, cds_start + 3)
+        self.all_start_codons = [(cds_start, cds_start + 3)]
+        self.stop_codon = (cds_end - 3, cds_end)
+        self.all_stop_codons = [(cds_end - 3, cds_end)]
 
     def _get_sequence_slice(self, start, end):
         if not self.full_mrna or self.gene_start is None or self.gene_end is None:
@@ -301,10 +305,11 @@ class LazyLocusInfo:
         "_intron_indices",
         "_5utr_indices",
         "_3utr_indices",
-        "stop_codons",
+        "stop_codon",
         "all_stop_codons",
-        "start_codons",
+        "start_codon",
         "all_start_codons",
+        "all_splice_junctions",
         "five_prime_utr",
         "three_prime_utr",
         "gene_start",
@@ -322,10 +327,11 @@ class LazyLocusInfo:
         self._intron_indices = []
         self._5utr_indices = []
         self._3utr_indices = []
-        self.stop_codons = []
+        self.stop_codon = None
         self.all_stop_codons = []
-        self.start_codons = []
+        self.start_codon = None
         self.all_start_codons = []
+        self.all_splice_junctions = []
         self.five_prime_utr = ""
         self.three_prime_utr = ""
         self.gene_start = None
