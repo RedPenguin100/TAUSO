@@ -1136,7 +1136,7 @@ class Calculator:
                 continue
             idx = int(idx)
             ln = int(lengths[i])
-            flank = (pre[max(0, idx - FLANK):idx] + pre[idx + ln:idx + ln + FLANK]).upper()
+            flank = (pre[max(0, idx - FLANK) : idx] + pre[idx + ln : idx + ln + FLANK]).upper()
             if flank:
                 a, t, g, c = flank.count("A"), flank.count("T"), flank.count("G"), flank.count("C")
                 skew[i] = (a - t) / (a + t) if (a + t) else 0.0

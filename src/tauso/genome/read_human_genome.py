@@ -67,7 +67,9 @@ def _get_gene_type_gff(gene):
 # Bump when the LazyLocusInfo layout or the builder semantics change in a way
 # that makes previously-pickled dicts wrong. A mismatch (or any unpickling error)
 # falls back to a rebuild, so a stale cache never silently serves bad coordinates.
-_LOCUS_CACHE_VERSION = 4  # v4: + all_splice_junctions; canonical stop_codons/start_codons -> single stop_codon/start_codon
+_LOCUS_CACHE_VERSION = (
+    4  # v4: + all_splice_junctions; canonical stop_codons/start_codons -> single stop_codon/start_codon
+)
 
 
 def _locus_cache_path(genome, include_introns, canonical_only):
@@ -369,16 +371,17 @@ def _single_canonical_codon(codons, is_coding, gene_name, kind):
     is actually used for features); non-coding with any codon -> None (+warn: gene-type mismatch)."""
     if is_coding:
         if not codons:
-            logger.warning("[Get_Locus] %s: protein-coding but 0 canonical %s codons (broken CDS annotation)",
-                           gene_name, kind)
+            logger.warning(
+                "[Get_Locus] %s: protein-coding but 0 canonical %s codons (broken CDS annotation)", gene_name, kind
+            )
             return None
         if len(codons) > 1:
-            logger.warning("[Get_Locus] %s: %d canonical %s codons (expected 1); keeping the first",
-                           gene_name, len(codons), kind)
+            logger.warning(
+                "[Get_Locus] %s: %d canonical %s codons (expected 1); keeping the first", gene_name, len(codons), kind
+            )
         return codons[0]
     if codons:
-        logger.warning("[Get_Locus] %s: non-coding gene has a canonical %s codon; dropping it",
-                       gene_name, kind)
+        logger.warning("[Get_Locus] %s: non-coding gene has a canonical %s codon; dropping it", gene_name, kind)
     return None
 
 

@@ -44,7 +44,7 @@ def distinct_matches(mrna: str, target: str, max_mm: int = 1) -> int:
                     cand.add(st)
                 i = mrna.find(seed, i + 1)
         for st in cand:
-            if sum(x != y for x, y in zip(mrna[st:st + L], target)) <= max_mm:
+            if sum(x != y for x, y in zip(mrna[st : st + L], target)) <= max_mm:
                 starts.append(st)
         starts.sort()
     clusters = 0

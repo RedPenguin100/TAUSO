@@ -56,9 +56,12 @@ def _validate_gene_lengths(genes, gene_to_data):
 def _validate_codons(genes, gene_to_data):
     """Fail loudly if any processed protein-coding gene lacks a canonical start or stop codon (broken CDS
     annotation -- such a gene should not be an ASO target)."""
-    bad = [g for g in genes
-           if gene_to_data[g].gene_type == GeneType.PROTEIN_CODING
-           and (gene_to_data[g].stop_codon is None or gene_to_data[g].start_codon is None)]
+    bad = [
+        g
+        for g in genes
+        if gene_to_data[g].gene_type == GeneType.PROTEIN_CODING
+        and (gene_to_data[g].stop_codon is None or gene_to_data[g].start_codon is None)
+    ]
     if bad:
         raise ValueError(f"protein-coding genes missing a canonical start/stop codon (broken annotation): {bad}")
 
@@ -79,6 +82,7 @@ def _genetic_coordinates(hit_pos, match_lengths, locus_info) -> np.ndarray:
 
 # --- per-gene feature writers: each computes one feature block for the matched rows (`hit_rows`) and
 #     writes it into the shared outputs object `out`. Rows they don't touch keep their default (NaN / 0). ---
+
 
 def assign_target_position(out, hit_rows, hit_pos, pre_mrna_len, locus_info):
     """Target start within the pre-mRNA (from each end), raw and normalized to [0, 1] (length-invariant)."""
@@ -193,6 +197,7 @@ def assign_region(out, hit_rows, genetic_coordinates, locus_info):
 def _init_outputs(n_rows):
     """One array per feature. Float features default to NaN (unmapped rows, genes with no codons, ...);
     int flags default to 0; start defaults to -1."""
+
     def nan():
         return np.full(n_rows, np.nan, dtype=np.float64)
 
@@ -207,13 +212,22 @@ def _init_outputs(n_rows):
         utr5=np.zeros(n_rows, dtype=np.int8),
         cds=np.zeros(n_rows, dtype=np.int8),
         cds_non_exclusive=np.zeros(n_rows, dtype=np.int8),
-        start_norm=nan(), start_end_norm=nan(),
-        dist_canonical_stop=nan(), dist_closest_stop=nan(),
-        dist_canonical_start=nan(), dist_closest_start=nan(),
-        mrna_dist_canonical_stop=nan(), mrna_dist_closest_stop=nan(),
-        dist_sj_exonic=nan(), dist_sj_intronic=nan(), dist_closest_sj=nan(),
-        host_exon_log_len=nan(), host_intron_log_len=nan(),
-        junction_logdist_exonic=nan(), junction_logdist_intronic=nan(), junction_logdist_closest=nan(),
+        start_norm=nan(),
+        start_end_norm=nan(),
+        dist_canonical_stop=nan(),
+        dist_closest_stop=nan(),
+        dist_canonical_start=nan(),
+        dist_closest_start=nan(),
+        mrna_dist_canonical_stop=nan(),
+        mrna_dist_closest_stop=nan(),
+        dist_sj_exonic=nan(),
+        dist_sj_intronic=nan(),
+        dist_closest_sj=nan(),
+        host_exon_log_len=nan(),
+        host_intron_log_len=nan(),
+        junction_logdist_exonic=nan(),
+        junction_logdist_intronic=nan(),
+        junction_logdist_closest=nan(),
     )
 
 
