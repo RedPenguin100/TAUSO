@@ -67,7 +67,7 @@ def _get_gene_type_gff(gene):
 # Bump when the LazyLocusInfo layout or the builder semantics change in a way
 # that makes previously-pickled dicts wrong. A mismatch (or any unpickling error)
 # falls back to a rebuild, so a stale cache never silently serves bad coordinates.
-_LOCUS_CACHE_VERSION = 3  # v3: + start_codons + all_start_codons
+_LOCUS_CACHE_VERSION = 4  # v4: + all_splice_junctions; canonical stop_codons/start_codons -> single stop_codon/start_codon
 
 
 def _locus_cache_path(genome, include_introns, canonical_only):
@@ -156,9 +156,9 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         "UTR",
     )
 
-    # stop_codon / start_codon are included here so canonical-transcript stops
-    # and starts land in locus_info.stop_codons / .start_codons. All-transcript
-    # versions are fetched separately below.
+    # stop_codon / start_codon feature types are collected here (canonical transcript when
+    # canonical_only=True) and reduced to the single locus_info.stop_codon / .start_codon below.
+    # All-transcript versions are fetched separately.
     child_feature_types = ("exon", "stop_codon", "start_codon") + UTR_FEATURE_TYPES
 
     logger.debug("Loading database")
@@ -216,6 +216,7 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         seen = set()
         duplicates_skipped = 0
         exons_collected = []
+        canonical_stops, canonical_starts = [], []
 
         for feature in feature_iter:
             key = (feature.featuretype, feature.start, feature.end)
@@ -229,12 +230,12 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
                 exons_collected.append((feature.start - 1, feature.end))
 
             elif ft == "stop_codon":
-                # Canonical-transcript stop codons (since this iterator filters
-                # to canonical transcripts when canonical_only=True).
-                locus_info.stop_codons.append((feature.start - 1, feature.end))
+                # Canonical-transcript stop codons (this iterator filters to canonical transcripts when
+                # canonical_only=True); reduced to a single locus_info.stop_codon after the loop.
+                canonical_stops.append((feature.start - 1, feature.end))
 
             elif ft == "start_codon":
-                locus_info.start_codons.append((feature.start - 1, feature.end))
+                canonical_starts.append((feature.start - 1, feature.end))
 
             elif ft in ("five_prime_UTR", "five_prime_utr"):
                 locus_info.add_5utr_indices(feature.start - 1, feature.end)
@@ -271,6 +272,24 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
                 continue
             all_starts_seen.add(key)
             locus_info.all_start_codons.append((start_feat.start - 1, start_feat.end))
+
+        # All-transcript splice junctions (regardless of canonical_only): the union over isoforms of each
+        # isoform's internal exon boundaries. A single, side-agnostic feature -- for a non-canonical isoform
+        # we can't tell whether the ASO hit that isoform's exon or intron.
+        exons_by_tx = defaultdict(list)
+        for exon in db.children(gene, featuretype="exon", order_by="start"):
+            exons_by_tx[exon.attributes.get("Parent", [None])[0]].append((exon.start - 1, exon.end))
+        splice_sites = set()
+        for tx_exons in exons_by_tx.values():
+            for j_start, j_end in _derive_introns_from_exons(tx_exons):
+                splice_sites.add(j_start)
+                splice_sites.add(j_end)
+        locus_info.all_splice_junctions = sorted(splice_sites)
+
+        # Reduce the canonical start/stop codon lists to a single codon (or None); see _single_canonical_codon.
+        is_coding = locus_info.gene_type == GeneType.PROTEIN_CODING
+        locus_info.stop_codon = _single_canonical_codon(canonical_stops, is_coding, locus_tag, "stop")
+        locus_info.start_codon = _single_canonical_codon(canonical_starts, is_coding, locus_tag, "start")
 
         if duplicates_skipped:
             logger.debug(f"[Get_Locus] {locus_tag}: skipped {duplicates_skipped} duplicate features")
@@ -341,6 +360,26 @@ def _derive_introns_from_exons(exon_list):
         if intron_start < intron_end:
             introns.append((intron_start, intron_end))
     return introns
+
+
+def _single_canonical_codon(codons, is_coding, gene_name, kind):
+    """Reduce a canonical-transcript codon list to a single codon or None (one CDS -> one start + one stop).
+    Policy: coding & exactly 1 -> that codon; coding & >=2 -> the first (+warn: split-across-intron or a
+    second canonical transcript); coding & 0 -> None (+warn: broken CDS annotation, rejected when the gene
+    is actually used for features); non-coding with any codon -> None (+warn: gene-type mismatch)."""
+    if is_coding:
+        if not codons:
+            logger.warning("[Get_Locus] %s: protein-coding but 0 canonical %s codons (broken CDS annotation)",
+                           gene_name, kind)
+            return None
+        if len(codons) > 1:
+            logger.warning("[Get_Locus] %s: %d canonical %s codons (expected 1); keeping the first",
+                           gene_name, len(codons), kind)
+        return codons[0]
+    if codons:
+        logger.warning("[Get_Locus] %s: non-coding gene has a canonical %s codon; dropping it",
+                       gene_name, kind)
+    return None
 
 
 def _canonical_iter(db, canonical_transcripts, child_feature_types):
