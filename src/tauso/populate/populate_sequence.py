@@ -12,9 +12,6 @@ from ..features.sequence.seq_features import *
 from ..parallel_utils import make_apply_fn
 from .feature_runner import FeatureSpec, compute_features
 
-logger = logging.getLogger(__name__)
-
-
 FEATURE_SPECS: list[FeatureSpec] = [
     # Terminal Clamps
     # Returns 1 if 5' end is G/C, else 0

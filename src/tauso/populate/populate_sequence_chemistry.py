@@ -1,7 +1,4 @@
-import logging
 from typing import Iterable, Optional, Tuple
-
-logger = logging.getLogger(__name__)
 
 from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
 from ..features.sequence.seq_chemistry import gap_gc_content, wing_gap_gc_delta

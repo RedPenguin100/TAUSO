@@ -6,10 +6,7 @@ whether these correlate with Inhibition(%) is an empirical question. See
 tauso.features.sequence.toxicity_features for the per-mechanism citations.
 """
 
-import logging
 from typing import Iterable, Optional, Tuple
-
-logger = logging.getLogger(__name__)
 
 from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN, PS_PATTERN
 from ..features.sequence.toxicity_features import (
