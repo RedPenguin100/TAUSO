@@ -61,9 +61,7 @@ def self_energy(seq: str) -> float:
 
 def internal_fold_rna(seq: str) -> float:
     """Self-structure ΔG (kcal/mol) of the ASO folded with RNA (Turner 2004) parameters.
-
-    A gapmer's 2'-modified wings are ribose-like, so RNA nearest-neighbour energetics can fit the
-    self-structure. The ASO is read 5'->3' with T mapped to U.
+    The ASO is read 5'->3' with T mapped to U.
     """
     return RNA.fold(seq.upper().replace("T", "U"))[1]
 

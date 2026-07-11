@@ -74,6 +74,10 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     out_mrna_dist_closest_stop = np.full(n_rows, np.nan, dtype=np.float64)
     out_dist_sj_exonic = np.full(n_rows, np.nan, dtype=np.float64)
     out_dist_sj_intronic = np.full(n_rows, np.nan, dtype=np.float64)
+    out_host_exon_log_len = np.full(n_rows, np.nan, dtype=np.float64)
+    out_host_intron_log_len = np.full(n_rows, np.nan, dtype=np.float64)
+    out_junction_logdist_exonic = np.full(n_rows, np.nan, dtype=np.float64)
+    out_junction_logdist_intronic = np.full(n_rows, np.nan, dtype=np.float64)
 
     all_data["__temp_idx"] = np.arange(n_rows)
 
@@ -126,6 +130,31 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
             in_exon = _in_intervals(gen_coords, locus_info._exon_indices)
             out_dist_sj_exonic[v_row_idxs] = np.where(in_exon, dist, np.nan)
             out_dist_sj_intronic[v_row_idxs] = np.where(in_exon, np.nan, dist)
+            # log1p companions: exonic depth for exon-sited ASOs, intronic depth for intron-sited ones;
+            # positions in neither (unannotated) stay NaN. The log form is what the model consumes.
+            in_intron = _in_intervals(gen_coords, locus_info._intron_indices)
+            out_junction_logdist_exonic[v_row_idxs] = np.where(in_exon, np.log1p(dist), np.nan)
+            out_junction_logdist_intronic[v_row_idxs] = np.where(in_intron, np.log1p(dist), np.nan)
+
+        # Log length (bp) of the exon or intron the ASO center sits in. Mutually exclusive:
+        # host_exon_log_length for exonic targets, host_intron_log_length for intronic; the
+        # other is NaN. Exon takes precedence when a coord falls in both interval sets. Longer
+        # host segments give the target more local context; log-scaled because exon/intron
+        # lengths span orders of magnitude (tens of bp to hundreds of kb).
+        exon_arr = np.array(locus_info._exon_indices) if len(locus_info._exon_indices) else np.empty((0, 2))
+        intron_arr = np.array(locus_info._intron_indices) if len(locus_info._intron_indices) else np.empty((0, 2))
+        if exon_arr.size:
+            ex_hit = (gen_coords[:, None] >= exon_arr[:, 0]) & (gen_coords[:, None] < exon_arr[:, 1])
+            ex_any = ex_hit.any(axis=1)
+            ex_len = (ex_hit * (exon_arr[:, 1] - exon_arr[:, 0])).sum(axis=1)
+            out_host_exon_log_len[v_row_idxs[ex_any]] = np.log(np.maximum(ex_len[ex_any], 1))
+        else:
+            ex_any = np.zeros(len(gen_coords), dtype=bool)
+        if intron_arr.size:
+            in_hit = (gen_coords[:, None] >= intron_arr[:, 0]) & (gen_coords[:, None] < intron_arr[:, 1])
+            in_assign = in_hit.any(axis=1) & ~ex_any
+            in_len = (in_hit * (intron_arr[:, 1] - intron_arr[:, 0])).sum(axis=1)
+            out_host_intron_log_len[v_row_idxs[in_assign]] = np.log(np.maximum(in_len[in_assign], 1))
 
         # Normalized positions: sense_start / gene_length, sense_start_from_end / gene_length.
         # Range [0, 1]; tells the model "how far into the pre-mRNA is the target?"
@@ -257,6 +286,10 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out_mrna_dist_closest_stop
     all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC] = out_dist_sj_exonic
     all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC] = out_dist_sj_intronic
+    all_data[STRUCTURE_SENSE_HOST_EXON_LOG_LENGTH] = out_host_exon_log_len
+    all_data[STRUCTURE_SENSE_HOST_INTRON_LOG_LENGTH] = out_host_intron_log_len
+    all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC] = out_junction_logdist_exonic
+    all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC] = out_junction_logdist_intronic
 
     all_data.drop(columns=["__temp_idx", "__temp_sense"], inplace=True)
     return all_data

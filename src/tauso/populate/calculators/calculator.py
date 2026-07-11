@@ -25,6 +25,8 @@ from ...data.consts import (
     STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+    STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
+    STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
     STRUCTURE_SENSE_LENGTH,
     STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP,
     STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
@@ -306,6 +308,8 @@ class Calculator:
             STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+            STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
+            STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -775,27 +779,19 @@ class Calculator:
             logger.info("All backbone features exist. Skipping.")
 
     def calculate_interaction(self):
-        """Cross-feature interaction features."""
-        # (self-fold column, gymnosis-gated feature name) for the RNA-parameter self-fold
-        pairs = [
-            ("seq_internal_fold_rna", "interaction_internal_fold_rna_gymnosis"),
-        ]
-        missing_pairs = [(fold, feat) for fold, feat in pairs if self._get_missing_features([feat])]
-        if not missing_pairs:
+        """ASO self-fold (RNA parameters) gated to gymnotic (carrier-free) uptake."""
+        feature = "interaction_internal_fold_rna_gymnosis"
+        if not self._get_missing_features([feature]):
             logger.info("Interaction features exist. Skipping.")
             return
 
-        self._load_features_into_data(["seq_internal_fold_rna", "transfection_gymnosis"])
-        self._check_dependencies([fold for fold, _ in missing_pairs])
-
-        if "transfection_gymnosis" in self.data.columns:
-            gymnosis = self.data["transfection_gymnosis"]
-        else:
-            logger.warning("transfection_gymnosis not in data; interaction features will be 0 for all rows.")
-            gymnosis = None
-        for fold, feature in missing_pairs:
-            self.data[feature] = internal_fold_gymnosis(self.data[fold], gymnosis)
-            self._save_calculated_feature(feature_name=feature)
+        deps = ["seq_internal_fold_rna", "transfection_gymnosis"]
+        self._load_features_into_data(deps)
+        self._check_dependencies(deps)
+        self.data[feature] = internal_fold_gymnosis(
+            self.data["seq_internal_fold_rna"], self.data["transfection_gymnosis"]
+        )
+        self._save_calculated_feature(feature_name=feature)
 
     def calculate_experimental_conditions(self):
         """Pass-through experimental-condition features: ASO dose and plating density.
@@ -1112,38 +1108,6 @@ class Calculator:
             if feature != "error":
                 self._save_calculated_feature(feature_name=feature)
 
-    def calculate_junction_logdist(self):
-        """log1p of the splice-junction distance, split by side: exonic for exon-sited ASOs, intronic for
-        intron-sited ones (``struct_sense_in_intron``), NaN on the other side (distinct from distance 0)."""
-        from tauso.data.consts import (
-            STRUCT_SENSE_IN_INTRON,
-            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
-            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
-        )
-
-        feat_ex = "structure_sense_junction_logdist_exonic"
-        feat_in = "structure_sense_junction_logdist_intronic"
-        if not self._get_missing_features([feat_ex, feat_in]):
-            logger.info("Junction log-distance features exist. Skipping.")
-            return
-
-        deps = [
-            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
-            STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
-            STRUCT_SENSE_IN_INTRON,
-        ]
-        self._load_features_into_data(deps)
-        self._check_dependencies(deps)
-
-        in_intron = self.data[STRUCT_SENSE_IN_INTRON].to_numpy(dtype=float)
-        dist_ex = self.data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC].to_numpy(dtype=float)
-        dist_in = self.data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC].to_numpy(dtype=float)
-        with np.errstate(invalid="ignore"):
-            self.data[feat_ex] = np.where(in_intron < 0.5, np.log1p(dist_ex), np.nan)
-            self.data[feat_in] = np.where(in_intron > 0.5, np.log1p(dist_in), np.nan)
-        self._save_calculated_feature(feature_name=feat_ex)
-        self._save_calculated_feature(feature_name=feat_in)
-
     def calculate_flank_features(self):
         """Base composition of the +/-20 nt pre-mRNA flanks around the ASO target site: ``flank_at_skew_20``
         = (A-T)/(A+T) and ``flank_gc_content_20`` = (G+C)/(A+C+G+T). NaN when the gene/start is unavailable."""
@@ -1221,7 +1185,6 @@ class Calculator:
         # 1. Define the pipeline as a list of functions (no parentheses!)
         pipeline_steps = [
             self.calculate_structure,
-            self.calculate_junction_logdist,
             self.calculate_cub,
             self.calculate_basic,
             self.calculate_experimental_conditions,
