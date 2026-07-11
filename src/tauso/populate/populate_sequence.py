@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 from ..data.consts import ASO_SEQUENCE
 from ..features.sequence.seq_features import *
 from ..parallel_utils import make_apply_fn
-from ..timer import Timer
+from .feature_runner import run_feature_specs
 
 logger = logging.getLogger(__name__)
 
@@ -68,28 +68,11 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 ]
 
 
-def calc_feature(df: pd.DataFrame, col_name: str, func, seq_series, cpus: int = 1, verbose=False) -> None:
-    """
-    Computes a feature with timing logs. Uses parallel_apply if available.
-
-    ``seq_series`` is the ASO sequence normalized to uppercase DNA, so every feature is
-    robust to lowercase or RNA (U) input.
-    """
-    start_time = time.time()
-    logger.debug("Starting %s...", col_name)
-    df[col_name] = make_apply_fn(seq_series, n_jobs=cpus)(func)
-    duration = time.time() - start_time
-    logger.debug("Finished %s | Time: %.2fs", col_name, duration)
-
-
 def populate_sequence_features(
     df,
     features: Optional[Iterable[str]] = None,
     cpus: int = 1,
 ) -> Tuple:
-    available = {name: fn for name, fn in FEATURE_SPECS}
-    feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
-
     # Normalize to uppercase DNA once so every feature is robust to lowercase or RNA (U) input.
     seq_series = df[ASO_SEQUENCE].str.upper().str.replace("U", "T", regex=False)
 
@@ -102,12 +85,14 @@ def populate_sequence_features(
             f"(only A/C/G/T/U accepted). Examples: {invalid.head(5).tolist()}"
         )
 
-    for name in feature_names:
-        # Wrap each feature calculation in the Timer context manager
-        with Timer(name):
-            calc_feature(df, name, available[name], seq_series, cpus=cpus)
-
-    return df, feature_names
+    return run_feature_specs(
+        df,
+        FEATURE_SPECS,
+        seq_series,
+        lambda apply_fn, func: apply_fn(func),
+        features=features,
+        cpus=cpus,
+    )
 
 
 def populate_sequence_one_hot_encoded(

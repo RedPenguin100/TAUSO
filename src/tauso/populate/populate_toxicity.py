@@ -7,10 +7,7 @@ tauso.features.sequence.toxicity_features for the per-mechanism citations.
 """
 
 import logging
-import time
 from typing import Iterable, Optional, Tuple
-
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +21,7 @@ from ..features.sequence.toxicity_features import (
     three_prime_g_free_length,
     tlr9_human_motif_count,
 )
-from ..parallel_utils import make_apply_fn
-from ..timer import Timer
+from .feature_runner import run_feature_specs
 
 # Each feature receives (sequence, chemical_pattern, ps_pattern); features that only need a
 # subset just ignore the rest. Keeps the dispatcher signature uniform.
@@ -50,25 +46,18 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
 ]
 
 
-def calc_feature(df: pd.DataFrame, col_name: str, func, cpus: int = 1, verbose=False) -> None:
-    """Computes a feature from the sequence, chemical pattern, and PS pattern (parallel if cpus > 1)."""
-    start_time = time.time()
-    logger.debug("Starting %s...", col_name)
-    apply_fn = make_apply_fn(df, n_jobs=cpus, progress_bar=verbose, verbose=0, use_memory_fs=False)
-    df[col_name] = apply_fn(lambda row: func(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[PS_PATTERN]), axis=1)
-    logger.debug("Finished %s | Time: %.2fs", col_name, time.time() - start_time)
-
-
 def populate_toxicity_features(
     df,
     features: Optional[Iterable[str]] = None,
     cpus: int = 1,
 ) -> Tuple:
-    available = {name: fn for name, fn in FEATURE_SPECS}
-    feature_names = list(features) if features is not None else [name for name, _ in FEATURE_SPECS]
-
-    for name in feature_names:
-        with Timer(name):
-            calc_feature(df, name, available[name], cpus=cpus)
-
-    return df, feature_names
+    return run_feature_specs(
+        df,
+        FEATURE_SPECS,
+        df,
+        lambda apply_fn, func: apply_fn(
+            lambda row: func(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[PS_PATTERN]), axis=1
+        ),
+        features=features,
+        cpus=cpus,
+    )
