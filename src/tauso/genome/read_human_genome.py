@@ -67,7 +67,7 @@ def _get_gene_type_gff(gene):
 # Bump when the LazyLocusInfo layout or the builder semantics change in a way
 # that makes previously-pickled dicts wrong. A mismatch (or any unpickling error)
 # falls back to a rebuild, so a stale cache never silently serves bad coordinates.
-_LOCUS_CACHE_VERSION = 4  # v4: splice junctions + single canonical codons
+_LOCUS_CACHE_VERSION = 4
 
 
 def _locus_cache_path(genome, include_introns, canonical_only):

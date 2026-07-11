@@ -1111,6 +1111,8 @@ class Calculator:
     def calculate_flank_features(self):
         """Base composition of the +/-20 nt pre-mRNA flanks around the ASO target site: ``flank_at_skew_20``
         = (A-T)/(A+T) and ``flank_gc_content_20`` = (G+C)/(A+C+G+T). NaN when the gene/start is unavailable."""
+        from tauso.features.flank_features import compute_flank_composition
+
         feats = ["flank_at_skew_20", "flank_gc_content_20"]
         if not self._get_missing_features(feats):
             logger.info("Flank composition features exist. Skipping.")
@@ -1120,27 +1122,12 @@ class Calculator:
         # The transcript-sense pre-mRNA registry is what structure_sense_start indexes into (for
         # minus-strand genes it differs from the lean gene's full_mrna orientation).
         gene_registry = self.cache.get_gene_registry(self._get_unique_genes())
-        FLANK = 20
-        starts = self.data[STRUCTURE_SENSE_START].to_numpy()
-        lengths = self.data[STRUCTURE_SENSE_LENGTH].to_numpy()
-        genes = self.data[CANONICAL_GENE_NAME].to_numpy()
-        skew = np.full(len(self.data), np.nan)
-        gc = np.full(len(self.data), np.nan)
-        for i in range(len(self.data)):
-            idx = starts[i]
-            if not np.isfinite(idx) or idx < 0:
-                continue
-            rec = gene_registry.get(genes[i]) if hasattr(gene_registry, "get") else None
-            pre = rec.get("pre_mrna_sequence") if isinstance(rec, dict) else None
-            if not pre:
-                continue
-            idx = int(idx)
-            ln = int(lengths[i])
-            flank = (pre[max(0, idx - FLANK) : idx] + pre[idx + ln : idx + ln + FLANK]).upper()
-            if flank:
-                a, t, g, c = flank.count("A"), flank.count("T"), flank.count("G"), flank.count("C")
-                skew[i] = (a - t) / (a + t) if (a + t) else 0.0
-                gc[i] = (g + c) / (a + c + g + t) if (a + c + g + t) else 0.0
+        skew, gc = compute_flank_composition(
+            self.data[STRUCTURE_SENSE_START].to_numpy(),
+            self.data[STRUCTURE_SENSE_LENGTH].to_numpy(),
+            self.data[CANONICAL_GENE_NAME].to_numpy(),
+            gene_registry,
+        )
         self.data["flank_at_skew_20"] = skew
         self.data["flank_gc_content_20"] = gc
         self._save_calculated_feature(feature_name="flank_at_skew_20")
@@ -1150,7 +1137,7 @@ class Calculator:
         """Distinct near-full-length copies of the ASO target in its own pre-mRNA: ``dup_exact`` (exact)
         and ``dup_near`` (<=1 mismatch). See :mod:`tauso.features.duplication_features`."""
         from tauso.data.consts import ASO_SEQUENCE
-        from tauso.features.duplication_features import aso_target_rna, distinct_matches
+        from tauso.features.duplication_features import compute_duplications
 
         feats = ["dup_exact", "dup_near"]
         if not self._get_missing_features(feats):
@@ -1158,22 +1145,16 @@ class Calculator:
             return
 
         gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-        mrna = {
+        gene_mrna = {
             g: str(gene_to_data[g].full_mrna).upper().replace("T", "U")
             for g in gene_to_data
             if getattr(gene_to_data[g], "full_mrna", None)
         }
-        genes = self.data[CANONICAL_GENE_NAME].to_numpy()
-        asos = self.data[ASO_SEQUENCE].astype(str).to_numpy()
-        de = np.zeros(len(self.data))
-        dn = np.zeros(len(self.data))
-        for i in range(len(self.data)):
-            tx = mrna.get(genes[i], "")
-            if not tx:
-                continue
-            t = aso_target_rna(asos[i])
-            de[i] = distinct_matches(tx, t, 0)
-            dn[i] = distinct_matches(tx, t, 1)
+        de, dn = compute_duplications(
+            self.data[CANONICAL_GENE_NAME].to_numpy(),
+            self.data[ASO_SEQUENCE].astype(str).to_numpy(),
+            gene_mrna,
+        )
         self.data["dup_exact"] = de
         self.data["dup_near"] = dn
         self._save_calculated_feature(feature_name="dup_exact")

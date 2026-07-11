@@ -1,67 +1,77 @@
 """Target-duplication features."""
 
-from ..util import get_antisense_rna
+import numpy as np
+
+from ..util import aso_target_rna
 
 
-def aso_target_rna(aso: str) -> str:
-    """The RNA target of an ASO: its reverse complement read as RNA."""
-    return get_antisense_rna(aso.upper())
-
-
-def _exact_starts(mrna: str, target: str, cap: int = 3000) -> list[int]:
+def _exact_starts(mrna: str, target: str) -> list[int]:
     """Start indices of every exact occurrence of ``target`` in ``mrna``."""
     starts = []
     i = mrna.find(target)
-    while i != -1 and len(starts) < cap:
+    while i != -1:
         starts.append(i)
         i = mrna.find(target, i + 1)
     return starts
 
 
-def _approx_starts(mrna: str, target: str, max_mm: int, cap: int = 6000) -> list[int]:
-    """Start indices of occurrences of ``target`` in ``mrna`` within ``max_mm`` mismatches.
+def _mismatches(a: str, b: str) -> int:
+    return sum(x != y for x, y in zip(a, b))
 
-    Splits ``target`` into ``max_mm + 1`` non-overlapping seeds. By the pigeonhole principle an
-    alignment with at most ``max_mm`` mismatches leaves at least one seed exact, so scanning the seeds
-    yields every candidate start, which is then verified by counting mismatches.
+
+def _one_mismatch_starts(mrna: str, target: str) -> list[int]:
+    """Start indices where ``target`` occurs in ``mrna`` with at most one mismatch.
+
+    A single mismatch leaves one half of ``target`` exact, so every hit is anchored by an exact match
+    of the left or right half; each anchor is then verified.
     """
     L = len(target)
-    k = max_mm + 1
-    cand = set()
-    for c in range(k):
-        a, b = c * L // k, (c + 1) * L // k
-        seed = target[a:b]
-        if len(seed) < 4:
-            continue
+    half = L // 2
+    starts = set()
+    for offset, seed in ((0, target[:half]), (half, target[half:])):
         i = mrna.find(seed)
-        while i != -1 and len(cand) < cap:
-            start = i - a
-            if 0 <= start <= len(mrna) - L:
-                cand.add(start)
+        while i != -1:
+            start = i - offset
+            if 0 <= start <= len(mrna) - L and _mismatches(mrna[start : start + L], target) <= 1:
+                starts.add(start)
             i = mrna.find(seed, i + 1)
-    starts = [st for st in cand if sum(x != y for x, y in zip(mrna[st : st + L], target)) <= max_mm]
-    starts.sort()
-    return starts
+    return sorted(starts)
 
 
 def _count_clusters(starts: list[int], min_gap: int) -> int:
     """Number of clusters among sorted ``starts``, merging any two hits less than ``min_gap`` apart."""
     clusters = 0
-    last = -(10**9)
+    last = None
     for st in starts:
-        if st - last >= min_gap:
+        if last is None or st - last >= min_gap:
             clusters += 1
             last = st
     return clusters
 
 
 def distinct_matches(mrna: str, target: str, max_mm: int = 1) -> int:
-    """Number of distinct occurrences of ``target`` in ``mrna`` within ``max_mm`` mismatches.
+    """Number of distinct occurrences of ``target`` in ``mrna`` within ``max_mm`` (0 or 1) mismatches.
 
     Overlapping or tandem hits closer than one target length apart count once.
     """
-    if max_mm == 0:
-        starts = _exact_starts(mrna, target)
-    else:
-        starts = _approx_starts(mrna, target, max_mm)
+    starts = _exact_starts(mrna, target) if max_mm == 0 else _one_mismatch_starts(mrna, target)
     return _count_clusters(starts, len(target))
+
+
+def compute_duplications(genes, asos, gene_mrna):
+    """Per-ASO counts of near-full-length target copies in the ASO's own pre-mRNA.
+
+    ``gene_mrna`` maps gene name -> uppercase RNA pre-mRNA. Returns (dup_exact, dup_near) arrays,
+    counting exact and <=1-mismatch occurrences respectively.
+    """
+    n = len(genes)
+    dup_exact = np.zeros(n)
+    dup_near = np.zeros(n)
+    for i in range(n):
+        mrna = gene_mrna.get(genes[i], "")
+        if not mrna:
+            continue
+        target = aso_target_rna(asos[i])
+        dup_exact[i] = distinct_matches(mrna, target, 0)
+        dup_near[i] = distinct_matches(mrna, target, 1)
+    return dup_exact, dup_near
