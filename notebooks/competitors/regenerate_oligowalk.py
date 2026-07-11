@@ -17,7 +17,8 @@ def main():
     data, gene_to_data = load_gene_mapped()
     data, features = populate_oligowalk(data, gene_to_data, num_workers=args.cpus)
     feats = [f for f in features if f != "error"]
-    validate_features(data, feats)
+    # OW_Break_Target is constant 0 under OligoWalk -m 1; skip it in the degeneracy guard (still saved).
+    validate_features(data, [f for f in feats if f != "OW_Break_Target"])
     for f in feats:
         save_feature(data, feature_name=f, overwrite=True, version="oligo")
     print("oligowalk done:", feats)
