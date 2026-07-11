@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
 from ..features.sequence.seq_chemistry import gap_gc_content, wing_gap_gc_delta
-from .feature_runner import FeatureSpec, run_feature_specs
+from .feature_runner import FeatureSpec, compute_features
 
 FEATURE_SPECS: list[FeatureSpec] = [
     ("mod_sugar_gap_gc_content", gap_gc_content),
@@ -18,7 +18,7 @@ def populate_sequence_chemistry_features(
     features: Optional[Iterable[str]] = None,
     cpus: int = 1,
 ) -> Tuple:
-    return run_feature_specs(
+    return compute_features(
         df,
         FEATURE_SPECS,
         df,

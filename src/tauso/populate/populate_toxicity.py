@@ -21,7 +21,7 @@ from ..features.sequence.toxicity_features import (
     three_prime_g_free_length,
     tlr9_human_motif_count,
 )
-from .feature_runner import FeatureSpec, run_feature_specs
+from .feature_runner import FeatureSpec, compute_features
 
 # Each feature receives (sequence, chemical_pattern, ps_pattern); features that only need a
 # subset just ignore the rest. Keeps the dispatcher signature uniform.
@@ -51,7 +51,7 @@ def populate_toxicity_features(
     features: Optional[Iterable[str]] = None,
     cpus: int = 1,
 ) -> Tuple:
-    return run_feature_specs(
+    return compute_features(
         df,
         FEATURE_SPECS,
         df,

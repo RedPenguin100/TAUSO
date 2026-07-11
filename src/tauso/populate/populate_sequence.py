@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 from ..data.consts import ASO_SEQUENCE
 from ..features.sequence.seq_features import *
 from ..parallel_utils import make_apply_fn
-from .feature_runner import FeatureSpec, run_feature_specs
+from .feature_runner import FeatureSpec, compute_features
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ def populate_sequence_features(
             f"(only A/C/G/T/U accepted). Examples: {invalid.head(5).tolist()}"
         )
 
-    return run_feature_specs(
+    return compute_features(
         df,
         FEATURE_SPECS,
         seq_series,
