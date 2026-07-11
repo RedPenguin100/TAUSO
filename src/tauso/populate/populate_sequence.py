@@ -10,12 +10,12 @@ logger = logging.getLogger(__name__)
 from ..data.consts import ASO_SEQUENCE
 from ..features.sequence.seq_features import *
 from ..parallel_utils import make_apply_fn
-from .feature_runner import run_feature_specs
+from .feature_runner import FeatureSpec, run_feature_specs
 
 logger = logging.getLogger(__name__)
 
 
-FEATURE_SPECS: list[tuple[str, callable]] = [
+FEATURE_SPECS: list[FeatureSpec] = [
     # Terminal Clamps
     # Returns 1 if 5' end is G/C, else 0
     ("seq_5_prime_clamp", lambda x: 1.0 if x and x[0].upper() in "GC" else 0.0),

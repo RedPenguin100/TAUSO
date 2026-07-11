@@ -21,11 +21,11 @@ from ..features.sequence.toxicity_features import (
     three_prime_g_free_length,
     tlr9_human_motif_count,
 )
-from .feature_runner import run_feature_specs
+from .feature_runner import FeatureSpec, run_feature_specs
 
 # Each feature receives (sequence, chemical_pattern, ps_pattern); features that only need a
 # subset just ignore the rest. Keeps the dispatcher signature uniform.
-FEATURE_SPECS: list[tuple[str, callable]] = [
+FEATURE_SPECS: list[FeatureSpec] = [
     # TLR9 immunostimulation: CpG dinucleotide count (Krieg et al. 1995).
     ("tox_cpg_count", lambda s, p, b: cpg_count(s)),
     # TLR9 amplified by PS backbone: CpG dinucleotides whose bond is PS, the modality used
