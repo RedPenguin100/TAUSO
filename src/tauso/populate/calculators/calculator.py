@@ -1110,7 +1110,7 @@ class Calculator:
 
     def calculate_flank_features(self):
         """Base composition of the +/-20 nt pre-mRNA flanks around the ASO target site: ``flank_at_skew_20``
-        = (A-T)/(A+T) and ``flank_gc_content_20`` = (G+C)/(A+C+G+T). NaN when the gene/start is unavailable."""
+        = (A-T)/(A+T) and ``flank_gc_content_20`` = (G+C)/(A+C+G+T). NaN when the target is unlocated."""
         from tauso.features.flank_features import compute_flank_composition
 
         feats = ["flank_at_skew_20", "flank_gc_content_20"]
@@ -1119,14 +1119,12 @@ class Calculator:
             return
         self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
 
-        # The transcript-sense pre-mRNA registry is what structure_sense_start indexes into (for
-        # minus-strand genes it differs from the lean gene's full_mrna orientation).
-        gene_registry = self.cache.get_gene_registry(self._get_unique_genes())
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
         skew, gc = compute_flank_composition(
             self.data[STRUCTURE_SENSE_START].to_numpy(),
             self.data[STRUCTURE_SENSE_LENGTH].to_numpy(),
             self.data[CANONICAL_GENE_NAME].to_numpy(),
-            gene_registry,
+            gene_to_data,
         )
         self.data["flank_at_skew_20"] = skew
         self.data["flank_gc_content_20"] = gc
@@ -1143,6 +1141,7 @@ class Calculator:
         if not self._get_missing_features(feats):
             logger.info("Duplication features exist. Skipping.")
             return
+        self._check_dependencies([STRUCTURE_SENSE_START])
 
         gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
         gene_mrna = {
@@ -1151,6 +1150,7 @@ class Calculator:
             if getattr(gene_to_data[g], "full_mrna", None)
         }
         de, dn = compute_duplications(
+            self.data[STRUCTURE_SENSE_START].to_numpy(),
             self.data[CANONICAL_GENE_NAME].to_numpy(),
             self.data[ASO_SEQUENCE].astype(str).to_numpy(),
             gene_mrna,

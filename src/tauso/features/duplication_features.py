@@ -58,19 +58,23 @@ def distinct_matches(mrna: str, target: str, max_mm: int = 1) -> int:
     return _count_clusters(starts, len(target))
 
 
-def compute_duplications(genes, asos, gene_mrna):
+def compute_duplications(starts, genes, asos, gene_mrna):
     """Per-ASO counts of near-full-length target copies in the ASO's own pre-mRNA.
 
-    ``gene_mrna`` maps gene name -> uppercase RNA pre-mRNA. Returns (dup_exact, dup_near) arrays,
-    counting exact and <=1-mismatch occurrences respectively.
+    ``gene_mrna`` maps gene name -> uppercase RNA pre-mRNA. ``starts`` are the target positions,
+    ``-1`` where the target was not located. Returns (dup_exact, dup_near) arrays (exact and
+    <=1-mismatch occurrences), NaN for an unlocated ASO whose gene sequence is also missing. A
+    located ASO whose gene has no pre-mRNA is an inconsistency and raises.
     """
     n = len(genes)
-    dup_exact = np.zeros(n)
-    dup_near = np.zeros(n)
+    dup_exact = np.full(n, np.nan)
+    dup_near = np.full(n, np.nan)
     for i in range(n):
-        mrna = gene_mrna.get(genes[i], "")
-        if not mrna:
-            continue
+        mrna = gene_mrna.get(genes[i])
+        if mrna is None:
+            if starts[i] < 0:
+                continue
+            raise KeyError(f"{genes[i]}: located ASO (sense_start {starts[i]}) but pre-mRNA is missing")
         target = aso_target_rna(asos[i])
         dup_exact[i] = distinct_matches(mrna, target, 0)
         dup_near[i] = distinct_matches(mrna, target, 1)
