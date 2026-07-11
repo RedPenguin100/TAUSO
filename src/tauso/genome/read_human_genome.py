@@ -258,18 +258,18 @@ def get_locus_to_data_dict(include_introns=True, gene_subset=None, genome="GRCh3
         # compute distance to the nearest stop / start codon across any isoform.
         all_stops_seen = set()
         for stop_feat in db.children(gene, featuretype="stop_codon", order_by="start"):
-            key = (stop_feat.start, stop_feat.end)
-            if key in all_stops_seen:
+            stop_key = (stop_feat.start, stop_feat.end)
+            if stop_key in all_stops_seen:
                 continue
-            all_stops_seen.add(key)
+            all_stops_seen.add(stop_key)
             locus_info.all_stop_codons.append((stop_feat.start - 1, stop_feat.end))
 
         all_starts_seen = set()
         for start_feat in db.children(gene, featuretype="start_codon", order_by="start"):
-            key = (start_feat.start, start_feat.end)
-            if key in all_starts_seen:
+            start_key = (start_feat.start, start_feat.end)
+            if start_key in all_starts_seen:
                 continue
-            all_starts_seen.add(key)
+            all_starts_seen.add(start_key)
             locus_info.all_start_codons.append((start_feat.start - 1, start_feat.end))
 
         if duplicates_skipped:

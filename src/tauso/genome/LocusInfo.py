@@ -1,10 +1,13 @@
 import logging
 from enum import IntEnum
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
 
 class GeneType(IntEnum):
+    _str_map: ClassVar[dict[str, "GeneType"]]
+
     UNKNOWN = 0
     PROTEIN_CODING = 1
     LNCRNA = 2
@@ -37,6 +40,8 @@ GeneType._str_map = {
 
 
 class StrandType(IntEnum):
+    _str_map: ClassVar[dict[str, "StrandType"]]
+
     POS = 1
     NEG = -1
 

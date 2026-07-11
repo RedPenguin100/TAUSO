@@ -36,7 +36,7 @@ class AssetCache:
         # because they require more context
 
     def get_genome(self):
-        return self._genome
+        return self.genome
 
     def get_full_gene_data(self):
         """Lazy getter for the full genome data dictionary (no subset)."""
