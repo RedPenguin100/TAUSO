@@ -39,6 +39,20 @@ jobs:
           micromamba run -n tauso uv pip install mypy
           micromamba run -n tauso mypy || true
 
+      # Catches notebooks importing a name that no longer exists in the tauso
+      # package (e.g. a renamed/removed helper) without executing any notebook.
+      # Informational only.
+      - name: Type check notebooks (mypy, informational — non-blocking)
+        continue-on-error: true
+        run: |
+          micromamba run -n tauso uv pip install mypy
+          MYPYPATH=src micromamba run -n tauso mypy \
+            --follow-imports=silent \
+            --ignore-missing-imports \
+            --explicit-package-bases \
+            --namespace-packages \
+            notebooks/ || true
+
   build:
     strategy:
       fail-fast: false
