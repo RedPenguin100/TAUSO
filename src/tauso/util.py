@@ -36,10 +36,9 @@ def _to_str_seq(x) -> str:
 # Legacy dict kept for get_nucleotide_watson_crick (used by numba-compiled code)
 WATSON_CRICK_MAP = {"A": "T", "G": "C", "C": "G", "T": "A", "U": "A"}
 
-# Reverse-complement translate tables (~10× faster than per-char dict lookup): complement
-# each base, then reverse the string. Case is preserved; both T and U are accepted on input.
-_RC_DNA_TABLE = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")  # output alphabet: DNA (T)
-_RC_RNA_TABLE = str.maketrans("ACGTUacgtu", "UGCAAugcaa")  # output alphabet: RNA (U)
+# Reverse-complement tables (str.translate ~10× faster than per-char dict).
+_RC_DNA_TABLE = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")  # output: T
+_RC_RNA_TABLE = str.maketrans("ACGTUacgtu", "UGCAAugcaa")  # output: U
 
 
 def get_antisense(sense: str) -> str:
