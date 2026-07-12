@@ -36,31 +36,24 @@ def _to_str_seq(x) -> str:
 # Legacy dict kept for get_nucleotide_watson_crick (used by numba-compiled code)
 WATSON_CRICK_MAP = {"A": "T", "G": "C", "C": "G", "T": "A", "U": "A"}
 
-# str.translate tables — ~10× faster than per-char dict lookup
-_DNA_TABLE = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")  # output: T
+# Reverse-complement tables (str.translate ~10× faster than per-char dict).
+_RC_DNA_TABLE = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")  # output: T
 _RC_RNA_TABLE = str.maketrans("ACGTUacgtu", "UGCAAugcaa")  # output: U
 
 
 def get_antisense(sense: str) -> str:
-    """Reverse complement in DNA alphabet (output uses T)."""
-    return sense[::-1].translate(_DNA_TABLE)
+    """Reverse complement in the DNA alphabet (output uses T)."""
+    return sense[::-1].translate(_RC_DNA_TABLE)
 
 
 def get_antisense_rna(sense: str) -> str:
-    """Reverse complement in RNA alphabet (output uses U, not T)."""
+    """Reverse complement in the RNA alphabet (output uses U, not T)."""
     return sense[::-1].translate(_RC_RNA_TABLE)
 
 
 def aso_target_rna(aso: str) -> str:
     """The RNA target of an ASO: its reverse complement read as RNA (uppercase)."""
     return get_antisense_rna(aso.upper())
-
-
-COMP_U_TABLE = bytes.maketrans(b"ACGTUacgtu", b"UGCAaugcaa")
-
-
-def get_antisense_u(seq: str) -> str:
-    return seq.translate(COMP_U_TABLE)[::-1]
 
 
 ZERO_CELSIUS_IN_KELVIN = 273.15
