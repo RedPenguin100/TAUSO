@@ -13,9 +13,19 @@ def get_longer_string(s1: str, s2: str) -> str:
     return s1 if len(s1) >= len(s2) else s2
 
 
+def rna_to_dna(seq) -> str:
+    """Uppercase and map the RNA alphabet to DNA (U->T)."""
+    return str(seq).upper().replace("U", "T")
+
+
+def dna_to_rna(seq) -> str:
+    """Uppercase and map the DNA alphabet to RNA (T->U)."""
+    return str(seq).upper().replace("T", "U")
+
+
 def _norm_rna_to_dna(seq: str) -> str:
     """Normalize RNA to DNA alphabet (U->T), uppercase, strip whitespace."""
-    return str(seq).upper().replace("U", "T").replace(" ", "").replace("\t", "").replace("\n", "")
+    return rna_to_dna(seq).replace(" ", "").replace("\t", "").replace("\n", "")
 
 
 def _to_str_seq(x) -> str:
