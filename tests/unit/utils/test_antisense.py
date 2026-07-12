@@ -71,6 +71,14 @@ def test_get_antisense_rna_handles_u_input():
     assert get_antisense_rna("AUCG") == "CGAU"
 
 
+def test_get_antisense_rna_uppercase_u_preserves_case():
+    # Regression: a removed helper (get_antisense_u) mapped uppercase U -> lowercase 'a'.
+    # The canonical helper keeps case.
+    assert get_antisense_rna("U") == "A"
+    assert get_antisense_rna("u") == "a"
+    assert get_antisense_rna("UUUU") == "AAAA"
+
+
 def test_get_antisense_rna_empty():
     assert get_antisense_rna("") == ""
 
