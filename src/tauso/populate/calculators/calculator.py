@@ -25,6 +25,8 @@ from ...data.consts import (
     STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+    STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
+    STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
     STRUCTURE_SENSE_LENGTH,
     STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP,
     STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
@@ -306,6 +308,8 @@ class Calculator:
             STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+            STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
+            STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -775,21 +779,18 @@ class Calculator:
             logger.info("All backbone features exist. Skipping.")
 
     def calculate_interaction(self):
-        """Cross-feature interaction features."""
-        feature = "interaction_internal_fold_gymnosis"
+        """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
+        feature = "interaction_internal_fold_rna_gymnosis"
         if not self._get_missing_features([feature]):
-            logger.info("%s exists. Skipping.", feature)
+            logger.info("Interaction features exist. Skipping.")
             return
 
-        self._load_features_into_data(["seq_internal_fold", "transfection_gymnosis"])
-        self._check_dependencies(["seq_internal_fold"])
-
-        if "transfection_gymnosis" in self.data.columns:
-            gymnosis = self.data["transfection_gymnosis"]
-        else:
-            logger.warning("transfection_gymnosis not in data; %s will be 0 for all rows.", feature)
-            gymnosis = None
-        self.data[feature] = internal_fold_gymnosis(self.data["seq_internal_fold"], gymnosis)
+        deps = ["seq_internal_fold_rna", "transfection_gymnosis"]
+        self._load_features_into_data(deps)
+        self._check_dependencies(deps)
+        self.data[feature] = internal_fold_gymnosis(
+            self.data["seq_internal_fold_rna"], self.data["transfection_gymnosis"]
+        )
         self._save_calculated_feature(feature_name=feature)
 
     def calculate_experimental_conditions(self):
@@ -1107,6 +1108,58 @@ class Calculator:
             if feature != "error":
                 self._save_calculated_feature(feature_name=feature)
 
+    def calculate_flank_features(self):
+        """Base composition of the +/-20 nt pre-mRNA flanks around the ASO target site: ``flank_at_skew_20``
+        = (A-T)/(A+T) and ``flank_gc_content_20`` = (G+C)/(A+C+G+T). NaN when the target is unlocated."""
+        from tauso.features.flank_features import compute_flank_composition
+
+        feats = ["flank_at_skew_20", "flank_gc_content_20"]
+        if not self._get_missing_features(feats):
+            logger.info("Flank composition features exist. Skipping.")
+            return
+        self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
+
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+        skew, gc = compute_flank_composition(
+            self.data[STRUCTURE_SENSE_START].to_numpy(),
+            self.data[STRUCTURE_SENSE_LENGTH].to_numpy(),
+            self.data[CANONICAL_GENE_NAME].to_numpy(),
+            gene_to_data,
+        )
+        self.data["flank_at_skew_20"] = skew
+        self.data["flank_gc_content_20"] = gc
+        self._save_calculated_feature(feature_name="flank_at_skew_20")
+        self._save_calculated_feature(feature_name="flank_gc_content_20")
+
+    def calculate_duplication(self):
+        """Distinct near-full-length copies of the ASO target in its own pre-mRNA: ``dup_exact`` (exact)
+        and ``dup_near`` (<=1 mismatch). See :mod:`tauso.features.duplication_features`."""
+        from tauso.data.consts import ASO_SEQUENCE
+        from tauso.features.duplication_features import compute_duplications
+
+        feats = ["dup_exact", "dup_near"]
+        if not self._get_missing_features(feats):
+            logger.info("Duplication features exist. Skipping.")
+            return
+        self._check_dependencies([STRUCTURE_SENSE_START])
+
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+        gene_mrna = {
+            g: str(gene_to_data[g].full_mrna).upper().replace("T", "U")
+            for g in gene_to_data
+            if getattr(gene_to_data[g], "full_mrna", None)
+        }
+        de, dn = compute_duplications(
+            self.data[STRUCTURE_SENSE_START].to_numpy(),
+            self.data[CANONICAL_GENE_NAME].to_numpy(),
+            self.data[ASO_SEQUENCE].astype(str).to_numpy(),
+            gene_mrna,
+        )
+        self.data["dup_exact"] = de
+        self.data["dup_near"] = dn
+        self._save_calculated_feature(feature_name="dup_exact")
+        self._save_calculated_feature(feature_name="dup_near")
+
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
 
@@ -1122,6 +1175,8 @@ class Calculator:
             self.calculate_on_target_hybridization,
             self.calculate_mfe,
             self.calculate_sense_accessibility,
+            self.calculate_flank_features,
+            self.calculate_duplication,
             self.calculate_sequence_one_hot,
             self.calculate_sequence_chemistry,
             self.calculate_toxicity,

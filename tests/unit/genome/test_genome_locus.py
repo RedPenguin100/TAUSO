@@ -334,3 +334,25 @@ def test_cds_excludes_utr(locus_data_canonical, gene):
     for s, e, _ in info.cds_premrna_intervals:
         for us, ue in utr_premrna:
             assert e <= us or s >= ue, f"{gene}: CDS interval ({s},{e}) overlaps UTR ({us},{ue})"
+
+
+# ── Canonical entries belong to the all-transcript lists ────────────────────────
+
+
+@pytest.mark.parametrize("gene", CODING_GENES)
+def test_canonical_codons_are_in_all_codons(locus_data_canonical, gene):
+    """The canonical start/stop codon must be one of the all-transcript codons."""
+    info = locus_data_canonical[gene]
+    assert info.start_codon in info.all_start_codons, f"{gene}: canonical start not in all_start_codons"
+    assert info.stop_codon in info.all_stop_codons, f"{gene}: canonical stop not in all_stop_codons"
+
+
+@pytest.mark.parametrize("gene", REGRESSION_GENES)
+def test_canonical_junctions_are_in_all_splice_junctions(locus_data_canonical, gene):
+    """Every canonical splice site must appear in the all-transcript junction list."""
+    info = locus_data_canonical[gene]
+    all_sj = set(info.all_splice_junctions)
+    canonical_sites = {site for s, e in info._intron_indices for site in (s, e)}
+    assert canonical_sites <= all_sj, (
+        f"{gene}: canonical junctions {canonical_sites - all_sj} not in all_splice_junctions"
+    )

@@ -52,6 +52,11 @@ def get_antisense_rna(sense: str) -> str:
     return sense[::-1].translate(_RC_RNA_TABLE)
 
 
+def aso_target_rna(aso: str) -> str:
+    """The RNA target of an ASO: its reverse complement read as RNA (uppercase)."""
+    return get_antisense_rna(aso.upper())
+
+
 ZERO_CELSIUS_IN_KELVIN = 273.15
 # Physiological reference temperature for the nearest-neighbour dG calculations.
 BODY_TEMPERATURE_C = 37.0

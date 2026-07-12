@@ -20,8 +20,10 @@ def test_cds_annotation():
     assert loc.gene_type == GeneType.PROTEIN_CODING
     assert loc._5utr_indices == [(0, CDS_START)]
     assert loc._3utr_indices == [(CDS_END, len(SEQ))]
-    assert loc.start_codons == [(CDS_START, CDS_START + 3)]
-    assert loc.stop_codons == [(CDS_END - 3, CDS_END)]
+    assert loc.start_codon == (CDS_START, CDS_START + 3)
+    assert loc.stop_codon == (CDS_END - 3, CDS_END)
+    assert loc.all_start_codons == [(CDS_START, CDS_START + 3)]
+    assert loc.all_stop_codons == [(CDS_END - 3, CDS_END)]
     assert len(CanonicalCds.from_locus(loc).sequence) == CDS_END - CDS_START
 
 
