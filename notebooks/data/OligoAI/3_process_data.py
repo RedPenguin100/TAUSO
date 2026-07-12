@@ -34,7 +34,7 @@ def main():
 
     feature_cols = [c for c in processed.columns if c not in [INHIBITION_PERCENT, "index_oligo"]]
     averaged = processed.groupby(feature_cols, as_index=False, dropna=False).agg(
-        {INHIBITION_PERCENT: "mean", "index_oligo": "first"}
+        {INHIBITION_PERCENT: "median", "index_oligo": "first"}
     )[["index_oligo"] + feature_cols + [INHIBITION_PERCENT]]
     averaged.to_csv(OLIGO_CSV_PROCESSED_AVERAGED, index=False)
 
