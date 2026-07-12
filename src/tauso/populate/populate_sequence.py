@@ -109,27 +109,47 @@ def populate_sequence_features(
     return df, feature_names
 
 
+# Number of nucleotides one-hot-encoded from each terminus of the ASO. The two ends
+# carry most of the position-specific signal (5' seed, 3' RNase-H gap edge), so only the
+# terminal windows are encoded rather than every position of a variable-length gapmer.
+TERMINAL_OHE_N = 6
+
+
+def one_hot_feature_names(terminal_n: int = TERMINAL_OHE_N) -> list[str]:
+    """Column names for terminal one-hot encoding: the first ``terminal_n`` nucleotides
+    from the 5' end (``ohe_pos{i}_{nuc}``) followed by the first ``terminal_n`` from the
+    3' end (``ohe_3p{i}_{nuc}``, counting inward from each ASO's own 3' terminus)."""
+    names = []
+    for pos in range(terminal_n):
+        for nuc in ("A", "C", "G", "T"):
+            names.append(f"ohe_pos{pos}_{nuc}")
+    for pos in range(terminal_n):
+        for nuc in ("A", "C", "G", "T"):
+            names.append(f"ohe_3p{pos}_{nuc}")
+    return names
+
+
 def populate_sequence_one_hot_encoded(
-    df: pd.DataFrame, max_len: Optional[int] = None, cpus: int = 1
+    df: pd.DataFrame, terminal_n: int = TERMINAL_OHE_N, cpus: int = 1
 ) -> Tuple[pd.DataFrame, list[str]]:
     """
-    One-hot encodes ASO sequences with zero-padding to handle varying lengths.
-    Flattens the output into tabular columns (e.g., ohe_pos0_A, ohe_pos0_C...).
+    One-hot encodes the terminal nucleotides of each ASO sequence.
+
+    Encodes the first ``terminal_n`` nucleotides from the 5' end into ``ohe_pos{i}_{nuc}``
+    columns and the first ``terminal_n`` from the 3' end into ``ohe_3p{i}_{nuc}`` columns.
+    The 3' window is length-aware: ``ohe_3p{i}`` is the nucleotide ``i`` positions inward
+    from each sequence's own 3' terminus, so it aligns across variable-length gapmers.
+    Positions past the end of a short sequence are zero-filled.
 
     Returns:
         Tuple containing the updated DataFrame and a list of the new feature names.
     """
     start_time = time.time()
 
-    logger.debug("Starting One-Hot Encoding with Zero-Padding...")
+    logger.debug("Starting terminal One-Hot Encoding (%d nt per end)...", terminal_n)
 
-    # 1. Determine max length for padding (if not manually provided)
-    if max_len is None:
-        max_len = int(df[ASO_SEQUENCE].str.len().max())
-        logger.debug("Determined max_len automatically: %d", max_len)
-
-    # 2. Map nucleotides to lists (includes U for RNA compatibility)
-    # Unknowns or Ns will map to [0, 0, 0, 0]
+    # Map nucleotides to lists (includes U for RNA compatibility).
+    # Unknowns or Ns map to [0, 0, 0, 0].
     nuc_map = {
         "A": [1, 0, 0, 0],
         "C": [0, 1, 0, 0],
@@ -139,36 +159,33 @@ def populate_sequence_one_hot_encoded(
     }
     pad_vec = [0, 0, 0, 0]
 
-    def encode_and_pad(seq: str) -> list[int]:
+    def encode_terminal(seq: str) -> list[int]:
         if not isinstance(seq, str):
             seq = ""
+        seq = seq.upper()
+        n = len(seq)
 
         encoded = []
-        # Encode up to max_len (truncates if sequence exceeds max_len)
-        for nuc in seq[:max_len]:
-            encoded.extend(nuc_map.get(nuc.upper(), pad_vec))
-
-        # Post-pad with zeros if sequence is shorter than max_len
-        pad_length = max_len - len(seq)
-        if pad_length > 0:
-            encoded.extend(pad_vec * pad_length)
+        # 5' terminus: positions 0..terminal_n-1 from the start.
+        for i in range(terminal_n):
+            encoded.extend(nuc_map.get(seq[i], pad_vec) if i < n else pad_vec)
+        # 3' terminus: positions 0..terminal_n-1 counting inward from the last nucleotide.
+        for i in range(terminal_n):
+            j = n - 1 - i
+            encoded.extend(nuc_map.get(seq[j], pad_vec) if j >= 0 else pad_vec)
 
         return encoded
 
-    # 3. Apply function
-    encoded_series = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(encode_and_pad)
+    # Apply function
+    encoded_series = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(encode_terminal)
 
-    # 4. Generate the new feature names
-    feature_names = []
-    for pos in range(max_len):
-        for nuc in ["A", "C", "G", "T"]:
-            feature_names.append(f"ohe_pos{pos}_{nuc}")
+    feature_names = one_hot_feature_names(terminal_n)
 
-    # 5. Expand the lists into DataFrame columns
+    # Expand the lists into DataFrame columns
     # (Doing this via pd.DataFrame conversion is significantly faster than looping column-wise)
     encoded_df = pd.DataFrame(encoded_series.tolist(), columns=feature_names, index=df.index)
 
-    # 6. Safety check: Drop existing OHE columns if re-running to avoid duplication
+    # Safety check: drop existing OHE columns if re-running to avoid duplication
     existing_cols = [c for c in feature_names if c in df.columns]
     if existing_cols:
         df = df.drop(columns=existing_cols)
@@ -177,6 +194,6 @@ def populate_sequence_one_hot_encoded(
     df = pd.concat([df, encoded_df], axis=1)
 
     duration = time.time() - start_time
-    logger.debug("Finished One-Hot Encoding | Added %d features | Time: %.2fs", len(feature_names), duration)
+    logger.debug("Finished terminal One-Hot Encoding | Added %d features | Time: %.2fs", len(feature_names), duration)
 
     return df, feature_names

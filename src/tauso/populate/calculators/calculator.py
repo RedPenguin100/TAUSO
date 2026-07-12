@@ -535,18 +535,13 @@ class Calculator:
             logger.info("All sense accessibility features exist. Skipping.")
 
     def calculate_sequence_one_hot(self):
-        """Calculates one-hot encoded sequence features."""
+        """Calculates terminal one-hot encoded sequence features."""
 
-        # 1. Determine the expected names BEFORE running the heavy function
-        # We need the max sequence length from the data to predict the names
-        from tauso.data.consts import ASO_SEQUENCE
+        # Determine the expected names BEFORE running the heavy function, from the same
+        # helper the populate step uses, so the two lists cannot drift apart.
+        from tauso.populate.populate_sequence import one_hot_feature_names
 
-        max_len = int(self.data[ASO_SEQUENCE].str.len().max())
-
-        expected_features = []
-        for pos in range(max_len):
-            for nuc in ["A", "C", "G", "T"]:
-                expected_features.append(f"ohe_pos{pos}_{nuc}")
+        expected_features = one_hot_feature_names()
 
         missing = self._get_missing_features(expected_features)
 
@@ -554,9 +549,8 @@ class Calculator:
             logger.info("Computing sequence one-hot features...")
             from tauso.populate.populate_sequence import populate_sequence_one_hot_encoded
 
-            # Pass max_len so it strictly aligns with our expected features
             self.data, generated_features = populate_sequence_one_hot_encoded(
-                self.data, max_len=max_len, cpus=self.cpus
+                self.data, cpus=self.cpus
             )
             for feature in generated_features:
                 if feature in missing:
