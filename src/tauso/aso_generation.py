@@ -24,7 +24,7 @@ from tauso.data.consts import (
 )
 from tauso.populate.calculators.cache import AssetCache
 from tauso.populate.calculators.calculator import Calculator
-from tauso.util import get_antisense
+from tauso.util import get_antisense, rna_to_dna
 
 
 def get_initial_data(target_mrna, aso_sizes, canonical_name):
@@ -305,7 +305,7 @@ def _normalize_target_sequence(seq):
     s = str(seq)
     if any(c.isspace() for c in s):
         raise ValueError("gene_sequence must not contain whitespace")
-    s = s.upper().replace("U", "T")
+    s = rna_to_dna(s)
     if not s:
         raise ValueError("gene_sequence is empty")
     bad = sorted(set(s) - _DNA_ALPHABET)

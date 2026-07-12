@@ -40,6 +40,7 @@ from ...data.consts import (
 )
 from ...features.interaction_features import internal_fold_gymnosis
 from ...timer import Timer
+from ...util import dna_to_rna
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
 from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
@@ -1145,7 +1146,7 @@ class Calculator:
 
         gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
         gene_mrna = {
-            g: str(gene_to_data[g].full_mrna).upper().replace("T", "U")
+            g: dna_to_rna(gene_to_data[g].full_mrna)
             for g in gene_to_data
             if getattr(gene_to_data[g], "full_mrna", None)
         }

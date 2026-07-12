@@ -36,6 +36,8 @@ from tauso.genome.read_human_genome import build_locus_cache, get_locus_to_data_
 from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
+from .util import rna_to_dna
+
 logger = logging.getLogger(__name__)
 
 
@@ -1037,7 +1039,7 @@ def run_off_target(sequence, genome, mismatches, output):
         sys.exit(1)
 
     original_seq = sequence
-    sequence = sequence.upper().replace("U", "T")
+    sequence = rna_to_dna(sequence)
 
     if original_seq != sequence:
         click.echo(f"Normalized input sequence: {original_seq} -> {sequence}")

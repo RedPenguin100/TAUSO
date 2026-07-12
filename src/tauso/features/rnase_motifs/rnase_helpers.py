@@ -7,13 +7,15 @@ from pathlib import Path
 import numpy as np
 from numba import njit
 
+from ...util import rna_to_dna
+
 logger = logging.getLogger(__name__)
 
 _WEIGHTS_DIR = Path(__file__).resolve().parent / "weights"
 
 
 def _gap_has_unknown_bases(seq: str, gap_start: int, gap_end: int) -> bool:
-    gap = seq[gap_start:gap_end].upper().replace("U", "T")
+    gap = rna_to_dna(seq[gap_start:gap_end])
     return any(b not in "ACGT" for b in gap)
 
 
@@ -83,7 +85,7 @@ def scan_constrained_window(target_seq: str, weights: dict, gap_start: int, gap_
     window_size = len(next(iter(weights.values())))
     gap_len = gap_end - gap_start
     L = len(target_seq)
-    seq = target_seq.upper().replace("U", "T")
+    seq = rna_to_dna(target_seq)
 
     valid_scores = []
     for i in range(L - window_size + 1):
@@ -123,7 +125,7 @@ def scan_constrained_window_dinuc(target_seq: str, dinuc_weights: dict, gap_star
     weights_matrix, window_size = get_numba_weights_matrix(dinuc_weights)
     gap_len = gap_end - gap_start
     L = len(target_seq)
-    seq_str = target_seq.upper().replace("U", "T")
+    seq_str = rna_to_dna(target_seq)
     seq_ints = np.array([CHAR_TO_INT.get(c, 0) for c in seq_str], dtype=np.int8)
 
     valid_scores = []

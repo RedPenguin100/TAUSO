@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from tauso.data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 
-from ...util import get_antisense_rna
+from ...util import dna_to_rna, get_antisense_rna
 
 # =====================================================================
 # MULTIPROCESSING GLOBALS
@@ -80,7 +80,7 @@ def _run_single_aso_worker(row_tuple):
 
     try:
         # full_mrna is DNA (T) for some genes, RNA (U) for others -> normalize to U.
-        full_target_seq = str(_WORKER_GENE_DATA[gene_name].full_mrna).upper().replace("T", "U")
+        full_target_seq = dna_to_rna(_WORKER_GENE_DATA[gene_name].full_mrna)
     except AttributeError:
         metrics["error"] = "No mRNA seq"
         return idx, metrics
