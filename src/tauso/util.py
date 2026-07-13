@@ -40,7 +40,7 @@ def _to_str_seq(x) -> str:
             s = "".join(list(x))
         except Exception:
             s = str(x)
-    return s.replace(" ", "").replace("\t", "").replace("\n", "").replace("U", "T").upper()
+    return _norm_rna_to_dna(s)
 
 
 # Legacy dict kept for get_nucleotide_watson_crick (used by numba-compiled code)

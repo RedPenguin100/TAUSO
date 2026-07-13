@@ -8,6 +8,8 @@ tauso.features.sequence.toxicity_features for the per-mechanism citations.
 
 from typing import Iterable, Optional, Tuple
 
+import pandas as pd
+
 from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN, PS_PATTERN
 from ..features.sequence.toxicity_features import (
     cpg_count,
@@ -48,13 +50,14 @@ def populate_toxicity_features(
     features: Optional[Iterable[str]] = None,
     cpus: int = 1,
 ) -> Tuple:
+    # Bundle the target columns into a single Series so features apply element-wise,
+    # avoiding a per-row Series copy.
+    targets = pd.Series(list(zip(df[ASO_SEQUENCE], df[CHEMICAL_PATTERN], df[PS_PATTERN])), index=df.index, dtype=object)
     return compute_features(
         df,
         FEATURE_SPECS,
-        df,
-        lambda apply_fn, func: apply_fn(
-            lambda row: func(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[PS_PATTERN]), axis=1
-        ),
+        targets,
+        lambda apply_fn, func: apply_fn(lambda t: func(*t)),
         features=features,
         cpus=cpus,
     )
