@@ -22,8 +22,21 @@ MANUAL_CANONICAL_MAPPING = {
     "RASD1": "RASD2",       # patent annotated incorrectly
     # Target named only in target_mrna (target_gene left blank); recovered via the fallback in
     # 2_assign_canonical_gene. Each verified by aligning the ASOs to the named gene body.
-    "PKK": "KLKB1",         # plasma prekallikrein = KLKB1 (444/467 ASOs align to KLKB1)
-    "GCCR": "NR3C1",        # glucocorticoid receptor = NR3C1 (148/148 ASOs align to NR3C1)
+    "PKK": "KLKB1",                                 # plasma prekallikrein = KLKB1 (444/467 align)
+    "GCCR": "NR3C1",                                # glucocorticoid receptor = NR3C1 (148/148)
+    "estrogen-responsive finger protein": "TRIM25",  # EFP = TRIM25 (73/78)
+    "KOX1": "ZNF10",                                # KOX1 = ZNF10 (72/78)
+    "PPAR binding protein": "MED1",                 # PBP/TRAP220 = MED1 (72/77)
+    "fetoprotein transcription factor": "NR5A2",    # FTF/LRH-1 = NR5A2 (66/75)
+    "ABC transporter MHC 1": "TAP1",               # TAP1 (73/78)
+    "endothelial differentiation gene 2": "LPAR1",  # EDG2 = LPAR1 (67/72)
+    "jumonji": "JARID2",                            # jumonji = JARID2 (33/37)
+    "E2-EPF": "UBE2S",                             # E2-EPF ubiquitin carrier = UBE2S (32/37)
+    "FBP-interacting repressor": "PUF60",           # FIR = PUF60 (32/37)
+    "jerky-like 1": "JRKL",                        # JRKL (37/37)
+    "HIP-1 protein interactor": "IFT57",            # HIPPI = IFT57 (75/78)
+    "zinedin": "STRN4",                            # zinedin = STRN4 (68/78)
+    "cytokine-inducible kinase": "PLK3",            # FNK/PRK = PLK3 (61/78; 0/78 to PIM1)
     # The most popular alignment disagrees with the original; we keep the original
     "ANGPT2": "ANGPT2",
     "ANGPTL3": "ANGPTL3",
