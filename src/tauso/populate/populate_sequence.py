@@ -24,6 +24,7 @@ FEATURE_SPECS: list[tuple[str, callable]] = [
     # ASO sequence energy
     ("seq_self_energy", self_energy),
     ("seq_internal_fold_rna", internal_fold_rna),
+    ("sense_internal_fold", sense_internal_fold),
     # Basic Composition Features
     ("seq_purine_content", purine_content),
     ("seq_gc_content", gc_fraction),
@@ -109,10 +110,13 @@ def populate_sequence_features(
     return df, feature_names
 
 
-# Number of nucleotides one-hot-encoded from each terminus of the ASO. The two ends
-# carry most of the position-specific signal (5' seed, 3' RNase-H gap edge), so only the
-# terminal windows are encoded rather than every position of a variable-length gapmer.
-TERMINAL_OHE_N = 6
+# Nucleotides one-hot-encoded inward from each terminus of the ASO. Both ends are encoded in
+# their own frame -- 5' positions from the start, 3' positions inward from the last base -- so
+# the terminal signal (5' seed, 3' RNase-H gap edge) stays aligned across variable-length
+# gapmers. Each position is assigned to whichever half of the sequence it falls in; positions
+# past a sequence's midpoint (or its end) are left NaN, so the two windows never double-encode
+# the middle of a short ASO.
+TERMINAL_OHE_N = 12
 
 
 def one_hot_feature_names(terminal_n: int = TERMINAL_OHE_N) -> list[str]:
@@ -135,11 +139,12 @@ def populate_sequence_one_hot_encoded(
     """
     One-hot encodes the terminal nucleotides of each ASO sequence.
 
-    Encodes the first ``terminal_n`` nucleotides from the 5' end into ``ohe_pos{i}_{nuc}``
-    columns and the first ``terminal_n`` from the 3' end into ``ohe_3p{i}_{nuc}`` columns.
-    The 3' window is length-aware: ``ohe_3p{i}`` is the nucleotide ``i`` positions inward
-    from each sequence's own 3' terminus, so it aligns across variable-length gapmers.
-    Positions past the end of a short sequence are zero-filled.
+    Encodes up to ``terminal_n`` nucleotides from the 5' end into ``ohe_pos{i}_{nuc}`` columns
+    and up to ``terminal_n`` from the 3' end into ``ohe_3p{i}_{nuc}`` columns. The 3' window is
+    length-aware: ``ohe_3p{i}`` is the nucleotide ``i`` positions inward from each sequence's
+    own 3' terminus, so it aligns across variable-length gapmers. Each nucleotide is assigned to
+    the terminus on its own half of the sequence; positions past the midpoint (or the end) of a
+    short ASO are NaN, so the 5' and 3' windows never encode the same base twice.
 
     Returns:
         Tuple containing the updated DataFrame and a list of the new feature names.
@@ -149,7 +154,7 @@ def populate_sequence_one_hot_encoded(
     logger.debug("Starting terminal One-Hot Encoding (%d nt per end)...", terminal_n)
 
     # Map nucleotides to lists (includes U for RNA compatibility).
-    # Unknowns or Ns map to [0, 0, 0, 0].
+    # Unknowns or Ns, and positions outside a terminus's own half of the sequence, map to NaN.
     nuc_map = {
         "A": [1, 0, 0, 0],
         "C": [0, 1, 0, 0],
@@ -157,22 +162,22 @@ def populate_sequence_one_hot_encoded(
         "T": [0, 0, 0, 1],
         "U": [0, 0, 0, 1],
     }
-    pad_vec = [0, 0, 0, 0]
+    nan_vec = [float("nan")] * 4
 
-    def encode_terminal(seq: str) -> list[int]:
+    def encode_terminal(seq: str) -> list[float]:
         if not isinstance(seq, str):
             seq = ""
         seq = seq.upper()
         n = len(seq)
 
         encoded = []
-        # 5' terminus: positions 0..terminal_n-1 from the start.
+        # 5' terminus: nucleotide i from the start, kept only while it lies in the 5' half.
         for i in range(terminal_n):
-            encoded.extend(nuc_map.get(seq[i], pad_vec) if i < n else pad_vec)
-        # 3' terminus: positions 0..terminal_n-1 counting inward from the last nucleotide.
+            encoded.extend(nuc_map.get(seq[i], nan_vec) if (i < n and 2 * i <= n - 1) else nan_vec)
+        # 3' terminus: nucleotide i inward from the last base, kept only in the 3' half.
         for i in range(terminal_n):
             j = n - 1 - i
-            encoded.extend(nuc_map.get(seq[j], pad_vec) if j >= 0 else pad_vec)
+            encoded.extend(nuc_map.get(seq[j], nan_vec) if (j >= 0 and 2 * j > n - 1) else nan_vec)
 
         return encoded
 

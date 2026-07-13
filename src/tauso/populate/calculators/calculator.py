@@ -21,10 +21,14 @@ from ...data.consts import (
     STRUCT_SENSE_IN_UTR,
     STRUCTURE_SENSE_DIST_TO_CANONICAL_START,
     STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP,
+    STRUCTURE_SENSE_DIST_TO_CLOSEST_SPLICE_JUNCTION,
     STRUCTURE_SENSE_DIST_TO_CLOSEST_START,
     STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+    STRUCTURE_SENSE_HOST_EXON_LOG_LENGTH,
+    STRUCTURE_SENSE_HOST_INTRON_LOG_LENGTH,
+    STRUCTURE_SENSE_JUNCTION_LOGDIST_CLOSEST,
     STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
     STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
     STRUCTURE_SENSE_LENGTH,
@@ -39,6 +43,7 @@ from ...data.consts import (
     VOLUME_NM,
 )
 from ...features.interaction_features import internal_fold_gymnosis
+from ...features.sequence.seq_features import internal_fold_chem
 from ...timer import Timer
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
 from ..populate_context import (
@@ -278,8 +283,12 @@ class Calculator:
             STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+            STRUCTURE_SENSE_DIST_TO_CLOSEST_SPLICE_JUNCTION,
             STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
             STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
+            STRUCTURE_SENSE_JUNCTION_LOGDIST_CLOSEST,
+            STRUCTURE_SENSE_HOST_EXON_LOG_LENGTH,
+            STRUCTURE_SENSE_HOST_INTRON_LOG_LENGTH,
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -426,6 +435,35 @@ class Calculator:
                     self._save_calculated_feature(feature_name=feature_name)
         else:
             logger.info("All on-target hybridization features exist. Skipping.")
+
+    def calculate_on_target_multiplicity(self):
+        """Calculates site-resolved on-target multiplicity: log effective number of on-target
+        sites per ASO at each score cutoff (target multiplicity), from one RIsearch pass."""
+        cutoffs = [800, 1000, 1200]
+        expected_features = [f"on_target_log_number_of_sites_{c}" for c in cutoffs]
+
+        missing = self._get_missing_features(expected_features)
+
+        if missing:
+            logger.info("Computing %d on-target multiplicity features...", len(missing))
+
+            from tauso.features.hybridization.off_target.on_target_multiplicity import (
+                on_target_log_number_of_sites,
+            )
+
+            # Same lean per-gene dictionary as on-target hybridization: each ASO scores only
+            # against its canonical gene.
+            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+
+            needed_cutoffs = [c for c in cutoffs if f"on_target_log_number_of_sites_{c}" in missing]
+            if needed_cutoffs:
+                self.data, generated_names = on_target_log_number_of_sites(
+                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
+                )
+                for feature_name in generated_names:
+                    self._save_calculated_feature(feature_name=feature_name)
+        else:
+            logger.info("All on-target multiplicity features exist. Skipping.")
 
     def calculate_mfe(self):
         """Calculates Minimum Free Energy (MFE) fold features."""
@@ -741,6 +779,47 @@ class Calculator:
                 self._save_calculated_feature(feature_name=feature)
         else:
             logger.info("All backbone features exist. Skipping.")
+
+    def calculate_chem_fold(self):
+        """Chemistry-aware ASO self-fold and its gymnotic-uptake interaction.
+
+        The ASO is folded with 2'-modified wing positions treated as RNA (Turner 2004) and the
+        DNA gap softened toward DNA stability via per-base-pair soft constraints (see
+        ``internal_fold_chem``). Cached by unique (sequence, chemical pattern).
+        """
+        from ...data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
+
+        base = "seq_internal_fold_chem"
+        inter = "interaction_internal_fold_chem_gymnosis"
+        missing = self._get_missing_features([base, inter])
+        if not missing:
+            logger.info("Chemistry-aware fold features exist. Skipping.")
+            return
+
+        if base in missing:
+            self._check_dependencies([ASO_SEQUENCE, CHEMICAL_PATTERN])
+            seqs = self.data[ASO_SEQUENCE].astype(str).to_numpy()
+            pats = self.data[CHEMICAL_PATTERN].astype(str).to_numpy()
+            cache = {}
+            vals = np.empty(len(seqs), dtype=float)
+            for k in range(len(seqs)):
+                key = (seqs[k], pats[k])
+                v = cache.get(key)
+                if v is None:
+                    v = internal_fold_chem(seqs[k], pats[k])
+                    cache[key] = v
+                vals[k] = v
+            self.data[base] = vals
+            self._save_calculated_feature(feature_name=base)
+
+        if inter in missing:
+            deps = [base, "transfection_gymnosis"]
+            self._load_features_into_data(deps)
+            self._check_dependencies(deps)
+            self.data[inter] = internal_fold_gymnosis(
+                self.data[base], self.data["transfection_gymnosis"]
+            )
+            self._save_calculated_feature(feature_name=inter)
 
     def calculate_interaction(self):
         """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
@@ -1096,12 +1175,13 @@ class Calculator:
         self._save_calculated_feature(feature_name="flank_gc_content_20")
 
     def calculate_duplication(self):
-        """Distinct near-full-length copies of the ASO target in its own pre-mRNA: ``dup_exact`` (exact)
-        and ``dup_near`` (<=1 mismatch). See :mod:`tauso.features.duplication_features`."""
+        """Distinct near-full-length copies of the ASO target in its own pre-mRNA:
+        ``on_target_duplication_exact`` (exact) and ``on_target_duplication_near1`` (<=1 mismatch).
+        See :mod:`tauso.features.duplication_features`."""
         from tauso.data.consts import ASO_SEQUENCE
         from tauso.features.duplication_features import compute_duplications
 
-        feats = ["dup_exact", "dup_near"]
+        feats = ["on_target_duplication_exact", "on_target_duplication_near1"]
         if not self._get_missing_features(feats):
             logger.info("Duplication features exist. Skipping.")
             return
@@ -1119,10 +1199,10 @@ class Calculator:
             self.data[ASO_SEQUENCE].astype(str).to_numpy(),
             gene_mrna,
         )
-        self.data["dup_exact"] = de
-        self.data["dup_near"] = dn
-        self._save_calculated_feature(feature_name="dup_exact")
-        self._save_calculated_feature(feature_name="dup_near")
+        self.data["on_target_duplication_exact"] = de
+        self.data["on_target_duplication_near1"] = dn
+        self._save_calculated_feature(feature_name="on_target_duplication_exact")
+        self._save_calculated_feature(feature_name="on_target_duplication_near1")
 
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
@@ -1137,6 +1217,7 @@ class Calculator:
             self.calculate_expression,
             self.calculate_rnase,
             self.calculate_on_target_hybridization,
+            self.calculate_on_target_multiplicity,
             self.calculate_mfe,
             self.calculate_sense_accessibility,
             self.calculate_flank_features,
@@ -1147,6 +1228,7 @@ class Calculator:
             self.calculate_modification,
             self.calculate_hybridization,
             self.calculate_backbone_features,
+            self.calculate_chem_fold,
             self.calculate_interaction,
             self.calculate_ribo_seq,
             self.calculate_off_target_general,
