@@ -1,7 +1,7 @@
 import logging
 
 from ...common.modifications import get_longest_dna_gap
-from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, get_nucleotide_watson_crick
+from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, dna_to_rna, get_nucleotide_watson_crick, rna_to_dna
 from ..hybridization.exp_weights import DNA_RNA_DG37_WEIGHTS, PS_DELTA_DG37_WEIGHTS
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
@@ -9,13 +9,9 @@ from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
 logger = logging.getLogger(__name__)
 
 
-def _to_rna(seq: str) -> str:
-    return seq.upper().replace("T", "U")
-
-
 def get_dna_rna_dg(seq: str) -> float:
     """Unmodified DNA/RNA hybrid dG (kcal/mol), summed 5'->3' over overlapping dinucleotides."""
-    seq = _to_rna(seq)
+    seq = dna_to_rna(seq)
     total = 0.0
     for i in range(len(seq) - 1):
         L, R = seq[i], seq[i + 1]
@@ -25,7 +21,7 @@ def get_dna_rna_dg(seq: str) -> float:
 
 def get_ps_delta_dg(seq: str, ps_pattern: str) -> float:
     """Phosphorothioate backbone contribution relative to the DNA/RNA hybrid (kcal/mol)."""
-    seq = _to_rna(seq)
+    seq = dna_to_rna(seq)
     if not isinstance(ps_pattern, str) or len(ps_pattern) != len(seq) - 1:
         raise ValueError(f"ps_pattern must be a length-{len(seq) - 1} string for a {len(seq)}-mer, got {ps_pattern!r}")
     total = 0.0
@@ -62,7 +58,7 @@ def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float
     if gap_len == 0:
         gap_start, gap_end = len(seq), len(seq)
 
-    seq = _to_rna(seq)
+    seq = dna_to_rna(seq)
     total = 0.0
     for i in range(len(seq) - 1):
         if i < gap_start:
@@ -210,7 +206,7 @@ def calculate_cet_delta(antisense, chemical_pattern):
 
 def calculate_dna(antisense, temp_c=BODY_TEMPERATURE_C):
     """Unmodified DNA/DNA duplex dG (kcal/mol) summed 5'->3' (SantaLucia & Hicks 2004)."""
-    seq = antisense.upper().replace("U", "T")
+    seq = rna_to_dna(antisense)
     temp_k = celsius_to_kelvin(temp_c)
 
     total_dH = 0.0

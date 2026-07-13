@@ -3,6 +3,8 @@ from functools import lru_cache
 import numpy as np
 import ViennaRNA as RNA
 
+from ...util import dna_to_rna
+
 
 @lru_cache(maxsize=10000)
 def get_cached_mfe(seq):
@@ -42,7 +44,7 @@ def calculate_avg_mfe_per_step(sequence, sense_start_in_flank, sense_length, win
       2. Overlapping windows reuse folds across steps via the module-level
          `get_cached_mfe` cache (unique windows per call stay well under its size).
     """
-    sequence = str(sequence).upper().replace("T", "U")
+    sequence = dna_to_rna(sequence)
     seq_len = len(sequence)
     sense_end = sense_start_in_flank + sense_length
 

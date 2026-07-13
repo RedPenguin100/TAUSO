@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 from tauso.data.consts import *
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.util import get_antisense
+from tauso.util import dna_to_rna, get_antisense
 
 MOD_TYPE_DICT = {"moe": "MMMMMddddddddddMMMMM", "lna": "LLLddddddddddLLL"}
 
@@ -18,7 +18,7 @@ def get_target_sequence(target_name: str, custom_sequence: Optional[str] = None)
     by querying the local genome database.
     """
     if custom_sequence:
-        return custom_sequence.upper().replace("T", "U")
+        return dna_to_rna(custom_sequence)
 
     # Use the optimized subset loader from read_human_genome.py
     logger.info("Fetching sequence for %s...", target_name)

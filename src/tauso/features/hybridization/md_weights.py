@@ -14,7 +14,7 @@ from importlib.resources import files
 import pandas as pd
 
 from ...common.modifications import get_longest_dna_gap
-from ...util import celsius_to_kelvin
+from ...util import celsius_to_kelvin, dna_to_rna
 
 _BODY_TEMPERATURE_K = celsius_to_kelvin(37.0)
 _WEIGHTS = files("tauso.features.hybridization") / "weights"
@@ -54,7 +54,7 @@ def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type
     if not isinstance(chemical_pattern, str) or len(chemical_pattern) != len(seq):
         return float("nan")
 
-    seq = seq.replace("T", "U")
+    seq = dna_to_rna(seq)
     weights = _moe_weights(simul_type)
     gap_start, gap_end, gap_len = get_longest_dna_gap(chemical_pattern)
     if gap_len == 0:

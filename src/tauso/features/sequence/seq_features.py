@@ -7,7 +7,7 @@ import ViennaRNA as RNA
 from Bio.SeqUtils import gc_fraction
 from primer3 import calc_hairpin
 
-from ...util import get_antisense
+from ...util import dna_to_rna, get_antisense
 
 
 def ry_transition_fraction(seq: str) -> float:
@@ -63,7 +63,7 @@ def internal_fold_rna(seq: str) -> float:
     """Self-structure ΔG (kcal/mol) of the ASO folded with RNA (Turner 2004) parameters.
     The ASO is read 5'->3' with T mapped to U.
     """
-    return RNA.fold(seq.upper().replace("T", "U"))[1]
+    return RNA.fold(dna_to_rna(seq))[1]
 
 
 def hairpin_dG_energy(seq: str):
