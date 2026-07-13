@@ -21,8 +21,9 @@ MANUAL_CANONICAL_MAPPING = {
     "UBE3A": "SNHG14",      # patent discusses UBE3A regulation but targets SNHG14
     "RASD1": "RASD2",       # patent annotated incorrectly
     # Target named only in target_mrna (target_gene left blank); recovered via the fallback in
-    # 2_assign_canonical_gene
-    "PKK": "KLKB1",         # plasma prekallikrein = KLKB1
+    # 2_assign_canonical_gene. Each verified by aligning the ASOs to the named gene body.
+    "PKK": "KLKB1",         # plasma prekallikrein = KLKB1 (444/467 ASOs align to KLKB1)
+    "GCCR": "NR3C1",        # glucocorticoid receptor = NR3C1 (148/148 ASOs align to NR3C1)
     # The most popular alignment disagrees with the original; we keep the original
     "ANGPT2": "ANGPT2",
     "ANGPTL3": "ANGPTL3",
