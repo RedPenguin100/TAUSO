@@ -23,6 +23,17 @@ Without `OLIGOAI_REPO`/`OLIGOAI_CKPT` the script writes the OligoAI-format input
 runs in the conda env named by `OLIGOAI_ENV` (default `oligo_5090_hybrid`). The OligoAI input and raw
 predictions are written to a temp dir; only the ranked CSV is kept.
 
+### Exact command used
+The committed `MALAT1_2moe_oligoai_ranked.csv` was generated from the repo root with exactly this
+command (author's local paths — adapt via the generic form above for another machine):
+```bash
+TAUSO_DATA_DIR=/home/michael/career/tauso_article/.tauso_data \
+PYTHONPATH=/home/michael/career/tauso_article/TAUSO_competition:/home/michael/career/tauso_article/TAUSO_competition/src \
+OLIGOAI_REPO=/home/michael/career/tauso_article/OligoAI-fork \
+OLIGOAI_CKPT=/mnt/c/Users/micha/Downloads/OligoAI_11_09_25.ckpt \
+conda run -n tauso_research python -m notebooks.prediction.malat1_oligoai.design_malat1_oligoai
+```
+
 ## Output
 `MALAT1_2moe_oligoai_ranked.csv` — 8,810 candidates ranked by `predicted_inhibition_percent`, with
 `target_start` (0-based transcript position) and the ASO sequence.
