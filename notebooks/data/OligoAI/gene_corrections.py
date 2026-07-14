@@ -37,6 +37,14 @@ MANUAL_CANONICAL_MAPPING = {
     "HIP-1 protein interactor": "IFT57",            # HIPPI = IFT57 (75/78)
     "zinedin": "STRN4",                            # zinedin = STRN4 (68/78)
     "cytokine-inducible kinase": "PLK3",            # FNK/PRK = PLK3 (61/78; 0/78 to PIM1)
+    "kinesin-like 1": "KIF11",                      # KNSL1 = KIF11 (also 156 rows carry target_gene=KIF11)
+    "NAC": "NLRP1",                                 # NALP1/DEFCAP/CARD7 = NLRP1 (72/78 align)
+    "B7H": "ICOSLG",                                # B7-H2/ICOS ligand = ICOSLG (75/78)
+    "RE2": "GPR161",                                # G-protein-coupled receptor RE2 = GPR161, NM_007369.1 (37/37)
+    "LOC51249": "TMEM69",                           # Entrez 51249 = TMEM69 (26/26)
+    "human hypothetical protein 669": "KYAT3",      # LOC56267 = KYAT3 (CCBL2/KAT3) (31/37)
+    "PAZ/PIWI domain-containing protein": "AGO3",   # FLJ12765 = AGO3 (EIF2C3), NM_024852.1 (74/78)
+    "B-cell associated protein": "PHB2",            # BAP37/REA = PHB2 (66/75)
     # The most popular alignment disagrees with the original; we keep the original
     "ANGPT2": "ANGPT2",
     "ANGPTL3": "ANGPTL3",
@@ -52,4 +60,14 @@ MANUAL_CANONICAL_MAPPING = {
     # Patent errors, unrecoverable -> dropped
     "RHO": pd.NA,           # patent targets a mutation, not the reference sequence
     "NAIP": pd.NA,          # old, mis-annotated genome
+}
+
+# Aliases in target_mrna that name different genes in different source tables of one patent, so a single
+# target_mrna->gene mapping cannot express them. Keyed by a substring of custom_id (patent + table). Each
+# table's isozyme is verified by aligning that table's ASOs to the isozyme mRNA.
+# 'PKC' in US20030148989A1: table 11 = PKC-delta, table 12 = PKC-epsilon, table 14 = PKC-zeta.
+AMBIGUOUS_ALIAS_BY_CUSTOM_ID = {
+    "US20030148989A1_table_11": "PRKCD",   # PKC-delta   (12/15 align)
+    "US20030148989A1_table_12": "PRKCE",   # PKC-epsilon (17/18)
+    "US20030148989A1_table_14": "PRKCZ",   # PKC-zeta    (15/16)
 }
