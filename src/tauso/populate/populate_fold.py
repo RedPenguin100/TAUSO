@@ -11,10 +11,18 @@ from ..data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE
 from ..features.fold.vienna_fold import calculate_avg_mfe_per_step
 from ..features.rna_access.access_calculator import get_sense_with_flanks, window_access_energies
 from ..features.rna_access.rna_access import RNAAccess
+from ..genome.LocusInfo import CanonicalCds
 from ..parallel_utils import make_apply_fn
 from ..util import dna_to_rna
 
 logger = logging.getLogger(__name__)
+
+# Template the fold features are computed against. PREMRNA is the gene-span
+# sequence (introns included) exposed as ``LocusInfo.full_mrna``. CANONICAL_CDS
+# is the spliced canonical coding sequence (``CanonicalCds.from_locus``), whose
+# coordinate frame is the CDS index, not the pre-mRNA index.
+SEQUENCE_SOURCE_PREMRNA = "premrna"
+SEQUENCE_SOURCE_CANONICAL_CDS = "canonical_cds"
 
 
 def validate_cols_in_df(df, cols):
@@ -38,14 +46,24 @@ DEFAULT_SETTINGS = [
 ]
 
 
-def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):
+def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None, sequence_source_col=None):
+    """Populate the MFE grid.
+
+    ``sequence_source_col``, if given, is a per-row column naming the template to fold each ASO
+    against (``SEQUENCE_SOURCE_PREMRNA`` / ``SEQUENCE_SOURCE_CANONICAL_CDS``); rows with a blank or
+    unrecognized value fall back to the pre-mRNA template, and when the argument is None every row
+    uses pre-mRNA. For a row folded against the canonical CDS, ``STRUCTURE_SENSE_START`` is read in
+    the CDS coordinate frame, so the caller supplies that row's start in that frame.
+    """
     if settings is None:
         settings = DEFAULT_SETTINGS
 
     required_cols = [CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
-    lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
+    templates_by_source = _build_templates_by_source(
+        df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data, df, sequence_source_col
+    )
 
     # Group settings by (flank, window). Every entry in a group reuses the same
     # sub-sequence cut and the same set of folded windows; only the `step` grid
@@ -64,9 +82,10 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
         sense_len = row[STRUCTURE_SENSE_LENGTH]
 
         out = {name: np.nan for name in feature_names}
-        if gene_name not in lightweight_gene_to_data or global_start == -1:
+        gene_map = templates_by_source[_select_source(row, templates_by_source, sequence_source_col)]
+        if gene_name not in gene_map or global_start == -1:
             return out
-        full_mrna = lightweight_gene_to_data[gene_name]
+        full_mrna = gene_map[gene_name]
 
         for (flank_size, window_size), steps in steps_by_window.items():
             cut_start = max(0, global_start - flank_size)
@@ -147,12 +166,54 @@ def _build_feature_name(flank_size, access_size, seeds):
     return f"fold_access_{flank_size}flank_{access_size}access_{'-'.join(map(str, seeds))}seed_sizes"
 
 
-def _lightweight_gene_to_data(genes, gene_to_data):
-    """gene -> mRNA string, so worker threads don't pickle the heavy gene_to_data."""
-    return {gene: str(gene_to_data[gene].full_mrna) for gene in genes if gene in gene_to_data}
+def _lightweight_gene_to_data(genes, gene_to_data, sequence_source=SEQUENCE_SOURCE_PREMRNA):
+    """gene -> template sequence string, so worker threads don't pickle the heavy gene_to_data.
+
+    ``sequence_source`` selects the template: ``SEQUENCE_SOURCE_PREMRNA`` returns the gene-span
+    pre-mRNA (introns included); ``SEQUENCE_SOURCE_CANONICAL_CDS`` returns the spliced canonical
+    CDS. Genes whose canonical CDS is empty (non-coding, or no coding annotation) are omitted,
+    so their rows fall through to NaN exactly like a gene missing from ``gene_to_data``.
+    """
+    if sequence_source == SEQUENCE_SOURCE_PREMRNA:
+        return {gene: str(gene_to_data[gene].full_mrna) for gene in genes if gene in gene_to_data}
+    if sequence_source == SEQUENCE_SOURCE_CANONICAL_CDS:
+        result = {}
+        for gene in genes:
+            if gene not in gene_to_data:
+                continue
+            cds_sequence = CanonicalCds.from_locus(gene_to_data[gene]).sequence
+            if cds_sequence:
+                result[gene] = str(cds_sequence)
+        return result
+    raise ValueError(
+        f"unknown sequence_source {sequence_source!r}; "
+        f"expected {SEQUENCE_SOURCE_PREMRNA!r} or {SEQUENCE_SOURCE_CANONICAL_CDS!r}"
+    )
 
 
-def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_seq_len):
+def _build_templates_by_source(genes, gene_to_data, df, sequence_source_col):
+    """{source -> {gene -> template string}} covering every template the rows select.
+
+    The pre-mRNA template is always built (it is the fallback for a blank or absent selector);
+    when ``sequence_source_col`` is given, one map is additionally built per distinct value in it.
+    """
+    sources = {SEQUENCE_SOURCE_PREMRNA}
+    if sequence_source_col is not None:
+        sources |= set(df[sequence_source_col].dropna().unique())
+    return {source: _lightweight_gene_to_data(genes, gene_to_data, source) for source in sources}
+
+
+def _select_source(row, templates_by_source, sequence_source_col):
+    """Per-row template key: the row's ``sequence_source_col`` value when it names a built
+    template, otherwise the pre-mRNA fallback."""
+    if sequence_source_col is not None:
+        source = row[sequence_source_col]
+        if source in templates_by_source:
+            return source
+    return SEQUENCE_SOURCE_PREMRNA
+
+
+def _build_batch_rna_seqs(batch_rows, templates_by_source, flank_size, min_seq_len, sequence_source_col=None):
     """Cut a `flank_size`-padded window around each row's sense start; format as RNA.
 
     Rows with a missing gene, or a flanked window shorter than `min_seq_len`, are
@@ -167,9 +228,10 @@ def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_
     for _, row in batch_rows.iterrows():
         current_id = str(row["_temp_id"])
         gene_name = row[CANONICAL_GENE_NAME]
-        if gene_name not in lightweight_gene_to_data:
+        gene_map = templates_by_source[_select_source(row, templates_by_source, sequence_source_col)]
+        if gene_name not in gene_map:
             continue
-        full_mrna_seq = lightweight_gene_to_data[gene_name]
+        full_mrna_seq = gene_map[gene_name]
 
         current_sense_start = row[STRUCTURE_SENSE_START]
         flank_start = max(0, current_sense_start - flank_size)
@@ -281,6 +343,7 @@ def populate_sense_accessibility_multi(
     batch_size=1000,
     access_win_size=ACCESS_WIN_SIZE,
     n_jobs=1,
+    sequence_source_col=None,
 ):
     """Populate one accessibility feature column per config.
 
@@ -290,6 +353,11 @@ def populate_sense_accessibility_multi(
     Configs with different flanks are processed in separate per-flank passes
     (one raccess call per (batch, flank)). The returned ``feature_names`` list
     mirrors the order of ``configs``.
+
+    ``sequence_source_col``, if given, is a per-row column naming the template to fold each ASO
+    against (see the module constants); rows with a blank or unrecognized value fall back to the
+    pre-mRNA template, and when it is None every row uses pre-mRNA. For a row folded against the
+    canonical CDS, ``STRUCTURE_SENSE_START`` is read in the CDS coordinate frame.
     """
     if not configs:
         return aso_dataframe.copy(), []
@@ -310,6 +378,7 @@ def populate_sense_accessibility_multi(
             batch_size=batch_size,
             access_win_size=access_win_size,
             n_jobs=n_jobs,
+            sequence_source_col=sequence_source_col,
         )
         for idx, fn in zip(orig_idxs, group_names):
             name_by_idx[idx] = fn
@@ -325,6 +394,7 @@ def _populate_single_flank_accessibility(
     batch_size,
     access_win_size,
     n_jobs,
+    sequence_source_col=None,
 ):
     """Add per-config accessibility columns to ``df_out`` in place; all configs must share ``flank``."""
     flank_size = configs[0]["flank"]
@@ -341,15 +411,22 @@ def _populate_single_flank_accessibility(
         df_out.drop(columns=["_temp_id"], inplace=True)
         return feature_names
 
-    valid_df = df_out.loc[
-        valid_mask, ["_temp_id", STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH, CANONICAL_GENE_NAME]
-    ].copy()
-    lightweight_gene_to_data = _lightweight_gene_to_data(valid_df[CANONICAL_GENE_NAME].unique(), gene_to_data)
+    valid_cols = ["_temp_id", STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH, CANONICAL_GENE_NAME]
+    if sequence_source_col is not None:
+        valid_cols.append(sequence_source_col)
+    valid_df = df_out.loc[valid_mask, valid_cols].copy()
+    templates_by_source = _build_templates_by_source(
+        valid_df[CANONICAL_GENE_NAME].unique(), gene_to_data, valid_df, sequence_source_col
+    )
     raccess_exe = find_raccess()
 
     def _process_batch(batch_rows):
         rna_seqs, sense_len_map, sense_start_map = _build_batch_rna_seqs(
-            batch_rows, lightweight_gene_to_data, flank_size, min_seq_len=min_access
+            batch_rows,
+            templates_by_source,
+            flank_size,
+            min_seq_len=min_access,
+            sequence_source_col=sequence_source_col,
         )
         if not rna_seqs:
             return {fn: pd.DataFrame(columns=["_temp_id", fn]) for fn in feature_names}
@@ -385,6 +462,7 @@ def populate_sense_accessibility_batch(
     seed_sizes=None,
     access_win_size=ACCESS_WIN_SIZE,
     n_jobs=1,
+    sequence_source_col=None,
 ):
     """Populate ONE accessibility feature column (single-config wrapper over _multi)."""
     if seed_sizes is None:
@@ -399,5 +477,6 @@ def populate_sense_accessibility_batch(
         batch_size=batch_size,
         access_win_size=access_win_size,
         n_jobs=n_jobs,
+        sequence_source_col=sequence_source_col,
     )
     return df_out, feature_names[0]
