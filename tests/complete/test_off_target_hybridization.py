@@ -5,6 +5,9 @@ from tauso.features.hybridization.off_target.off_target_specific_gene import (
     off_target_single_gene_hybridization,
     on_target_total_hybridization,
 )
+from tauso.features.hybridization.off_target.on_target_multiplicity import (
+    on_target_log_number_of_sites,
+)
 from tauso.populate.populate_off_target import (
     populate_off_target_general,
     populate_off_target_specific,
@@ -52,6 +55,16 @@ def test_on_target_hybridization_regression(mini_structure_data, gene_to_data, d
     data = mini_structure_data.copy()
     data, feature_names = on_target_total_hybridization(data, gene_to_data, cutoffs=CUTOFFS, n_jobs=get_n_jobs())
     # sum(exp(-energy/RT)) is float-order dependent under threads (~1e-5)
+    dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
+
+
+@pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)
+def test_on_target_multiplicity_regression(mini_structure_data, gene_to_data, dataframe_regression):
+    """Site-resolved on-target multiplicity: log effective number of on-target sites per cutoff
+    (the on_target_log_number_of_sites feature, backed by stats_by_trigger_multi_cutoff)."""
+    data = mini_structure_data.copy()
+    data, feature_names = on_target_log_number_of_sites(data, gene_to_data, cutoffs=CUTOFFS, n_jobs=get_n_jobs())
+    # log_eff derives from sum(exp(-energy/RT)); float-order dependent under threads (~1e-5)
     dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
 
 
