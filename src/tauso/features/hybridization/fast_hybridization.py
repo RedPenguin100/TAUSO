@@ -362,68 +362,112 @@ def risearch_hits_dataframe(
     return pa.concat_tables(tables).to_pandas() if tables else empty
 
 
-def min_energy_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
-    """Off-target score for several cutoffs from ONE loose RIsearch pass.
+# ---------------------------------------------------------------------------
+# Multi-cutoff aggregations
+#
+# Each factory returns a RisearchAggregation that reduces one loose RIsearch pass
+# into ``{cutoff: {key: value}}``. They share one streaming skeleton,
+# ``_by_key_multi_cutoff``: group the hits with ``score > cutoff`` by ``keys``,
+# aggregate, and pack each group into a stored value. Deriving every cutoff from a
+# single loose run reproduces N independent per-cutoff runs, because RIsearch's
+# ``-s`` is exclusive and its cutoffs are nested (see
+# tests/complete/test_off_target_derivation_equivalence.py); Boltzmann sums match
+# only within FP rounding, being float-order dependent.
+# ---------------------------------------------------------------------------
 
-    Run RIsearch at the loosest cutoff and, in the same streaming pass, keep the
-    min-energy hit per (trigger, target) *separately for each cutoff*, counting a
-    hit toward cutoff ``c`` only when ``score > c``. RIsearch's ``-s`` is exclusive
-    and its cutoffs are nested, so this reproduces N independent per-cutoff runs
-    bit-for-bit (see tests/complete/test_off_target_derivation_equivalence.py).
+# pyarrow aggregate func -> the func that merges per-block partials in finalize.
+_MERGE_FUNC = {"sum": "sum", "min": "min", "count": "sum"}
 
-    Returns ``{cutoff: {(trigger, target): min_energy}}``. Memory is bounded by the
-    number of distinct (cutoff, trigger, target) pairs, not the raw hit count.
+
+def _by_key_multi_cutoff(
+    cutoffs,
+    *,
+    keys: Tuple[str, ...],
+    value_aggs: Tuple[Tuple[str, str, str], ...],
+    pack: Callable,
+    RT: float | None = None,
+) -> RisearchAggregation:
+    """Streaming per-cutoff, per-key RIsearch reducer shared by every aggregation factory.
+
+    keys       group-by columns; the result key is that single value or a tuple of them.
+    value_aggs ``(name, source, func)`` triples aggregating ``source`` with pyarrow ``func``
+               into a partial column ``name``. ``source`` is ``energy`` or ``_exp`` (the
+               Boltzmann weight ``exp(-energy/RT)``, materialized only when ``RT`` is given).
+    pack       maps a finalized group's ``{name: value}`` to the stored value.
+
+    Returns a RisearchAggregation producing ``{cutoff: {key: pack(...)}}``.
     """
-    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
+    sorted_cutoffs = sorted({int(c) for c in cutoffs})
+    keys = tuple(keys)
+    names = [name for name, _src, _func in value_aggs]
+    needs_energy = any(src == "energy" for _n, src, _f in value_aggs)
 
-    def _empty():
+    def _empty_partial():
         import pyarrow as pa
 
-        return pa.table(
-            {
-                "cutoff": pa.array([], pa.int64()),
-                "trigger": pa.array([], pa.string()),
-                "target": pa.array([], pa.string()),
-                "energy": pa.array([], pa.float64()),
-            }
-        )
+        cols = {"cutoff": pa.array([], pa.int64())}
+        for k in keys:
+            cols[k] = pa.array([], pa.string())
+        for name, _src, func in value_aggs:
+            cols[name] = pa.array([], pa.int64() if func == "count" else pa.float64())
+        return pa.table(cols)
 
     def combine(batch):
         import pyarrow as pa
         import pyarrow.compute as pc
 
-        table = pa.Table.from_batches([batch])
+        cols = {k: batch.column(k) for k in keys}
+        cols["score"] = batch.column("score")
+        if RT is not None:
+            cols["_exp"] = pc.exp(pc.divide(batch.column("energy"), -RT))
+        if needs_energy:
+            cols["energy"] = batch.column("energy")
+        base = pa.table(cols)
+
         parts = []
         for c in sorted_cutoffs:
-            sub = table.filter(pc.greater(table.column("score"), c))
+            sub = base.filter(pc.greater(base.column("score"), c))
             if sub.num_rows == 0:
                 continue
-            agg = (
-                sub.group_by(["trigger", "target"])
-                .aggregate([("energy", "min")])
-                .rename_columns(["trigger", "target", "energy"])
-            )
-            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
-            parts.append(agg.select(["cutoff", "trigger", "target", "energy"]))
-        return pa.concat_tables(parts) if parts else _empty()
+            agg = sub.group_by(list(keys)).aggregate([(src, func) for _n, src, func in value_aggs])
+            out = {"cutoff": pa.array([c] * agg.num_rows, pa.int64())}
+            for k in keys:
+                out[k] = agg.column(k)
+            for name, src, func in value_aggs:
+                out[name] = agg.column(f"{src}_{func}")
+            parts.append(pa.table(out))
+        return pa.concat_tables(parts) if parts else _empty_partial()
 
     def finalize(table):
-        final = (
-            table.group_by(["cutoff", "trigger", "target"])
-            .aggregate([("energy", "min")])
-            .rename_columns(["cutoff", "trigger", "target", "energy"])
+        merged = table.group_by(["cutoff", *keys]).aggregate(
+            [(name, _MERGE_FUNC[func]) for name, _src, func in value_aggs]
         )
+        cutoff_col = merged.column("cutoff").to_pylist()
+        key_cols = [merged.column(k).to_pylist() for k in keys]
+        value_cols = {
+            name: merged.column(f"{name}_{_MERGE_FUNC[func]}").to_pylist()
+            for name, _src, func in value_aggs
+        }
         result: dict = {c: {} for c in sorted_cutoffs}
-        for c, trig, tgt, e in zip(
-            final.column("cutoff").to_pylist(),
-            final.column("trigger").to_pylist(),
-            final.column("target").to_pylist(),
-            final.column("energy").to_pylist(),
-        ):
-            result[c][(trig, tgt)] = float(e)
+        for i, c in enumerate(cutoff_col):
+            key = key_cols[0][i] if len(keys) == 1 else tuple(col[i] for col in key_cols)
+            result[c][key] = pack({name: value_cols[name][i] for name in names})
         return result
 
-    return RisearchAggregation(columns=("trigger", "target", "score", "energy"), combine=combine, finalize=finalize)
+    return RisearchAggregation(columns=(*keys, "score", "energy"), combine=combine, finalize=finalize)
+
+
+def min_energy_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
+    """Best-site (min-energy) hit per (trigger, target), per cutoff.
+
+    Returns ``{cutoff: {(trigger, target): min_energy}}`` (negative for binders).
+    """
+    return _by_key_multi_cutoff(
+        cutoffs,
+        keys=("trigger", "target"),
+        value_aggs=(("energy", "energy", "min"),),
+        pack=lambda r: float(r["energy"]),
+    )
 
 
 class PairAggregation:
@@ -434,207 +478,58 @@ class PairAggregation:
 
 
 def aggregate_by_pair_multi_cutoff(cutoffs, strategy, RT: float = 0.616) -> RisearchAggregation:
-    """Per-(trigger, target) reducer for several cutoffs from ONE loose RIsearch pass.
+    """Per-(trigger, target) reducer for several cutoffs from one loose RIsearch pass.
 
-    ``strategy`` selects the per-pair reduction (see PairAggregation). MIN_ENERGY
-    delegates to min_energy_by_pair_multi_cutoff; BOLTZMANN_SUM uses
-    sum(exp(-energy/RT)) per pair. RT defaults to 0.616 kcal/mol (310 K) and is only
-    consulted by BOLTZMANN_SUM. The multi-cutoff invariant — filtering hits where
-    ``score > c`` from a single loose run reproduces an independent per-cutoff run —
-    holds for both because each branch applies the same score filter before reducing.
+    ``strategy`` (see PairAggregation) selects the reduction: BOLTZMANN_SUM keeps
+    ``sum(exp(-energy/RT))`` per pair (always >= 0), MIN_ENERGY keeps the best-site
+    energy (negative for binders). RT (310 K) is consulted only by BOLTZMANN_SUM.
 
-    Returns ``{cutoff: {(trigger, target): value}}``; ``value`` is sum_exp for
-    BOLTZMANN_SUM (always non-negative) and min_energy for MIN_ENERGY (negative for
-    binders).
+    Returns ``{cutoff: {(trigger, target): value}}``.
     """
     if strategy == PairAggregation.MIN_ENERGY:
         return min_energy_by_pair_multi_cutoff(cutoffs)
     if strategy == PairAggregation.BOLTZMANN_SUM:
-        return _sum_exp_by_pair_aggregation(cutoffs, RT)
+        return _by_key_multi_cutoff(
+            cutoffs,
+            keys=("trigger", "target"),
+            value_aggs=(("_exp", "_exp", "sum"),),
+            pack=lambda r: float(r["_exp"]),
+            RT=RT,
+        )
     raise ValueError(f"Unknown PairAggregation strategy: {strategy}")
 
 
-def _sum_exp_by_pair_aggregation(cutoffs, RT: float) -> RisearchAggregation:
-    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
-
-    def _empty():
-        import pyarrow as pa
-
-        return pa.table(
-            {
-                "cutoff": pa.array([], pa.int64()),
-                "trigger": pa.array([], pa.string()),
-                "target": pa.array([], pa.string()),
-                "_exp": pa.array([], pa.float64()),
-            }
-        )
-
-    def combine(batch):
-        import pyarrow as pa
-        import pyarrow.compute as pc
-
-        exp_col = pc.exp(pc.divide(batch.column("energy"), -RT))
-        base = pa.table(
-            {
-                "trigger": batch.column("trigger"),
-                "target": batch.column("target"),
-                "score": batch.column("score"),
-                "_exp": exp_col,
-            }
-        )
-        parts = []
-        for c in sorted_cutoffs:
-            sub = base.filter(pc.greater(base.column("score"), c))
-            if sub.num_rows == 0:
-                continue
-            agg = (
-                sub.group_by(["trigger", "target"])
-                .aggregate([("_exp", "sum")])
-                .rename_columns(["trigger", "target", "_exp"])
-            )
-            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
-            parts.append(agg.select(["cutoff", "trigger", "target", "_exp"]))
-        return pa.concat_tables(parts) if parts else _empty()
-
-    def finalize(table):
-        final = (
-            table.group_by(["cutoff", "trigger", "target"])
-            .aggregate([("_exp", "sum")])
-            .rename_columns(["cutoff", "trigger", "target", "_exp"])
-        )
-        result: dict = {c: {} for c in sorted_cutoffs}
-        for c, trig, tgt, s in zip(
-            final.column("cutoff").to_pylist(),
-            final.column("trigger").to_pylist(),
-            final.column("target").to_pylist(),
-            final.column("_exp").to_pylist(),
-        ):
-            result[c][(trig, tgt)] = float(s)
-        return result
-
-    return RisearchAggregation(columns=("trigger", "target", "score", "energy"), combine=combine, finalize=finalize)
-
-
 def sum_exp_by_trigger_multi_cutoff(cutoffs, RT: float = 0.616) -> RisearchAggregation:
-    """Single-target-gene score for several cutoffs from ONE loose RIsearch pass.
-
-    A Boltzmann sum exp(-energy/RT) over every hit per trigger (not just the
-    strongest), kept separately for each cutoff — a hit counts toward cutoff ``c`` only
-    when ``score > c``. RT defaults to 0.616 kcal/mol (310 K). RIsearch's ``-s`` is
-    exclusive and its cutoffs are nested, so this reproduces N independent per-cutoff
-    runs (within FP rounding, as the sum is float-order-dependent).
+    """Boltzmann sum ``exp(-energy/RT)`` over every hit per trigger, per cutoff.
 
     Returns ``{cutoff: {trigger: sum_exp}}``.
     """
-    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
-
-    def _empty():
-        import pyarrow as pa
-
-        return pa.table(
-            {
-                "cutoff": pa.array([], pa.int64()),
-                "trigger": pa.array([], pa.string()),
-                "_exp": pa.array([], pa.float64()),
-            }
-        )
-
-    def combine(batch):
-        import pyarrow as pa
-        import pyarrow.compute as pc
-
-        exp_col = pc.exp(pc.divide(batch.column("energy"), -RT))
-        base = pa.table({"trigger": batch.column("trigger"), "score": batch.column("score"), "_exp": exp_col})
-        parts = []
-        for c in sorted_cutoffs:
-            sub = base.filter(pc.greater(base.column("score"), c))
-            if sub.num_rows == 0:
-                continue
-            agg = sub.group_by("trigger").aggregate([("_exp", "sum")]).rename_columns(["trigger", "_exp"])
-            agg = agg.append_column("cutoff", pa.array([c] * agg.num_rows, pa.int64()))
-            parts.append(agg.select(["cutoff", "trigger", "_exp"]))
-        return pa.concat_tables(parts) if parts else _empty()
-
-    def finalize(table):
-        final = (
-            table.group_by(["cutoff", "trigger"])
-            .aggregate([("_exp", "sum")])
-            .rename_columns(["cutoff", "trigger", "_exp"])
-        )
-        result: dict = {c: {} for c in sorted_cutoffs}
-        for c, trig, s in zip(
-            final.column("cutoff").to_pylist(),
-            final.column("trigger").to_pylist(),
-            final.column("_exp").to_pylist(),
-        ):
-            result[c][trig] = float(s)
-        return result
-
-    return RisearchAggregation(columns=("trigger", "score", "energy"), combine=combine, finalize=finalize)
+    return _by_key_multi_cutoff(
+        cutoffs,
+        keys=("trigger",),
+        value_aggs=(("_exp", "_exp", "sum"),),
+        pack=lambda r: float(r["_exp"]),
+        RT=RT,
+    )
 
 
 def stats_by_trigger_multi_cutoff(cutoffs, RT: float = 0.616) -> RisearchAggregation:
-    """Site-resolved on-target statistics for several cutoffs from ONE loose RIsearch pass.
+    """Site-resolved on-target stats per trigger, per cutoff: the Boltzmann sum, the
+    best-site energy and the hit count.
 
-    Like ``sum_exp_by_trigger_multi_cutoff`` but keeps three quantities per trigger and cutoff:
-    the Boltzmann sum ``sum(exp(-energy/RT))``, the single best-site energy ``min(energy)`` and the
-    number of hits. From these, callers derive the effective number of sites (target multiplicity):
-    ``log_eff = log(sum_exp) - (-min_energy / RT)``, which is 0 for a single dominant site and grows
-    when several comparable sites share the binding.
+    Callers derive the effective number of sites (target multiplicity)
+    ``log_eff = log(sum_exp) - (-min_energy / RT)`` -- 0 for a single dominant site,
+    growing when several comparable sites share the binding.
 
     Returns ``{cutoff: {trigger: (sum_exp, min_energy, n_sites)}}``.
     """
-    sorted_cutoffs = sorted(set(int(c) for c in cutoffs))
-
-    def _empty():
-        import pyarrow as pa
-
-        return pa.table(
-            {
-                "cutoff": pa.array([], pa.int64()),
-                "trigger": pa.array([], pa.string()),
-                "s": pa.array([], pa.float64()),
-                "e": pa.array([], pa.float64()),
-                "n": pa.array([], pa.int64()),
-            }
-        )
-
-    def combine(batch):
-        import pyarrow as pa
-        import pyarrow.compute as pc
-
-        exp_col = pc.exp(pc.divide(batch.column("energy"), -RT))
-        base = pa.table(
-            {"trigger": batch.column("trigger"), "score": batch.column("score"),
-             "energy": batch.column("energy"), "_exp": exp_col}
-        )
-        parts = []
-        for c in sorted_cutoffs:
-            sub = base.filter(pc.greater(base.column("score"), c))
-            if sub.num_rows == 0:
-                continue
-            agg = sub.group_by("trigger").aggregate([("_exp", "sum"), ("energy", "min"), ("energy", "count")])
-            d = {nm: agg.column(nm) for nm in agg.column_names}
-            parts.append(
-                pa.table({"cutoff": pa.array([c] * agg.num_rows, pa.int64()), "trigger": d["trigger"],
-                          "s": d["_exp_sum"], "e": d["energy_min"], "n": d["energy_count"]})
-            )
-        return pa.concat_tables(parts) if parts else _empty()
-
-    def finalize(table):
-        final = table.group_by(["cutoff", "trigger"]).aggregate([("s", "sum"), ("e", "min"), ("n", "sum")])
-        result: dict = {c: {} for c in sorted_cutoffs}
-        for c, trig, s, e, n in zip(
-            final.column("cutoff").to_pylist(),
-            final.column("trigger").to_pylist(),
-            final.column("s_sum").to_pylist(),
-            final.column("e_min").to_pylist(),
-            final.column("n_sum").to_pylist(),
-        ):
-            result[c][trig] = (float(s), float(e), int(n))
-        return result
-
-    return RisearchAggregation(columns=("trigger", "score", "energy"), combine=combine, finalize=finalize)
+    return _by_key_multi_cutoff(
+        cutoffs,
+        keys=("trigger",),
+        value_aggs=(("s", "_exp", "sum"), ("e", "energy", "min"), ("n", "energy", "count")),
+        pack=lambda r: (float(r["s"]), float(r["e"]), int(r["n"])),
+        RT=RT,
+    )
 
 
 def _parse_mfe_scores_2(result):
