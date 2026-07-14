@@ -18,7 +18,6 @@ from ....data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 from ....util import get_antisense
 from ..fast_hybridization import (
     Interaction,
-    PairAggregation,
     aggregate_by_pair_multi_cutoff,
     parse_risearch_hits_pyarrow,
 )
@@ -34,7 +33,7 @@ def aggregate_per_gene_tpm_weighted(energy_dict, expression_dict, method):
     """Combine per-gene off-target values into a log-abundance × log-free-energy score.
 
     energy_dict: {gene: Z_g} for the off-target genes a trigger binds; ``Z_g`` is the
-    per-pair Boltzmann sum from PairAggregation.BOLTZMANN_SUM
+    per-pair Boltzmann sum from aggregate_by_pair_multi_cutoff
     (Σ_sites exp(-energy/RT) for that (trigger, gene)).
     expression_dict: {gene: (TPM, normalised)}.
     method: AggregationMethod tag; consumed only by serialize_feature_name (kept in
@@ -74,14 +73,14 @@ def calculate_risearch_energy_per_cutoff(query_pairs, target_path, cutoffs, mini
     (the caller passes the loosest cutoff so every requested cutoff is derivable).
 
     Returns {cutoff: {(trigger, target): value}} where ``value`` is the per-pair
-    reduction selected by PairAggregation.BOLTZMANN_SUM (no self-filter, no scoring).
+    Boltzmann-sum reduction (no self-filter, no scoring).
     """
     if not query_pairs:
         return {int(c): {} for c in cutoffs}
     return parse_risearch_hits_pyarrow(
         trigger_id_seq_pairs=query_pairs,
         target_file_path=target_path,
-        aggregation=aggregate_by_pair_multi_cutoff(cutoffs, strategy=PairAggregation.BOLTZMANN_SUM),
+        aggregation=aggregate_by_pair_multi_cutoff(cutoffs),
         minimum_score=minimum_score,
         parsing_type="2",
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
@@ -115,22 +114,6 @@ def energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, c
                 scores[idx] = aggregate_per_gene_tpm_weighted(energies, exp_map, method)
         out[cutoff] = scores
     return out
-
-
-def compute_group_batch_multi_cutoff(group_df, exp_map, cutoffs, method, prebuilt_target_path):
-    """Score one ASO group against a prebuilt target for every cutoff, with one RIsearch run.
-
-    Returns {cutoff: Series of scores indexed like group_df}.
-    """
-    indices = group_df.index.tolist()
-    if group_df.empty:
-        return {c: pd.Series(dtype=float) for c in cutoffs}
-
-    query_pairs = [(str(idx), get_antisense(seq)) for idx, seq in zip(indices, group_df[ASO_SEQUENCE])]
-    idx_to_gene = {str(idx): gene for idx, gene in zip(indices, group_df[CANONICAL_GENE_NAME])}
-
-    per_cutoff = calculate_risearch_energy_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
-    return energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, cutoffs)
 
 
 def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs, method, prebuilt_target_path):

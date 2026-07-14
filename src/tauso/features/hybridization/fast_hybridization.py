@@ -462,45 +462,19 @@ def _by_key_multi_cutoff(
     return RisearchAggregation(columns=(*keys, "score", "energy"), combine=combine, finalize=finalize)
 
 
-def min_energy_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
-    """Best-site (min-energy) hit per (trigger, target), per cutoff.
+def aggregate_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
+    """Per-(trigger, target) Boltzmann reducer for several cutoffs from one loose RIsearch pass.
 
-    Returns ``{cutoff: {(trigger, target): min_energy}}`` (negative for binders).
+    Keeps ``sum(exp(-energy/RT_KCAL_MOL))`` per pair (always >= 0).
+
+    Returns ``{cutoff: {(trigger, target): sum_exp}}``.
     """
     return _by_key_multi_cutoff(
         cutoffs,
         keys=("trigger", "target"),
-        value_aggs=(("energy", "energy", "min"),),
-        pack=lambda r: float(r["energy"]),
+        value_aggs=(("_exp", "_exp", "sum"),),
+        pack=lambda r: float(r["_exp"]),
     )
-
-
-class PairAggregation:
-    """Per-(trigger, target) reduction strategy for aggregate_by_pair_multi_cutoff."""
-
-    BOLTZMANN_SUM = "boltzmann_sum"  # Σ exp(-energy/RT) over sites (production default)
-    MIN_ENERGY = "min_energy"  # min(energy) over sites (legacy "best site" reducer)
-
-
-def aggregate_by_pair_multi_cutoff(cutoffs, strategy) -> RisearchAggregation:
-    """Per-(trigger, target) reducer for several cutoffs from one loose RIsearch pass.
-
-    ``strategy`` (see PairAggregation) selects the reduction: BOLTZMANN_SUM keeps
-    ``sum(exp(-energy/RT_KCAL_MOL))`` per pair (always >= 0), MIN_ENERGY keeps the
-    best-site energy (negative for binders).
-
-    Returns ``{cutoff: {(trigger, target): value}}``.
-    """
-    if strategy == PairAggregation.MIN_ENERGY:
-        return min_energy_by_pair_multi_cutoff(cutoffs)
-    if strategy == PairAggregation.BOLTZMANN_SUM:
-        return _by_key_multi_cutoff(
-            cutoffs,
-            keys=("trigger", "target"),
-            value_aggs=(("_exp", "_exp", "sum"),),
-            pack=lambda r: float(r["_exp"]),
-        )
-    raise ValueError(f"Unknown PairAggregation strategy: {strategy}")
 
 
 def stats_by_trigger_multi_cutoff(cutoffs) -> RisearchAggregation:
