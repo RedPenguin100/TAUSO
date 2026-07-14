@@ -22,13 +22,10 @@ from notebooks.data.ASOptimizer.consts import (
     SEQUENCE_ASOPT,
     VOLUME_ASOPT,
 )
-from notebooks.data.ASOptimizer.utility import (
-    transfection_to_oligo,
-    transform_linkage_to_oligo,
-    transform_pattern_to_oligo,
-)
+from notebooks.data.ASOptimizer.utility import transfection_to_oligo
 from notebooks.notebook_utils import get_unique_genes
 
+from tauso.common.modifications import transform_linkage_to_oligo, transform_pattern_to_oligo
 from tauso.data.consts import (
     BACKBONE_MODS,
     CANONICAL_GENE_NAME,

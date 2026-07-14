@@ -1,5 +1,3 @@
-import re
-
 import numpy as np
 import pandas as pd
 from notebooks.data.ASOptimizer.consts import LINKAGE_LOCATION_ASOPT, SMILES_ASOPT, TRANSFECTION_ASOPT
@@ -8,6 +6,7 @@ from notebooks.data.utility import standardize_cell_line
 from notebooks.notebook_utils import get_unique_genes, log_correction
 from notebooks.preprocessing import process_row
 
+from tauso.common.modifications import transform_linkage_to_oligo
 from tauso.data.consts import (
     ASO_SEQUENCE,
     CANONICAL_GENE_NAME,
@@ -24,52 +23,6 @@ from tauso.data.consts import (
     resolve_depmap_proxy,
 )
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-
-
-def transform_linkage_to_oligo(pattern_string, seq_length):
-    """
-    Transforms linkage shorthand into a string representation of a list.
-    Length of PS/PO list is seq_length - 1, followed by one <PAD>.
-    """
-    # 1. Determine number of linkage slots (n-1)
-    num_linkages = seq_length - 1
-
-    # 2. Handle the 'else' case: everything is PS
-    if str(pattern_string).strip().lower() == "else":
-        result = ["PS"] * num_linkages
-    else:
-        # 3. Extract PS indices from string (e.g., "0?4?15" -> {0, 4, 15})
-        ps_indices = set(map(int, re.findall(r"\d+", str(pattern_string))))
-
-        # 4. Build the list of PS/PO
-        result = []
-        for i in range(num_linkages):
-            if i in ps_indices:
-                result.append("PS")
-            else:
-                result.append("PO")
-
-    # 5. Always add the PAD at the end
-    result.append("<PAD>")
-
-    # 6. Return as the exact string format requested
-    return str(result)
-
-
-def transform_pattern_to_oligo(sequence_string, lna_as_cet=True):
-    """
-    Transforms shorthand to a STRING representation of a list.
-    Input: "MMM" -> Output: "['MOE', 'MOE', 'MOE']"
-    """
-    mapping = {"M": "MOE", "d": "DNA", "C": "CET"}
-    if lna_as_cet:
-        mapping["L"] = "CET"
-
-    # Create the list first
-    result_list = [mapping.get(char, char) for char in sequence_string]
-
-    # Convert the list object into a literal string
-    return str(result_list)
 
 
 def transfection_to_oligo(df):

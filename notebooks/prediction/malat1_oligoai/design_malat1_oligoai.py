@@ -1,142 +1,108 @@
-"""Generate MALAT1 2'-MOE gapmer ASOs and rank them with OligoAI.
+"""Design MALAT1 2'-MOE gapmer ASOs with TAUSO and rank them with the OligoAI model.
 
-Tiles the MALAT1 sense transcript into 20-mer 5-10-5 (MOE / DNA / MOE) full-PS gapmers,
-formats every candidate into OligoAI's inhibition-model schema, runs OligoAI inference with
-a trained checkpoint, and writes the candidates ranked by predicted knockdown.
-
-OligoAI is a scorer, not a generator, so "design" here means enumerate-then-score: one
-candidate per transcript position, each scored for percent target knockdown.
-
-Run (from this directory):
-    python design_malat1_oligoai.py --ckpt /path/to/OligoAI_11_09_25.ckpt
-
-The inference step runs inside the `oligo_5090_hybrid` conda env (torch cu128 + flash-attn
-2.8.4, required for RTX 5090 / Blackwell). Everything else is plain pandas and runs anywhere.
+TAUSO tiles the transcript into 20-mer 5-10-5 (MOE/DNA/MOE) full-PS gapmers; each candidate is
+formatted for OligoAI's inhibition model, scored, and written ranked by predicted knockdown.
 """
 
 import argparse
+import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pandas as pd
 
+from tauso.aso_generation import default_config, get_initial_data
+from tauso.common.modifications import transform_linkage_to_oligo, transform_pattern_to_oligo
+from tauso.data.consts import ASO_SEQUENCE
+from tauso.populate.calculators.cache import AssetCache
+
 HERE = Path(__file__).resolve().parent
-DEFAULT_FASTA = HERE / "MALAT1.fasta"
-DEFAULT_OLIGOAI_REPO = Path("/home/michael/career/tauso_article/OligoAI-fork")
-DEFAULT_CKPT = Path("/mnt/c/Users/micha/Downloads/OligoAI_11_09_25.ckpt")
-DEFAULT_ENV = "oligo_5090_hybrid"
 
-# --- 2'-MOE "vanilla" gapmer design ---
+GENE = "MALAT1"
 ASO_LEN = 20
-WING = 5  # MOE nucleotides on each end -> 5-10-5 MOE/DNA/MOE
-FLANK = 50  # nt of sense context on each side of the binding site (OligoAI uses +/-50)
-SUGAR_MODS = ["MOE"] * WING + ["DNA"] * (ASO_LEN - 2 * WING) + ["MOE"] * WING
-BACKBONE_MODS = ["PS"] * (ASO_LEN - 1) + ["<PAD>"]  # full PS: 19 linkages, terminal pad
+FLANK = 50  # nt of sense context on each side of the site (OligoAI's +/-50 window)
+SUGAR_MODS = transform_pattern_to_oligo(default_config().standard_chemical_pattern)
+BACKBONE_MODS = transform_linkage_to_oligo("else", ASO_LEN)  # "else" => every linkage is PS
+CHEMISTRY = "2'MOE 5-10-5 gapmer, full PS"
 
-# Lipofection screening dose the model conditions on (nM); in-domain mode of OligoAI's data.
-DEFAULT_DOSE = 100.0
-DEFAULT_DELIVERY = "Lipofection"
-
-_COMP = {"A": "T", "T": "A", "G": "C", "C": "G"}
-
-
-def revcomp(seq: str) -> str:
-    return "".join(_COMP[b] for b in reversed(seq))
+INPUT_COLS = ["aso_sequence_5_to_3", "sugar_mods", "backbone_mods", "rna_context",
+              "dosage", "transfection_method", "inhibition_percent", "custom_id", "split", "target_start"]
+OUTPUT_COLS = ["rank", "target_start", "aso_sequence_5_to_3", "predicted_inhibition_percent",
+               "chemistry", "transfection_method", "dosage"]
 
 
-def read_fasta(path: Path) -> str:
-    bases = [ln.strip() for ln in Path(path).read_text().splitlines() if ln and not ln.startswith(">")]
-    return "".join(bases).upper()
-
-
-def build_candidates(transcript: str, delivery: str, dose: float, limit: int | None = None) -> pd.DataFrame:
-    """One 5-10-5 MOE gapmer per transcript position, in OligoAI's input schema."""
+def build_candidates(delivery, dose, genome="GRCh38"):
+    transcript = str(AssetCache(genome=genome).get_full_gene_data()[GENE].full_mrna)
+    candidates = get_initial_data(transcript, aso_sizes=[ASO_LEN], canonical_name=GENE)
     rows = []
-    last = len(transcript) - ASO_LEN
-    for start in range(0, last + 1):
-        site = transcript[start : start + ASO_LEN]  # sense target window (DNA)
-        if set(site) - set("ACGT"):
-            continue
-        aso = revcomp(site)  # ASO, 5'->3', DNA letters
-        up = transcript[max(0, start - FLANK) : start]
-        down = transcript[start + ASO_LEN : start + ASO_LEN + FLANK]
-        rna_context = (up + site + down).replace("T", "U")  # sense context, RNA letters
-        rows.append(
-            {
-                "aso_sequence_5_to_3": aso,
-                "inhibition_percent": 0.0,  # unknown; placeholder so OligoAI retains the row
-                "chemistry": "2'MOE 5-10-5 gapmer, full PS",
-                "custom_id": "MALAT1_2moe_design",
-                "target_mrna": "MALAT1",
-                "target_gene": "MALAT1",
-                "cell_line": "",
-                "cell_line_species": "human",
-                "dosage": dose,
-                "cells_per_well": "",
-                "transfection_method": delivery,
-                "steric_blocking": False,
-                "rna_context": rna_context,
-                "sugar_mods": SUGAR_MODS,
-                "backbone_mods": BACKBONE_MODS,
-                "split": "test",
-                "target_start": start,  # 0-based position on the MALAT1 transcript
-            }
-        )
-        if limit is not None and len(rows) >= limit:
-            break
+    for start, aso in enumerate(candidates[ASO_SEQUENCE]):
+        up = transcript[max(0, start - FLANK):start]
+        down = transcript[start + ASO_LEN:start + ASO_LEN + FLANK]
+        context = (up + transcript[start:start + ASO_LEN] + down).replace("T", "U")
+        rows.append({
+            "aso_sequence_5_to_3": aso,
+            "sugar_mods": SUGAR_MODS,
+            "backbone_mods": BACKBONE_MODS,
+            "rna_context": context,
+            "dosage": dose,
+            "transfection_method": delivery,
+            "inhibition_percent": 0.0,  # placeholder label; OligoAI drops rows with a null label
+            "custom_id": f"{GENE}_2moe_design",
+            "split": "test",
+            "target_start": start,
+        })
     return pd.DataFrame(rows)
 
 
-def run_oligoai(input_csv: Path, pred_csv: Path, repo: Path, ckpt: Path, env: str, batch_size: int) -> None:
-    cmd = [
-        "conda", "run", "--no-capture-output", "-n", env,
-        "python", str(repo / "run_inference.py"), str(input_csv),
-        "--model_checkpoint", str(ckpt),
-        "--device", "auto",
-        "--batch_size", str(batch_size),
-        "--output_path", str(pred_csv),
-    ]
-    print("Running OligoAI inference:\n  " + " ".join(cmd))
-    subprocess.run(cmd, cwd=repo, check=True)
+def score_with_oligoai(input_csv, pred_csv, repo, ckpt, env, batch_size):
+    subprocess.run(
+        ["conda", "run", "--no-capture-output", "-n", env,
+         "python", str(Path(repo) / "run_inference.py"), str(input_csv),
+         "--model_checkpoint", str(ckpt), "--device", "auto",
+         "--batch_size", str(batch_size), "--output_path", str(pred_csv)],
+        cwd=repo, check=True,
+    )
 
 
-def main() -> None:
+def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--fasta", type=Path, default=DEFAULT_FASTA)
-    p.add_argument("--oligoai-repo", type=Path, default=DEFAULT_OLIGOAI_REPO)
-    p.add_argument("--ckpt", type=Path, default=DEFAULT_CKPT, help="trained OligoAI checkpoint (.ckpt)")
-    p.add_argument("--env", default=DEFAULT_ENV, help="conda env with OligoAI's deps")
-    p.add_argument("--delivery", default=DEFAULT_DELIVERY, choices=["Lipofection", "Gymnosis", "Electroporation", "Other"])
-    p.add_argument("--dose", type=float, default=DEFAULT_DOSE, help="dose the model conditions on (nM)")
-    p.add_argument("--batch-size", type=int, default=128)
-    p.add_argument("--limit", type=int, default=None, help="tile only the first N positions (quick test)")
+    p.add_argument("--delivery", default="Lipofection",
+                   choices=["Lipofection", "Gymnosis", "Electroporation", "Other"])
+    p.add_argument("--dose", type=float, default=100.0, help="dose OligoAI conditions on (nM)")
     p.add_argument("--out-dir", type=Path, default=HERE)
-    p.add_argument("--no-run-inference", action="store_true", help="build input only; skip OligoAI")
+    p.add_argument("--oligoai-repo", default=os.environ.get("OLIGOAI_REPO"),
+                   help="path to the OligoAI checkout (run_inference.py); or set OLIGOAI_REPO")
+    p.add_argument("--ckpt", default=os.environ.get("OLIGOAI_CKPT"),
+                   help="trained OligoAI checkpoint; or set OLIGOAI_CKPT")
+    p.add_argument("--conda-env", default=os.environ.get("OLIGOAI_ENV", "oligo_5090_hybrid"),
+                   help="conda env holding OligoAI's dependencies")
+    p.add_argument("--batch-size", type=int, default=128)
     args = p.parse_args()
 
-    transcript = read_fasta(args.fasta)
-    df = build_candidates(transcript, args.delivery, args.dose, args.limit)
+    candidates = build_candidates(args.delivery, args.dose)
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    input_csv = args.out_dir / "MALAT1_2moe_oligoai_input.csv"
-    df.to_csv(input_csv, index=False)
-    print(f"MALAT1: {len(transcript)} nt -> {len(df)} candidate 2'-MOE gapmers "
-          f"({args.delivery} @ {args.dose} nM) -> {input_csv.name}")
 
-    if args.no_run_inference:
+    if not (args.oligoai_repo and args.ckpt):
+        input_csv = args.out_dir / f"{GENE}_2moe_oligoai_input.csv"
+        candidates[INPUT_COLS].to_csv(input_csv, index=False)
+        print(f"Built {len(candidates)} candidates -> {input_csv}")
+        print("Pass --oligoai-repo and --ckpt (or set OLIGOAI_REPO / OLIGOAI_CKPT) to score and rank.")
         return
 
-    pred_csv = args.out_dir / "MALAT1_2moe_oligoai_input.with_predictions.csv"
-    run_oligoai(input_csv, pred_csv, args.oligoai_repo, args.ckpt, args.env, args.batch_size)
+    with tempfile.TemporaryDirectory() as work:
+        input_csv, pred_csv = Path(work) / "input.csv", Path(work) / "pred.csv"
+        candidates[INPUT_COLS].to_csv(input_csv, index=False)
+        score_with_oligoai(input_csv, pred_csv, args.oligoai_repo, args.ckpt, args.conda_env, args.batch_size)
+        pred = pd.read_csv(pred_csv)
 
-    pred = pd.read_csv(pred_csv)
-    ranked = pred.sort_values("predicted_inhibition_percent", ascending=False).reset_index(drop=True)
+    ranked = pred.sort_values("predicted_inhibition_percent", ascending=False, ignore_index=True)
     ranked.insert(0, "rank", range(1, len(ranked) + 1))
-    cols = ["rank", "target_start", "aso_sequence_5_to_3", "predicted_inhibition_percent",
-            "chemistry", "transfection_method", "dosage"]
-    final_csv = args.out_dir / "MALAT1_2moe_oligoai_ranked.csv"
-    ranked[cols].to_csv(final_csv, index=False)
-    print(f"\nRanked {len(ranked)} candidates -> {final_csv.name}")
-    print(ranked[["rank", "target_start", "aso_sequence_5_to_3", "predicted_inhibition_percent"]].head(15).to_string(index=False))
+    ranked["chemistry"] = CHEMISTRY
+    ranked_csv = args.out_dir / f"{GENE}_2moe_oligoai_ranked.csv"
+    ranked[OUTPUT_COLS].to_csv(ranked_csv, index=False)
+    print(f"Ranked {len(ranked)} candidates -> {ranked_csv}")
+    print(ranked[OUTPUT_COLS[:4]].head(15).to_string(index=False))
 
 
 if __name__ == "__main__":
