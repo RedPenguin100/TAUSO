@@ -76,30 +76,6 @@ def sense_internal_fold(seq: str) -> float:
     return RNA.fold(get_antisense_rna(seq))[1]
 
 
-def internal_fold_chem(seq: str, chemical_pattern: str, gap_penalty: float = 0.35) -> float:
-    """Chemistry-aware self-structure ΔG (kcal/mol) of the ASO.
-
-    2'-modified wing positions (``chemical_pattern`` == 'M') fold with RNA (Turner 2004) energetics;
-    the DNA gap ('d') is softened toward DNA stability via per-base-pair soft constraints, applying
-    ``gap_penalty`` kcal/mol to gap-gap pairs and half that to wing-gap (hybrid) pairs. The default
-    ``gap_penalty`` = 0.35 is calibrated so an all-'d' sequence reproduces the DNA (Mathews 2004)
-    fold. Falls back to a uniform RNA fold when the pattern is missing or length-mismatched.
-    """
-    s = seq.upper().replace("T", "U")
-    n = len(s)
-    pat = chemical_pattern if (isinstance(chemical_pattern, str) and len(chemical_pattern) == n and "d" in chemical_pattern) else "M" * n
-    fc = RNA.fold_compound(s)
-    for i in range(1, n + 1):
-        for j in range(i + 4, n + 1):
-            gi = pat[i - 1] == "d"
-            gj = pat[j - 1] == "d"
-            if gi and gj:
-                fc.sc_add_bp(i, j, gap_penalty)
-            elif gi or gj:
-                fc.sc_add_bp(i, j, gap_penalty / 2.0)
-    return fc.mfe()[1]
-
-
 def hairpin_dG_energy(seq: str):
     """
     Returns the raw ΔG (Gibbs free energy, primer3 units) of the predicted hairpin structure.

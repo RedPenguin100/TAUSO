@@ -43,7 +43,6 @@ from ...data.consts import (
     VOLUME_NM,
 )
 from ...features.interaction_features import internal_fold_gymnosis
-from ...features.sequence.seq_features import internal_fold_chem
 from ...timer import Timer
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
 from ..populate_context import (
@@ -754,47 +753,6 @@ class Calculator:
         else:
             logger.info("All backbone features exist. Skipping.")
 
-    def calculate_chem_fold(self):
-        """Chemistry-aware ASO self-fold and its gymnotic-uptake interaction.
-
-        The ASO is folded with 2'-modified wing positions treated as RNA (Turner 2004) and the
-        DNA gap softened toward DNA stability via per-base-pair soft constraints (see
-        ``internal_fold_chem``). Cached by unique (sequence, chemical pattern).
-        """
-        from ...data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
-
-        base = "seq_internal_fold_chem"
-        inter = "interaction_internal_fold_chem_gymnosis"
-        missing = self._get_missing_features([base, inter])
-        if not missing:
-            logger.info("Chemistry-aware fold features exist. Skipping.")
-            return
-
-        if base in missing:
-            self._check_dependencies([ASO_SEQUENCE, CHEMICAL_PATTERN])
-            seqs = self.data[ASO_SEQUENCE].astype(str).to_numpy()
-            pats = self.data[CHEMICAL_PATTERN].astype(str).to_numpy()
-            cache = {}
-            vals = np.empty(len(seqs), dtype=float)
-            for k in range(len(seqs)):
-                key = (seqs[k], pats[k])
-                v = cache.get(key)
-                if v is None:
-                    v = internal_fold_chem(seqs[k], pats[k])
-                    cache[key] = v
-                vals[k] = v
-            self.data[base] = vals
-            self._save_calculated_feature(feature_name=base)
-
-        if inter in missing:
-            deps = [base, "transfection_gymnosis"]
-            self._load_features_into_data(deps)
-            self._check_dependencies(deps)
-            self.data[inter] = internal_fold_gymnosis(
-                self.data[base], self.data["transfection_gymnosis"]
-            )
-            self._save_calculated_feature(feature_name=inter)
-
     def calculate_interaction(self):
         """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
         feature = "interaction_internal_fold_rna_gymnosis"
@@ -1201,7 +1159,6 @@ class Calculator:
             self.calculate_modification,
             self.calculate_hybridization,
             self.calculate_backbone_features,
-            self.calculate_chem_fold,
             self.calculate_interaction,
             self.calculate_ribo_seq,
             self.calculate_off_target_general,
