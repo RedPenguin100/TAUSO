@@ -116,7 +116,7 @@ def populate_sequence_features(
 # gapmers. Each position is assigned to whichever half of the sequence it falls in; positions
 # past a sequence's midpoint (or its end) are left NaN, so the two windows never double-encode
 # the middle of a short ASO.
-TERMINAL_OHE_N = 12
+TERMINAL_OHE_N = 10
 
 
 def one_hot_feature_names(terminal_n: int = TERMINAL_OHE_N) -> list[str]:
