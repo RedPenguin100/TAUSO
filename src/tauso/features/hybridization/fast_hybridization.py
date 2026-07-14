@@ -108,7 +108,7 @@ def _risearch_stdout(
     transpose=False,
     batch_id=None,
 ):
-    """The single RIsearch invocation. Writes the batched query FASTA, builds the args,
+    """The RIsearch invocation. Writes the batched query FASTA, builds the args,
     spawns the subprocess, and yields its live stdout for the caller to consume. On exit
     it drains stdout, checks the exit code, and removes the query file. Every RIsearch
     consumer (streaming aggregation, raw-hits collection) goes through here so the
@@ -318,9 +318,9 @@ def risearch_hits_dataframe(
     batch_id=None,
     block_size: int = 64 << 20,
 ):
-    """Run one batched RIsearch and return ALL hits as a DataFrame (the 8 RISEARCH_COLUMNS).
+    """Run a batched RIsearch and return ALL hits as a DataFrame (the 8 RISEARCH_COLUMNS).
 
-    Same single batched invocation as parse_risearch_hits_pyarrow and streamed through
+    Same batched invocation as parse_risearch_hits_pyarrow and streamed through
     pyarrow, but materialises the full table instead of reducing it — intended for tests
     and debugging, not the hot path (production uses parse_risearch_hits_pyarrow with an
     aggregation so memory stays bounded). Replaces the old get_triggers_mfe_scores_batch
@@ -365,11 +365,11 @@ def risearch_hits_dataframe(
 # ---------------------------------------------------------------------------
 # Multi-cutoff aggregations
 #
-# Each factory returns a RisearchAggregation that reduces one loose RIsearch pass
+# Each factory returns a RisearchAggregation that reduces a loose RIsearch pass
 # into ``{cutoff: {key: value}}``. They share one streaming skeleton,
 # ``_by_key_multi_cutoff``: group the hits with ``score > cutoff`` by ``keys``,
 # aggregate, and pack each group into a stored value. Deriving every cutoff from a
-# single loose run reproduces N independent per-cutoff runs, because RIsearch's
+# loose run is equivalent to independent per-cutoff runs, because RIsearch's
 # ``-s`` is exclusive and its cutoffs are nested (see
 # tests/complete/test_off_target_derivation_equivalence.py); Boltzmann sums match
 # only within FP rounding, being float-order dependent.
@@ -463,7 +463,7 @@ def _by_key_multi_cutoff(
 
 
 def aggregate_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
-    """Per-(trigger, target) Boltzmann reducer for several cutoffs from one loose RIsearch pass.
+    """Per-(trigger, target) Boltzmann reducer for several cutoffs from a loose RIsearch pass.
 
     Keeps ``sum(exp(-energy/RT_KCAL_MOL))`` per pair (always >= 0).
 

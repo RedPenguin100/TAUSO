@@ -1,4 +1,4 @@
-"""Per-gene hybridization features, all derived from one shared RIsearch scan.
+"""Per-gene hybridization features, all derived from a RIsearch scan.
 
 Each entry point runs the per-gene scan (gene_chunk_scoring.scan_gene_sites) and derives its
 columns from the site-resolved stats:
@@ -7,7 +7,7 @@ columns from the site-resolved stats:
 - ``on_target_log_number_of_sites``  -- same scan, log effective number of sites (multiplicity)
 - ``off_target_single_gene_hybridization`` -- each ASO vs a fixed named gene, Sum exp(-energy/RT)
 
-``add_on_target_site_features`` emits BOTH on-target features from a SINGLE scan; it is what the
+``add_on_target_site_features`` emits BOTH on-target features together; it is what the
 feature pipeline calls. The individual on-target entry points each run their own scan and back the
 regression tests.
 """
@@ -46,7 +46,7 @@ def _scan_own_gene(aso_df, gene_to_data, cutoffs, n_jobs):
 
 
 def add_on_target_site_features(aso_df, gene_to_data, cutoffs, n_jobs=1):
-    """One RIsearch scan of each ASO vs its own canonical gene -> BOTH on-target features per
+    """Scores each ASO vs its own canonical gene -> BOTH on-target features per
     cutoff: ``on_target_total_hybridization_{c}`` and ``on_target_log_number_of_sites_{c}``.
 
     Returns (aso_df, [feature_names]).

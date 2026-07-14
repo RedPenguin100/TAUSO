@@ -43,7 +43,6 @@ from ...data.consts import (
     VOLUME_NM,
 )
 from ...features.interaction_features import internal_fold_gymnosis
-from ...features.sequence.seq_features import internal_fold_chem
 from ...timer import Timer
 from ...util import dna_to_rna
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
@@ -394,7 +393,7 @@ class Calculator:
             for name, locus in get_rrna_loci().items():
                 gene_to_data_full.setdefault(name, locus)
 
-            # All cutoffs for a gene come from ONE RIsearch pass per ASO batch.
+            # All cutoffs for a gene are derived together per ASO batch.
             for target_gene in targets:
                 self.data, feature_names = off_target_single_gene_hybridization(
                     self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus
@@ -411,9 +410,8 @@ class Calculator:
             logger.info("All specific off-target features exist. Skipping.")
 
     def calculate_on_target_site_features(self):
-        """Calculates both on-target site features from ONE RIsearch scan of each ASO against its
-        canonical gene: total hybridization (Sum exp(-E/RT)) and log effective number of sites
-        (target multiplicity), at each score cutoff."""
+        """On-target site features against each ASO's canonical gene: total hybridization
+        (Sum exp(-E/RT)) and log effective number of sites (target multiplicity), per score cutoff."""
         cutoffs = [800, 1000, 1200]
         expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs] + [
             f"on_target_log_number_of_sites_{c}" for c in cutoffs
@@ -422,14 +420,14 @@ class Calculator:
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("Computing %d on-target site features from one RIsearch scan...", len(missing))
+            logger.info("Computing %d on-target site features...", len(missing))
 
             from tauso.features.hybridization.off_target.off_target_specific_gene import (
                 add_on_target_site_features,
             )
 
-            # On-target only evaluates against each row's canonical gene, so the lean dict suffices.
-            # One scan derives every cutoff and both features; only the missing shards are saved.
+            # On-target evaluates only against each row's canonical gene, so the lean dict suffices.
+            # Only the missing shards are saved.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
             self.data, generated_names = add_on_target_site_features(
                 self.data, gene_to_data, cutoffs=cutoffs, n_jobs=self.cpus
@@ -755,47 +753,6 @@ class Calculator:
         else:
             logger.info("All backbone features exist. Skipping.")
 
-    def calculate_chem_fold(self):
-        """Chemistry-aware ASO self-fold and its gymnotic-uptake interaction.
-
-        The ASO is folded with 2'-modified wing positions treated as RNA (Turner 2004) and the
-        DNA gap softened toward DNA stability via per-base-pair soft constraints (see
-        ``internal_fold_chem``). Cached by unique (sequence, chemical pattern).
-        """
-        from ...data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
-
-        base = "seq_internal_fold_chem"
-        inter = "interaction_internal_fold_chem_gymnosis"
-        missing = self._get_missing_features([base, inter])
-        if not missing:
-            logger.info("Chemistry-aware fold features exist. Skipping.")
-            return
-
-        if base in missing:
-            self._check_dependencies([ASO_SEQUENCE, CHEMICAL_PATTERN])
-            seqs = self.data[ASO_SEQUENCE].astype(str).to_numpy()
-            pats = self.data[CHEMICAL_PATTERN].astype(str).to_numpy()
-            cache = {}
-            vals = np.empty(len(seqs), dtype=float)
-            for k in range(len(seqs)):
-                key = (seqs[k], pats[k])
-                v = cache.get(key)
-                if v is None:
-                    v = internal_fold_chem(seqs[k], pats[k])
-                    cache[key] = v
-                vals[k] = v
-            self.data[base] = vals
-            self._save_calculated_feature(feature_name=base)
-
-        if inter in missing:
-            deps = [base, "transfection_gymnosis"]
-            self._load_features_into_data(deps)
-            self._check_dependencies(deps)
-            self.data[inter] = internal_fold_gymnosis(
-                self.data[base], self.data["transfection_gymnosis"]
-            )
-            self._save_calculated_feature(feature_name=inter)
-
     def calculate_interaction(self):
         """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
         feature = "interaction_internal_fold_rna_gymnosis"
@@ -945,7 +902,7 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            # All (top_n, cutoff) features come from ONE RIsearch pass per chunk:
+            # All (top_n, cutoff) features are derived together per chunk:
             # target FASTA built at max(needed_top_ns), smaller top_n derived by
             # gene-subset filter, cutoffs by score-filter on the streaming pyarrow
             # output. Only the top_n values whose features are still missing are
@@ -1004,7 +961,7 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            # All (top_n, cutoff) features come from ONE RIsearch pass per
+            # All (top_n, cutoff) features are derived together per
             # (cell_line, chunk): target FASTA built at max(needed_top_ns), smaller
             # top_n derived by gene-subset filter, cutoffs by score-filter on the
             # streaming pyarrow output. Only the top_n values whose features are
@@ -1202,7 +1159,6 @@ class Calculator:
             self.calculate_modification,
             self.calculate_hybridization,
             self.calculate_backbone_features,
-            self.calculate_chem_fold,
             self.calculate_interaction,
             self.calculate_ribo_seq,
             self.calculate_off_target_general,

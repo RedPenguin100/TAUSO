@@ -1,9 +1,9 @@
 """On-target multiplicity feature: log effective number of on-target sites per ASO.
 
-A thin per-feature entry over the shared per-gene scan -- each ASO is scored against its own
+A thin per-feature entry over the per-gene scan -- each ASO is scored against its own
 canonical gene, and the log effective site count is derived from the site-resolved stats (see
 off_target_specific_gene.log_number_of_sites_from_stats). In the feature pipeline this column is
-emitted together with on-target total hybridization from a single scan by
+emitted together with on-target total hybridization by
 ``add_on_target_site_features``; this entry point runs its own scan and backs the regression test.
 """
 

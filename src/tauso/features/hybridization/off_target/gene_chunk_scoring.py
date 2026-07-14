@@ -1,11 +1,11 @@
 """Per-gene RIsearch scan engine.
 
-Score ASOs against target gene(s) with one loose RIsearch pass per gene, in parallel: build a
+Score ASOs against target gene(s) with a loose RIsearch pass per gene, in parallel: build a
 target FASTA per gene, split each gene's ASOs into worker-sized chunks, run the chunks across a
 thread pool, and reduce the hits to site-resolved stats per ASO and cutoff.
 
 The reduction keeps the full ``SiteStats`` (Boltzmann sum, best-site energy, hit count) -- a
-strict superset of what any single per-gene hybridization feature needs -- so ONE scan feeds
+strict superset of what any single per-gene hybridization feature needs -- so the scan feeds
 every such feature. Feature modules derive their columns from the stats via ``emit_site_columns``
 (see off_target_specific_gene.py).
 """
@@ -97,7 +97,7 @@ def build_gene_chunk_tasks(gene_to_row_triggers, gene_to_target_path, n_jobs):
 
 
 def scan_gene_sites(aso_df, gene_to_data, target_genes, get_gene_fn, cutoffs, n_jobs):
-    """Run the per-gene RIsearch scan ONCE and return site-resolved stats per ASO and cutoff.
+    """Run the per-gene RIsearch scan and return site-resolved stats per ASO and cutoff.
 
     get_gene_fn(row) returns the target gene for a row (its own canonical gene for on-target, or
     a fixed gene for single off-target). Returns ``{cutoff: {row_index: SiteStats}}`` covering

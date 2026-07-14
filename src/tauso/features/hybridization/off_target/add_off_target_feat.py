@@ -2,7 +2,7 @@
 
 Calculates the various off-target feature scores from RIsearch hits, on top of the
 abstracted RIsearch streaming utilities in fast_hybridization. Given a group of ASOs and
-a prebuilt target FASTA, it runs RIsearch once, reduces the hits to the strongest energy
+a prebuilt target FASTA, it runs RIsearch, reduces the hits to the strongest energy
 per (trigger, target) for each energy cutoff, and turns those energies into an
 expression-weighted score.
 """
@@ -65,11 +65,11 @@ def aggregate_per_gene_tpm_weighted(energy_dict, expression_dict, method):
 
 
 def calculate_risearch_energy_per_cutoff(query_pairs, target_path, cutoffs, minimum_score):
-    """Run RIsearch once at `minimum_score` and bucket the hits by cutoff.
+    """Run RIsearch at `minimum_score` and bucket the hits by cutoff.
 
     query_pairs: [(trigger_id, trigger_seq)]; target_path: a prebuilt target FASTA.
     cutoffs: the energy-score cutoffs to keep buckets for (a hit counts toward cutoff c
-    when its score > c). minimum_score: the RIsearch -s threshold for the single run
+    when its score > c). minimum_score: the RIsearch -s threshold for the run
     (the caller passes the loosest cutoff so every requested cutoff is derivable).
 
     Returns {cutoff: {(trigger, target): value}} where ``value`` is the per-pair
@@ -117,7 +117,7 @@ def energy_score_per_cutoff(per_cutoff, indices, idx_to_gene, exp_map, method, c
 
 
 def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs, method, prebuilt_target_path):
-    """Score one ASO group for several top_n levels from ONE RIsearch run.
+    """Score one ASO group for several top_n levels together.
 
     top_n_to_data: {top_n: (exp_map, gene_set)} where gene_set is the set of target
     genes that belong to head(top_n) of the cell-line / general expression table.
