@@ -13,26 +13,17 @@ Candidate generation uses TAUSO (`tauso.aso_generation.get_initial_data` on the 
 the genome cache), so it needs a TAUSO environment with `TAUSO_DATA_DIR` set.
 
 ## Run
-From the repo root (the script imports `notebooks.data.OligoAI`):
+From the repo root, in a TAUSO environment:
 ```bash
-export OLIGOAI_REPO=/path/to/OligoAI      # holds run_inference.py + the rinalmo package
-export OLIGOAI_CKPT=/path/to/OligoAI.ckpt # trained checkpoint (not committed, ~2.9 GB)
-python -m notebooks.prediction.malat1_oligoai.design_malat1_oligoai  # --delivery / --dose to change context
+python -m notebooks.prediction.malat1_oligoai.design_malat1_oligoai   # --delivery / --dose to change context
 ```
-Without `OLIGOAI_REPO`/`OLIGOAI_CKPT` the script writes the OligoAI-format input and stops. Inference
-runs in the conda env named by `OLIGOAI_ENV` (default `oligo_5090_hybrid`). The OligoAI input and raw
-predictions are written to a temp dir; only the ranked CSV is kept.
+All paths default relative to this file (no absolute paths) and are overridable by flag or env var:
+- **OligoAI repo** — `--oligoai-repo` / `OLIGOAI_REPO`; defaults to the sibling `OligoAI-fork` checkout (holds `run_inference.py`).
+- **Checkpoint** — `--ckpt` / `OLIGOAI_CKPT`; defaults to `checkpoints/OligoAI_11_09_25.ckpt` (gitignored, ~2.9 GB — put the trained OligoAI checkpoint there).
+- **Inference env** — `--conda-env` / `OLIGOAI_ENV`; defaults to `oligo_5090_hybrid` (torch cu128 + flash-attn 2.8.4 for the RTX 5090).
 
-### Exact command used
-The committed `MALAT1_2moe_oligoai_ranked.csv` was generated from the repo root with exactly this
-command (author's local paths — adapt via the generic form above for another machine):
-```bash
-TAUSO_DATA_DIR=/home/michael/career/tauso_article/.tauso_data \
-PYTHONPATH=/home/michael/career/tauso_article/TAUSO_competition:/home/michael/career/tauso_article/TAUSO_competition/src \
-OLIGOAI_REPO=/home/michael/career/tauso_article/OligoAI-fork \
-OLIGOAI_CKPT=/mnt/c/Users/micha/Downloads/OligoAI_11_09_25.ckpt \
-conda run -n tauso_research python -m notebooks.prediction.malat1_oligoai.design_malat1_oligoai
-```
+If the OligoAI repo or checkpoint is missing, the script writes the OligoAI-format input and stops. The
+OligoAI input and raw predictions go to a temp dir; only the ranked CSV is kept.
 
 ## Output
 `MALAT1_2moe_oligoai_ranked.csv` — 8,810 candidates ranked by `predicted_inhibition_percent`, with

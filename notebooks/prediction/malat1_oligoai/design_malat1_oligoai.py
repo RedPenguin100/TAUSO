@@ -18,6 +18,9 @@ from tauso.data.consts import ASO_SEQUENCE
 from tauso.populate.calculators.cache import AssetCache
 
 HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parents[2]  # notebooks/prediction/malat1_oligoai -> repo root
+DEFAULT_OLIGOAI_REPO = REPO_ROOT.parent / "OligoAI-fork"  # sibling checkout with run_inference.py
+DEFAULT_CKPT = HERE / "checkpoints" / "OligoAI_11_09_25.ckpt"  # gitignored; see README
 
 GENE = "MALAT1"
 ASO_LEN = 20
@@ -71,10 +74,10 @@ def main():
                    choices=["Lipofection", "Gymnosis", "Electroporation", "Other"])
     p.add_argument("--dose", type=float, default=100.0, help="dose OligoAI conditions on (nM)")
     p.add_argument("--out-dir", type=Path, default=HERE)
-    p.add_argument("--oligoai-repo", default=os.environ.get("OLIGOAI_REPO"),
-                   help="path to the OligoAI checkout (run_inference.py); or set OLIGOAI_REPO")
-    p.add_argument("--ckpt", default=os.environ.get("OLIGOAI_CKPT"),
-                   help="trained OligoAI checkpoint; or set OLIGOAI_CKPT")
+    p.add_argument("--oligoai-repo", type=Path, default=os.environ.get("OLIGOAI_REPO") or DEFAULT_OLIGOAI_REPO,
+                   help="OligoAI checkout with run_inference.py (default: sibling OligoAI-fork; or set OLIGOAI_REPO)")
+    p.add_argument("--ckpt", type=Path, default=os.environ.get("OLIGOAI_CKPT") or DEFAULT_CKPT,
+                   help="OligoAI checkpoint (default: checkpoints/OligoAI_11_09_25.ckpt, gitignored; or set OLIGOAI_CKPT)")
     p.add_argument("--conda-env", default=os.environ.get("OLIGOAI_ENV", "oligo_5090_hybrid"),
                    help="conda env holding OligoAI's dependencies")
     p.add_argument("--batch-size", type=int, default=128)
@@ -83,11 +86,13 @@ def main():
     candidates = build_candidates(args.delivery, args.dose)
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    if not (args.oligoai_repo and args.ckpt):
+    run_inference_py = Path(args.oligoai_repo) / "run_inference.py"
+    if not run_inference_py.exists() or not Path(args.ckpt).exists():
         input_csv = args.out_dir / f"{GENE}_2moe_oligoai_input.csv"
         candidates[INPUT_COLS].to_csv(input_csv, index=False)
         print(f"Built {len(candidates)} candidates -> {input_csv}")
-        print("Pass --oligoai-repo and --ckpt (or set OLIGOAI_REPO / OLIGOAI_CKPT) to score and rank.")
+        missing = [str(p) for p in (run_inference_py, Path(args.ckpt)) if not p.exists()]
+        print(f"Skipped scoring; not found: {missing}. Set OLIGOAI_REPO / OLIGOAI_CKPT or --oligoai-repo/--ckpt.")
         return
 
     with tempfile.TemporaryDirectory() as work:
