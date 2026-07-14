@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from notebooks.data.OligoAI.parse_chemistry import transform_linkage_to_oligo, transform_pattern_to_oligo
 from tauso.aso_generation import default_config, get_initial_data
-from tauso.common.modifications import transform_linkage_to_oligo, transform_pattern_to_oligo
 from tauso.data.consts import ASO_SEQUENCE
 from tauso.populate.calculators.cache import AssetCache
 

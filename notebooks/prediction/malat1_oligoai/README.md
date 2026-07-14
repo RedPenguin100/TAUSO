@@ -13,10 +13,11 @@ Candidate generation uses TAUSO (`tauso.aso_generation.get_initial_data` on the 
 the genome cache), so it needs a TAUSO environment with `TAUSO_DATA_DIR` set.
 
 ## Run
+From the repo root (the script imports `notebooks.data.OligoAI`):
 ```bash
 export OLIGOAI_REPO=/path/to/OligoAI      # holds run_inference.py + the rinalmo package
 export OLIGOAI_CKPT=/path/to/OligoAI.ckpt # trained checkpoint (not committed, ~2.9 GB)
-python design_malat1_oligoai.py           # --delivery / --dose to change the assay context
+python -m notebooks.prediction.malat1_oligoai.design_malat1_oligoai  # --delivery / --dose to change context
 ```
 Without `OLIGOAI_REPO`/`OLIGOAI_CKPT` the script writes the OligoAI-format input and stops. Inference
 runs in the conda env named by `OLIGOAI_ENV` (default `oligo_5090_hybrid`). The OligoAI input and raw

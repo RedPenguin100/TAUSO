@@ -1,12 +1,11 @@
 import numpy as np
 import pandas as pd
 from notebooks.data.ASOptimizer.consts import LINKAGE_LOCATION_ASOPT, SMILES_ASOPT, TRANSFECTION_ASOPT
-from notebooks.data.OligoAI.parse_chemistry import assign_backbone
+from notebooks.data.OligoAI.parse_chemistry import assign_backbone, transform_linkage_to_oligo
 from notebooks.data.utility import standardize_cell_line
 from notebooks.notebook_utils import get_unique_genes, log_correction
 from notebooks.preprocessing import process_row
 
-from tauso.common.modifications import transform_linkage_to_oligo
 from tauso.data.consts import (
     ASO_SEQUENCE,
     CANONICAL_GENE_NAME,
