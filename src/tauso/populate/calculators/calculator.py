@@ -409,61 +409,35 @@ class Calculator:
         else:
             logger.info("All specific off-target features exist. Skipping.")
 
-    def calculate_on_target_hybridization(self):
-        """Calculates on-target total hybridization features."""
+    def calculate_on_target_site_features(self):
+        """Calculates both on-target site features from ONE RIsearch scan of each ASO against its
+        canonical gene: total hybridization (Sum exp(-E/RT)) and log effective number of sites
+        (target multiplicity), at each score cutoff."""
         cutoffs = [800, 1000, 1200]
-        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs]
+        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs] + [
+            f"on_target_log_number_of_sites_{c}" for c in cutoffs
+        ]
 
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("Computing %d on-target hybridization features...", len(missing))
+            logger.info("Computing %d on-target site features from one RIsearch scan...", len(missing))
 
-            from tauso.features.hybridization.off_target.off_target_specific_gene import on_target_total_hybridization
-
-            # Optimization: We can reuse the lean dictionary because on-target
-            # only evaluates against the canonical gene of each row.
-            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-
-            # All cutoffs come from ONE RIsearch pass per (gene, ASO batch).
-            needed_cutoffs = [c for c in cutoffs if f"on_target_total_hybridization_{c}" in missing]
-            if needed_cutoffs:
-                self.data, generated_names = on_target_total_hybridization(
-                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
-                )
-                for feature_name in generated_names:
-                    self._save_calculated_feature(feature_name=feature_name)
-        else:
-            logger.info("All on-target hybridization features exist. Skipping.")
-
-    def calculate_on_target_multiplicity(self):
-        """Calculates site-resolved on-target multiplicity: log effective number of on-target
-        sites per ASO at each score cutoff (target multiplicity), from one RIsearch pass."""
-        cutoffs = [800, 1000, 1200]
-        expected_features = [f"on_target_log_number_of_sites_{c}" for c in cutoffs]
-
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d on-target multiplicity features...", len(missing))
-
-            from tauso.features.hybridization.off_target.on_target_multiplicity import (
-                on_target_log_number_of_sites,
+            from tauso.features.hybridization.off_target.off_target_specific_gene import (
+                add_on_target_site_features,
             )
 
-            # Same lean per-gene dictionary as on-target hybridization: each ASO scores only
-            # against its canonical gene.
+            # On-target only evaluates against each row's canonical gene, so the lean dict suffices.
+            # One scan derives every cutoff and both features; only the missing shards are saved.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-
-            needed_cutoffs = [c for c in cutoffs if f"on_target_log_number_of_sites_{c}" in missing]
-            if needed_cutoffs:
-                self.data, generated_names = on_target_log_number_of_sites(
-                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
-                )
-                for feature_name in generated_names:
+            self.data, generated_names = add_on_target_site_features(
+                self.data, gene_to_data, cutoffs=cutoffs, n_jobs=self.cpus
+            )
+            for feature_name in generated_names:
+                if feature_name in missing:
                     self._save_calculated_feature(feature_name=feature_name)
         else:
-            logger.info("All on-target multiplicity features exist. Skipping.")
+            logger.info("All on-target site features exist. Skipping.")
 
     def calculate_mfe(self):
         """Calculates Minimum Free Energy (MFE) fold features."""
@@ -1216,8 +1190,7 @@ class Calculator:
             self.calculate_sequence,
             self.calculate_expression,
             self.calculate_rnase,
-            self.calculate_on_target_hybridization,
-            self.calculate_on_target_multiplicity,
+            self.calculate_on_target_site_features,
             self.calculate_mfe,
             self.calculate_sense_accessibility,
             self.calculate_flank_features,

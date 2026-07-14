@@ -227,7 +227,7 @@ class RisearchAggregation(NamedTuple):
                block so millions of hits never materialize at once.
     finalize — (concatenated partial Table) -> the result dict.
 
-    See aggregate_by_pair_multi_cutoff and sum_exp_by_trigger_multi_cutoff.
+    See aggregate_by_pair_multi_cutoff and stats_by_trigger_multi_cutoff.
     """
 
     columns: Tuple[str, ...]
@@ -375,6 +375,10 @@ def risearch_hits_dataframe(
 # only within FP rounding, being float-order dependent.
 # ---------------------------------------------------------------------------
 
+# RT at body temperature (310 K), in kcal/mol -- the kT of the Boltzmann factor
+# exp(-energy/RT). Single source of truth for hybridization; passed to no function.
+RT_KCAL_MOL = 0.616
+
 # pyarrow aggregate func -> the func that merges per-block partials in finalize.
 _MERGE_FUNC = {"sum": "sum", "min": "min", "count": "sum"}
 
@@ -385,14 +389,14 @@ def _by_key_multi_cutoff(
     keys: Tuple[str, ...],
     value_aggs: Tuple[Tuple[str, str, str], ...],
     pack: Callable,
-    RT: float | None = None,
 ) -> RisearchAggregation:
     """Streaming per-cutoff, per-key RIsearch reducer shared by every aggregation factory.
 
     keys       group-by columns; the result key is that single value or a tuple of them.
     value_aggs ``(name, source, func)`` triples aggregating ``source`` with pyarrow ``func``
                into a partial column ``name``. ``source`` is ``energy`` or ``_exp`` (the
-               Boltzmann weight ``exp(-energy/RT)``, materialized only when ``RT`` is given).
+               Boltzmann weight ``exp(-energy/RT_KCAL_MOL)``, materialized only when some
+               triple sources ``_exp``).
     pack       maps a finalized group's ``{name: value}`` to the stored value.
 
     Returns a RisearchAggregation producing ``{cutoff: {key: pack(...)}}``.
@@ -401,6 +405,7 @@ def _by_key_multi_cutoff(
     keys = tuple(keys)
     names = [name for name, _src, _func in value_aggs]
     needs_energy = any(src == "energy" for _n, src, _f in value_aggs)
+    needs_exp = any(src == "_exp" for _n, src, _f in value_aggs)
 
     def _empty_partial():
         import pyarrow as pa
@@ -418,8 +423,8 @@ def _by_key_multi_cutoff(
 
         cols = {k: batch.column(k) for k in keys}
         cols["score"] = batch.column("score")
-        if RT is not None:
-            cols["_exp"] = pc.exp(pc.divide(batch.column("energy"), -RT))
+        if needs_exp:
+            cols["_exp"] = pc.exp(pc.divide(batch.column("energy"), -RT_KCAL_MOL))
         if needs_energy:
             cols["energy"] = batch.column("energy")
         base = pa.table(cols)
@@ -477,12 +482,12 @@ class PairAggregation:
     MIN_ENERGY = "min_energy"  # min(energy) over sites (legacy "best site" reducer)
 
 
-def aggregate_by_pair_multi_cutoff(cutoffs, strategy, RT: float = 0.616) -> RisearchAggregation:
+def aggregate_by_pair_multi_cutoff(cutoffs, strategy) -> RisearchAggregation:
     """Per-(trigger, target) reducer for several cutoffs from one loose RIsearch pass.
 
     ``strategy`` (see PairAggregation) selects the reduction: BOLTZMANN_SUM keeps
-    ``sum(exp(-energy/RT))`` per pair (always >= 0), MIN_ENERGY keeps the best-site
-    energy (negative for binders). RT (310 K) is consulted only by BOLTZMANN_SUM.
+    ``sum(exp(-energy/RT_KCAL_MOL))`` per pair (always >= 0), MIN_ENERGY keeps the
+    best-site energy (negative for binders).
 
     Returns ``{cutoff: {(trigger, target): value}}``.
     """
@@ -494,31 +499,16 @@ def aggregate_by_pair_multi_cutoff(cutoffs, strategy, RT: float = 0.616) -> Rise
             keys=("trigger", "target"),
             value_aggs=(("_exp", "_exp", "sum"),),
             pack=lambda r: float(r["_exp"]),
-            RT=RT,
         )
     raise ValueError(f"Unknown PairAggregation strategy: {strategy}")
 
 
-def sum_exp_by_trigger_multi_cutoff(cutoffs, RT: float = 0.616) -> RisearchAggregation:
-    """Boltzmann sum ``exp(-energy/RT)`` over every hit per trigger, per cutoff.
-
-    Returns ``{cutoff: {trigger: sum_exp}}``.
-    """
-    return _by_key_multi_cutoff(
-        cutoffs,
-        keys=("trigger",),
-        value_aggs=(("_exp", "_exp", "sum"),),
-        pack=lambda r: float(r["_exp"]),
-        RT=RT,
-    )
-
-
-def stats_by_trigger_multi_cutoff(cutoffs, RT: float = 0.616) -> RisearchAggregation:
-    """Site-resolved on-target stats per trigger, per cutoff: the Boltzmann sum, the
-    best-site energy and the hit count.
+def stats_by_trigger_multi_cutoff(cutoffs) -> RisearchAggregation:
+    """Site-resolved stats per trigger, per cutoff: the Boltzmann sum, the best-site energy
+    and the hit count -- a strict superset of the per-trigger Boltzmann sum alone.
 
     Callers derive the effective number of sites (target multiplicity)
-    ``log_eff = log(sum_exp) - (-min_energy / RT)`` -- 0 for a single dominant site,
+    ``log_eff = log(sum_exp) - (-min_energy / RT_KCAL_MOL)`` -- 0 for a single dominant site,
     growing when several comparable sites share the binding.
 
     Returns ``{cutoff: {trigger: (sum_exp, min_energy, n_sites)}}``.
@@ -528,7 +518,6 @@ def stats_by_trigger_multi_cutoff(cutoffs, RT: float = 0.616) -> RisearchAggrega
         keys=("trigger",),
         value_aggs=(("s", "_exp", "sum"), ("e", "energy", "min"), ("n", "energy", "count")),
         pack=lambda r: (float(r["s"]), float(r["e"]), int(r["n"])),
-        RT=RT,
     )
 
 
