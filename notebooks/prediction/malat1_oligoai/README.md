@@ -25,9 +25,20 @@ All paths default relative to this file (no absolute paths) and are overridable 
 If the OligoAI repo or checkpoint is missing, the script writes the OligoAI-format input and stops. The
 OligoAI input and raw predictions go to a temp dir; only the ranked CSV is kept.
 
+Off-target counts need the Bowtie index (`tauso setup-bowtie --genome GRCh38`). If it is missing the
+count columns are filled with `<NA>` and scoring/ranking still complete — the build is not triggered.
+
 ## Output
-`MALAT1_2moe_oligoai_ranked.csv` — 8,810 candidates ranked by `predicted_inhibition_percent`, with
-`target_start` (0-based transcript position) and the ASO sequence.
+`MALAT1_2moe_oligoai_ranked.csv` — 8,810 candidates sorted by `predicted_inhibition_percent`
+(descending):
+- `target_start` — 0-based transcript position of the site; `aso_sequence_5_to_3` — the ASO
+- `predicted_inhibition_percent` — OligoAI predicted knockdown
+- `perfect_matches` / `off_targets_1mm` / `off_targets_2mm` — genome-wide Bowtie off-target match
+  counts at 0 / 1 / 2 mismatches (both strands, one pass), **excluding any hit inside the MALAT1
+  locus** (the intended site and intragenic matches are not counted). So `perfect_matches == 0` means
+  the ASO has no perfect match anywhere outside MALAT1 (96.6% of candidates); a non-zero value flags a
+  real perfect off-target. This is a coarse sequence-specificity screen — see `tauso run-off-target`
+  for the strand-aware, gene-level off-target detail.
 
 ## Notes
 - OligoAI conditions only on sequence, sugar/backbone mods, ±50-nt context, dose, and delivery —

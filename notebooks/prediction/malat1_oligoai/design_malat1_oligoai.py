@@ -15,6 +15,9 @@ import pandas as pd
 from notebooks.data.OligoAI.parse_chemistry import transform_linkage_to_oligo, transform_pattern_to_oligo
 from tauso.aso_generation import default_config, get_initial_data
 from tauso.data.consts import ASO_SEQUENCE
+from tauso.data.data import get_paths
+from tauso.genome.read_human_genome import get_locus_to_data_dict
+from tauso.off_target.search import count_offtarget_matches_bulk
 from tauso.populate.calculators.cache import AssetCache
 
 HERE = Path(__file__).resolve().parent
@@ -25,14 +28,16 @@ DEFAULT_CKPT = HERE / "checkpoints" / "OligoAI_11_09_25.ckpt"  # gitignored; see
 GENE = "MALAT1"
 ASO_LEN = 20
 FLANK = 50  # nt of sense context on each side of the site (OligoAI's +/-50 window)
+OFFTARGET_MAX_MM = 2  # count genome matches up to 2 mismatches (Bowtie -v caps at 3)
 SUGAR_MODS = transform_pattern_to_oligo(default_config().standard_chemical_pattern)
 BACKBONE_MODS = transform_linkage_to_oligo("else", ASO_LEN)  # "else" => every linkage is PS
 CHEMISTRY = "2'MOE 5-10-5 gapmer, full PS"
 
 INPUT_COLS = ["aso_sequence_5_to_3", "sugar_mods", "backbone_mods", "rna_context",
               "dosage", "transfection_method", "inhibition_percent", "custom_id", "split", "target_start"]
+OFFTARGET_COLS = ["perfect_matches", "off_targets_1mm", "off_targets_2mm"]
 OUTPUT_COLS = ["rank", "target_start", "aso_sequence_5_to_3", "predicted_inhibition_percent",
-               "chemistry", "transfection_method", "dosage"]
+               *OFFTARGET_COLS, "chemistry", "transfection_method", "dosage"]
 
 
 def build_candidates(delivery, dose, genome="GRCh38"):
@@ -66,6 +71,38 @@ def score_with_oligoai(input_csv, pred_csv, repo, ckpt, env, batch_size):
          "--batch_size", str(batch_size), "--output_path", str(pred_csv)],
         cwd=repo, check=True,
     )
+
+
+def add_offtarget_counts(ranked, genome="GRCh38", exclude_gene=GENE):
+    """Add per-ASO off-target counts: `perfect_matches` (0 mismatches), `off_targets_1mm`, and
+    `off_targets_2mm` -- genome-wide Bowtie match counts at 0/1/2 mismatches (both strands, one pass),
+    EXCLUDING any hit inside the on-target gene `exclude_gene` so the intended MALAT1 site and any
+    intragenic near-matches are not counted.
+
+    Needs the Bowtie index; if it is missing the columns are filled with <NA> and a note is printed
+    rather than triggering a multi-GB index build (run `tauso setup-bowtie --genome GRCh38`).
+    """
+    sentinel = Path(get_paths(genome)["fasta"]).parent / f"{genome}_bowtie_index" / "SUCCESS"
+    if not sentinel.exists():
+        print(f"Bowtie index for {genome} not found; skipping off-target counts "
+              f"(run `tauso setup-bowtie --genome {genome}`).")
+        for col in OFFTARGET_COLS:
+            ranked[col] = pd.NA
+        return ranked
+
+    exclude_regions = None
+    if exclude_gene:
+        g = get_locus_to_data_dict(include_introns=False, gene_subset=[exclude_gene], genome=genome)[exclude_gene]
+        exclude_regions = [(g.chrom, g.gene_start, g.gene_end)]
+
+    counts = count_offtarget_matches_bulk(
+        ranked["aso_sequence_5_to_3"].tolist(), genome=genome,
+        max_mismatches=OFFTARGET_MAX_MM, exclude_regions=exclude_regions,
+    )
+    ranked["perfect_matches"] = ranked["aso_sequence_5_to_3"].map(lambda s: counts[s][0])
+    ranked["off_targets_1mm"] = ranked["aso_sequence_5_to_3"].map(lambda s: counts[s][1])
+    ranked["off_targets_2mm"] = ranked["aso_sequence_5_to_3"].map(lambda s: counts[s][2])
+    return ranked
 
 
 def main():
@@ -104,10 +141,12 @@ def main():
     ranked = pred.sort_values("predicted_inhibition_percent", ascending=False, ignore_index=True)
     ranked.insert(0, "rank", range(1, len(ranked) + 1))
     ranked["chemistry"] = CHEMISTRY
+    ranked = add_offtarget_counts(ranked)
     ranked_csv = args.out_dir / f"{GENE}_2moe_oligoai_ranked.csv"
     ranked[OUTPUT_COLS].to_csv(ranked_csv, index=False)
     print(f"Ranked {len(ranked)} candidates -> {ranked_csv}")
-    print(ranked[OUTPUT_COLS[:4]].head(15).to_string(index=False))
+    print(ranked[["rank", "target_start", "aso_sequence_5_to_3", "predicted_inhibition_percent",
+                  *OFFTARGET_COLS]].head(15).to_string(index=False))
 
 
 if __name__ == "__main__":
