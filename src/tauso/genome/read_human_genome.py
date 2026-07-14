@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from ..data.data import get_paths, load_genome, load_gff_db, load_gtf_db
 from ..timer import Timer
-from ..util import get_antisense_u
+from ..util import get_antisense_rna
 from .LocusInfo import GeneType, LazyLocusInfo, LocusInfo, StrandType
 
 # Per-process FASTA handle cache, keyed by (genome, pid). pyfaidx handles are not
@@ -24,7 +24,7 @@ def fetch_full_mrna(genome, chrom, gene_start, gene_end, strand):
         fasta = load_genome(genome)
         _PROCESS_FASTA[key] = fasta
     seq = str(fasta[chrom][gene_start:gene_end])
-    return get_antisense_u(seq) if strand == StrandType.NEG else seq.upper()
+    return get_antisense_rna(seq) if strand == StrandType.NEG else seq.upper()
 
 
 logger = logging.getLogger(__name__)
@@ -428,7 +428,7 @@ def get_locus_to_data_dict_gtf(include_introns=True, gene_subset=None, genome="G
         locus_info.strand = StrandType.from_string(gene.strand)
 
         seq = str(fasta_dict[chrom][gene.start - 1 : gene.end])
-        seq = get_antisense_u(seq) if locus_info.strand == StrandType.NEG else seq.upper()
+        seq = get_antisense_rna(seq) if locus_info.strand == StrandType.NEG else seq.upper()
 
         locus_info.gene_start = gene.start - 1
         locus_info.gene_end = gene.end

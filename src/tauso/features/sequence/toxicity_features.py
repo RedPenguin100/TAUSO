@@ -12,10 +12,7 @@ aggregates / self-folds instead of hybridising).
 import re
 
 from ...common.modifications import get_longest_dna_gap
-
-
-def _to_dna(seq: str) -> str:
-    return seq.upper().replace("U", "T")
+from ...util import rna_to_dna
 
 
 def _count_overlapping(s: str, motif: str) -> int:
@@ -41,7 +38,7 @@ def hepatotox_gap_motif_count(seq: str, chemical_pattern: str) -> int:
     start, end, length = get_longest_dna_gap(chemical_pattern)
     if length < 3:
         return 0
-    gap = _to_dna(seq[start:end])
+    gap = rna_to_dna(seq[start:end])
     return sum(_count_overlapping(gap, m) for m in _HEPATOTOX_MOTIFS)
 
 
@@ -51,7 +48,7 @@ def hepatotox_motif_count(seq: str) -> int:
     Source: Burdick et al. 2014, Nucleic Acids Res. 42(8):4882, doi:10.1093/nar/gku142
     (the paper scored these as sequence-level motifs).
     """
-    s = _to_dna(seq)
+    s = rna_to_dna(seq)
     return sum(_count_overlapping(s, m) for m in _HEPATOTOX_MOTIFS)
 
 
@@ -74,7 +71,7 @@ def cpg_count(seq: str) -> int:
 
     Source: Krieg et al. 1995, Nature 374(6522):546, doi:10.1038/374546a0.
     """
-    s = _to_dna(seq)
+    s = rna_to_dna(seq)
     return sum(1 for i in range(len(s) - 1) if s[i : i + 2] == "CG")
 
 
@@ -104,7 +101,7 @@ def cpg_ps_count(seq: str, ps_pattern: str) -> int:
     """
     if not isinstance(seq, str) or not isinstance(ps_pattern, str):
         return 0
-    s = _to_dna(seq)
+    s = rna_to_dna(seq)
     n = min(len(s) - 1, len(ps_pattern))
     return sum(1 for i in range(n) if s[i : i + 2] == "CG" and ps_pattern[i] == "*")
 
@@ -114,7 +111,7 @@ def tlr9_human_motif_count(seq: str) -> int:
 
     Source: Hartmann & Krieg 2000, J Immunol 164(2):944, doi:10.4049/jimmunol.164.2.944.
     """
-    return len(_TLR9_HUMAN_HEXAMER.findall(_to_dna(seq)))
+    return len(_TLR9_HUMAN_HEXAMER.findall(rna_to_dna(seq)))
 
 
 # --- G-quadruplex / G-aggregation (the only efficacy-relevant liability here) --------------
@@ -123,7 +120,7 @@ def tlr9_human_motif_count(seq: str) -> int:
 # k G's scores +min(k,4) per base, a run of k C's scores -min(k,4); the G4Hunter value is the
 # mean over a window. Positive = G-rich / quadruplex-prone.
 def _g4hunter_scores(seq: str) -> list[int]:
-    s = _to_dna(seq)
+    s = rna_to_dna(seq)
     n = len(s)
     scores = [0] * n
     i = 0
@@ -161,7 +158,7 @@ def g4hunter_max(seq: str, window: int = 10) -> float:
 
 def max_g_run(seq: str) -> int:
     """Length of the longest run of consecutive G's (G-aggregation proxy)."""
-    runs = re.findall(r"G+", _to_dna(seq))
+    runs = re.findall(r"G+", rna_to_dna(seq))
     return max((len(r) for r in runs), default=0)
 
 
@@ -182,7 +179,7 @@ def gggg_motif_count(seq: str) -> int:
     motifs significantly associated with antisense activity." BMC
     Bioinformatics 2007;8:184. doi:10.1186/1471-2105-8-184.
     """
-    return _count_overlapping(_to_dna(seq), "GGGG")
+    return _count_overlapping(rna_to_dna(seq), "GGGG")
 
 
 # --- Acute CNS / neurotoxicity (non-hybridisation) -----------------------------------------
@@ -195,7 +192,7 @@ def three_prime_g_fraction(seq: str, window: int = 4) -> float:
 
     Source: Hagedorn et al. 2022, Nucleic Acid Ther. 32(3):151, doi:10.1089/nat.2021.0071.
     """
-    s = _to_dna(seq)
+    s = rna_to_dna(seq)
     if len(s) < window:
         window = len(s)
     if window == 0:
@@ -209,7 +206,7 @@ def three_prime_g_free_length(seq: str) -> int:
 
     Source: Hagedorn et al. 2022, Nucleic Acid Ther. 32(3):151, doi:10.1089/nat.2021.0071.
     """
-    s = _to_dna(seq)
+    s = rna_to_dna(seq)
     n = 0
     for base in reversed(s):
         if base == "G":

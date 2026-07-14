@@ -10,7 +10,7 @@ from tauso.data.consts import (
     resolve_depmap_id,
     resolve_depmap_proxy,
 )
-from tauso.util import get_antisense_u
+from tauso.util import get_antisense_rna
 
 
 def standardize_cell_line(df: pd.DataFrame) -> pd.DataFrame:
@@ -35,7 +35,7 @@ def find_sense_start(row, gene_to_data):
     mrna = gene_to_data[gene].full_mrna.upper().replace("T", "U")
 
     # Convert the antisense input into its sense counterpart
-    sense_seq = get_antisense_u(antisense_seq)
+    sense_seq = get_antisense_rna(antisense_seq)
 
     # .find() natively returns the starting index, or -1 if not found
     return mrna.find(sense_seq)

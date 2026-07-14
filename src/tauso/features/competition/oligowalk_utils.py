@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from tauso.data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 
-from ...util import get_antisense_u
+from ...util import dna_to_rna, get_antisense_rna
 
 # =====================================================================
 # MULTIPROCESSING GLOBALS
@@ -54,7 +54,7 @@ def _infer_datapath():
 def get_target_site_seq(aso_seq_str):
     """Converts ASO to its mRNA target site (reverse complement, RNA/U alphabet)."""
     clean_seq = "".join(c for c in str(aso_seq_str) if c.isalpha()).upper()
-    return get_antisense_u(clean_seq)
+    return get_antisense_rna(clean_seq)
 
 
 def _run_single_aso_worker(row_tuple):
@@ -80,7 +80,7 @@ def _run_single_aso_worker(row_tuple):
 
     try:
         # full_mrna is DNA (T) for some genes, RNA (U) for others -> normalize to U.
-        full_target_seq = str(_WORKER_GENE_DATA[gene_name].full_mrna).upper().replace("T", "U")
+        full_target_seq = dna_to_rna(_WORKER_GENE_DATA[gene_name].full_mrna)
     except AttributeError:
         metrics["error"] = "No mRNA seq"
         return idx, metrics

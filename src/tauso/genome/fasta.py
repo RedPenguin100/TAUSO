@@ -4,6 +4,8 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from ..util import dna_to_rna
+
 
 def read_fasta(file_path: str | Path) -> dict[str, str]:
     """Parse a (multi-record) FASTA into {record_id: sequence}.
@@ -65,7 +67,7 @@ def read_single_rna_fasta(file_path: str | Path) -> tuple[str, str]:
         raise ValueError("Validation Failed: No FASTA header (starting with '>') found.")
 
     # Process sequence: Uppercase and T -> U
-    rna_sequence = "".join(sequence_parts).upper().replace("T", "U")
+    rna_sequence = dna_to_rna("".join(sequence_parts))
 
     if not rna_sequence:
         raise ValueError(f"Validation Failed: Sequence for gene '{gene_name}' is empty.")

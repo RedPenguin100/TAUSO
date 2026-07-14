@@ -12,6 +12,7 @@ from ..features.fold.vienna_fold import calculate_avg_mfe_per_step
 from ..features.rna_access.access_calculator import get_sense_with_flanks, window_access_energies
 from ..features.rna_access.rna_access import RNAAccess
 from ..parallel_utils import make_apply_fn
+from ..util import dna_to_rna
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +184,7 @@ def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_
         if not flanked_sense or len(flanked_sense) < min_seq_len:
             continue
 
-        flanked_sense = flanked_sense.upper().replace("T", "U")
+        flanked_sense = dna_to_rna(flanked_sense)
         rna_seqs.append((current_id, flanked_sense))
         sense_len_map[current_id] = row[STRUCTURE_SENSE_LENGTH]
         sense_start_map[current_id] = relative_start

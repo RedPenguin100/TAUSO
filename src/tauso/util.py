@@ -13,9 +13,19 @@ def get_longer_string(s1: str, s2: str) -> str:
     return s1 if len(s1) >= len(s2) else s2
 
 
+def rna_to_dna(seq) -> str:
+    """Uppercase and map the RNA alphabet to DNA (U->T)."""
+    return str(seq).upper().replace("U", "T")
+
+
+def dna_to_rna(seq) -> str:
+    """Uppercase and map the DNA alphabet to RNA (T->U)."""
+    return str(seq).upper().replace("T", "U")
+
+
 def _norm_rna_to_dna(seq: str) -> str:
     """Normalize RNA to DNA alphabet (U->T), uppercase, strip whitespace."""
-    return str(seq).upper().replace("U", "T").replace(" ", "").replace("\t", "").replace("\n", "")
+    return rna_to_dna(seq).replace(" ", "").replace("\t", "").replace("\n", "")
 
 
 def _to_str_seq(x) -> str:
@@ -30,37 +40,30 @@ def _to_str_seq(x) -> str:
             s = "".join(list(x))
         except Exception:
             s = str(x)
-    return s.replace(" ", "").replace("\t", "").replace("\n", "").replace("U", "T").upper()
+    return _norm_rna_to_dna(s)
 
 
 # Legacy dict kept for get_nucleotide_watson_crick (used by numba-compiled code)
 WATSON_CRICK_MAP = {"A": "T", "G": "C", "C": "G", "T": "A", "U": "A"}
 
-# str.translate tables — ~10× faster than per-char dict lookup
-_DNA_TABLE = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")  # output: T
+# Reverse-complement tables (str.translate ~10× faster than per-char dict).
+_RC_DNA_TABLE = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")  # output: T
 _RC_RNA_TABLE = str.maketrans("ACGTUacgtu", "UGCAAugcaa")  # output: U
 
 
 def get_antisense(sense: str) -> str:
-    """Reverse complement in DNA alphabet (output uses T)."""
-    return sense[::-1].translate(_DNA_TABLE)
+    """Reverse complement in the DNA alphabet (output uses T)."""
+    return sense[::-1].translate(_RC_DNA_TABLE)
 
 
 def get_antisense_rna(sense: str) -> str:
-    """Reverse complement in RNA alphabet (output uses U, not T)."""
+    """Reverse complement in the RNA alphabet (output uses U, not T)."""
     return sense[::-1].translate(_RC_RNA_TABLE)
 
 
 def aso_target_rna(aso: str) -> str:
     """The RNA target of an ASO: its reverse complement read as RNA (uppercase)."""
     return get_antisense_rna(aso.upper())
-
-
-COMP_U_TABLE = bytes.maketrans(b"ACGTUacgtu", b"UGCAaugcaa")
-
-
-def get_antisense_u(seq: str) -> str:
-    return seq.translate(COMP_U_TABLE)[::-1]
 
 
 ZERO_CELSIUS_IN_KELVIN = 273.15

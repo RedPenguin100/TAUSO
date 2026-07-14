@@ -37,7 +37,7 @@ from tauso.data.consts import (
     SUGAR_MODS,
 )
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.util import get_antisense_u
+from tauso.util import get_antisense_rna
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def find_sense_start(row, gene_to_data):
     gene = row[CANONICAL_GENE_NAME]
     if pd.isna(gene) or gene not in gene_to_data:
         return -1
-    return _mrna(gene, gene_to_data).find(get_antisense_u(row[SEQUENCE_ASOPT]))
+    return _mrna(gene, gene_to_data).find(get_antisense_rna(row[SEQUENCE_ASOPT]))
 
 
 def extract_rna_context(row, gene_to_data):
