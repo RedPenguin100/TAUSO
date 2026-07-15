@@ -613,6 +613,27 @@ def setup_rrna(force):
     echo_ok(f"Downloaded {REFERENCE_FILENAME} (SHA1 verified).")
 
 
+@main.command(name="setup-model")
+@click.option("--version", default=None, help="Model version to fetch (default: the deployed default).")
+@click.option("--force", is_flag=True, help="Force redownload if the model file exists.")
+def setup_model(version, force):
+    """Download the trained ASO-efficacy booster (tauso_score) from Zenodo into
+    <data_dir>/models/, verifying its md5, so inference finds it locally instead of
+    fetching it on first use. The per-version registry (Zenodo record + md5) lives in
+    tauso.inference.predict; this command just provisions it like the other setup-* assets.
+    """
+    from tauso.inference.predict import DEFAULT_VERSION, ensure_model
+
+    version = version or DEFAULT_VERSION
+    click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
+    try:
+        dest = ensure_model(version, force=force)
+        echo_ok(f"Model ready and verified: {dest}")
+    except Exception as e:
+        echo_err(f"Error setting up model: {e}")
+        sys.exit(1)
+
+
 @main.command(name="setup-tgcn")
 @click.option(
     "--organism",

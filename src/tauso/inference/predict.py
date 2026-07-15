@@ -35,15 +35,18 @@ def score_column(version=DEFAULT_VERSION):
     return f"tauso_score_{version}"
 
 
-def _ensure_model(version):
-    """Path to the booster for `version`, fetching it from Zenodo into <data_dir>/models/ if absent.
-    Verifies the md5 on every call so a truncated or wrong file fails loudly."""
+def ensure_model(version=DEFAULT_VERSION, force=False):
+    """Path to the booster for `version`, fetching it from Zenodo into <data_dir>/models/ if absent
+    (or if `force`). Verifies the md5 on every call so a truncated or wrong file fails loudly.
+
+    `tauso setup-model` calls this to provision the booster ahead of time; `load_model` calls it
+    on first use so inference works even without the setup step."""
     if version not in MODEL_FILES:
         raise KeyError(f"No model registered for version {version!r}.")
     spec = MODEL_FILES[version]
     dest = Path(get_data_dir()) / "models" / spec["filename"]
     dest.parent.mkdir(parents=True, exist_ok=True)
-    if not dest.exists():
+    if force or not dest.exists():
         url = f"https://zenodo.org/api/records/{ZENODO_MODEL_RECORD}/files/{spec['filename']}/content"
         download_with_progress(url, str(dest), label=f"Downloading {spec['filename']}")
     verify_hash_or_exit(str(dest), spec["md5"], algo="md5")
@@ -55,7 +58,7 @@ def load_model(version=DEFAULT_VERSION):
     """Return (booster, feature_names) for `tauso_score_<version>`. The booster is fetched from
     Zenodo on first use (cached under the data dir); the feature list ships in the package."""
     booster = xgb.Booster()
-    booster.load_model(str(_ensure_model(version)))
+    booster.load_model(str(ensure_model(version)))
     features = (MODEL_DIR / f"tauso_score_{version}.features.txt").read_text().splitlines()
     return booster, features
 
