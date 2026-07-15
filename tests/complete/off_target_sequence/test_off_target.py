@@ -1,8 +1,12 @@
+from pathlib import Path
+
 import pandas as pd
 import pytest
-
 from notebooks.data.OligoAI.curate_gene_labels import alignment_stats
-from tauso.off_target.search import annotate_hits, run_bowtie_search
+
+from tauso.data.data import get_paths
+from tauso.genome.read_human_genome import get_locus_to_data_dict
+from tauso.off_target.search import annotate_hits, count_offtarget_matches_bulk, run_bowtie_search
 from tauso.util import get_antisense
 
 
@@ -105,3 +109,29 @@ def test_annotate_hits_sense_strand_is_not_counted_as_the_gene(aso, gene):
     hits, _ = run_bowtie_search(sense, max_mismatches=0)
     assert hits
     assert gene not in set(annotate_hits(hits)["gene_name"])
+
+
+_MALAT1_OFFTARGET_FIXTURE = Path(__file__).parent / "malat1_offtarget_first50.csv"
+
+
+def test_count_offtarget_matches_bulk_malat1_regression():
+    """Regression: `count_offtarget_matches_bulk` reproduces the committed MALAT1 off-target counts
+    (genome-wide 0/1/2-mismatch matches, both strands, excluding the MALAT1 locus) for the top-50
+    designed 2'-MOE ASOs. Locks in the current counts ahead of any de-duplication of the bulk helpers."""
+    sentinel = Path(get_paths("GRCh38")["fasta"]).parent / "GRCh38_bowtie_index" / "SUCCESS"
+    if not sentinel.exists():
+        pytest.skip("GRCh38 Bowtie index not built (run: tauso setup-bowtie --genome GRCh38)")
+
+    fixture = pd.read_csv(_MALAT1_OFFTARGET_FIXTURE)
+    seqs = fixture["aso_sequence_5_to_3"].tolist()
+
+    malat1 = get_locus_to_data_dict(include_introns=False, gene_subset=["MALAT1"], genome="GRCh38")["MALAT1"]
+    exclude = [(malat1.chrom, malat1.gene_start, malat1.gene_end)]
+
+    counts = count_offtarget_matches_bulk(seqs, genome="GRCh38", max_mismatches=2, exclude_regions=exclude)
+
+    for _, row in fixture.iterrows():
+        seq = row["aso_sequence_5_to_3"]
+        got = (counts[seq][0], counts[seq][1], counts[seq][2])
+        expected = (int(row["perfect_matches"]), int(row["off_targets_1mm"]), int(row["off_targets_2mm"]))
+        assert got == expected, f"off-target counts changed for {seq}: got {got}, expected {expected}"
