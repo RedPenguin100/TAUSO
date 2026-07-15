@@ -92,7 +92,7 @@ def add_offtarget_counts(ranked, genome="GRCh38", exclude_gene=GENE):
 
     exclude_regions = None
     if exclude_gene:
-        g = get_locus_to_data_dict(include_introns=False, gene_subset=[exclude_gene], genome=genome)[exclude_gene]
+        g = get_locus_to_data_dict(include_introns=True, gene_subset=[exclude_gene], genome=genome)[exclude_gene]
         exclude_regions = [(g.chrom, g.gene_start, g.gene_end)]
 
     counts = count_offtarget_matches_bulk(

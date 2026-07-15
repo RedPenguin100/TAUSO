@@ -125,7 +125,7 @@ def test_count_offtarget_matches_bulk_malat1_regression():
     fixture = pd.read_csv(_MALAT1_OFFTARGET_FIXTURE)
     seqs = fixture["aso_sequence_5_to_3"].tolist()
 
-    malat1 = get_locus_to_data_dict(include_introns=False, gene_subset=["MALAT1"], genome="GRCh38")["MALAT1"]
+    malat1 = get_locus_to_data_dict(include_introns=True, gene_subset=["MALAT1"], genome="GRCh38")["MALAT1"]
     exclude = [(malat1.chrom, malat1.gene_start, malat1.gene_end)]
 
     counts = count_offtarget_matches_bulk(seqs, genome="GRCh38", max_mismatches=2, exclude_regions=exclude)
