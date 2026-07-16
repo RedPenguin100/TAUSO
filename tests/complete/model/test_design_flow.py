@@ -88,3 +88,68 @@ def test_design_asos_off_targets_table():
 def test_design_asos_input_validation(kwargs, match):
     with pytest.raises(ValueError, match=match):
         design_asos("USER_TEST", **kwargs)
+
+
+# The ten top-ranked candidates from the full MALAT1 design (A549 / Lipofection / 100 nM, 20-mer
+# gapmer), in descending predicted-efficacy order. Tiling + scoring all ~8,800 MALAT1 candidates takes
+# ~24 min, but every feature is computed per-candidate against the gene (not relative to the scored
+# batch), so re-scoring exactly these ten in isolation reproduces the full-run scores bit-for-bit.
+# Freezing them guards the published ranking with a fast, always-on test and a 10-row fixture.
+MALAT1_TOP10 = (
+    "GCCACTTCCTTTGCTCTGCA",
+    "TCTCATTTATTTCGGCTTCT",
+    "CCTTAGTTGGCATCAAGGCA",
+    "TCCTCATTTTTTCAGTGCTA",
+    "TCTCTCATTTATTTCGGCTT",
+    "CTCTCATTTATTTCGGCTTC",
+    "GCTATTTTTTCTTACTGGGT",
+    "ATCTCTCATTTATTTCGGCT",
+    "GGGTTATGCTTATTCCCCAA",
+    "CGGCTTCTTTTATTCCAGGA",
+)
+
+
+def test_malat1_top10_frozen(dataframe_regression):
+    """Freeze the published MALAT1 top-10 ASO ranking against model/feature/data drift.
+
+    Re-scores exactly the ten frozen candidates through the real feature + model pipeline and
+    regression-checks the consumer view. This is the same computation `design_asos` runs on the full
+    gene, restricted to these ten candidates (a valid shortcut: features are per-candidate), so the
+    scores and rank order must reproduce the full design.
+    """
+    from tauso.aso_generation import (
+        AssetCache,
+        Transfection,
+        _apply_standard_metadata,
+        _fill_out_of_range_one_hots,
+        default_config,
+        generate_aso_features,
+        get_initial_data,
+    )
+    from tauso.inference import load_model, predict
+
+    config = default_config()
+    config.cell_line = "A549"
+    config.transfection_method = Transfection.LIPOFECTION
+    config.volume = 100
+    config.organism_name = "human"
+
+    cache = AssetCache(genome="GRCh38")
+    malat1 = cache.get_full_gene_data()["MALAT1"].full_mrna
+    candidates = get_initial_data(malat1, aso_sizes=[20], canonical_name="MALAT1")
+    frozen = candidates[candidates[ASO_SEQUENCE].isin(MALAT1_TOP10)].copy()
+    assert len(frozen) == len(MALAT1_TOP10), "a frozen top-10 sequence is no longer a MALAT1 20-mer candidate"
+
+    _apply_standard_metadata(frozen, config)
+    featured, _ = generate_aso_features(frozen, cache, n_jobs=1)
+    _, model_features = load_model()
+    _fill_out_of_range_one_hots(featured, model_features)
+
+    col = score_column()
+    featured[col] = predict(featured)
+    ranked = featured.sort_values(col, ascending=False, kind="stable").reset_index(drop=True)
+
+    summary = summarize_design(ranked)
+    assert list(summary["rank"]) == list(range(1, len(MALAT1_TOP10) + 1))
+    assert list(summary[ASO_SEQUENCE]) == list(MALAT1_TOP10)  # score order matches the published ranking
+    dataframe_regression.check(summary, default_tolerance={"atol": 1e-4, "rtol": 1e-4})
