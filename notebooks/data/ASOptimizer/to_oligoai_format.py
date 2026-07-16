@@ -22,11 +22,8 @@ from notebooks.data.ASOptimizer.consts import (
     SEQUENCE_ASOPT,
     VOLUME_ASOPT,
 )
-from notebooks.data.ASOptimizer.utility import (
-    transfection_to_oligo,
-    transform_linkage_to_oligo,
-    transform_pattern_to_oligo,
-)
+from notebooks.data.ASOptimizer.utility import transfection_to_oligo
+from notebooks.data.OligoAI.parse_chemistry import transform_linkage_to_oligo, transform_pattern_to_oligo
 from notebooks.notebook_utils import get_unique_genes
 
 from tauso.data.consts import (
