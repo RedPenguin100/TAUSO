@@ -23,10 +23,11 @@ MODEL_DIR = Path(__file__).resolve().parent / "model"   # committed per-version 
 DEFAULT_VERSION = "v1"
 
 # Zenodo record holding the trained boosters. Fill in the record id once the model is uploaded.
-ZENODO_MODEL_RECORD = "21382921"
-# Per version: the Zenodo model file + its md5 (pins the exact booster).
+ZENODO_MODEL_RECORD = "21394367"
+# Per version: the Zenodo model file + its md5 (pins the exact booster). `filename` must be the exact
+# name of the file uploaded to the Zenodo record; it is fetched and cached under that same name.
 MODEL_FILES = {
-    "v1": {"filename": "tauso_score_v1.json", "md5": "2a0b5bea756a7f623182f32d04eec3ad"},
+    "v1": {"filename": "deploy_model_best_clean_exp_trainval_seed1.json", "md5": "65e184e0111b5d4365d1b7d608ae9024"},
 }
 
 

@@ -193,7 +193,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.TAUSO_DATA_DIR }}/models
-          key: tauso-model-21382921-2a0b5bea
+          key: tauso-model-21394367-65e184e0
 
       - name: Setup model (tauso_score)
         run: tauso setup-model
