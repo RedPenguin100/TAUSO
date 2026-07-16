@@ -530,9 +530,7 @@ class Calculator:
             logger.info("Computing sequence one-hot features...")
             from tauso.populate.populate_sequence import populate_sequence_one_hot_encoded
 
-            self.data, generated_features = populate_sequence_one_hot_encoded(
-                self.data, cpus=self.cpus
-            )
+            self.data, generated_features = populate_sequence_one_hot_encoded(self.data, cpus=self.cpus)
             for feature in generated_features:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)

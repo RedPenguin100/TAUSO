@@ -64,8 +64,9 @@ def _is_5_methyl_c(modification_string) -> bool:
     return bool(modification_string) and "5-methylcytosin" in str(modification_string).lower()
 
 
-def to_idt_notation(sequence: str, chemical_pattern: str, ps_pattern: str = None,
-                    modification_string: str = None) -> str:
+def to_idt_notation(
+    sequence: str, chemical_pattern: str, ps_pattern: str = None, modification_string: str = None
+) -> str:
     """Render an ASO as an IDT-style order string, read 5'->3'.
 
     Each residue is emitted in its IDT code by sugar and base -- sugar from ``chemical_pattern``

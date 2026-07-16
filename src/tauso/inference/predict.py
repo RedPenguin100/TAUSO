@@ -19,7 +19,7 @@ import xgboost as xgb
 from ..cli_utils import download_with_progress, verify_hash_or_exit
 from ..data.data import get_data_dir
 
-MODEL_DIR = Path(__file__).resolve().parent / "model"   # committed per-version feature lists
+MODEL_DIR = Path(__file__).resolve().parent / "model"  # committed per-version feature lists
 DEFAULT_VERSION = "v1"
 
 # Zenodo record holding the trained boosters. Fill in the record id once the model is uploaded.

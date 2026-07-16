@@ -449,10 +449,7 @@ def _by_key_multi_cutoff(
         )
         cutoff_col = merged.column("cutoff").to_pylist()
         key_cols = [merged.column(k).to_pylist() for k in keys]
-        value_cols = {
-            name: merged.column(f"{name}_{_MERGE_FUNC[func]}").to_pylist()
-            for name, _src, func in value_aggs
-        }
+        value_cols = {name: merged.column(f"{name}_{_MERGE_FUNC[func]}").to_pylist() for name, _src, func in value_aggs}
         result: dict = {c: {} for c in sorted_cutoffs}
         for i, c in enumerate(cutoff_col):
             key = key_cols[0][i] if len(keys) == 1 else tuple(col[i] for col in key_cols)
