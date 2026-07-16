@@ -45,16 +45,28 @@ def test_five_prime_window():
 
 
 def test_three_prime_window_is_length_aware():
-    # Two sequences with the SAME 3' end but different lengths must share ohe_3p*.
-    a = "AAAAAAAAAA" + "TGCA"  # 3' end ...T G C A
-    b = "GG" + "TGCA"          # same 3' end, much shorter
+    # The 3' window is anchored at each sequence's own 3' terminus. Two full-length
+    # sequences (>= 2*N, so no position is clipped at the midpoint) that share a 3'
+    # end therefore share the same ohe_3p* columns despite differing in total length.
+    a = "A" * 20 + "TGCA"  # 24 nt, 3' end ...T G C A
+    b = "C" * 16 + "TGCA"  # 20 nt, same 3' end, shorter
     out, _ = _encode([a, b])
     for col in ("ohe_3p0_A", "ohe_3p1_C", "ohe_3p2_G", "ohe_3p3_T"):
         assert out.loc[0, col] == 1, col
         assert out.loc[0, col] == out.loc[1, col], col
     # ohe_3p0 is the very last nucleotide (A here), not a 5'-indexed position
-    assert out.loc[0, "ohe_3p0_A"] == 1
     assert out.loc[0, "ohe_3p1_C"] == 1  # second-from-last
+
+
+def test_three_prime_window_clipped_at_midpoint():
+    # Each base is encoded on the terminus in its own half only: for a sequence
+    # shorter than 2*N, 3' positions past the midpoint are NaN, so the 5' and 3'
+    # windows never encode the same base twice.
+    out, _ = _encode(["GGTGCA"])  # 6 nt; midpoint splits after index 2
+    assert out.loc[0, "ohe_3p0_A"] == 1  # last nt, in the 3' half
+    assert out.loc[0, "ohe_3p2_G"] == 1  # third-from-last, still in the 3' half
+    # the 'T' at index 2 lies in the 5' half, so its 3' slot is NaN
+    assert out.loc[0, [f"ohe_3p3_{n}" for n in "ACGT"]].isna().all()
 
 
 def test_short_sequence_is_zero_padded_not_erroring():
