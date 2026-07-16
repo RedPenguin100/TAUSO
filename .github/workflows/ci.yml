@@ -114,7 +114,7 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.gz
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.locus.v1.introns1.canon1.pkl
-          key: ${{ runner.os }}-tauso.genome-GRCh38-v5
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v6
 
       - name: Install genome
         run: tauso setup-genome
