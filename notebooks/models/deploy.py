@@ -7,12 +7,14 @@ train+val and writes the deployable booster + its feature list. This is the mode
   python notebooks/models/deploy.py --data all      # train on all data (train+val+test)
 """
 import argparse
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # repo root, for the notebooks.* imports
-from notebooks.models import champions, common
+from notebooks.models import common
 
+BEST_MODELS = json.loads((Path(__file__).parent / "best_models_parameters.json").read_text())
 CHAMPION = "clean_exp_exp_med"     # the best clean_exp config
 LABEL = "best_clean_exp"
 
@@ -29,7 +31,8 @@ def main():
     trv, _ = common.split(df)
     train_df = trv if args.data == "trainval" else df
 
-    params, rounds, variant = champions.config(CHAMPION)
+    spec = BEST_MODELS[CHAMPION]
+    params, rounds, variant = spec["params"], spec["num_boost_round"], spec["variant"]
     print(f"deploy 'best clean_exp' ({variant}): train on {args.data} "
           f"({len(train_df)} rows), seed {args.seed}, {rounds} rounds, {len(features)} feats", flush=True)
 
