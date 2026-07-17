@@ -6,28 +6,28 @@ from tauso.common.modifications import to_idt_notation
 
 
 def test_ps_dna_full_backbone():
-    # plain DNA, all phosphorothioate -> bases joined by '*'
-    assert to_idt_notation("ACGT", "dddd", "***") == "A*C*G*T"
+    # plain DNA, all phosphorothioate; DNA C is 5-methyl by default
+    assert to_idt_notation("ACGT", "dddd", "***") == "A*/iMe-dC/*G*T"
 
 
 def test_ps_pattern_defaults_to_all_ps():
-    assert to_idt_notation("ACGT", "dddd") == "A*C*G*T"
+    assert to_idt_notation("ACGT", "dddd") == "A*/iMe-dC/*G*T"
 
 
 def test_phosphodiester_linkage_emits_no_star():
-    # middle linkage phosphodiester ('o') -> no '*' between C and G
-    assert to_idt_notation("ACGT", "dddd", "*o*") == "A*CG*T"
+    # middle linkage phosphodiester ('o') -> no '*' between the two middle residues
+    assert to_idt_notation("ACGT", "dddd", "*o*") == "A*/iMe-dC/G*T"
 
 
 def test_moe_gapmer_terminal_and_internal_codes():
     # 2-2-2 MOE gapmer: 5'/3' termini use terminal codes, inner wing residue uses the internal code
     out = to_idt_notation("AACGTT", "MMddMM", "*****")
-    assert out == "/52MOErA/*/i2MOErA/*C*G*/i2MOErT/*/32MOErT/"
+    assert out == "/52MOErA/*/i2MOErA/*/iMe-dC/*G*/i2MOErT/*/32MOErT/"
 
 
 def test_lna_gapmer_uses_plus_prefix():
     out = to_idt_notation("AACGTT", "LLddLL", "*****")
-    assert out == "+A*+A*C*G*+T*+T"
+    assert out == "+A*+A*/iMe-dC/*G*+T*+T"
 
 
 def test_cet_sugar_is_rejected():
@@ -48,9 +48,9 @@ def test_5methyl_c_wing_c_already_methyl_via_moe_code():
     assert out == "/52MOErC/*/i2MOErA/*/iMe-dC/*G*/i2MOErT/*/32MOErC/"
 
 
-def test_no_modification_string_leaves_gap_c_plain():
-    # without the 5-methylcytosine label, DNA-gap C stays plain 'C' (backwards compatible)
-    assert to_idt_notation("AACGTT", "MMddMM", "*****") == "/52MOErA/*/i2MOErA/*C*G*/i2MOErT/*/32MOErT/"
+def test_no_methyl_cytosine_opt_out():
+    # 'no_methyl_cytosine' keeps the DNA-gap C plain
+    assert to_idt_notation("AACGTT", "MMddMM", "*****", "no_methyl_cytosine") == "/52MOErA/*/i2MOErA/*C*G*/i2MOErT/*/32MOErT/"
 
 
 @pytest.mark.parametrize(

@@ -32,10 +32,10 @@ def deoxy_sugar_fraction(chemical_pattern: str) -> float:
 # Per-sugar IDT residue codes, keyed by base. 2'-MOE has distinct 5'-terminal / internal / 3'-terminal
 # vendor codes; DNA and LNA use one code at any position. IDT's 2'-MOE cytidine (/i2MOErC/) is already
 # the 5-methyl-C form, so 2'-MOE wing cytosines are methylated by construction; IDT's LNA cytidine
-# (+C) is likewise 5-methyl by construction. A DNA cytosine is 5-methylated only when the chemistry
-# calls for it (`5-methylcytosines` in modification_string), rendering as IDT's 5-methyl-dC by
-# position -- internal /iMe-dC/, 5'/3'-terminal /5Me-dC/ / /3Me-dC/. cEt (chemical-pattern code `C`)
-# is not an IDT catalogue product, so it is rejected rather than rendered.
+# (+C) is likewise 5-methyl by construction. A DNA cytosine renders as IDT's 5-methyl-dC by default
+# (internal /iMe-dC/, 5'/3'-terminal /5Me-dC/ / /3Me-dC/); `no_methyl_cytosine` in modification_string
+# opts out to plain dC. cEt (chemical-pattern code `C`) is not an IDT catalogue product, so it is
+# rejected rather than rendered.
 _IDT_DNA = {b: b for b in "ACGT"}
 _IDT_DNA_5MEC_5PRIME = {**_IDT_DNA, "C": "/5Me-dC/"}
 _IDT_DNA_5MEC_INTERNAL = {**_IDT_DNA, "C": "/iMe-dC/"}
@@ -58,8 +58,9 @@ _PS_MARK = "*"  # phosphorothioate linkage in ps_pattern; any other character = 
 
 
 def _is_5_methyl_c(modification_string) -> bool:
-    """True when the chemistry label marks cytosines as 5-methyl (e.g. 'MOE/5-methylcytosines/deoxy')."""
-    return bool(modification_string) and "5-methylcytosin" in str(modification_string).lower()
+    """Cytosines are 5-methyl by default; 'no_methyl_cytosine' in modification_string opts out."""
+    norm = str(modification_string or "").lower().replace(" ", "_").replace("-", "_")
+    return "no_methyl_cytosine" not in norm
 
 
 def to_idt_notation(
@@ -73,9 +74,9 @@ def to_idt_notation(
     and emits nothing). ``ps_pattern`` has one character per inter-nucleotide linkage
     (``len == len(sequence) - 1``); if omitted, an all-phosphorothioate backbone is assumed.
 
-    When ``modification_string`` marks 5-methylcytosines (e.g. ``MOE/5-methylcytosines/deoxy``), DNA
-    cytosines render as 5-methyl-dC (internal ``/iMe-dC/``); 2'-MOE wing cytosines are already the
-    5-methyl form via ``/i2MOErC/``.
+    DNA cytosines render as 5-methyl-dC (``/iMe-dC/``) by default; pass
+    ``modification_string="no_methyl_cytosine"`` for plain dC. 2'-MOE and LNA wing cytosines are
+    already the 5-methyl form (``/i2MOErC/``, ``+C``).
 
     Only DNA / 2'-MOE / LNA sugars and A/C/G/T bases are supported; anything else raises ValueError.
     cEt (chemical-pattern code ``C``) is rejected because IDT does not sell cEt phosphoramidites, so a
