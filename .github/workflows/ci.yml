@@ -179,11 +179,11 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
-            ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
-          # cai_weights.json is built from the genome CDS of the top-expressed
-          # reference genes, so this key must be bumped whenever the genome cache
-          # changes, otherwise CAI is computed against a stale reference.
-          key: depmap-25Q3-genome6-v4
+          # cai_weights.json is deliberately NOT cached here: it is derived from the
+          # genome CDS, so `build-cell-context` rebuilds it fresh every run and it
+          # always tracks the current genome. This cache holds only the
+          # genome-independent DepMap expression data.
+          key: depmap-25Q3-v5
 
       - name: Setup DepMap
         run: tauso setup-depmap
