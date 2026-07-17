@@ -1,4 +1,4 @@
-"""IDT order-string rendering for ASO chemistries (PS-DNA, 2'-MOE, cEt, LNA, 5-methyl-C)."""
+"""IDT order-string rendering for ASO chemistries (PS-DNA, 2'-MOE, LNA, 5-methyl-C)."""
 
 import pytest
 
@@ -30,10 +30,10 @@ def test_lna_gapmer_uses_plus_prefix():
     assert out == "+A*+A*C*G*+T*+T"
 
 
-def test_cet_gapmer_uses_cet_code():
-    # pattern letter 'C' is the cEt sugar; the DNA-gap base 'C' stays plain
-    out = to_idt_notation("AACGTT", "CCddCC", "*****")
-    assert out == "/icEtA/*/icEtA/*C*G*/icEtT/*/icEtT/"
+def test_cet_sugar_is_rejected():
+    # cEt (pattern letter 'C') is not an IDT catalogue modification -> ValueError, not a rendered code
+    with pytest.raises(ValueError, match="cEt"):
+        to_idt_notation("AACGTT", "CCddCC", "*****")
 
 
 def test_moe_gapmer_5methyl_c_gap():

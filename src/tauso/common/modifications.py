@@ -30,18 +30,17 @@ def deoxy_sugar_fraction(chemical_pattern: str) -> float:
 # --- IDT order-string notation --------------------------------------------------------------------
 #
 # Per-sugar IDT residue codes, keyed by base. 2'-MOE has distinct 5'-terminal / internal / 3'-terminal
-# vendor codes; DNA, LNA and cEt use one code at any position. IDT's 2'-MOE cytidine (/i2MOErC/) is
-# already the 5-methyl-C form, so 2'-MOE wing cytosines are methylated by construction. A DNA cytosine
-# is 5-methylated only when the chemistry calls for it (`5-methylcytosines` in modification_string),
-# rendering as IDT's 5-methyl-dC by position -- internal /iMe-dC/ (the 5'/3'-terminal /5Me-dC/,/3Me-dC/
-# follow IDT's 5-/3- prefix convention; confirm them, and cEt -- not a standard IDT catalogue code --
-# against IDT's current modification list before ordering).
+# vendor codes; DNA and LNA use one code at any position. IDT's 2'-MOE cytidine (/i2MOErC/) is already
+# the 5-methyl-C form, so 2'-MOE wing cytosines are methylated by construction; IDT's LNA cytidine
+# (+C) is likewise 5-methyl by construction. A DNA cytosine is 5-methylated only when the chemistry
+# calls for it (`5-methylcytosines` in modification_string), rendering as IDT's 5-methyl-dC by
+# position -- internal /iMe-dC/, 5'/3'-terminal /5Me-dC/ / /3Me-dC/. cEt (chemical-pattern code `C`)
+# is not an IDT catalogue product, so it is rejected rather than rendered.
 _IDT_DNA = {b: b for b in "ACGT"}
 _IDT_DNA_5MEC_5PRIME = {**_IDT_DNA, "C": "/5Me-dC/"}
 _IDT_DNA_5MEC_INTERNAL = {**_IDT_DNA, "C": "/iMe-dC/"}
 _IDT_DNA_5MEC_3PRIME = {**_IDT_DNA, "C": "/3Me-dC/"}
 _IDT_LNA = {b: f"+{b}" for b in "ACGT"}
-_IDT_CET = {b: f"/icEt{b}/" for b in "ACGT"}
 _IDT_MOE_5PRIME = {b: f"/52MOEr{b}/" for b in "ACGT"}
 _IDT_MOE_INTERNAL = {b: f"/i2MOEr{b}/" for b in "ACGT"}
 _IDT_MOE_3PRIME = {b: f"/32MOEr{b}/" for b in "ACGT"}
@@ -50,7 +49,6 @@ _IDT_MOE_3PRIME = {b: f"/32MOEr{b}/" for b in "ACGT"}
 _IDT_SUGAR_CODES = {
     "d": (_IDT_DNA, _IDT_DNA, _IDT_DNA),
     "L": (_IDT_LNA, _IDT_LNA, _IDT_LNA),
-    "C": (_IDT_CET, _IDT_CET, _IDT_CET),
     "M": (_IDT_MOE_5PRIME, _IDT_MOE_INTERNAL, _IDT_MOE_3PRIME),
 }
 # DNA sugar tables when cytosines are 5-methylated (a 2'-MOE wing C is already 5-methyl via /i2MOErC/).
@@ -70,7 +68,7 @@ def to_idt_notation(
     """Render an ASO as an IDT-style order string, read 5'->3'.
 
     Each residue is emitted in its IDT code by sugar and base -- sugar from ``chemical_pattern``
-    (``M``=2'-MOE, ``C``=cEt, ``L``=LNA, ``d``=DNA) -- and a ``*`` is inserted between residues for
+    (``M``=2'-MOE, ``L``=LNA, ``d``=DNA) -- and a ``*`` is inserted between residues for
     every phosphorothioate linkage in ``ps_pattern`` (any other linkage character is phosphodiester
     and emits nothing). ``ps_pattern`` has one character per inter-nucleotide linkage
     (``len == len(sequence) - 1``); if omitted, an all-phosphorothioate backbone is assumed.
@@ -79,9 +77,9 @@ def to_idt_notation(
     cytosines render as 5-methyl-dC (internal ``/iMe-dC/``); 2'-MOE wing cytosines are already the
     5-methyl form via ``/i2MOErC/``.
 
-    Only DNA / 2'-MOE / cEt / LNA sugars and A/C/G/T bases are supported; anything else raises
-    ValueError. The emitted modification codes should be confirmed against IDT's current catalogue
-    before ordering (see the code tables above)."""
+    Only DNA / 2'-MOE / LNA sugars and A/C/G/T bases are supported; anything else raises ValueError.
+    cEt (chemical-pattern code ``C``) is rejected because IDT does not sell cEt phosphoramidites, so a
+    cEt-containing ASO cannot be turned into an IDT order string."""
     seq = str(sequence).upper()
     pattern = str(chemical_pattern)
     n = len(seq)
@@ -100,8 +98,13 @@ def to_idt_notation(
     for i, (base, sugar) in enumerate(zip(seq, pattern)):
         if base not in _IDT_DNA:
             raise ValueError(f"unsupported base {base!r} at position {i}")
+        if sugar == "C":
+            raise ValueError(
+                f"cEt sugar (code 'C') at position {i} cannot be ordered from IDT (not a catalogue "
+                "modification); remove the cEt residues or order this oligo from a cEt supplier."
+            )
         if sugar not in sugar_codes:
-            raise ValueError(f"unsupported sugar {sugar!r} at position {i} (expected one of M/C/L/d)")
+            raise ValueError(f"unsupported sugar {sugar!r} at position {i} (expected one of M/L/d)")
         five, internal, three = sugar_codes[sugar]
         table = five if i == 0 else three if i == n - 1 else internal
         residues.append(table[base])
