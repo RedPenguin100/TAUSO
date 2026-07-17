@@ -30,21 +30,15 @@ _INTERACTION_FEATURES = ("mod_ps_frac_mod", "mod_ps_frac_dna")
 
 
 def max_consecutive_po(ps_pattern):
-    if not isinstance(ps_pattern, str):
-        return 0
     return max((len(chunk) for chunk in ps_pattern.split("*")), default=0)
 
 
 def ps_end_score(ps_pattern):
-    if not isinstance(ps_pattern, str) or not ps_pattern:
-        return 0
     return len(re.match(r"^\**", ps_pattern).group()) + len(re.search(r"\**$", ps_pattern).group())
 
 
 def ps_placement(chemical_pattern, ps_pattern):
     """PS counts in (wing5, gap, wing3), split by the longest deoxy gap; (0, 0, 0) if no gap."""
-    if not isinstance(chemical_pattern, str) or not isinstance(ps_pattern, str):
-        return 0, 0, 0
     gap_start, gap_end, gap_len = get_longest_dna_gap(chemical_pattern)
     if gap_len == 0:
         return 0, 0, 0
@@ -57,8 +51,6 @@ def ps_placement(chemical_pattern, ps_pattern):
 
 def frac_with_ps(chemical_pattern, ps_pattern, marker_chars):
     """Fraction of positions whose sugar is in ``marker_chars`` that carry a PS bond on their 3' side."""
-    if not isinstance(chemical_pattern, str) or not isinstance(ps_pattern, str):
-        return 0.0
     # Each PS_PATTERN bond is attributed to the region of its 5' nucleotide
     n = min(len(chemical_pattern), len(ps_pattern))
     qualifying, ps = 0, 0
@@ -70,10 +62,13 @@ def frac_with_ps(chemical_pattern, ps_pattern, marker_chars):
     return ps / qualifying if qualifying else 0.0
 
 
-def _require(df, columns):
-    missing = [c for c in columns if c not in df.columns]
-    if missing:
-        raise ValueError(f"Missing required dependencies in dataframe: {missing}")
+def _require_str_columns(df, columns):
+    for col in columns:
+        if col not in df.columns:
+            raise ValueError(f"Missing required dependencies in dataframe: {[col]}")
+        is_str = df[col].map(lambda x: isinstance(x, str))
+        if not is_str.all():
+            raise TypeError(f"{col!r} must contain only strings; found {int((~is_str).sum())} non-string value(s)")
 
 
 def populate_backbone_features(df, features=None):
@@ -81,7 +76,7 @@ def populate_backbone_features(df, features=None):
     names = list(features) if features is not None else list(BACKBONE_FEATURES)
     todo = set(names)
 
-    _require(df, [PS_PATTERN])
+    _require_str_columns(df, [PS_PATTERN])
 
     if "mod_ps_max_consecutive_po" in todo:
         df["mod_ps_max_consecutive_po"] = df[PS_PATTERN].apply(max_consecutive_po)
@@ -90,8 +85,8 @@ def populate_backbone_features(df, features=None):
         df["mod_ps_end_score"] = df[PS_PATTERN].apply(ps_end_score)
 
     if "mod_ps_po_percentage" in todo:
-        total_po = df[PS_PATTERN].apply(lambda x: x.count("d") if isinstance(x, str) else 0)
-        total_ps = df[PS_PATTERN].apply(lambda x: x.count("*") if isinstance(x, str) else 0)
+        total_po = df[PS_PATTERN].apply(lambda x: x.count("d"))
+        total_ps = df[PS_PATTERN].apply(lambda x: x.count("*"))
         backbone_length = total_po + total_ps
         df["mod_ps_po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
 
@@ -99,7 +94,7 @@ def populate_backbone_features(df, features=None):
     need_interaction = any(c in todo for c in _INTERACTION_FEATURES)
 
     if need_placement or need_interaction:
-        _require(df, [CHEMICAL_PATTERN])
+        _require_str_columns(df, [CHEMICAL_PATTERN])
 
     # mod_ps_wing5/3_count and mod_ps_frac_mod are NaN on non-gapmer rows: their value is 0 by
     # construction there, which would leak zero-variance noise into split selection.
