@@ -10,7 +10,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from ..common.modifications import get_longest_dna_gap
+from ..common.modifications import get_longest_dna_gap, is_gapmer
 from ..data.consts import CHEMICAL_PATTERN, PS_PATTERN
 
 BACKBONE_FEATURES = [
@@ -39,20 +39,6 @@ def ps_end_score(ps_pattern):
     if not isinstance(ps_pattern, str) or not ps_pattern:
         return 0
     return len(re.match(r"^\**", ps_pattern).group()) + len(re.search(r"\**$", ps_pattern).group())
-
-
-def is_gapmer(pattern):
-    """A pattern is a "real" gapmer iff it has both flanks AND a deoxy gap.
-
-    MMMdddMMM -> yes  (wings flank a DNA gap)
-    MMMMMMMMM -> no   (fully modified: no gap)
-    ddddddddd -> no   (all-DNA: no wings)
-    dddddMMMM -> no   (gap reaches the 5' end: no 5' wing)
-    """
-    if not isinstance(pattern, str) or not pattern:
-        return False
-    start, end, gap_len = get_longest_dna_gap(pattern)
-    return gap_len > 0 and start > 0 and end < len(pattern)
 
 
 def ps_placement(chemical_pattern, ps_pattern):
