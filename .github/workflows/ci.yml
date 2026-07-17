@@ -179,10 +179,6 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
-          # cai_weights.json is deliberately NOT cached here: it is derived from the
-          # genome CDS, so `build-cell-context` rebuilds it fresh every run and it
-          # always tracks the current genome. This cache holds only the
-          # genome-independent DepMap expression data.
           key: depmap-25Q3-v5
 
       - name: Setup DepMap
