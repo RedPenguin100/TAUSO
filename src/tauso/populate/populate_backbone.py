@@ -42,7 +42,13 @@ def ps_end_score(ps_pattern):
 
 
 def is_gapmer(pattern):
-    """A pattern is a "real" gapmer iff it has both flanks AND a deoxy gap."""
+    """A pattern is a "real" gapmer iff it has both flanks AND a deoxy gap.
+
+    MMMdddMMM -> yes  (wings flank a DNA gap)
+    MMMMMMMMM -> no   (fully modified: no gap)
+    ddddddddd -> no   (all-DNA: no wings)
+    dddddMMMM -> no   (gap reaches the 5' end: no 5' wing)
+    """
     if not isinstance(pattern, str) or not pattern:
         return False
     start, end, gap_len = get_longest_dna_gap(pattern)
