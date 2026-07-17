@@ -25,7 +25,7 @@ def _chunk_df(df, chunk_size):
 
 
 def _score_chunk_multi_cutoff_multi_topn(chunk_df, top_n_to_data, cutoffs, method, target_path):
-    """One RIsearch pass for a chunk against a max(top_n) target, deriving per-top_n
+    """Scores a chunk against a max(top_n) target, deriving per-top_n
     results by filtering to each top_n's gene_set. Returns {(top_n, cutoff): Series}."""
     return compute_group_batch_multi_cutoff_multi_topn(
         chunk_df, top_n_to_data, cutoffs, method, prebuilt_target_path=target_path
@@ -84,7 +84,7 @@ def populate_off_target_specific(
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
 
-    Top_n-collapse and cutoff-collapse applied per cell line: one RIsearch pass per
+    Top_n-collapse and cutoff-collapse applied per cell line: scored per
     (cell_line, ASO chunk) at the loosest cutoff against the head(max(top_n_list))
     target, every (top_n, cutoff) feature derived from it (smaller top_n by gene-subset
     filter, cutoffs by score-filter on the streaming pyarrow output). ASO chunks across
@@ -178,7 +178,7 @@ def populate_off_target_general(
     """
     Enriches ASO_df with off-target scores using batched RIsearch calls.
 
-    Top_n-collapse and cutoff-collapse: one RIsearch pass per ASO chunk at the loosest
+    Top_n-collapse and cutoff-collapse: scored per ASO chunk at the loosest
     cutoff against the head(max(top_n_list)) target, every (top_n, cutoff) feature
     derived from it (smaller top_n by gene-subset filter, cutoffs by score-filter on
     the streaming pyarrow output). Each chunk is at most chunk_size ASOs to bound peak

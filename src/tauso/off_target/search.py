@@ -536,3 +536,85 @@ def find_all_gene_off_targets_BULK(fasta_path, genome="GRCh38", threads=16, max_
     seq_to_genes = annotate_hits_bulk(hits_list, genome=genome)
 
     return seq_to_genes
+
+
+def count_offtarget_matches_bulk(sequences, genome="GRCh38", max_mismatches=2, threads=16, exclude_regions=None):
+    """Count genome matches per sequence at each mismatch distance, in a single Bowtie pass.
+
+    Aligns every sequence to `genome` (both strands, all alignments up to `max_mismatches`) and tallies,
+    for each sequence, how many genomic loci it matches at exactly k mismatches (k in 0..max_mismatches).
+    Returns ``{sequence: {0: n0, 1: n1, ...}}``.
+
+    `exclude_regions` is an optional iterable of ``(chrom, start, end)`` genomic intervals (0-based,
+    half-open); any hit overlapping one is not counted. Pass the on-target gene's locus so the intended
+    site and any intragenic near-matches do not inflate the off-target tallies.
+
+    Assumes the Bowtie index exists (see `get_bowtie_index_base`); callers that must not trigger a
+    multi-GB index build should check the index SUCCESS sentinel before calling.
+    """
+    index_base = get_bowtie_index_base(genome=genome)
+
+    seqs = list(dict.fromkeys(sequences))
+    counts = {s: {i: 0 for i in range(max_mismatches + 1)} for s in seqs}
+    if not seqs:
+        return counts
+
+    exclude = list(exclude_regions or [])
+
+    with tempfile.TemporaryDirectory() as work:
+        fasta_path = os.path.join(work, "aso.fasta")
+        sam_path = os.path.join(work, "aso.sam")
+        with open(fasta_path, "w") as f:
+            for s in seqs:
+                f.write(f">{s}\n{s}\n")
+
+        cmd = [
+            "bowtie",
+            "-v",
+            str(max_mismatches),
+            "-a",  # Report all valid alignments
+            "-S",
+            "--sam-nohead",
+            "-p",
+            str(threads),
+            "-f",  # FASTA input; read name == the sequence
+            "-x",
+            index_base,
+            fasta_path,
+            sam_path,
+        ]
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Bowtie bulk count failed: {e.stderr}")
+            return counts
+
+        with open(sam_path) as sam:
+            for line in sam:
+                if not line.strip() or line.startswith("@"):
+                    continue
+                parts = line.split("\t")
+                flag = int(parts[1])
+                if flag & 4:
+                    continue  # Unmapped
+
+                seq_id = parts[0]
+                if seq_id not in counts:
+                    continue
+
+                if exclude:
+                    start_pos = int(parts[3]) - 1
+                    end_pos = start_pos + len(seq_id)
+                    if any(parts[2] == ec and start_pos < ee and es < end_pos for ec, es, ee in exclude):
+                        continue
+
+                mismatches = 0
+                for tag in parts[11:]:
+                    if tag.startswith("NM:i:"):
+                        mismatches = int(tag.split(":")[2])
+                        break
+
+                if mismatches <= max_mismatches:
+                    counts[seq_id][mismatches] += 1
+
+    return counts

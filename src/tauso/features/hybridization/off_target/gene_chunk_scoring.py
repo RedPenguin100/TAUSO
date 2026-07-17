@@ -1,15 +1,20 @@
-"""Chunk ASOs per target gene and score them across a thread pool.
+"""Per-gene RIsearch scan engine.
 
-The orchestration behind the per-gene off-target / on-target features: build a target
-FASTA per gene, split each gene's ASOs into worker-sized chunks, score the chunks in
-parallel, and assemble one score column per energy cutoff. The hit-level scoring itself
-is a sum(exp(-energy/RT)) per trigger (see sum_exp_by_trigger_multi_cutoff).
+Score ASOs against target gene(s) with a loose RIsearch pass per gene, in parallel: build a
+target FASTA per gene, split each gene's ASOs into worker-sized chunks, run the chunks across a
+thread pool, and reduce the hits to site-resolved stats per ASO and cutoff.
+
+The reduction keeps the full ``SiteStats`` (Boltzmann sum, best-site energy, hit count) -- a
+strict superset of what any single per-gene hybridization feature needs -- so the scan feeds
+every such feature. Feature modules derive their columns from the stats via ``emit_site_columns``
+(see off_target_specific_gene.py).
 """
 
 import logging
 import os
 import uuid
 from collections import defaultdict
+from typing import NamedTuple
 
 import pandas as pd
 
@@ -20,13 +25,19 @@ from ..fast_hybridization import (
     Interaction,
     dump_target_file,
     parse_risearch_hits_pyarrow,
-    sum_exp_by_trigger_multi_cutoff,
+    stats_by_trigger_multi_cutoff,
 )
 from .parallel import run_tasks_parallel
 
 logger = logging.getLogger(__name__)
 
-_RT = 0.616
+
+class SiteStats(NamedTuple):
+    """Site-resolved reduction of one ASO's hits against one gene, at one cutoff."""
+
+    sum_exp: float  # Sum of exp(-energy/RT) over sites (Boltzmann occupancy, >= 0)
+    min_energy: float  # best (most negative) single-site energy
+    n_sites: int  # number of hits above the cutoff
 
 
 def _validate_genes_found(target_genes, gene_to_data):
@@ -35,12 +46,12 @@ def _validate_genes_found(target_genes, gene_to_data):
         raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
 
 
-def chunkify_score_one_gene(row_triggers, target_path, cutoffs, chunk_size=100):
-    """Score one gene's ASOs against its target, in query chunks, for every cutoff.
+def _scan_one_gene_chunk(row_triggers, target_path, cutoffs, chunk_size=100):
+    """Site-resolved stats for one gene's ASOs against its target, in query chunks, per cutoff.
 
     row_triggers: [(aso_index, trigger_seq)] for ASOs targeting this gene.
-    Returns {cutoff: {trigger_id: sum(exp(-energy/RT))}}. chunk_size caps the per-call
-    query batch (and thus peak RIsearch output held while parsing).
+    Returns ``{cutoff: {trigger_id: (sum_exp, min_energy, n_sites)}}``. chunk_size caps the
+    per-call query batch (and thus peak RIsearch output held while parsing).
     """
     cutoffs = [int(c) for c in cutoffs]
     minimum_score = min(cutoffs)
@@ -50,7 +61,7 @@ def chunkify_score_one_gene(row_triggers, target_path, cutoffs, chunk_size=100):
         partial = parse_risearch_hits_pyarrow(
             trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
             target_file_path=target_path,
-            aggregation=sum_exp_by_trigger_multi_cutoff(cutoffs, RT=_RT),
+            aggregation=stats_by_trigger_multi_cutoff(cutoffs),
             minimum_score=minimum_score,
             parsing_type="2",
             interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
@@ -59,8 +70,12 @@ def chunkify_score_one_gene(row_triggers, target_path, cutoffs, chunk_size=100):
         )
         for c in cutoffs:
             dst = combined[c]
-            for trigger, value in partial.get(c, {}).items():
-                dst[trigger] = dst.get(trigger, 0.0) + value
+            for trigger, (s, e, n) in partial.get(c, {}).items():
+                if trigger in dst:
+                    ps, pe, pn = dst[trigger]
+                    dst[trigger] = (ps + s, min(pe, e), pn + n)
+                else:
+                    dst[trigger] = (s, e, n)
     return combined
 
 
@@ -81,12 +96,12 @@ def build_gene_chunk_tasks(gene_to_row_triggers, gene_to_target_path, n_jobs):
     return tasks
 
 
-def dispatch_gene_chunk_scores(aso_df, gene_to_data, target_genes, get_gene_fn, feature_name_fn, cutoffs, n_jobs):
-    """Score ASOs against their target gene(s) in parallel, one feature column per cutoff.
+def scan_gene_sites(aso_df, gene_to_data, target_genes, get_gene_fn, cutoffs, n_jobs):
+    """Run the per-gene RIsearch scan and return site-resolved stats per ASO and cutoff.
 
-    get_gene_fn(row) returns the target gene for a row (its own canonical gene for
-    on-target, or a fixed gene for single off-target). feature_name_fn(cutoff) names each
-    output column. Returns (aso_df, [feature_names]).
+    get_gene_fn(row) returns the target gene for a row (its own canonical gene for on-target, or
+    a fixed gene for single off-target). Returns ``{cutoff: {row_index: SiteStats}}`` covering
+    every ASO that had at least one hit above the cutoff against its target.
     """
     cutoffs = [int(c) for c in cutoffs]
     _validate_genes_found(target_genes, gene_to_data)
@@ -106,7 +121,7 @@ def dispatch_gene_chunk_scores(aso_df, gene_to_data, target_genes, get_gene_fn, 
 
         chunk_tasks = build_gene_chunk_tasks(gene_to_row_triggers, gene_to_target_path, n_jobs)
         logger.info(
-            "RIsearch scoring: %d genes, %d ASOs, %d tasks, %d cutoffs",
+            "RIsearch scan: %d genes, %d ASOs, %d tasks, %d cutoffs",
             len(gene_to_row_triggers),
             sum(len(v) for v in gene_to_row_triggers.values()),
             len(chunk_tasks),
@@ -114,28 +129,47 @@ def dispatch_gene_chunk_scores(aso_df, gene_to_data, target_genes, get_gene_fn, 
         )
 
         tasks = [((gene, i), triggers, path, cutoffs) for i, (gene, triggers, path) in enumerate(chunk_tasks)]
-        chunk_scores = run_tasks_parallel(tasks, chunkify_score_one_gene, n_jobs)
+        chunk_stats = run_tasks_parallel(tasks, _scan_one_gene_chunk, n_jobs)
 
-        gene_scores: dict = defaultdict(lambda: {c: {} for c in cutoffs})
-        for (gene, _), per_cutoff in chunk_scores.items():
+        gene_stats: dict = defaultdict(lambda: {c: {} for c in cutoffs})
+        for (gene, _), per_cutoff in chunk_stats.items():
             for c in cutoffs:
-                gene_scores[gene][c].update(per_cutoff.get(c, {}))
+                gene_stats[gene][c].update(per_cutoff.get(c, {}))
 
-        feature_names = []
-        for cutoff in cutoffs:
-            scores = pd.Series(0.0, index=aso_df.index)
-            for gene, row_triggers in gene_to_row_triggers.items():
-                gene_cutoff_scores = gene_scores[gene][cutoff]
+        scan: dict = {c: {} for c in cutoffs}
+        for gene, row_triggers in gene_to_row_triggers.items():
+            for c in cutoffs:
+                gene_cutoff_stats = gene_stats[gene][c]
                 for idx, _ in row_triggers:
-                    value = gene_cutoff_scores.get(str(idx))
-                    if value is not None:
-                        scores[idx] = value
-            fname = feature_name_fn(cutoff)
-            aso_df[fname] = scores
-            feature_names.append(fname)
+                    stat = gene_cutoff_stats.get(str(idx))
+                    if stat is not None:
+                        scan[c][idx] = SiteStats(*stat)
     finally:
         for path in gene_to_target_path.values():
             if os.path.exists(path):
                 os.remove(path)
 
+    return scan
+
+
+def emit_site_columns(aso_df, scan, cutoffs, derivations):
+    """Write one column per (derivation, cutoff) from a scan_gene_sites result.
+
+    derivations: [(name_fn, derive_fn)]. For each cutoff, name_fn(cutoff) names the column and
+    derive_fn(SiteStats) -> value; rows with no scored hit (or a None derivation) default to 0.0.
+    Returns (aso_df, [feature_names]).
+    """
+    cutoffs = [int(c) for c in cutoffs]
+    feature_names = []
+    for cutoff in cutoffs:
+        per_row = scan.get(cutoff, {})
+        for name_fn, derive_fn in derivations:
+            values = pd.Series(0.0, index=aso_df.index)
+            for idx, stats in per_row.items():
+                value = derive_fn(stats)
+                if value is not None:
+                    values[idx] = value
+            name = name_fn(cutoff)
+            aso_df[name] = values
+            feature_names.append(name)
     return aso_df, feature_names

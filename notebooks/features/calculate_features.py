@@ -47,6 +47,8 @@ DATASETS = {
         'default_input': OLIGO_CSV_INDEXED,
         'steps': [
             'calculate_structure',
+            'calculate_flank_features',
+            'calculate_duplication',
             'calculate_cub',
             'calculate_basic',
             'calculate_experimental_conditions',
@@ -54,7 +56,7 @@ DATASETS = {
             'calculate_toxicity',
             'calculate_expression',
             'calculate_rnase',
-            'calculate_on_target_hybridization',
+            'calculate_on_target_site_features',
             'calculate_mfe',
             'calculate_sense_accessibility',
             'calculate_sequence_one_hot',

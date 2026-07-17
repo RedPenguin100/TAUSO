@@ -21,10 +21,14 @@ from ...data.consts import (
     STRUCT_SENSE_IN_UTR,
     STRUCTURE_SENSE_DIST_TO_CANONICAL_START,
     STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP,
+    STRUCTURE_SENSE_DIST_TO_CLOSEST_SPLICE_JUNCTION,
     STRUCTURE_SENSE_DIST_TO_CLOSEST_START,
     STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
     STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+    STRUCTURE_SENSE_HOST_EXON_LOG_LENGTH,
+    STRUCTURE_SENSE_HOST_INTRON_LOG_LENGTH,
+    STRUCTURE_SENSE_JUNCTION_LOGDIST_CLOSEST,
     STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
     STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
     STRUCTURE_SENSE_LENGTH,
@@ -236,37 +240,7 @@ class Calculator:
             logger.info("All basic chemistry features exist. Skipping.")
 
         # ==========================================
-        # 2. 5'-Terminal Nucleotide Features (term5p_*)
-        # ==========================================
-        # 5'-terminal base identity. RNase H1 has a documented sequence preference at the
-        # cleavage site (Wu & Lima, JBC 2004; Lima et al., JBC 2004) and the 5' base of
-        # the ASO drives that preference. Stored as DNA letters so seq[0] == 'U' is also
-        # accepted as 'T' in term5p_is_t.
-        expected_term5p = ["term5p_is_purine", "term5p_is_g", "term5p_is_t"]
-        missing_term5p = self._get_missing_features(expected_term5p)
-
-        if missing_term5p:
-            logger.info("Computing %d 5'-terminal base features...", len(missing_term5p))
-
-            from tauso.data.consts import ASO_SEQUENCE
-
-            self._check_dependencies([ASO_SEQUENCE])
-
-            seq_5p = self.data[ASO_SEQUENCE].str[0]
-            if "term5p_is_purine" in missing_term5p:
-                self.data["term5p_is_purine"] = seq_5p.isin(["A", "G"]).astype(int)
-            if "term5p_is_g" in missing_term5p:
-                self.data["term5p_is_g"] = (seq_5p == "G").astype(int)
-            if "term5p_is_t" in missing_term5p:
-                self.data["term5p_is_t"] = seq_5p.isin(["T", "U"]).astype(int)
-
-            for feature in missing_term5p:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All 5'-terminal base features exist. Skipping.")
-
-        # ==========================================
-        # 3. Transfection Features
+        # 2. Transfection Features
         # ==========================================
         expected_transfection = ["transfection_electroporation", "transfection_gymnosis", "transfection_lipofection"]
         missing_transfection = self._get_missing_features(expected_transfection)
@@ -309,8 +283,12 @@ class Calculator:
             STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC,
             STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC,
+            STRUCTURE_SENSE_DIST_TO_CLOSEST_SPLICE_JUNCTION,
             STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC,
             STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC,
+            STRUCTURE_SENSE_JUNCTION_LOGDIST_CLOSEST,
+            STRUCTURE_SENSE_HOST_EXON_LOG_LENGTH,
+            STRUCTURE_SENSE_HOST_INTRON_LOG_LENGTH,
         ]
 
         missing = self._get_missing_features(expected_features)
@@ -415,7 +393,7 @@ class Calculator:
             for name, locus in get_rrna_loci().items():
                 gene_to_data_full.setdefault(name, locus)
 
-            # All cutoffs for a gene come from ONE RIsearch pass per ASO batch.
+            # All cutoffs for a gene are derived together per ASO batch.
             for target_gene in targets:
                 self.data, feature_names = off_target_single_gene_hybridization(
                     self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus
@@ -431,32 +409,34 @@ class Calculator:
         else:
             logger.info("All specific off-target features exist. Skipping.")
 
-    def calculate_on_target_hybridization(self):
-        """Calculates on-target total hybridization features."""
+    def calculate_on_target_site_features(self):
+        """On-target site features against each ASO's canonical gene: total hybridization
+        (Sum exp(-E/RT)) and log effective number of sites (target multiplicity), per score cutoff."""
         cutoffs = [800, 1000, 1200]
-        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs]
+        expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs] + [
+            f"on_target_log_number_of_sites_{c}" for c in cutoffs
+        ]
 
         missing = self._get_missing_features(expected_features)
 
         if missing:
-            logger.info("Computing %d on-target hybridization features...", len(missing))
+            logger.info("Computing %d on-target site features...", len(missing))
 
-            from tauso.features.hybridization.off_target.off_target_specific_gene import on_target_total_hybridization
+            from tauso.features.hybridization.off_target.off_target_specific_gene import (
+                add_on_target_site_features,
+            )
 
-            # Optimization: We can reuse the lean dictionary because on-target
-            # only evaluates against the canonical gene of each row.
+            # On-target evaluates only against each row's canonical gene, so the lean dict suffices.
+            # Only the missing shards are saved.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-
-            # All cutoffs come from ONE RIsearch pass per (gene, ASO batch).
-            needed_cutoffs = [c for c in cutoffs if f"on_target_total_hybridization_{c}" in missing]
-            if needed_cutoffs:
-                self.data, generated_names = on_target_total_hybridization(
-                    self.data, gene_to_data, cutoffs=needed_cutoffs, n_jobs=self.cpus
-                )
-                for feature_name in generated_names:
+            self.data, generated_names = add_on_target_site_features(
+                self.data, gene_to_data, cutoffs=cutoffs, n_jobs=self.cpus
+            )
+            for feature_name in generated_names:
+                if feature_name in missing:
                     self._save_calculated_feature(feature_name=feature_name)
         else:
-            logger.info("All on-target hybridization features exist. Skipping.")
+            logger.info("All on-target site features exist. Skipping.")
 
     def calculate_mfe(self):
         """Calculates Minimum Free Energy (MFE) fold features."""
@@ -536,18 +516,13 @@ class Calculator:
             logger.info("All sense accessibility features exist. Skipping.")
 
     def calculate_sequence_one_hot(self):
-        """Calculates one-hot encoded sequence features."""
+        """Calculates terminal one-hot encoded sequence features."""
 
-        # 1. Determine the expected names BEFORE running the heavy function
-        # We need the max sequence length from the data to predict the names
-        from tauso.data.consts import ASO_SEQUENCE
+        # Determine the expected names BEFORE running the heavy function, from the same
+        # helper the populate step uses, so the two lists cannot drift apart.
+        from tauso.populate.populate_sequence import one_hot_feature_names
 
-        max_len = int(self.data[ASO_SEQUENCE].str.len().max())
-
-        expected_features = []
-        for pos in range(max_len):
-            for nuc in ["A", "C", "G", "T"]:
-                expected_features.append(f"ohe_pos{pos}_{nuc}")
+        expected_features = one_hot_feature_names()
 
         missing = self._get_missing_features(expected_features)
 
@@ -555,10 +530,7 @@ class Calculator:
             logger.info("Computing sequence one-hot features...")
             from tauso.populate.populate_sequence import populate_sequence_one_hot_encoded
 
-            # Pass max_len so it strictly aligns with our expected features
-            self.data, generated_features = populate_sequence_one_hot_encoded(
-                self.data, max_len=max_len, cpus=self.cpus
-            )
+            self.data, generated_features = populate_sequence_one_hot_encoded(self.data, cpus=self.cpus)
             for feature in generated_features:
                 if feature in missing:
                     self._save_calculated_feature(feature_name=feature)
@@ -928,7 +900,7 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            # All (top_n, cutoff) features come from ONE RIsearch pass per chunk:
+            # All (top_n, cutoff) features are derived together per chunk:
             # target FASTA built at max(needed_top_ns), smaller top_n derived by
             # gene-subset filter, cutoffs by score-filter on the streaming pyarrow
             # output. Only the top_n values whose features are still missing are
@@ -987,7 +959,7 @@ class Calculator:
 
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
-            # All (top_n, cutoff) features come from ONE RIsearch pass per
+            # All (top_n, cutoff) features are derived together per
             # (cell_line, chunk): target FASTA built at max(needed_top_ns), smaller
             # top_n derived by gene-subset filter, cutoffs by score-filter on the
             # streaming pyarrow output. Only the top_n values whose features are
@@ -1133,12 +1105,13 @@ class Calculator:
         self._save_calculated_feature(feature_name="flank_gc_content_20")
 
     def calculate_duplication(self):
-        """Distinct near-full-length copies of the ASO target in its own pre-mRNA: ``dup_exact`` (exact)
-        and ``dup_near`` (<=1 mismatch). See :mod:`tauso.features.duplication_features`."""
+        """Distinct near-full-length copies of the ASO target in its own pre-mRNA:
+        ``on_target_duplication_exact`` (exact) and ``on_target_duplication_near1`` (<=1 mismatch).
+        See :mod:`tauso.features.duplication_features`."""
         from tauso.data.consts import ASO_SEQUENCE
         from tauso.features.duplication_features import compute_duplications
 
-        feats = ["dup_exact", "dup_near"]
+        feats = ["on_target_duplication_exact", "on_target_duplication_near1"]
         if not self._get_missing_features(feats):
             logger.info("Duplication features exist. Skipping.")
             return
@@ -1156,10 +1129,10 @@ class Calculator:
             self.data[ASO_SEQUENCE].astype(str).to_numpy(),
             gene_mrna,
         )
-        self.data["dup_exact"] = de
-        self.data["dup_near"] = dn
-        self._save_calculated_feature(feature_name="dup_exact")
-        self._save_calculated_feature(feature_name="dup_near")
+        self.data["on_target_duplication_exact"] = de
+        self.data["on_target_duplication_near1"] = dn
+        self._save_calculated_feature(feature_name="on_target_duplication_exact")
+        self._save_calculated_feature(feature_name="on_target_duplication_near1")
 
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
@@ -1173,7 +1146,7 @@ class Calculator:
             self.calculate_sequence,
             self.calculate_expression,
             self.calculate_rnase,
-            self.calculate_on_target_hybridization,
+            self.calculate_on_target_site_features,
             self.calculate_mfe,
             self.calculate_sense_accessibility,
             self.calculate_flank_features,

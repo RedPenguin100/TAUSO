@@ -128,7 +128,7 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.gz
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.locus.v1.introns1.canon1.pkl
-          key: ${{ runner.os }}-tauso.genome-GRCh38-v5
+          key: ${{ runner.os }}-tauso.genome-GRCh38-v6
 
       - name: Install genome
         run: tauso setup-genome
@@ -179,8 +179,7 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet
             ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
-            ${{ env.TAUSO_DATA_DIR }}/cai_weights.json
-          key: depmap-25Q3-v3
+          key: depmap-25Q3-v5
 
       - name: Setup DepMap
         run: tauso setup-depmap
@@ -202,6 +201,15 @@ jobs:
 
       - name: Setup rRNA reference (off-target)
         run: tauso setup-rrna
+
+      - name: Cache model
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/models
+          key: tauso-model-21394367-65e184e0
+
+      - name: Setup model (tauso_score)
+        run: tauso setup-model
 
       - name: Run tests
         run: micromamba run -n tauso pytest -vvvs --durations=0 --n-jobs 4

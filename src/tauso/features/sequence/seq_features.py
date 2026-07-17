@@ -7,7 +7,7 @@ import ViennaRNA as RNA
 from Bio.SeqUtils import gc_fraction
 from primer3 import calc_hairpin
 
-from ...util import dna_to_rna, get_antisense
+from ...util import dna_to_rna, get_antisense, get_antisense_rna
 
 
 def ry_transition_fraction(seq: str) -> float:
@@ -64,6 +64,16 @@ def internal_fold_rna(seq: str) -> float:
     The ASO is read 5'->3' with T mapped to U.
     """
     return RNA.fold(dna_to_rna(seq))[1]
+
+
+def sense_internal_fold(seq: str) -> float:
+    """Self-structure ΔG (kcal/mol) of the sense (target) strand at the ASO site.
+
+    Folds the sense strand -- the reverse complement of the ASO, i.e. the target mRNA sequence,
+    in the RNA (U) alphabet with RNA (Turner 2004) parameters -- capturing the intrinsic local
+    structure of the target site with no flanking context.
+    """
+    return RNA.fold(get_antisense_rna(seq))[1]
 
 
 def hairpin_dG_energy(seq: str):
