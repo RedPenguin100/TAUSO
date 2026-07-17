@@ -1,9 +1,9 @@
 import pandas as pd
 import pytest
-
 from notebooks.consts import OLIGO_CSV_INDEXED
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
+
 from tauso.populate.populate_backbone import populate_backbone_features
 
 
