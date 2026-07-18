@@ -36,7 +36,16 @@ from tauso.genome.read_human_genome import build_locus_cache, get_locus_to_data_
 from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
-from .util import rna_to_dna
+from ..util import rna_to_dna
+from ._download import (
+    DEPMAP_FILES_SHA1,
+    RRNA_SHA1,
+    ZENODO_RRNA_RECORD,
+    _ensure_depmap_file,
+    _ensure_zenodo_content_file,
+    _ensure_zenodo_table,
+    _zenodo_file_url,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,44 +58,6 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-
-
-# Zenodo-mirrored DepMap "Public 25Q3" snapshot. DepMap silently re-uploads files
-# under the same release name, so we pin to an immutable Zenodo record and verify
-# the SHA1 of each download.
-ZENODO_DEPMAP_RECORD = "20355477"
-DEPMAP_FILES_SHA1 = {
-    "Model.csv": "4e9805ecf79d187e1fb5d4c760312e5a40729e34",
-    "OmicsProfiles.csv": "fc5a1ed86ea89f805d56715f439e9738b3e28a72",
-    "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "22ac03aa45a6b9ef4f60e9ed8bb574e64dcb56f6",
-}
-
-# rRNA off-target reference: human cytoplasmic 18S/5.8S/28S/5S RefSeq records, frozen on Zenodo.
-ZENODO_RRNA_RECORD = "21071791"
-RRNA_SHA1 = "377ded75d51e57a12eee899c333f30431de0f7ff"
-
-
-def _zenodo_file_url(record_id: str, filename: str) -> str:
-    return f"https://zenodo.org/records/{record_id}/files/{filename}"
-
-
-def _ensure_depmap_file(filename: str, expected_sha1: str, data_dir: str, force: bool) -> bool:
-    """Ensure `filename` exists in `data_dir` with the pinned SHA1. Returns True if the file
-    was (re-)downloaded, False if an existing valid copy was reused."""
-    dest = os.path.join(data_dir, filename)
-
-    if os.path.exists(dest) and not force:
-        if sha1_file(dest) == expected_sha1:
-            echo_ok(f"{filename} exists (SHA1 verified).")
-            return False
-        echo_warn(f"SHA1 mismatch for {filename} — re-downloading.")
-
-    url = _zenodo_file_url(ZENODO_DEPMAP_RECORD, filename)
-    click.echo(f"Downloading {filename} from Zenodo...")
-    download_with_progress(url, dest, label=f"    {filename}")
-    verify_hash_or_exit(dest, expected_sha1, algo="sha1")
-    echo_ok(f"Downloaded {filename} (SHA1 verified).")
-    return True
 
 
 @main.command()
@@ -569,32 +540,23 @@ def setup_mrna_halflife(force):
     click.echo("Initializing mRNA half-life setup (TTDB via Zenodo)...")
     click.echo(f"Target path: {parquet_path}")
 
-    if os.path.exists(parquet_path) and not force:
-        echo_ok(f"{os.path.basename(parquet_path)} already present. Skipping.")
-        return
-
-    url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{GZ_NAME}/content"
-    try:
-        download_with_progress(url, gz_path, label=f"Downloading {GZ_NAME}")
-        verify_hash_or_exit(gz_path, EXPECTED_SHA256, algo="sha256")
-        echo_ok(f"Downloaded and verified: {gz_path}")
-
-        click.echo("  Converting to Parquet (loader columns only)...")
-        pd.read_csv(gz_path, compression="gzip", usecols=HALFLIFE_SOURCE_COLUMNS).to_parquet(parquet_path, index=False)
-        echo_ok(f"Converted to Parquet: {parquet_path}")
-
-        # The gzip CSV is dead weight once the Parquet exists (re-downloadable from Zenodo/TTDB).
-        os.remove(gz_path)
-    except Exception as e:
-        echo_err(f"Error setting up mRNA half-life data: {e}")
-        sys.exit(1)
+    _ensure_zenodo_table(
+        ZENODO_RECORD,
+        GZ_NAME,
+        gz_path,
+        parquet_path,
+        EXPECTED_SHA256,
+        "sha256",
+        force,
+        usecols=HALFLIFE_SOURCE_COLUMNS,
+    )
 
 
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
 def setup_rrna(force):
-    """Download the cytoplasmic rRNA reference FASTA from a pinned Zenodo mirror
-    (https://zenodo.org/records/21071791) into the data dir, verifying its SHA1.
+    """Download the cytoplasmic rRNA reference FASTA from a pinned Zenodo mirror into
+    the data dir, verifying its SHA1.
 
     Origin: the four human cytoplasmic rRNA RefSeq records -- 18S NR_003286.4, 5.8S NR_003285.3,
     28S NR_003287.4, 5S NR_023363.1 -- fetched once from NCBI nuccore and frozen on Zenodo for
@@ -622,16 +584,18 @@ def setup_model(version, force):
     fetching it on first use. The per-version registry (Zenodo record + md5) lives in
     tauso.inference.predict; this command just provisions it like the other setup-* assets.
     """
-    from tauso.inference.predict import DEFAULT_VERSION, ensure_model
+    from tauso.inference.predict import DEFAULT_VERSION, MODEL_FILES, ZENODO_MODEL_RECORD, model_path
 
     version = version or DEFAULT_VERSION
-    click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
-    try:
-        dest = ensure_model(version, force=force)
-        echo_ok(f"Model ready and verified: {dest}")
-    except Exception as e:
-        echo_err(f"Error setting up model: {e}")
+    if version not in MODEL_FILES:
+        echo_err(f"No model registered for version {version!r}.")
         sys.exit(1)
+    spec = MODEL_FILES[version]
+    dest = model_path(version)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
+    _ensure_zenodo_content_file(ZENODO_MODEL_RECORD, spec["filename"], str(dest), spec["md5"], "md5", force)
+    echo_ok(f"Model ready and verified: {dest}")
 
 
 @main.command(name="setup-tgcn")
@@ -701,20 +665,7 @@ def setup_attract(force):
 
     for name, expected_md5 in FILES.items():
         destination = os.path.join(dest_dir, name)
-
-        if os.path.exists(destination) and not force:
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Existing {name} matches expected MD5. Skipping download.")
-            continue
-
-        url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{name}/content"
-        try:
-            download_with_progress(url, destination, label=f"Downloading {name}")
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Downloaded and verified: {destination}")
-        except Exception as e:
-            echo_err(f"Error downloading {name}: {e}")
-            sys.exit(1)
+        _ensure_zenodo_content_file(ZENODO_RECORD, name, destination, expected_md5, "md5", force)
 
 
 _RIBOSEQ_ZENODO_RECORD = "20435808"
@@ -742,20 +693,7 @@ def setup_riboseq(force):
     for filename, expected_md5 in _RIBOSEQ_TRACKS:
         destination = os.path.join(data_dir, filename)
         click.echo(f"Target path: {destination}")
-
-        if os.path.exists(destination) and not force:
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Existing {filename} matches expected MD5. Skipping download.")
-            continue
-
-        url = f"https://zenodo.org/api/records/{_RIBOSEQ_ZENODO_RECORD}/files/{filename}/content"
-        try:
-            download_with_progress(url, destination, label=f"Downloading {filename}")
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Downloaded and verified: {destination}")
-        except Exception as e:
-            echo_err(f"Error downloading {filename}: {e}")
-            sys.exit(1)
+        _ensure_zenodo_content_file(_RIBOSEQ_ZENODO_RECORD, filename, destination, expected_md5, "md5", force)
 
 
 @main.command(name="setup-features")

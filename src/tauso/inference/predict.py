@@ -5,19 +5,19 @@ within-experiment efficacy *deviation* (the clean_exp target), so the output is 
 higher = more predicted knockdown relative to an experiment's mean. Rank candidates against each
 other within a target; the absolute value is not a percent-inhibition prediction.
 
-The boosters are large (~100 MB), so they are fetched from Zenodo on first use (like the feature
-store) and cached under the data dir, rather than committed to git. Only the per-version feature
-list ships in the package.
+The model is large (~100 MB) so it is not committed to git; download it with `tauso setup-model`.
 """
 
+import logging
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
 import xgboost as xgb
 
-from ..cli_utils import download_with_progress, verify_hash_or_exit
 from ..data.data import get_data_dir
+
+logger = logging.getLogger(__name__)
 
 MODEL_DIR = Path(__file__).resolve().parent / "model"  # committed per-version feature lists
 DEFAULT_VERSION = "v1"
@@ -36,30 +36,25 @@ def score_column(version=DEFAULT_VERSION):
     return f"tauso_score_{version}"
 
 
-def ensure_model(version=DEFAULT_VERSION, force=False):
-    """Path to the booster for `version`, fetching it from Zenodo into <data_dir>/models/ if absent
-    (or if `force`). Verifies the md5 on every call so a truncated or wrong file fails loudly.
-
-    `tauso setup-model` calls this to provision the booster ahead of time; `load_model` calls it
-    on first use so inference works even without the setup step."""
+def model_path(version=DEFAULT_VERSION):
+    """Local path to the booster for `version`, under <data_dir>/models/. Does not download it;
+    run `tauso setup-model` to provision it."""
     if version not in MODEL_FILES:
         raise KeyError(f"No model registered for version {version!r}.")
-    spec = MODEL_FILES[version]
-    dest = Path(get_data_dir()) / "models" / spec["filename"]
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if force or not dest.exists():
-        url = f"https://zenodo.org/api/records/{ZENODO_MODEL_RECORD}/files/{spec['filename']}/content"
-        download_with_progress(url, str(dest), label=f"Downloading {spec['filename']}")
-    verify_hash_or_exit(str(dest), spec["md5"], algo="md5")
-    return dest
+    return Path(get_data_dir()) / "models" / MODEL_FILES[version]["filename"]
 
 
 @lru_cache(maxsize=None)
 def load_model(version=DEFAULT_VERSION):
-    """Return (booster, feature_names) for `tauso_score_<version>`. The booster is fetched from
-    Zenodo on first use (cached under the data dir); the feature list ships in the package."""
+    """Return (booster, feature_names) for `tauso_score_<version>`. The booster must already be
+    present locally (run `tauso setup-model` to download it); the feature list ships in the package."""
+    path = model_path(version)
+    if not path.exists():
+        message = f"Model '{version}' not found at {path}. Run `tauso setup-model` to download it."
+        logger.error(message)
+        raise FileNotFoundError(message)
     booster = xgb.Booster()
-    booster.load_model(str(ensure_model(version)))
+    booster.load_model(str(path))
     features = (MODEL_DIR / f"tauso_score_{version}.features.txt").read_text().splitlines()
     return booster, features
 
