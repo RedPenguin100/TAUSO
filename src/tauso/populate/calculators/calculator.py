@@ -9,7 +9,9 @@ from pympler import asizeof
 from ...data.consts import (
     CANONICAL_GENE_NAME,
     CELL_LINE_DEPMAP,
+    CHEMICAL_PATTERN,
     DENSITY_CELLS_PER_WELL,
+    PS_PATTERN,
     STRUCT_SENSE_IN_3UTR,
     STRUCT_SENSE_IN_5UTR,
     STRUCT_SENSE_IN_CDS,
@@ -102,6 +104,19 @@ class Calculator:
         missing = [col for col in required_columns if col not in self.data.columns]
         if missing:
             raise ValueError(f"Missing required dependencies in dataframe: {missing}")
+
+    def _require_str_columns(self, columns: list) -> None:
+        """Validates the given columns exist and hold only strings; logs and raises otherwise."""
+        for col in columns:
+            if col not in self.data.columns:
+                message = f"Missing required dependencies in dataframe: {[col]}"
+                logger.error(message)
+                raise ValueError(message)
+            is_str = self.data[col].map(lambda x: isinstance(x, str))
+            if not is_str.all():
+                message = f"{col!r} must contain only strings; found {int((~is_str).sum())} non-string value(s)"
+                logger.error(message)
+                raise TypeError(message)
 
     def _cache_columns(self):
         """Column names in the locally-present wide cache for this run, or empty set."""
@@ -1019,6 +1034,7 @@ class Calculator:
 
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
+        self._require_str_columns([PS_PATTERN, CHEMICAL_PATTERN])
 
         # 1. Define the pipeline as a list of functions (no parentheses!)
         pipeline_steps = [

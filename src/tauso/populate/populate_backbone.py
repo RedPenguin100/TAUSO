@@ -3,9 +3,13 @@
 PS_PATTERN encodes one inter-nucleotide BOND per character ('*' = PS, 'd' = PO), so it has
 length ``len(CHEMICAL_PATTERN) - 1`` for a regular oligo. Each bond is attributed to the
 region of its 5' nucleotide, matching the convention used in ``get_dna_rna_dg_region``.
+
+Callers must guarantee PS_PATTERN / CHEMICAL_PATTERN hold only strings (validated upstream by
+Calculator._require_str_columns).
 """
 
 import re
+from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -13,7 +17,7 @@ import pandas as pd
 from ..common.modifications import get_longest_dna_gap, is_gapmer
 from ..data.consts import CHEMICAL_PATTERN, PS_PATTERN
 
-BACKBONE_FEATURES = [
+BACKBONE_FEATURES: list[str] = [
     "mod_ps_po_percentage",
     "mod_ps_end_score",
     "mod_ps_max_consecutive_po",
@@ -29,15 +33,15 @@ _PLACEMENT_FEATURES = ("mod_ps_wing5_count", "mod_ps_gap_count", "mod_ps_wing3_c
 _INTERACTION_FEATURES = ("mod_ps_frac_mod", "mod_ps_frac_dna")
 
 
-def max_consecutive_po(ps_pattern):
+def max_consecutive_po(ps_pattern: str) -> int:
     return max((len(chunk) for chunk in ps_pattern.split("*")), default=0)
 
 
-def ps_end_score(ps_pattern):
+def ps_end_score(ps_pattern: str) -> int:
     return len(re.match(r"^\**", ps_pattern).group()) + len(re.search(r"\**$", ps_pattern).group())
 
 
-def ps_placement(chemical_pattern, ps_pattern):
+def ps_placement(chemical_pattern: str, ps_pattern: str) -> tuple[int, int, int]:
     """PS counts in (wing5, gap, wing3), split by the longest deoxy gap; (0, 0, 0) if no gap."""
     gap_start, gap_end, gap_len = get_longest_dna_gap(chemical_pattern)
     if gap_len == 0:
@@ -49,7 +53,7 @@ def ps_placement(chemical_pattern, ps_pattern):
     )
 
 
-def frac_with_ps(chemical_pattern, ps_pattern, marker_chars):
+def frac_with_ps(chemical_pattern: str, ps_pattern: str, marker_chars: set[str]) -> float:
     """Fraction of positions whose sugar is in ``marker_chars`` that carry a PS bond on their 3' side."""
     # Each PS_PATTERN bond is attributed to the region of its 5' nucleotide
     n = min(len(chemical_pattern), len(ps_pattern))
@@ -62,21 +66,12 @@ def frac_with_ps(chemical_pattern, ps_pattern, marker_chars):
     return ps / qualifying if qualifying else 0.0
 
 
-def _require_str_columns(df, columns):
-    for col in columns:
-        if col not in df.columns:
-            raise ValueError(f"Missing required dependencies in dataframe: {[col]}")
-        is_str = df[col].map(lambda x: isinstance(x, str))
-        if not is_str.all():
-            raise TypeError(f"{col!r} must contain only strings; found {int((~is_str).sum())} non-string value(s)")
-
-
-def populate_backbone_features(df, features=None):
+def populate_backbone_features(
+    df: pd.DataFrame, features: Iterable[str] | None = None
+) -> tuple[pd.DataFrame, list[str]]:
     """Compute the requested ``mod_ps_*`` backbone features into ``df``; returns ``(df, names)``."""
     names = list(features) if features is not None else list(BACKBONE_FEATURES)
     todo = set(names)
-
-    _require_str_columns(df, [PS_PATTERN])
 
     if "mod_ps_max_consecutive_po" in todo:
         df["mod_ps_max_consecutive_po"] = df[PS_PATTERN].apply(max_consecutive_po)
@@ -92,9 +87,6 @@ def populate_backbone_features(df, features=None):
 
     need_placement = any(c in todo for c in _PLACEMENT_FEATURES)
     need_interaction = any(c in todo for c in _INTERACTION_FEATURES)
-
-    if need_placement or need_interaction:
-        _require_str_columns(df, [CHEMICAL_PATTERN])
 
     # mod_ps_wing5/3_count and mod_ps_frac_mod are NaN on non-gapmer rows: their value is 0 by
     # construction there, which would leak zero-variance noise into split selection.
