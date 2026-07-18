@@ -1,7 +1,6 @@
 import logging
 import os
 
-import numpy as np
 import pandas as pd
 import psutil
 import pyarrow.parquet as pq
@@ -10,7 +9,9 @@ from pympler import asizeof
 from ...data.consts import (
     CANONICAL_GENE_NAME,
     CELL_LINE_DEPMAP,
+    CHEMICAL_PATTERN,
     DENSITY_CELLS_PER_WELL,
+    PS_PATTERN,
     STRUCT_SENSE_IN_3UTR,
     STRUCT_SENSE_IN_5UTR,
     STRUCT_SENSE_IN_CDS,
@@ -103,6 +104,19 @@ class Calculator:
         missing = [col for col in required_columns if col not in self.data.columns]
         if missing:
             raise ValueError(f"Missing required dependencies in dataframe: {missing}")
+
+    def _require_str_columns(self, columns: list) -> None:
+        """Validates the given columns exist and hold only strings; logs and raises otherwise."""
+        for col in columns:
+            if col not in self.data.columns:
+                message = f"Missing required dependencies in dataframe: {[col]}"
+                logger.error(message)
+                raise ValueError(message)
+            is_str = self.data[col].map(lambda x: isinstance(x, str))
+            if not is_str.all():
+                message = f"{col!r} must contain only strings; found {int((~is_str).sum())} non-string value(s)"
+                logger.error(message)
+                raise TypeError(message)
 
     def _cache_columns(self):
         """Column names in the locally-present wide cache for this run, or empty set."""
@@ -622,134 +636,18 @@ class Calculator:
             logger.info("All modification features exist. Skipping.")
 
     def calculate_backbone_features(self):
-        """Calculates features derived from the PS_PATTERN backbone (mod_ps_* family).
+        """Populates the PS-backbone features (mod_ps_* family) from PS_PATTERN."""
+        from tauso.populate.populate_backbone import BACKBONE_FEATURES, populate_backbone_features
 
-        PS_PATTERN encodes one inter-nucleotide BOND per character ('*' = PS,
-        'd' = PO), so it has length len(CHEMICAL_PATTERN) - 1 for a regular
-        oligo. Each bond is attributed to the region of its 5' nucleotide,
-        matching the convention used in get_dna_rna_dg_region.
-        """
-        expected_features = [
-            "mod_ps_po_percentage",
-            "mod_ps_end_score",
-            "mod_ps_max_consecutive_po",
-            "mod_ps_wing5_count",
-            "mod_ps_gap_count",
-            "mod_ps_wing3_count",
-            "mod_ps_frac_mod",
-            "mod_ps_frac_dna",
-        ]
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d backbone features...", len(missing))
-            import re
-
-            from tauso.common.modifications import get_longest_dna_gap
-            from tauso.data.consts import CHEMICAL_PATTERN, PS_PATTERN
-
-            self._check_dependencies([PS_PATTERN])
-
-            if "mod_ps_max_consecutive_po" in missing:
-                self.data["mod_ps_max_consecutive_po"] = self.data[PS_PATTERN].apply(
-                    lambda x: max((len(chunk) for chunk in x.split("*")), default=0) if isinstance(x, str) else 0
-                )
-
-            if "mod_ps_end_score" in missing:
-                self.data["mod_ps_end_score"] = self.data[PS_PATTERN].apply(
-                    lambda x: (
-                        len(re.match(r"^\**", x).group()) + len(re.search(r"\**$", x).group())
-                        if isinstance(x, str) and x
-                        else 0
-                    )
-                )
-
-            if "mod_ps_po_percentage" in missing:
-                total_po = self.data[PS_PATTERN].apply(lambda x: x.count("d") if isinstance(x, str) else 0)
-                total_ps = self.data[PS_PATTERN].apply(lambda x: x.count("*") if isinstance(x, str) else 0)
-                backbone_length = total_po + total_ps
-                self.data["mod_ps_po_percentage"] = (total_po / backbone_length.replace(0, pd.NA)).fillna(0)
-
-            need_placement = any(c in missing for c in ("mod_ps_wing5_count", "mod_ps_gap_count", "mod_ps_wing3_count"))
-            need_interaction = any(c in missing for c in ("mod_ps_frac_mod", "mod_ps_frac_dna"))
-
-            if need_placement or need_interaction:
-                self._check_dependencies([CHEMICAL_PATTERN])
-
-            # Routing flag: a row is a "real" gapmer iff it has both flanks AND a deoxy gap.
-            # mod_ps_wing5/3_count and mod_ps_frac_mod are NaN on non-gapmer rows because their
-            # value is 0 by construction there, which would leak zero-variance noise into
-            # split selection.
-            def _is_gapmer_pat(pat):
-                if not isinstance(pat, str) or not pat:
-                    return False
-                start, end, gap_len = get_longest_dna_gap(pat)
-                return gap_len > 0 and start > 0 and end < len(pat)
-
-            is_gapmer_series = (
-                self.data[CHEMICAL_PATTERN].map(_is_gapmer_pat) if need_placement or need_interaction else None
-            )
-
-            if need_placement:
-
-                def _ps_placement(chem_pat, ps_pat):
-                    if not isinstance(chem_pat, str) or not isinstance(ps_pat, str):
-                        return 0, 0, 0
-                    gap_start, gap_end, gap_len = get_longest_dna_gap(chem_pat)
-                    if gap_len == 0:
-                        return 0, 0, 0
-                    return (
-                        ps_pat[:gap_start].count("*"),
-                        ps_pat[gap_start:gap_end].count("*"),
-                        ps_pat[gap_end:].count("*"),
-                    )
-
-                triples = self.data.apply(lambda r: _ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1)
-                if "mod_ps_gap_count" in missing:
-                    # Meaningful for all chemistries (= total PS for all-DNA, 0 for all-modified)
-                    self.data["mod_ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
-                if "mod_ps_wing5_count" in missing:
-                    wing5 = triples.map(lambda t: float(t[0]))
-                    self.data["mod_ps_wing5_count"] = wing5.where(is_gapmer_series, np.nan)
-                if "mod_ps_wing3_count" in missing:
-                    wing3 = triples.map(lambda t: float(t[2]))
-                    self.data["mod_ps_wing3_count"] = wing3.where(is_gapmer_series, np.nan)
-
-            if need_interaction:
-
-                def _frac_with_ps(chem_pat, ps_pat, marker_chars):
-                    if not isinstance(chem_pat, str) or not isinstance(ps_pat, str):
-                        return 0.0
-                    # Each PS_PATTERN bond is attributed to the region of its 5' nucleotide
-                    n = min(len(chem_pat), len(ps_pat))
-                    qualifying, ps = 0, 0
-                    for i in range(n):
-                        if chem_pat[i] in marker_chars:
-                            qualifying += 1
-                            if ps_pat[i] == "*":
-                                ps += 1
-                    return ps / qualifying if qualifying else 0.0
-
-                if "mod_ps_frac_mod" in missing:
-                    # Fraction of high-affinity-sugar positions (M/C/L) that carry a PS bond
-                    # on their 3' side. NaN on non-gapmer rows (no mods or no wings).
-                    raw = self.data.apply(
-                        lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}),
-                        axis=1,
-                    ).astype(float)
-                    self.data["mod_ps_frac_mod"] = raw.where(is_gapmer_series, np.nan)
-                if "mod_ps_frac_dna" in missing:
-                    # Fraction of deoxy ('d') positions that carry a PS bond on their 3' side.
-                    # Meaningful for all chemistries (pure-DNA = total PS / total bonds).
-                    self.data["mod_ps_frac_dna"] = self.data.apply(
-                        lambda r: _frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}),
-                        axis=1,
-                    ).astype(float)
-
-            for feature in missing:
-                self._save_calculated_feature(feature_name=feature)
-        else:
+        missing = self._get_missing_features(BACKBONE_FEATURES)
+        if not missing:
             logger.info("All backbone features exist. Skipping.")
+            return
+
+        logger.info("Computing %d backbone features...", len(missing))
+        self.data, names = populate_backbone_features(self.data, features=missing)
+        for feature in names:
+            self._save_calculated_feature(feature_name=feature)
 
     def calculate_interaction(self):
         """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
@@ -1136,6 +1034,7 @@ class Calculator:
 
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
+        self._require_str_columns([PS_PATTERN, CHEMICAL_PATTERN])
 
         # 1. Define the pipeline as a list of functions (no parentheses!)
         pipeline_steps = [

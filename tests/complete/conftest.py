@@ -167,3 +167,11 @@ def common_gene_sample(request, base_data):
     genes = base_data[CANONICAL_GENE_NAME].value_counts().index[:n_genes].tolist()
     sub = base_data[base_data[CANONICAL_GENE_NAME].isin(genes)]
     return sub.groupby(CANONICAL_GENE_NAME, group_keys=False).head(max_per_gene).reset_index(drop=True)
+
+
+@pytest.fixture
+def sampled_base_data(request, base_data):
+    """Samples the base data right before the test runs."""
+    n_samples = getattr(request, "param", 1000)
+    actual_samples = min(n_samples, len(base_data))
+    return base_data.sample(n=actual_samples, random_state=42).copy()
