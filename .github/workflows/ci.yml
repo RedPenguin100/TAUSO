@@ -2,9 +2,9 @@ name: Build and Test Python
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'v[0-9]*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'v[0-9]*' ]
   schedule:
     - cron: '0 3 * * *' # 3:00 AM UTC -> 6:00 AM Israel Daylight Time
 
