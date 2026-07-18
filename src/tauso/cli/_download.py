@@ -2,6 +2,7 @@ import os
 import sys
 
 import click
+import pandas as pd
 
 from tauso.cli_utils import download_with_progress, echo_err, echo_ok, echo_warn, sha1_file, verify_hash_or_exit
 
@@ -61,4 +62,37 @@ def _ensure_zenodo_content_file(
         echo_ok(f"Downloaded and verified: {destination}")
     except Exception as e:
         echo_err(f"Error downloading {filename}: {e}")
+        sys.exit(1)
+
+
+def _ensure_zenodo_table(
+    record_id: str,
+    source_name: str,
+    source_path: str,
+    parquet_path: str,
+    expected_hash: str,
+    algo: str,
+    force: bool,
+    usecols=None,
+    compression=None,
+) -> bool:
+    """Download a tabular Zenodo file to `source_path`, verify its hash, convert it to
+    `parquet_path` (optionally keeping only `usecols`), and drop the source. Returns False
+    (skips) if the parquet already exists and not `force`."""
+    if os.path.exists(parquet_path) and not force:
+        echo_ok(f"{os.path.basename(parquet_path)} already present. Skipping.")
+        return False
+    try:
+        download_with_progress(
+            _zenodo_content_url(record_id, source_name), source_path, label=f"Downloading {source_name}"
+        )
+        verify_hash_or_exit(source_path, expected_hash, algo=algo)
+        echo_ok(f"Downloaded and verified: {source_path}")
+        click.echo("  Converting to Parquet...")
+        pd.read_csv(source_path, compression=compression, usecols=usecols).to_parquet(parquet_path, index=False)
+        echo_ok(f"Converted to Parquet: {parquet_path}")
+        os.remove(source_path)
+        return True
+    except Exception as e:
+        echo_err(f"Error setting up {os.path.basename(parquet_path)}: {e}")
         sys.exit(1)

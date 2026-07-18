@@ -43,7 +43,7 @@ from ._download import (
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
     _ensure_zenodo_content_file,
-    _zenodo_content_url,
+    _ensure_zenodo_table,
     _zenodo_file_url,
 )
 
@@ -540,25 +540,17 @@ def setup_mrna_halflife(force):
     click.echo("Initializing mRNA half-life setup (TTDB via Zenodo)...")
     click.echo(f"Target path: {parquet_path}")
 
-    if os.path.exists(parquet_path) and not force:
-        echo_ok(f"{os.path.basename(parquet_path)} already present. Skipping.")
-        return
-
-    url = _zenodo_content_url(ZENODO_RECORD, GZ_NAME)
-    try:
-        download_with_progress(url, gz_path, label=f"Downloading {GZ_NAME}")
-        verify_hash_or_exit(gz_path, EXPECTED_SHA256, algo="sha256")
-        echo_ok(f"Downloaded and verified: {gz_path}")
-
-        click.echo("  Converting to Parquet (loader columns only)...")
-        pd.read_csv(gz_path, compression="gzip", usecols=HALFLIFE_SOURCE_COLUMNS).to_parquet(parquet_path, index=False)
-        echo_ok(f"Converted to Parquet: {parquet_path}")
-
-        # The gzip CSV is dead weight once the Parquet exists (re-downloadable from Zenodo/TTDB).
-        os.remove(gz_path)
-    except Exception as e:
-        echo_err(f"Error setting up mRNA half-life data: {e}")
-        sys.exit(1)
+    _ensure_zenodo_table(
+        ZENODO_RECORD,
+        GZ_NAME,
+        gz_path,
+        parquet_path,
+        EXPECTED_SHA256,
+        "sha256",
+        force,
+        usecols=HALFLIFE_SOURCE_COLUMNS,
+        compression="gzip",
+    )
 
 
 @main.command()
