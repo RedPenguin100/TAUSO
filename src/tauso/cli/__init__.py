@@ -584,16 +584,18 @@ def setup_model(version, force):
     fetching it on first use. The per-version registry (Zenodo record + md5) lives in
     tauso.inference.predict; this command just provisions it like the other setup-* assets.
     """
-    from tauso.inference.predict import DEFAULT_VERSION, ensure_model
+    from tauso.inference.predict import DEFAULT_VERSION, MODEL_FILES, ZENODO_MODEL_RECORD, model_path
 
     version = version or DEFAULT_VERSION
-    click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
-    try:
-        dest = ensure_model(version, force=force)
-        echo_ok(f"Model ready and verified: {dest}")
-    except Exception as e:
-        echo_err(f"Error setting up model: {e}")
+    if version not in MODEL_FILES:
+        echo_err(f"No model registered for version {version!r}.")
         sys.exit(1)
+    spec = MODEL_FILES[version]
+    dest = model_path(version)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
+    _ensure_zenodo_content_file(ZENODO_MODEL_RECORD, spec["filename"], str(dest), spec["md5"], "md5", force)
+    echo_ok(f"Model ready and verified: {dest}")
 
 
 @main.command(name="setup-tgcn")
