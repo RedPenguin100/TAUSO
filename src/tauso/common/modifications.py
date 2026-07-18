@@ -26,6 +26,7 @@ def deoxy_sugar_fraction(chemical_pattern: str) -> float:
     s = str(chemical_pattern)
     return s.count("d") / len(s) if s else 0.0
 
+
 def is_gapmer(pattern):
     """A pattern is a "real" gapmer iff it has both flanks AND a deoxy gap.
 
@@ -38,7 +39,6 @@ def is_gapmer(pattern):
         return False
     start, end, gap_len = get_longest_dna_gap(pattern)
     return gap_len > 0 and start > 0 and end < len(pattern)
-
 
 
 # --- IDT order-string notation --------------------------------------------------------------------
