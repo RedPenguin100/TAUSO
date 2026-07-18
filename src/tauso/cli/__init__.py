@@ -549,7 +549,6 @@ def setup_mrna_halflife(force):
         "sha256",
         force,
         usecols=HALFLIFE_SOURCE_COLUMNS,
-        compression="gzip",
     )
 
 

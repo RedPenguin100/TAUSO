@@ -74,7 +74,6 @@ def _ensure_zenodo_table(
     algo: str,
     force: bool,
     usecols=None,
-    compression=None,
 ) -> bool:
     """Download a tabular Zenodo file to `source_path`, verify its hash, convert it to
     `parquet_path` (optionally keeping only `usecols`), and drop the source. Returns False
@@ -89,7 +88,7 @@ def _ensure_zenodo_table(
         verify_hash_or_exit(source_path, expected_hash, algo=algo)
         echo_ok(f"Downloaded and verified: {source_path}")
         click.echo("  Converting to Parquet...")
-        pd.read_csv(source_path, compression=compression, usecols=usecols).to_parquet(parquet_path, index=False)
+        pd.read_csv(source_path, usecols=usecols).to_parquet(parquet_path, index=False)
         echo_ok(f"Converted to Parquet: {parquet_path}")
         os.remove(source_path)
         return True
