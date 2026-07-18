@@ -5,8 +5,7 @@ within-experiment efficacy *deviation* (the clean_exp target), so the output is 
 higher = more predicted knockdown relative to an experiment's mean. Rank candidates against each
 other within a target; the absolute value is not a percent-inhibition prediction.
 
-The boosters are large (~100 MB), so they are provisioned via `tauso setup-model` (not committed
-to git) and loaded from the data dir. Only the per-version feature list ships in the package.
+The model is large (~100 MB) so it is not committed to git; download it with `tauso setup-model`.
 """
 
 import logging
