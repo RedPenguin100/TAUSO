@@ -1,8 +1,9 @@
 import os
+import sys
 
 import click
 
-from tauso.cli_utils import download_with_progress, echo_ok, echo_warn, sha1_file, verify_hash_or_exit
+from tauso.cli_utils import download_with_progress, echo_err, echo_ok, echo_warn, sha1_file, verify_hash_or_exit
 
 # Zenodo-mirrored DepMap "Public 25Q3" snapshot. DepMap silently re-uploads files
 # under the same release name, so we pin to an immutable Zenodo record and verify
@@ -23,6 +24,10 @@ def _zenodo_file_url(record_id: str, filename: str) -> str:
     return f"https://zenodo.org/records/{record_id}/files/{filename}"
 
 
+def _zenodo_content_url(record_id: str, filename: str) -> str:
+    return f"https://zenodo.org/api/records/{record_id}/files/{filename}/content"
+
+
 def _ensure_depmap_file(filename: str, expected_sha1: str, data_dir: str, force: bool) -> bool:
     """Ensure `filename` exists in `data_dir` with the pinned SHA1. Returns True if the file
     was (re-)downloaded, False if an existing valid copy was reused."""
@@ -40,3 +45,20 @@ def _ensure_depmap_file(filename: str, expected_sha1: str, data_dir: str, force:
     verify_hash_or_exit(dest, expected_sha1, algo="sha1")
     echo_ok(f"Downloaded {filename} (SHA1 verified).")
     return True
+
+
+def _ensure_zenodo_content_file(
+    record_id: str, filename: str, destination: str, expected_hash: str, algo: str, force: bool
+) -> None:
+    """Ensure `destination` holds Zenodo file `filename`, verified against `expected_hash`."""
+    if os.path.exists(destination) and not force:
+        verify_hash_or_exit(destination, expected_hash, algo=algo)
+        echo_ok(f"Existing {filename} matches expected {algo.upper()}. Skipping download.")
+        return
+    try:
+        download_with_progress(_zenodo_content_url(record_id, filename), destination, label=f"Downloading {filename}")
+        verify_hash_or_exit(destination, expected_hash, algo=algo)
+        echo_ok(f"Downloaded and verified: {destination}")
+    except Exception as e:
+        echo_err(f"Error downloading {filename}: {e}")
+        sys.exit(1)

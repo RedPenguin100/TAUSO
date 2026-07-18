@@ -42,6 +42,8 @@ from ._download import (
     RRNA_SHA1,
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
+    _ensure_zenodo_content_file,
+    _zenodo_content_url,
     _zenodo_file_url,
 )
 
@@ -542,7 +544,7 @@ def setup_mrna_halflife(force):
         echo_ok(f"{os.path.basename(parquet_path)} already present. Skipping.")
         return
 
-    url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{GZ_NAME}/content"
+    url = _zenodo_content_url(ZENODO_RECORD, GZ_NAME)
     try:
         download_with_progress(url, gz_path, label=f"Downloading {GZ_NAME}")
         verify_hash_or_exit(gz_path, EXPECTED_SHA256, algo="sha256")
@@ -562,8 +564,8 @@ def setup_mrna_halflife(force):
 @main.command()
 @click.option("--force", is_flag=True, help="Force redownload.")
 def setup_rrna(force):
-    """Download the cytoplasmic rRNA reference FASTA from a pinned Zenodo mirror
-    (https://zenodo.org/records/21071791) into the data dir, verifying its SHA1.
+    """Download the cytoplasmic rRNA reference FASTA from a pinned Zenodo mirror into
+    the data dir, verifying its SHA1.
 
     Origin: the four human cytoplasmic rRNA RefSeq records -- 18S NR_003286.4, 5.8S NR_003285.3,
     28S NR_003287.4, 5S NR_023363.1 -- fetched once from NCBI nuccore and frozen on Zenodo for
@@ -670,20 +672,7 @@ def setup_attract(force):
 
     for name, expected_md5 in FILES.items():
         destination = os.path.join(dest_dir, name)
-
-        if os.path.exists(destination) and not force:
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Existing {name} matches expected MD5. Skipping download.")
-            continue
-
-        url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{name}/content"
-        try:
-            download_with_progress(url, destination, label=f"Downloading {name}")
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Downloaded and verified: {destination}")
-        except Exception as e:
-            echo_err(f"Error downloading {name}: {e}")
-            sys.exit(1)
+        _ensure_zenodo_content_file(ZENODO_RECORD, name, destination, expected_md5, "md5", force)
 
 
 _RIBOSEQ_ZENODO_RECORD = "20435808"
@@ -711,20 +700,7 @@ def setup_riboseq(force):
     for filename, expected_md5 in _RIBOSEQ_TRACKS:
         destination = os.path.join(data_dir, filename)
         click.echo(f"Target path: {destination}")
-
-        if os.path.exists(destination) and not force:
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Existing {filename} matches expected MD5. Skipping download.")
-            continue
-
-        url = f"https://zenodo.org/api/records/{_RIBOSEQ_ZENODO_RECORD}/files/{filename}/content"
-        try:
-            download_with_progress(url, destination, label=f"Downloading {filename}")
-            verify_hash_or_exit(destination, expected_md5, algo="md5")
-            echo_ok(f"Downloaded and verified: {destination}")
-        except Exception as e:
-            echo_err(f"Error downloading {filename}: {e}")
-            sys.exit(1)
+        _ensure_zenodo_content_file(_RIBOSEQ_ZENODO_RECORD, filename, destination, expected_md5, "md5", force)
 
 
 @main.command(name="setup-features")
