@@ -24,28 +24,6 @@ RRNA_CUTOFFS = [800, 1000, 1200]
 
 
 @pytest.fixture(scope="session")
-def transcriptomes_with_general(transcriptomes):
-    """Extends the transcriptomes dict with a 'general' key for use in general off-target tests."""
-    from pathlib import Path
-
-    from tauso.common.gtf import filter_gtf_genes
-    from tauso.data.data import get_data_dir, load_gtf_db
-    from tauso.features.expression.general_expression import get_general_expression_of_genes
-
-    db = load_gtf_db()
-    valid_genes = filter_gtf_genes(db, filter_mode="non_mt")
-
-    data_dir = get_data_dir()
-    exp_path = Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
-
-    mean_exp_data = get_general_expression_of_genes(exp_path, valid_genes)
-
-    result = dict(transcriptomes)
-    result["general"] = mean_exp_data
-    return result
-
-
-@pytest.fixture(scope="session")
 def mini_structure_data(request, structure_data):
     n_samples = getattr(request, "param", 1000)
     actual_samples = min(n_samples, len(structure_data))
