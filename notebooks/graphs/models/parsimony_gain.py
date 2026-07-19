@@ -25,7 +25,10 @@ from notebooks.models import common                 # noqa: E402
 from tauso.inference import load_model              # noqa: E402
 import _modeldata as M                              # noqa: E402
 
-OUT = Path(__file__).resolve().parent / "parsimony_gain_test.csv"
+HERE = Path(__file__).resolve().parent
+OUT_BY_MODE = {"fixed": HERE / "parsimony_gain_test.csv",
+               "iterative": HERE / "parsimony_gain_iterative_test.csv"}
+REFS = HERE / "parsimony_gain_refs.csv"
 BEST = json.loads((REPO / "notebooks/models/best_models_parameters.json").read_text())["clean_exp_exp_med"]
 KS = [485, 450, 400, 350, 300, 275, 250, 225, 200, 180, 160, 150, 140, 120,
       100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20]
@@ -41,8 +44,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ks", default=None, help="comma-separated K values (default: the selector grid)")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--mode", choices=["fixed", "iterative"], default="fixed",
+                    help="fixed: rank once on the shipped model. iterative: re-rank the survivors "
+                         "by the gain of the model trained at each step (recursive elimination).")
+    ap.add_argument("--no-plot", action="store_true", help="skip rendering the figure after the sweep")
     args = ap.parse_args()
     ks = [int(k) for k in args.ks.split(",")] if args.ks else KS
+    OUT = OUT_BY_MODE[args.mode]
+    if args.mode == "iterative":
+        ks = sorted(ks, reverse=True)      # each step must be a subset of the previous one
 
     df, _ = common.load_dataset()
     trv, test = common.split(df)
@@ -57,23 +67,31 @@ def main():
           " ".join(f"{k}={v:.3f}" for k, v in sorted(refs.items(), key=lambda kv: -kv[1])), flush=True)
 
     params, rounds, variant = BEST["params"], BEST["num_boost_round"], BEST["variant"]
-    rows = []
+    # merge into any existing sweep so a refinement run extends the curve instead of replacing it
+    done = {r["K"]: r for r in pd.read_csv(OUT).to_dict("records")} if OUT.exists() else {}
+    cur = ranked                                   # ranking used to pick the next subset
     for i, k in enumerate(ks, 1):
         t0 = time.time()
-        feats = ranked[:k]
+        feats = cur[:k]
         m = common.train(trv, feats, variant, params, rounds, seed=args.seed)
         pred = common.predict(m, test, feats)
         scored = sub.merge(pd.DataFrame({M.IDX: test["index_oligo"].to_numpy(), "score": pred}),
                            on=M.IDX, how="left")
         em = M.med(scored, "score", M.CID)
         gx = M.med(scored, "score", "gxc")
-        rows.append({"K": k, "exp_med": em, "gxc_med": gx, "seconds": round(time.time() - t0, 1)})
-        pd.DataFrame(rows).to_csv(OUT, index=False)          # incremental save
+        done[k] = {"K": k, "exp_med": em, "gxc_med": gx, "seconds": round(time.time() - t0, 1)}
+        pd.DataFrame(sorted(done.values(), key=lambda r: -r["K"])).to_csv(OUT, index=False)
         print(f"[{i}/{len(ks)}] K={k:4d}  exp_med={em:.4f}  gxc_med={gx:.4f}  ({time.time()-t0:.0f}s)", flush=True)
+        if args.mode == "iterative":
+            cur = gain_ranked_features(m, feats)   # survivors re-ranked by this step's model
 
-    pd.DataFrame([{"label": k, "exp_med": v} for k, v in refs.items()]).to_csv(
-        OUT.with_name("parsimony_gain_refs.csv"), index=False)
-    print(f"\nwrote {OUT} and {OUT.with_name('parsimony_gain_refs.csv')}", flush=True)
+    pd.DataFrame([{"label": k, "exp_med": v} for k, v in refs.items()]).to_csv(REFS, index=False)
+    print(f"\nwrote {OUT} and {REFS}", flush=True)
+
+    if not args.no_plot:
+        sys.path.insert(0, str(REPO / "notebooks/graphs/article"))
+        from parsimony import build          # noqa: E402
+        build(mode=args.mode)
 
 
 if __name__ == "__main__":

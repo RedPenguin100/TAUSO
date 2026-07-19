@@ -1,10 +1,12 @@
 """Parsimony -- held-out within-experiment Spearman vs number of top-K features (gain-ranked).
 
-Reads the sweep written by models/parsimony_gain.py and draws the curve against the competitor
-reference lines, on the same held-out comparison subset Fig 2 uses.
+Draws the curve written by models/parsimony_gain.py against the competitor reference lines, on the
+same held-out comparison subset Fig 2 uses. `build()` is called directly by parsimony_gain.py so
+one command runs the sweep and renders the figure; run standalone to re-plot without recomputing.
 
-    python parsimony.py
+    python parsimony.py [--mode iterative]
 """
+import argparse
 import sys
 from pathlib import Path
 
@@ -20,13 +22,14 @@ from consts import save, style, ACCENT, BLUE, GREY, INK   # noqa: E402
 
 CAT = "article"
 MODELS = Path(__file__).resolve().parents[1] / "models"
+CSV_BY_MODE = {"fixed": "parsimony_gain_test.csv", "iterative": "parsimony_gain_iterative_test.csv"}
 LOWK = [20, 30, 40, 50]
 XTICKS = [20, 30, 50, 100, 200, 500]
 TEAL = "#2A9D8F"
 
 
-def main():
-    d = pd.read_csv(MODELS / "parsimony_gain_test.csv").sort_values("K")
+def build(mode="iterative"):
+    d = pd.read_csv(MODELS / CSV_BY_MODE[mode]).sort_values("K")
     refs = pd.read_csv(MODELS / "parsimony_gain_refs.csv").set_index("label")["exp_med"]
     K, em = d["K"].to_numpy(), d["exp_med"].to_numpy()
     at = dict(zip(d["K"], d["exp_med"]))
@@ -59,20 +62,24 @@ def main():
     ax.set_title("Parsimony — held-out test", fontsize=12, fontweight="bold", loc="left", pad=8)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
 
+    rank_desc = ("recursively re-ranked by the gain of the model trained at each step"
+                 if mode == "iterative" else "ranked once by gain on the full model")
     cap = (
         "# Parsimony — held-out test\n\n"
         "Within-experiment (custom_id) median Spearman on the held-out test, restricted to the Fig 2 "
         "comparison subset (strict 5-10-5 2'-MOE / 3-10-3 cEt gapmers, rows OligoAI also scored). "
-        "For each K the champion configuration is retrained on train+val using only the top-K features "
-        "ranked by **gain** importance, then scored once on the test split. Dashed lines are the "
-        f"competitors on the same rows: OligoAI ({oai:.2f}) and the strongest rule-based tool, "
-        f"{rule_lbl} ({rule:.2f}). ★ marks the shipped model, which uses all {kmax} features "
-        f"({at[kmax]:.2f})."
+        f"For each K the champion configuration is retrained on train+val using the top-K features "
+        f"({rank_desc}), then scored once on the test split. Dashed lines are the competitors on the "
+        f"same rows: OligoAI ({oai:.2f}) and the strongest rule-based tool, {rule_lbl} ({rule:.2f}). "
+        f"★ marks the shipped model, which uses all {kmax} features ({at[kmax]:.2f})."
     )
-    save(fig, CAT, "parsimony", caption=cap)
-    print(f"parsimony built | K {K.min()}..{K.max()} ({len(K)} points) | "
+    name = "parsimony" if mode == "iterative" else "parsimony_fixed"
+    save(fig, CAT, name, caption=cap)
+    print(f"parsimony ({mode}) built | K {K.min()}..{K.max()} ({len(K)} points) | "
           f"K={kmax}: {at[kmax]:.3f} | OligoAI {oai:.3f} | {rule_lbl} {rule:.3f}")
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--mode", choices=["fixed", "iterative"], default="iterative")
+    build(ap.parse_args().mode)
