@@ -142,6 +142,13 @@ def structure_data(base_data, target_genes, gene_to_data):
 
 
 @pytest.fixture(scope="session")
+def mini_structure_data(request, structure_data):
+    n_samples = getattr(request, "param", 1000)
+    actual_samples = min(n_samples, len(structure_data))
+    return structure_data.sample(n=actual_samples, random_state=42).copy()
+
+
+@pytest.fixture(scope="session")
 def chemistry_data(structure_data):
     return assign_chemistry(structure_data)
 
