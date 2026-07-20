@@ -47,7 +47,6 @@ def main():
     ap.add_argument("--mode", choices=["fixed", "iterative"], default="fixed",
                     help="fixed: rank once on the shipped model. iterative: re-rank the survivors "
                          "by the gain of the model trained at each step (recursive elimination).")
-    ap.add_argument("--no-plot", action="store_true", help="skip rendering the figure after the sweep")
     args = ap.parse_args()
     ks = [int(k) for k in args.ks.split(",")] if args.ks else KS
     OUT = OUT_BY_MODE[args.mode]
@@ -88,10 +87,6 @@ def main():
     pd.DataFrame([{"label": k, "exp_med": v} for k, v in refs.items()]).to_csv(REFS, index=False)
     print(f"\nwrote {OUT} and {REFS}", flush=True)
 
-    if not args.no_plot:
-        sys.path.insert(0, str(REPO / "notebooks/graphs/article"))
-        from parsimony import build          # noqa: E402
-        build(mode=args.mode)
 
 
 if __name__ == "__main__":
