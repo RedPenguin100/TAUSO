@@ -1,5 +1,7 @@
 import pytest
+from tests.complete.conftest import get_n_jobs
 
+from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
 from tauso.features.hybridization.off_target.off_target_specific_gene import (
     off_target_single_gene_hybridization,
     on_target_total_hybridization,
@@ -7,7 +9,10 @@ from tauso.features.hybridization.off_target.off_target_specific_gene import (
 from tauso.features.hybridization.off_target.on_target_multiplicity import (
     on_target_log_number_of_sites,
 )
-from tests.complete.conftest import get_n_jobs
+from tauso.populate.populate_off_target import (
+    populate_off_target_general,
+    populate_off_target_specific,
+)
 
 SINGLE_TARGET_GENES = ["RNASEH1"]
 CUTOFFS = [800, 1000, 1200]
@@ -70,3 +75,36 @@ def test_off_target_single_rrna_regression(mini_structure_data, dataframe_regres
         feature_names.append(total_col)
     # FP-tolerant (parallel aggregation / parser wobble ~1e-5), as in test_off_target_specific_regression.
     dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
+
+
+@pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)
+def test_off_target_specific_regression(mini_structure_data, gene_to_data, transcriptomes, dataframe_regression):
+    data = mini_structure_data.copy()
+    data, feature_names = populate_off_target_specific(
+        ASO_df=data,
+        gene_to_data=gene_to_data,
+        cell_line2data=transcriptomes,
+        top_n_list=[50],
+        cutoff_list=[800],
+        method=AggregationMethod.BOLTZMANN_SUM,
+        n_jobs=get_n_jobs(),
+    )
+    # Parallel thread aggregation can produce floating-point differences ~1e-5
+    dataframe_regression.check(data[["index_oligo"] + feature_names], default_tolerance={"atol": 1e-4, "rtol": 1e-4})
+
+
+@pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)
+def test_off_target_general_regression(
+    mini_structure_data, gene_to_data_full, transcriptomes_with_general, dataframe_regression
+):
+    data = mini_structure_data.copy()
+    data, feature_names = populate_off_target_general(
+        ASO_df=data,
+        gene_to_data=gene_to_data_full,
+        cell_line2data=transcriptomes_with_general,
+        top_n_list=[25],
+        cutoff_list=[800],
+        method=AggregationMethod.BOLTZMANN_SUM,
+        n_jobs=get_n_jobs(),
+    )
+    dataframe_regression.check(data[["index_oligo"] + feature_names])
