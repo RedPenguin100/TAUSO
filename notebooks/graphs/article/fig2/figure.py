@@ -24,7 +24,7 @@ import panel_a, panel_b, panel_c, panel_d, panel_e, panel_f   # noqa: E402
 
 
 def _caption(D):
-    eff = {m: float(np.exp(np.log(D.effort[m].to_numpy()).mean())) for m in ("TAUSO", "OligoAI")}
+    eff = {m: D.effort_stat[m][0] for m in ("TAUSO", "OligoAI", "random")}
     return (
         "# Fig 2 — TAUSO vs. the field (held-out performance)\n\n"
         f"OligoAI's held-out test split (identical partition; Methods), strict 5-10-5 2′-MOE / 3-10-3 "
@@ -37,8 +37,9 @@ def _caption(D):
         "OligoAI is largest on cEt. **(e)** Parsimony: retraining on the top-K gain-ranked features, "
         f"held-out Spearman holds at the shipped level down to ~80 features and beats OligoAI "
         f"({D.oai_em:.2f}) with ~30. **(f)** Screening-effort reduction vs random selection to match a "
-        f"method's top-{D.effort_k} picks (geometric mean over screens): TAUSO {eff['TAUSO']:.1f}× vs "
-        f"OligoAI {eff['OligoAI']:.1f}×. Draft."
+        f"method's top-{D.effort_k} picks (geometric mean over screens, whisker = 95% bootstrap CI over "
+        f"screens; fold is floored at 1×, so the random control sits just above it): TAUSO "
+        f"{eff['TAUSO']:.1f}× vs OligoAI {eff['OligoAI']:.1f}× vs random {eff['random']:.1f}×. Draft."
     )
 
 
@@ -53,7 +54,7 @@ def main():
     panel_d.draw(fig.add_subplot(gs[1, 1]), D)
     panel_e.draw(fig.add_subplot(gs[2, 0]), D)
     panel_f.draw(fig.add_subplot(gs[2, 1]), D)
-    fig.subplots_adjust(top=0.915, bottom=0.045, left=0.085, right=0.975, hspace=0.5, wspace=0.32)
+    fig.subplots_adjust(top=0.915, bottom=0.045, left=0.125, right=0.975, hspace=0.5, wspace=0.32)
     fig.suptitle("TAUSO vs. the field — held-out performance", fontsize=16, fontweight="bold",
                  x=0.012, y=0.975, ha="left")
     fig.text(0.012, 0.944, f"OligoAI split, strict 5-10-5 MOE / 3-10-3 cEt gapmers: "

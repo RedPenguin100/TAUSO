@@ -34,6 +34,19 @@ def _chem_of(p):
     return "other"
 
 
+def _effort_summary(effort, methods=("TAUSO", "OligoAI", "random"), n_boot=4000):
+    """Per method: (geometric-mean fold, 95% bootstrap-CI low, high), resampling screens."""
+    rng = np.random.default_rng(0)
+    out = {}
+    for m in methods:
+        x = effort[m].to_numpy(float)
+        n = len(x)
+        boots = np.exp(np.log(x[rng.integers(0, n, size=(n_boot, n))]).mean(axis=1))
+        lo, hi = np.percentile(boots, [2.5, 97.5])
+        out[m] = (float(np.exp(np.log(x).mean())), float(lo), float(hi))
+    return out
+
+
 def _top5_dist(S, score, s=1.0):
     """Per experiment: mean actual knockdown of the top-5%-ranked ASOs by `score` (or random/oracle)."""
     out = []
@@ -65,6 +78,7 @@ class Fig2Data:
     ow_em: float             # (e) best rule-based reference
     ow_lbl: str
     effort: pd.DataFrame     # (f) per-screen fold: TAUSO / OligoAI / random
+    effort_stat: dict        # (f) method -> (geomean fold, 95% boot-CI lo, hi) over screens
     effort_k: int
     n_aso: int
     n_cid: int
@@ -107,5 +121,5 @@ def load():
 
     return Fig2Data(present=present, sign=sign, cid=cid, gxc=gxc, t5=t5, chem_res=chem_res,
                     parsimony=parsimony, oai_em=oai_em, ow_em=_ow[ow_lbl], ow_lbl=ow_lbl,
-                    effort=effort, effort_k=EFFORT_K,
+                    effort=effort, effort_stat=_effort_summary(effort), effort_k=EFFORT_K,
                     n_aso=len(S), n_cid=S[CID].nunique(), n_gxc=S["gxc"].nunique())

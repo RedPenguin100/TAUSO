@@ -17,7 +17,11 @@ def panel_label(ax, s):
 
 
 def spearman_bar(ax, d, title):
-    """Horizontal bar of {method: median Spearman}, TAUSO orange / OligoAI blue / rest grey."""
+    """Horizontal bar of {method: median Spearman}, TAUSO orange / OligoAI blue / rest grey.
+
+    Method names are left-aligned in the margin (tidy left edge, no clipping); the x-limits carry
+    extra room on the negative side so the leftmost bar and its value label clear the axis.
+    """
     items = sorted(d.items(), key=lambda kv: (kv[1] if np.isfinite(kv[1]) else -9))
     labels = [k for k, _ in items]
     vals = [v for _, v in items]
@@ -25,11 +29,15 @@ def spearman_bar(ax, d, title):
     yy = np.arange(len(labels))
     ax.barh(yy, vals, color=colors, edgecolor="white", zorder=3)
     ax.set_yticks(yy)
-    ax.set_yticklabels(labels, fontsize=9)
+    ax.set_yticklabels(labels, fontsize=9, ha="left")
+    ax.tick_params(axis="y", length=0, pad=max(len(l) for l in labels) * 5.4 + 6)
     for i, v in enumerate(vals):
-        ax.text(v + (0.005 if v >= 0 else -0.005), i, f"{v:.2f}", va="center",
+        ax.text(v + (0.006 if v >= 0 else -0.006), i, f"{v:.2f}", va="center",
                 ha="left" if v >= 0 else "right", fontsize=8, color="#333")
     ax.axvline(0, color="#888", lw=0.8, zorder=2)
+    lo, hi = min(vals), max(vals)
+    span = hi - lo
+    ax.set_xlim(lo - (0.15 * span if lo < 0 else 0.02 * span), hi + 0.12 * span)
     ax.set_xlabel("median Spearman", fontsize=10)
     ax.set_title(title, fontsize=11.5, fontweight="bold", loc="left", pad=6)
 
