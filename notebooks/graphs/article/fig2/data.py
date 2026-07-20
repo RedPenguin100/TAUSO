@@ -34,6 +34,16 @@ def _chem_of(p):
     return "other"
 
 
+def _median_ci(rs, n_boot=2000):
+    """(median, 95% bootstrap-CI lo, hi) of a per-screen value array, resampling screens."""
+    if not len(rs):
+        return (np.nan, np.nan, np.nan)
+    rng = np.random.default_rng(0)
+    b = np.median(rs[rng.integers(0, len(rs), size=(n_boot, len(rs)))], axis=1)
+    lo, hi = np.percentile(b, [2.5, 97.5])
+    return float(np.median(rs)), float(lo), float(hi)
+
+
 def _effort_summary(effort, methods=("TAUSO", "OligoAI", "random"), n_boot=4000):
     """Per method: (geometric-mean fold, 95% bootstrap-CI low, high), resampling screens."""
     rng = np.random.default_rng(0)
@@ -70,9 +80,12 @@ class Fig2Data:
     present: dict            # method label -> score column
     sign: dict               # method label -> +1/-1 orientation
     cid: dict                # (a) per-patent median Spearman
+    cid_ci: dict             # (a) method -> (95% boot-CI lo, hi) over patents
     gxc: dict                # (b) per gene x cell median Spearman
+    gxc_ci: dict             # (b) method -> (95% boot-CI lo, hi) over cohorts
     t5: dict                 # (c) method -> array of per-experiment top-5% knockdown
     chem_res: dict           # (d) chemistry -> {TAUSO, OligoAI}
+    chem_ci: dict            # (d) chemistry -> {TAUSO: (lo, hi), OligoAI: (lo, hi)}
     parsimony: pd.DataFrame  # (e) K, exp_med
     oai_em: float            # (e) OligoAI reference on this subset
     ow_em: float             # (e) best rule-based reference
@@ -102,16 +115,23 @@ def load():
     S = df[df["is_strict"] & df["oligo_ai_score"].notna()].reset_index(drop=True)
     sign = M.orient(S, present)
 
-    cid = {lbl: M.med(S, col, CID) * sign[lbl] for lbl, col in present.items()}
-    gxc = {lbl: M.med(S, col, "gxc") * sign[lbl] for lbl, col in present.items()}
+    cid_stat = {lbl: _median_ci(M.cohort_rs(S, col, CID) * sign[lbl]) for lbl, col in present.items()}
+    gxc_stat = {lbl: _median_ci(M.cohort_rs(S, col, "gxc") * sign[lbl]) for lbl, col in present.items()}
+    cid = {lbl: v[0] for lbl, v in cid_stat.items()}
+    gxc = {lbl: v[0] for lbl, v in gxc_stat.items()}
+    cid_ci = {lbl: (v[1], v[2]) for lbl, v in cid_stat.items()}
+    gxc_ci = {lbl: (v[1], v[2]) for lbl, v in gxc_stat.items()}
     t5 = {n: _top5_dist(S, sc, sg) for n, sc, sg in [
         ("Random", "_random", 1.0),
         ("OligoWalk·intra", present.get("OligoWalk·intra"), sign.get("OligoWalk·intra", 1.0)),
         ("OligoAI", "oligo_ai_score", sign["OligoAI"]),
         ("TAUSO", "tauso", sign["TAUSO"]),
         ("best possible", "_oracle", 1.0)] if sc is not None}
-    chem_res = {c: {"TAUSO": M.med(S[S.chem == c], "tauso", CID),
-                    "OligoAI": M.med(S[S.chem == c], "oligo_ai_score", CID)} for c in ["2'-MOE", "cEt"]}
+    chem_stat = {c: {m: _median_ci(M.cohort_rs(S[S.chem == c], col, CID) * sign[m])
+                     for m, col in [("TAUSO", "tauso"), ("OligoAI", "oligo_ai_score")]}
+                 for c in ["2'-MOE", "cEt"]}
+    chem_res = {c: {m: chem_stat[c][m][0] for m in chem_stat[c]} for c in chem_stat}
+    chem_ci = {c: {m: (chem_stat[c][m][1], chem_stat[c][m][2]) for m in chem_stat[c]} for c in chem_stat}
 
     parsimony = pd.read_csv(PARSIMONY_CSV).astype({"K": int}).sort_values("K")
     oai_em = M.med(S, "oligo_ai_score", CID) * sign["OligoAI"]
@@ -119,7 +139,8 @@ def load():
     ow_lbl = max(_ow, key=_ow.get)
     effort = pd.read_csv(EFFORT_CSV)
 
-    return Fig2Data(present=present, sign=sign, cid=cid, gxc=gxc, t5=t5, chem_res=chem_res,
+    return Fig2Data(present=present, sign=sign, cid=cid, cid_ci=cid_ci, gxc=gxc, gxc_ci=gxc_ci,
+                    t5=t5, chem_res=chem_res, chem_ci=chem_ci,
                     parsimony=parsimony, oai_em=oai_em, ow_em=_ow[ow_lbl], ow_lbl=ow_lbl,
                     effort=effort, effort_stat=_effort_summary(effort), effort_k=EFFORT_K,
                     n_aso=len(S), n_cid=S[CID].nunique(), n_gxc=S["gxc"].nunique())

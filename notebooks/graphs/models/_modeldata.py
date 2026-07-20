@@ -54,13 +54,18 @@ def load():
     return df, present
 
 
-def med(df, score, grp):
-    """Median per-cohort Spearman of `score` vs inhibition (cohorts with >1 unique score, >=3 rows)."""
+def cohort_rs(df, score, grp):
+    """Per-cohort Spearman of `score` vs inhibition (cohorts with >1 unique score, >=3 rows)."""
     d = df[[score, INH, grp]].dropna()
     rs = [spearmanr(g[score], g[INH]).correlation for _, g in d.groupby(grp)
           if g[score].nunique() > 1 and len(g) >= 3]
-    rs = [r for r in rs if np.isfinite(r)]
-    return float(np.median(rs)) if rs else np.nan
+    return np.array([r for r in rs if np.isfinite(r)])
+
+
+def med(df, score, grp):
+    """Median per-cohort Spearman of `score` vs inhibition."""
+    rs = cohort_rs(df, score, grp)
+    return float(np.median(rs)) if len(rs) else np.nan
 
 
 def orient(df, present):
