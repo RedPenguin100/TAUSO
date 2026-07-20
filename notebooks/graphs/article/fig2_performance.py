@@ -29,14 +29,14 @@ from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from tauso.data.consts import CHEMICAL_PATTERN
 
 CAT = "article"
-WITH_PARSIMONY = False        # a-d only when False; a-f (adds parsimony e,f) when True
+WITH_PARSIMONY = True         # a-d only when False; a-f (adds parsimony e + per-screen scatter f) when True
 AB_IQR = bool(os.environ.get("FIG2_AB_IQR"))   # add IQR whiskers to ranking panels a/b (saved as *_abIQR)
+MIN_ROWS = 3                  # min ASOs per screen for a within-screen Spearman (matches M.med across a/b/d/e/f)
 INK_ = INK
 INH, CID = M.INH, M.CID
 TEAL = "#2A9D8F"
 GRAPHS = Path(__file__).resolve().parents[1]
-PARS_TEST = GRAPHS / "models/parsimony_test_metrics.csv"
-CV_TXT = GRAPHS.parents[0] / "models/results/feature_selection_clean_exp.txt"
+PARSIMONY_CSV = GRAPHS / "models/parsimony_gain_iterative_test.csv"
 LOWK, XTICKS = [20, 30, 40, 50], [20, 30, 50, 100, 200, 500]
 
 
@@ -87,7 +87,7 @@ def top5_dist(score, s=1.0):
     out = []
     for _, g in S.groupby(CID):
         n = len(g)
-        if n >= 10 and g[INH].nunique() > 1:
+        if n >= MIN_ROWS and g[INH].nunique() > 1:
             k = max(1, int(round(0.05 * n)))
             if score == "_random": out.append(g[INH].mean())
             elif score == "_oracle": out.append(g.nlargest(k, INH)[INH].mean())
@@ -105,21 +105,32 @@ t5 = {n: top5_dist(sc, sg) for n, sc, sg in _t5spec if sc is not None}
 chem_res = {c: {"TAUSO": M.med(S[S.chem == c], "tauso", CID), "OligoAI": M.med(S[S.chem == c], "oligo_ai_score", CID)}
             for c in ["2'-MOE", "cEt"]}
 
-# ---- parsimony data ----
+# ---- (e) parsimony curve + (f) per-screen scatter data ----
 if WITH_PARSIMONY:
-    cv = {}
-    for line in CV_TXT.read_text().splitlines():
-        mt = re.match(r"K=(\d+)\s+([\d.]+)±([\d.]+)", line)
-        if mt:
-            cv[int(mt.group(1))] = (float(mt.group(2)), float(mt.group(3)))
-    cvK = np.array(sorted(cv)); cvm = np.array([cv[k][0] for k in cvK]); cvs = np.array([cv[k][1] for k in cvK])
-    pt = pd.read_csv(PARS_TEST).sort_values("K"); ptmap = dict(zip(pt["K"], pt["exp_med"]))
+    # e: held-out exp_med vs top-K features (iterative gain sweep from parsimony_gain.py)
+    pt = pd.read_csv(PARSIMONY_CSV).sort_values("K")
+    pt["K"] = pt["K"].astype(int)
     ptK, ptm = pt["K"].to_numpy(), pt["exp_med"].to_numpy()
-    _y, _c, _g = S[INH].to_numpy(np.float64), S[CID].to_numpy(), S["gxc"].to_numpy()
-    _em = lambda stem, s: evaluate((s * S[stem]).to_numpy(np.float64), _y, _c, _g)["exp_med"]
-    oai_em = _em("oligo_ai_score", sign["OligoAI"])
-    _ow = {lbl: _em(present[lbl], sign[lbl]) for lbl in present if "OligoWalk" in lbl or lbl == "sfold"}
+    ptmap = dict(zip(pt["K"], pt["exp_med"]))
+    KMAX = int(pt["K"].max())
+    oai_em = M.med(S, "oligo_ai_score", CID) * sign["OligoAI"]
+    _ow = {lbl: M.med(S, present[lbl], CID) * sign[lbl] for lbl in present if "OligoWalk" in lbl or lbl == "sfold"}
     ow_lbl = max(_ow, key=_ow.get); ow_em = _ow[ow_lbl]
+
+    # f: paired per-screen within-experiment Spearman, TAUSO vs OligoAI (same MIN_ROWS rule)
+    def _screen_sp(g, col, sg):
+        x = g[[col, INH]].dropna()
+        return spearmanr(x[col], x[INH]).correlation * sg if x[col].nunique() > 1 and len(x) >= MIN_ROWS else np.nan
+    _pts = []
+    for _, g in S.groupby(CID):
+        t = _screen_sp(g, "tauso", sign["TAUSO"]); o = _screen_sp(g, "oligo_ai_score", sign["OligoAI"])
+        if np.isfinite(t) and np.isfinite(o):
+            _pts.append((o, t))
+    scat = np.array(_pts)
+    scat_win = float((scat[:, 1] > scat[:, 0]).mean())
+    scat_delta = float(np.median(scat[:, 1] - scat[:, 0]))
+    from scipy.stats import wilcoxon as _wilcoxon
+    scat_p = float(_wilcoxon(scat[:, 1] - scat[:, 0]).pvalue)
 
 
 def lbl(ax, s):
@@ -185,11 +196,11 @@ names = [n for n in _order if n in t5]; cols = [_cmap[n] for n in names]
 xs = np.arange(len(names))
 ygrid = np.linspace(0, 105, 256)
 dens = {n: gaussian_kde(t5[n])(ygrid) for n in names}
-kmax = max(d.max() for d in dens.values())
+_densmax = max(d.max() for d in dens.values())
 for i, (n, c) in enumerate(zip(names, cols)):
     lo, hi = t5[n].min(), t5[n].max()
     m = (ygrid >= lo) & (ygrid <= hi)
-    w = dens[n] / kmax * 0.42
+    w = dens[n] / _densmax * 0.42
     axc.fill_betweenx(ygrid[m], i - w[m], i + w[m], facecolor=c, alpha=0.5, edgecolor=c, linewidth=0.8, zorder=3)
 for i, n in zip(xs, names):
     qa, med, qb = np.percentile(t5[n], [25, 50, 75])
@@ -232,28 +243,34 @@ axd.legend(frameon=False, fontsize=9.5, loc="upper right")
 lbl(axd, "d")
 
 if WITH_PARSIMONY:
-    # e — parsimony, cross-validation (selection)
+    # e — parsimony: held-out within-experiment Spearman vs top-K features (vs competitor reference lines)
     axe = fig.add_subplot(gs[2, 0])
-    axe.axvline(450, color="#ccc", lw=1.0, ls=":", zorder=1)
-    axe.fill_between(cvK, cvm - cvs, cvm + cvs, color="#5B6B7B", alpha=0.16, lw=0, zorder=2)
-    axe.plot(cvK, cvm, color="#5B6B7B", lw=2.0, zorder=3)
-    axe.scatter([450], [cv[450][0]], color=ACCENT, s=170, marker="*", edgecolor=INK, lw=0.8, zorder=5)
-    axe.annotate("chosen K=450", (450, cv[450][0]), textcoords="offset points", xytext=(-6, 9), ha="right", fontsize=8.5, color=ACCENT, fontweight="bold")
-    droplabels(axe, lambda k: cv[k][0], "#5B6B7B")
-    logx(axe); axe.set_ylabel("within-experiment Spearman", fontsize=10)
-    axe.set_title("Model selection — cross-validation (band ±1 SD, 5 folds)", fontsize=10.5, fontweight="bold", loc="left", pad=6)
+    axe.axhline(oai_em, color=BLUE, lw=1.3, ls=(0, (5, 4)), zorder=2, label=f"OligoAI ({oai_em:.2f})")
+    axe.axhline(ow_em, color=TEAL, lw=1.3, ls=(0, (5, 4)), zorder=2, label=f"{ow_lbl} ({ow_em:.2f})")
+    axe.plot(ptK, ptm, color=ACCENT, lw=2.0, marker="o", ms=2.8, zorder=4, label=f"TAUSO")
+    axe.scatter([KMAX], [ptmap[KMAX]], s=150, marker="*", color=ACCENT, edgecolor=INK, lw=0.8, zorder=5)
+    droplabels(axe, lambda k: ptmap[k], ACCENT)
+    logx(axe); axe.set_xlim(17, KMAX * 1.15); axe.set_ylabel("within-experiment Spearman", fontsize=10)
+    axe.set_title("Parsimony — few features suffice", fontsize=10.5, fontweight="bold", loc="left", pad=6)
+    axe.legend(frameon=False, fontsize=8.5, loc="lower right")
     lbl(axe, "e")
 
-    # f — parsimony, held-out test (confirmation vs competitors)
+    # f — paired per-screen ranking: TAUSO vs OligoAI (points above the diagonal = TAUSO wins)
     axf = fig.add_subplot(gs[2, 1])
-    axf.axvline(450, color="#ccc", lw=1.0, ls=":", zorder=1)
-    axf.axhline(oai_em, color=BLUE, lw=1.3, ls=(0, (5, 4)), zorder=2, label=f"OligoAI ({oai_em:.2f})")
-    axf.axhline(ow_em, color=TEAL, lw=1.3, ls=(0, (5, 4)), zorder=2, label=f"{ow_lbl} ({ow_em:.2f})")
-    axf.plot(ptK, ptm, color=ACCENT, lw=2.0, zorder=4, label=f"TAUSO (K=450: {ptmap[450]:.2f})")
-    droplabels(axf, lambda k: ptmap[k], ACCENT)
-    logx(axf); axf.set_ylabel("within-experiment Spearman", fontsize=10)
-    axf.set_title("Parsimony — held-out test (confirmation)", fontsize=10.5, fontweight="bold", loc="left", pad=6)
-    axf.legend(frameon=False, fontsize=8.5, loc="center right")
+    _lim = (-0.65, 1.0)
+    axf.plot(_lim, _lim, color="#888", lw=1.0, ls="--", zorder=1)
+    _ab = scat[:, 1] > scat[:, 0]
+    axf.scatter(scat[_ab, 0], scat[_ab, 1], s=11, color=ACCENT, alpha=0.55, edgecolor="none", zorder=3,
+                label=f"TAUSO better ({100*scat_win:.0f}%)")
+    axf.scatter(scat[~_ab, 0], scat[~_ab, 1], s=11, color=BLUE, alpha=0.5, edgecolor="none", zorder=3,
+                label=f"OligoAI better ({100*(1-scat_win):.0f}%)")
+    axf.set_xlim(_lim); axf.set_ylim(_lim); axf.set_aspect("equal")
+    axf.set_xlabel("OligoAI — per-screen Spearman", fontsize=10)
+    axf.set_ylabel("TAUSO — per-screen Spearman", fontsize=10)
+    axf.set_title("Per-screen: TAUSO wins nearly everywhere", fontsize=10.5, fontweight="bold", loc="left", pad=6)
+    axf.legend(frameon=False, fontsize=8, loc="lower right")
+    axf.text(0.04, 0.96, f"n = {len(scat)} screens\nmedian Δ {scat_delta:+.2f}\np = {scat_p:.0e}",
+             transform=axf.transAxes, va="top", ha="left", fontsize=8, color=INK)
     lbl(axf, "f")
 
 fig.subplots_adjust(top=0.915 if WITH_PARSIMONY else 0.885, bottom=0.045 if WITH_PARSIMONY else 0.065,
@@ -279,16 +296,18 @@ cap = (
     "**(d)** Per-chemistry within-experiment Spearman — TAUSO's margin over OligoAI is largest on cEt, whose "
     "sugar OligoAI cannot parameterise.")
 if WITH_PARSIMONY:
-    cap += (" **(e, f)** Feature parsimony: each K trains on the top-K RMSE-ranked "
-            "feature set. (e) nested gene-grouped **cross-validation** over train+val (band ±1 SD over 5 folds) — the "
-            f"selection curve, ★ = chosen K=450; (f) **held-out test** (deployed feature order, K=450 reproduces the "
-            f"shipped model {ptmap[450]:.2f}) vs OligoAI ({oai_em:.2f}) and {ow_lbl} ({ow_em:.2f}). Both flat to ≈50 "
-            "features; low-K drop-off values labelled.")
+    cap += (f" **(e)** Parsimony: for each K the champion is retrained on the top-K features (ranked by "
+            f"gain, recursively re-ranked as features are removed) and scored on the same rows; held-out "
+            f"Spearman stays at the shipped model's level ({ptmap[KMAX]:.2f}, ★ = all {KMAX} features) down to "
+            f"~80 features and exceeds OligoAI ({oai_em:.2f}) with as few as ~30. **(f)** Paired per-screen "
+            f"ranking: each dot is one screen, TAUSO's within-screen Spearman (y) vs OligoAI's (x); TAUSO ranks "
+            f"better in {100*scat_win:.0f}% of {len(scat)} screens (median advantage {scat_delta:+.2f}, "
+            f"paired Wilcoxon p = {scat_p:.0e}).")
 cap += " Draft."
 save(fig, CAT, "fig2_performance_abIQR" if AB_IQR else "fig2_performance", caption=cap)
 print(f"fig2 built | n={len(S)} cid_TAUSO={cid['TAUSO']:.3f} top5(median): " +
       " ".join(f"{k}={np.median(t5[k]):.0f}" for k in names) +
-      (f" | parsimony test K450 {ptmap[450]:.3f}" if WITH_PARSIMONY else ""))
+      (f" | parsimony K={KMAX}:{ptmap[KMAX]:.3f} | scatter win {100*scat_win:.0f}%" if WITH_PARSIMONY else ""))
 
 # ---- opt-in standalone comparison of two IQR-labelling styles (FIG2C_COMPARE=1) ----
 # A: TAUSO-only median+IQR as light reference lines (current panel c).  B: every method labelled with its own median+IQR.
@@ -296,7 +315,7 @@ if os.environ.get("FIG2C_COMPARE"):
     def _violins(ax, mode):
         for i, (n, c) in enumerate(zip(names, cols)):
             lo, hi = t5[n].min(), t5[n].max(); mm = (ygrid >= lo) & (ygrid <= hi)
-            w = dens[n] / kmax * 0.42
+            w = dens[n] / _densmax * 0.42
             ax.fill_betweenx(ygrid[mm], i - w[mm], i + w[mm], facecolor=c, alpha=0.5, edgecolor=c, linewidth=0.8, zorder=3)
             qa, med, qb = np.percentile(t5[n], [25, 50, 75])
             ax.plot([i, i], [qa, qb], color="#222", lw=5, solid_capstyle="butt", zorder=4)

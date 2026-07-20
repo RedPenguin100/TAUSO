@@ -1,0 +1,1 @@
+Per-screen ranking, TAUSO vs OligoAI (n = 260 screens on the Fig 2 comparison subset). Each dot is one screen (custom_id); axes are the within-screen Spearman of each method's score vs measured knockdown. Points above the diagonal are screens TAUSO ranks better: 80% of screens (median advantage +0.11, paired Wilcoxon p = 1.1e-28).
