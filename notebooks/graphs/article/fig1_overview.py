@@ -43,8 +43,7 @@ DELIV_LABELS = ["lipofection", "electroporation", "gymnosis"]   # gymnosis = fre
 OFFT_IMG = ASSETS / "offtarget.png"          # off-target: target vs off-target gene + "?"
 OFFT_ZOOM = 0.10          # thumbnail size of the off-target inset
 ASO_IMG = ASSETS / "seq_aso.png"             # lettered gapmer strand for sequence composition & motifs
-ASO_ZOOM = 0.17           # thumbnail size of the sequence strand
-SEQ_FEATURES = ["Sequence composition (GC · AT-skew)", "RNase-H1 motif", "RBP motif"]
+ASO_ZOOM = 0.166          # thumbnail size of the sequence strand (spans the row)
 
 # panel b — feature classes (per-ASO), model card, applications
 FEATURE_CLASSES = [
@@ -84,17 +83,6 @@ def arrow(ax, xy1, xy2, color=INK, lw=2.2, ms=16, ls="-", z=5):
 def inset_img(ax, path, xy, zoom, z=6, align=(0.5, 0.0)):
     ax.add_artist(AnnotationBbox(OffsetImage(plt.imread(str(path)), zoom=zoom), xy,
                                  frameon=False, box_alignment=align, zorder=z))
-
-
-def calculator(ax, cx, cy, w=4.6, h=6.2, z=6):
-    """Small calculator glyph centred at (cx, cy) — the 'these are computed' motif for the feature list."""
-    x0, y0 = cx - w / 2, cy - h / 2
-    rbox(ax, x0, y0, w, h, fc="white", ec="#5b6b78", lw=0.9, rad=0.5, z=z)
-    rbox(ax, x0 + w * 0.15, y0 + h * 0.64, w * 0.70, h * 0.22, fc="#dfe7ee", ec="#9fb0c3", lw=0.5, rad=0.25, z=z + 1)  # screen
-    bw = w * 0.18
-    for ry in (y0 + h * 0.10, y0 + h * 0.28, y0 + h * 0.46):     # 3x3 keypad
-        for cxx in (cx - w * 0.25, cx, cx + w * 0.25):
-            rbox(ax, cxx - bw / 2, ry, bw, bw, fc="#eef2f7", ec="#9fb0c3", lw=0.4, rad=0.15, z=z + 1)
 
 
 # ------------------------------------------------------------------ panel a
@@ -140,24 +128,20 @@ def panel_a(ax):
     inset_img(ax, ACCESS_IMGS[0], (77, 53), ACCESS_ZOOM)
     inset_img(ax, ACCESS_IMGS[1], (89, 53), ACCESS_ZOOM)
 
-    # ===== ROW 3: delivery / uptake (spaced, each method labelled) =====
-    rbox(ax, 6, 27, 88, 22, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
-    ax.text(50, 47.0, "Delivery / uptake", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    for img, lbl, cx in zip(DELIV_IMGS, DELIV_LABELS, (24, 50, 76)):
-        inset_img(ax, img, (cx, 39.0), DELIV_ZOOM, align=(0.5, 0.5))
-        ax.text(cx, 30.5, lbl, fontsize=8.6, ha="center", va="center", color=INK)
+    # ===== ROW 3: delivery — one box per method (same x-extent as the determinant row) =====
+    for (x0, x1), img, lbl in zip([(1, 30), (33.5, 64.5), (68, 98)], DELIV_IMGS, DELIV_LABELS):
+        cx = (x0 + x1) / 2
+        rbox(ax, x0, 27, x1 - x0, 20, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
+        ax.text(cx, 44.5, lbl.capitalize(), fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
+        inset_img(ax, img, (cx, 35.0), DELIV_ZOOM, align=(0.5, 0.5))
 
-    # ===== ROW 4: sequence composition & motifs — strand -> compute -> feature list (upper-right) =====
+    # ===== ROW 4: sequence composition & motifs — full-width strand -> feature calculations =====
     rbox(ax, 1, 3, 97, 21, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
-    ax.text(49.5, 22.0, "Sequence composition & motifs", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    inset_img(ax, ASO_IMG, (31, 8.0), 0.105, align=(0.5, 0.5))
-    arrow(ax, (59.5, 8.0), (62.7, 8.0), color=GREY, lw=1.6, ms=12)              # strand -> compute
-    calculator(ax, 66, 8.0)
-    arrow(ax, (66, 11.3), (66, 12.9), color=GREY, lw=1.6, ms=12)               # compute -> list
-    for i, it in enumerate(SEQ_FEATURES):
-        yy = 19.0 - i * 3.2
-        ax.text(61, yy, "•", fontsize=9, ha="left", va="center", color=BLUE)
-        ax.text(62.5, yy, it, fontsize=8.0, ha="left", va="center", color=INK)
+    ax.text(49.5, 21.6, "Sequence composition & motifs", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
+    inset_img(ax, ASO_IMG, (49, 8.5), ASO_ZOOM, align=(0.5, 0.5))              # strand spans the row
+    rbox(ax, 66, 14.6, 30, 5.0, fc="white", ec=BLUE, lw=1.2, rad=1.3, z=4)     # feature-calculations node (upper-right)
+    ax.text(81, 17.1, "Feature calculations", fontsize=9.0, ha="center", va="center", fontweight="bold", color=BLUE, zorder=5)
+    arrow(ax, (81, 12.7), (81, 14.4), color=GREY, lw=1.6, ms=12)              # strand -> feature calculations
 
 
 # ------------------------------------------------------------------ panel b
@@ -187,11 +171,11 @@ def panel_b(ax):
     ax.text(cx, 66.5, f"{FILT_N} ASOs", fontsize=10.5, ha="center", va="top", fontweight="bold", color=INK)
     arrow(ax, (cx, 62.5), (cx, 60), color=GREY, lw=1.6, ms=12)
     ax.text(cx, 59, "gene-grouped\ntrain / test split", fontsize=8.8, ha="center", va="top", color=INK)
-    rbox(ax, 5, 10, 24, 40, fc="white", ec=BLUE, lw=1.1, rad=1.2, z=2)
+    rbox(ax, 4, 10, 26, 40, fc="white", ec=BLUE, lw=1.1, rad=1.2, z=2)
     ax.text(cx, 47, "Features per ASO", fontsize=9.4, ha="center", va="top", fontweight="bold", color=BLUE)
     for i, f in enumerate(FEATURE_CLASSES):
-        ax.text(7.5, 42.5 - i * 5.4, "•", fontsize=10, ha="left", va="top", color=BLUE)
-        ax.text(9.5, 42.5 - i * 5.4, f, fontsize=8.7, ha="left", va="top", color=INK)
+        ax.text(6.0, 42.5 - i * 5.4, "•", fontsize=10, ha="left", va="top", color=BLUE)
+        ax.text(8.0, 42.5 - i * 5.4, f, fontsize=8.0, ha="left", va="top", color=INK)
 
     # ---- MODEL column
     mx = 50
@@ -212,8 +196,8 @@ def panel_b(ax):
         rbox(ax, 70, y - 4.4, 26, 8.8, fc="white", ec=AMBER, lw=1.2, rad=1.2, z=2)
         ax.text(ax_, y, line, fontsize=8.3, ha="center", va="center", color=INK, zorder=3)
     # MD as a distinct, optional (dashed) downstream refinement stage
-    rbox(ax, 71, 22, 24, 9.5, fc="white", ec=PURPLE, lw=1.4, rad=1.2, ls=(0, (4, 2)), z=2)
-    ax.text(ax_, 26.8, MD_STAGE, fontsize=8.9, ha="center", va="center", color=PURPLE, fontweight="bold", zorder=3)
+    rbox(ax, 70, 22, 26, 9.5, fc="white", ec=PURPLE, lw=1.4, rad=1.2, ls=(0, (4, 2)), z=2)
+    ax.text(ax_, 26.8, MD_STAGE, fontsize=8.2, ha="center", va="center", color=PURPLE, fontweight="bold", zorder=3)
     arrow(ax, (ax_, 33.6), (ax_, 31.5), color=PURPLE, lw=1.4, ms=11, ls="-")
     ax.text(ax_, 15, "prioritized, validated\nASO candidates", fontsize=8.6, ha="center", va="center",
             color="#7a5c12", style="italic", zorder=3)
