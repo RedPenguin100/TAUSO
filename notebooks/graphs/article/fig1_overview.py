@@ -46,8 +46,6 @@ ASO_IMG = ASSETS / "seq_aso.png"             # lettered gapmer strand for sequen
 ASO_ZOOM = 0.17           # thumbnail size of the sequence strand
 SEQ_FEATURES = ["Sequence composition (GC · AT-skew)", "RNase-H1 motif", "RBP motif"]
 
-TAUSO_CALL = "TAUSO learns these signals\nand ranks candidate ASOs\nby predicted knockdown"
-
 # panel b — feature classes (per-ASO), model card, applications
 FEATURE_CLASSES = [
     "Sequence & chemistry", "Hybridization thermodynamics", "Target accessibility",
@@ -88,14 +86,15 @@ def inset_img(ax, path, xy, zoom, z=6, align=(0.5, 0.0)):
                                  frameon=False, box_alignment=align, zorder=z))
 
 
-def calculator(ax, cx, cy, w=9.0, h=12.5, z=6):
+def calculator(ax, cx, cy, w=4.6, h=6.2, z=6):
     """Small calculator glyph centred at (cx, cy) — the 'these are computed' motif for the feature list."""
     x0, y0 = cx - w / 2, cy - h / 2
-    rbox(ax, x0, y0, w, h, fc="white", ec="#5b6b78", lw=1.4, rad=1.1, z=z)
-    rbox(ax, x0 + 1.1, y0 + h - 3.4, w - 2.2, 2.3, fc="#dfe7ee", ec="#9fb0c3", lw=0.8, rad=0.4, z=z + 1)  # screen
-    for ry in (y0 + 1.7, y0 + 4.0, y0 + 6.3):                    # 3x3 keypad
-        for rx in (cx - 3.0, cx - 0.7, cx + 1.6):
-            rbox(ax, rx, ry, 1.4, 1.4, fc="#eef2f7", ec="#9fb0c3", lw=0.7, rad=0.3, z=z + 1)
+    rbox(ax, x0, y0, w, h, fc="white", ec="#5b6b78", lw=0.9, rad=0.5, z=z)
+    rbox(ax, x0 + w * 0.15, y0 + h * 0.64, w * 0.70, h * 0.22, fc="#dfe7ee", ec="#9fb0c3", lw=0.5, rad=0.25, z=z + 1)  # screen
+    bw = w * 0.18
+    for ry in (y0 + h * 0.10, y0 + h * 0.28, y0 + h * 0.46):     # 3x3 keypad
+        for cxx in (cx - w * 0.25, cx, cx + w * 0.25):
+            rbox(ax, cxx - bw / 2, ry, bw, bw, fc="#eef2f7", ec="#9fb0c3", lw=0.4, rad=0.15, z=z + 1)
 
 
 # ------------------------------------------------------------------ panel a
@@ -106,26 +105,23 @@ def panel_a(ax):
 
     BF, BE = "#f7f8fa", "#c9d2da"                              # showcase box fill / edge
 
-    # ===== ROW 1: mechanism (cell -> ASO:target duplex -> RNase H1) + hand-off to TAUSO =====
-    rbox(ax, 8, 73, 52, 20, fc=BLUE, ec="#bcd3e2", lw=1.2, rad=3.0, alpha=0.10, z=0)
+    # ===== ROW 1: mechanism (cell -> ASO:target duplex -> RNase H1) =====
+    rbox(ax, 24, 73, 52, 20, fc=BLUE, ec="#bcd3e2", lw=1.2, rad=3.0, alpha=0.10, z=0)
     yT = 83.0
-    for (x0, x1) in [(12, 22), (27, 43), (48, 58)]:
+    for (x0, x1) in [(28, 38), (43, 59), (64, 74)]:
         rbox(ax, x0, yT - 1.3, x1 - x0, 2.6, fc=BLUE, ec=BLUE, rad=0.6, z=2)
-    for (a, b) in [(22, 27), (43, 48)]:
+    for (a, b) in [(38, 43), (59, 64)]:
         ax.plot([a, b], [yT, yT], color=GREY, lw=1.4, zorder=1)
-    ax.text(12, yT - 3.1, "pre-mRNA target", fontsize=8.2, ha="left", va="center", color="#5b6b78")
-    aso_x0, aso_x1, yA = 28, 42, 87.6
+    ax.text(28, yT - 3.1, "pre-mRNA target", fontsize=8.2, ha="left", va="center", color="#5b6b78")
+    aso_x0, aso_x1, yA = 44, 58, 87.6
     rbox(ax, aso_x0, yA - 1.2, aso_x1 - aso_x0, 2.4, fc=ACCENT, ec=ACCENT, rad=0.6, z=3)
     for i in range(7):
         xt = aso_x0 + 1.6 + i * 1.8
         ax.plot([xt, xt], [yT + 1.3, yA - 1.2], color="#6b7885", lw=1.3, zorder=2)   # base-pairing (between the RNAs)
-    ax.text(35, yA + 1.8, "gapmer ASO", fontsize=9.6, ha="center", va="bottom", fontweight="bold", color=ACCENT)
-    ax.add_patch(Wedge((35, 79.0), 3.5, 122, 58, fc=PURPLE, ec=PURPLE, lw=1.0, alpha=0.85, zorder=2))  # RNase H1 (pac-man)
-    ax.text(35, 74.0, "RNase H1", fontsize=8.2, ha="center", va="center", color=PURPLE, fontweight="bold")
-    arrow(ax, (35, 80.9), (35, 81.9), color=PURPLE, lw=1.6, ms=11)          # cleavage
-    arrow(ax, (60, 83), (66, 83), color=INK, lw=2.4, ms=18)
-    rbox(ax, 67, 76, 33, 14, fc=ACCENT_L, ec=ACCENT, lw=1.8, rad=1.6, z=2)
-    ax.text(83.5, 83, TAUSO_CALL, fontsize=9.4, ha="center", va="center", color=INK, zorder=6)
+    ax.text(51, yA + 1.8, "gapmer ASO", fontsize=9.6, ha="center", va="bottom", fontweight="bold", color=ACCENT)
+    ax.add_patch(Wedge((51, 79.0), 3.5, 122, 58, fc=PURPLE, ec=PURPLE, lw=1.0, alpha=0.85, zorder=2))  # RNase H1 (pac-man)
+    ax.text(51, 74.0, "RNase H1", fontsize=8.2, ha="center", va="center", color=PURPLE, fontweight="bold")
+    arrow(ax, (51, 80.9), (51, 81.9), color=PURPLE, lw=1.6, ms=11)          # cleavage
 
     # ===== ROW 2: determinants — Hybridization | Off-target | Accessibility =====
     rbox(ax, 1, 51, 29, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
@@ -151,18 +147,17 @@ def panel_a(ax):
         inset_img(ax, img, (cx, 39.0), DELIV_ZOOM, align=(0.5, 0.5))
         ax.text(cx, 30.5, lbl, fontsize=8.6, ha="center", va="center", color=INK)
 
-    # ===== ROW 4: sequence composition & motifs — strand -> compute -> feature list =====
+    # ===== ROW 4: sequence composition & motifs — strand -> compute -> feature list (upper-right) =====
     rbox(ax, 1, 3, 97, 21, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
     ax.text(49.5, 22.0, "Sequence composition & motifs", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    inset_img(ax, ASO_IMG, (21, 12.5), 0.066, align=(0.5, 0.5))
-    calculator(ax, 51, 12.5)
-    arrow(ax, (40, 12.5), (45, 12.5), color=GREY, lw=1.8, ms=13)
-    arrow(ax, (56.5, 12.5), (61.5, 12.5), color=GREY, lw=1.8, ms=13)
-    rbox(ax, 62.5, 5.5, 34, 14, fc="white", ec="#c9d2da", lw=1.0, rad=1.2, z=1)         # feature-list panel
+    inset_img(ax, ASO_IMG, (31, 8.0), 0.105, align=(0.5, 0.5))
+    arrow(ax, (59.5, 8.0), (62.7, 8.0), color=GREY, lw=1.6, ms=12)              # strand -> compute
+    calculator(ax, 66, 8.0)
+    arrow(ax, (66, 11.3), (66, 12.9), color=GREY, lw=1.6, ms=12)               # compute -> list
     for i, it in enumerate(SEQ_FEATURES):
-        yy = 16.0 - i * 3.9
-        ax.text(64.5, yy, "•", fontsize=10, ha="left", va="center", color=BLUE)
-        ax.text(66.2, yy, it, fontsize=8.4, ha="left", va="center", color=INK)
+        yy = 19.0 - i * 3.2
+        ax.text(61, yy, "•", fontsize=9, ha="left", va="center", color=BLUE)
+        ax.text(62.5, yy, it, fontsize=8.0, ha="left", va="center", color=INK)
 
 
 # ------------------------------------------------------------------ panel b
@@ -203,9 +198,9 @@ def panel_b(ax):
     for i, line in enumerate(MODEL_LINES):
         y = 74 - i * 12.5
         strong = i == 0
-        rbox(ax, 38, y - 4.4, 24, 8.8, fc="white", ec=GREEN if strong else "#bcd6c2",
+        rbox(ax, 37, y - 4.4, 26, 8.8, fc="white", ec=GREEN if strong else "#bcd6c2",
              lw=1.5 if strong else 1.0, rad=1.2, z=2)
-        ax.text(mx, y, line, fontsize=9.2 if strong else 8.7, ha="center", va="center",
+        ax.text(mx, y, line, fontsize=8.6 if strong else 8.2, ha="center", va="center",
                 color=INK, fontweight="bold" if strong else "normal", zorder=3)
         if i < len(MODEL_LINES) - 1:
             ax.plot([mx, mx], [y - 4.4, y - 8.1], color="#bcd6c2", lw=1.2, zorder=1)
@@ -214,8 +209,8 @@ def panel_b(ax):
     ax_ = 83
     for i, line in enumerate(APP_LINES):
         y = 74 - i * 12
-        rbox(ax, 71, y - 4.4, 24, 8.8, fc="white", ec=AMBER, lw=1.2, rad=1.2, z=2)
-        ax.text(ax_, y, line, fontsize=8.9, ha="center", va="center", color=INK, zorder=3)
+        rbox(ax, 70, y - 4.4, 26, 8.8, fc="white", ec=AMBER, lw=1.2, rad=1.2, z=2)
+        ax.text(ax_, y, line, fontsize=8.3, ha="center", va="center", color=INK, zorder=3)
     # MD as a distinct, optional (dashed) downstream refinement stage
     rbox(ax, 71, 22, 24, 9.5, fc="white", ec=PURPLE, lw=1.4, rad=1.2, ls=(0, (4, 2)), z=2)
     ax.text(ax_, 26.8, MD_STAGE, fontsize=8.9, ha="center", va="center", color=PURPLE, fontweight="bold", zorder=3)
