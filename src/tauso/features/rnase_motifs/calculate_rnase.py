@@ -1,3 +1,5 @@
+from collections.abc import Callable, Mapping, Sequence
+
 import pandas as pd
 
 from ...common.modifications import get_longest_dna_gap
@@ -9,43 +11,67 @@ from .rnase_helpers import (
     scan_constrained_window_dinuc,
 )
 
+# The RNase H1 gap window (target RNA, gap start, gap end) for one ASO, or None when
+# the ASO has no scorable DNA gap (missing sequence/chemistry, or a gap shorter than 8 nt).
+GapWindow = tuple[str, int, int] | None
+
+# A window scorer: (target_rna, weights, gap_start, gap_end) -> score.
+WindowScorer = Callable[[str, Mapping[str, float], int, int], float]
+
+MIN_SCORABLE_GAP_LENGTH = 8
+
+
+def _extract_gap_windows(dataframe: pd.DataFrame) -> list[GapWindow]:
+    """Resolve each ASO's DNA-gap window once, so every experiment can reuse it.
+
+    The window depends only on the ASO sequence and chemistry, not on the RNase H1
+    weight set, so it is parsed here rather than repeatedly inside the per-experiment loop.
+    """
+    gap_windows: list[GapWindow] = []
+    for aso_sequence, chemistry_pattern in zip(dataframe[ASO_SEQUENCE], dataframe[CHEMICAL_PATTERN]):
+        if not isinstance(aso_sequence, str) or not isinstance(chemistry_pattern, str):
+            gap_windows.append(None)
+            continue
+
+        gap_start_aso, gap_end_aso, gap_length = get_longest_dna_gap(chemistry_pattern, marker="d")
+        if gap_length < MIN_SCORABLE_GAP_LENGTH:
+            gap_windows.append(None)
+            continue
+
+        target_rna = get_antisense(aso_sequence)
+        aso_length = len(aso_sequence)
+        # Gap coordinates are on the ASO; the target RNA runs antiparallel, so flip them.
+        gap_start_target = aso_length - gap_end_aso
+        gap_end_target = aso_length - gap_start_aso
+        gap_windows.append((target_rna, gap_start_target, gap_end_target))
+
+    return gap_windows
+
 
 def _apply_rnaseh1_scoring(
-    df: pd.DataFrame, experiments: tuple[str, ...], out_prefix: str, scan_fn
+    dataframe: pd.DataFrame,
+    experiments: Sequence[str],
+    out_prefix: str,
+    window_scorer: WindowScorer,
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Core logic for applying RNase H1 scoring across a set of experiments.
+    """Add one RNase H1 score column per experiment, scored with ``window_scorer``.
 
-    ``scan_fn`` selects the window scorer (single-nucleotide or dinucleotide).
+    The single-nucleotide and dinucleotide variants differ only in ``window_scorer``;
+    everything else — gap resolution and the per-experiment loop — is shared.
     """
+    gap_windows = _extract_gap_windows(dataframe)
     feature_cols = []
-    seqs = df[ASO_SEQUENCE].tolist()
-    chems = df[CHEMICAL_PATTERN].tolist()
 
-    # weights is a parameter, not a closure variable, to dodge the late-binding trap.
-    def score_row(seq: str, chem: str, weights: dict) -> float:
-        if not isinstance(seq, str) or not isinstance(chem, str):
-            return 0.0
-
-        start_aso, end_aso, gap_len = get_longest_dna_gap(chem, marker="d")
-        if gap_len < 8:
-            return 0.0
-
-        target_rna = get_antisense(seq)
-        L = len(seq)
-
-        gap_start_rc = L - end_aso
-        gap_end_rc = L - start_aso
-
-        return scan_fn(target_rna, weights, gap_start_rc, gap_end_rc)
-
-    for exp in experiments:
-        weights = rnaseh1_dict(exp)
-        col_name = f"{out_prefix}{exp}_dynamic"
+    for experiment in experiments:
+        weights = rnaseh1_dict(experiment)
+        col_name = f"{out_prefix}{experiment}_dynamic"
         feature_cols.append(col_name)
 
-        df[col_name] = [score_row(s, c, weights) for s, c in zip(seqs, chems)]
+        dataframe[col_name] = [
+            0.0 if window is None else window_scorer(window[0], weights, window[1], window[2]) for window in gap_windows
+        ]
 
-    return df, feature_cols
+    return dataframe, feature_cols
 
 
 def add_rnaseh1_scores_dinuc(
