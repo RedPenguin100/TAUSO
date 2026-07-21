@@ -17,7 +17,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Ellipse, Arc, Circle
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Ellipse, Arc, Circle, Wedge
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))     # graphs/ for consts
@@ -113,6 +113,8 @@ def panel_a(ax):
     rbox(ax, 33.5, 77, 31, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
     ax.text(49, 92.4, "Off-target", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
     inset_img(ax, OFFT_IMG, (49, 83.5), OFFT_ZOOM, align=(0.5, 0.5))
+    ax.text(36.5, 90.2, "✗", fontsize=15, ha="center", va="center", color="#C0392B", fontweight="bold", zorder=8)
+    ax.text(61.5, 90.2, "✓", fontsize=15, ha="center", va="center", color=GREEN, fontweight="bold", zorder=8)
 
     rbox(ax, 68, 77, 30, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
     ax.text(83, 92.4, "Accessibility", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
@@ -120,8 +122,7 @@ def panel_a(ax):
     inset_img(ax, ACCESS_IMGS[1], (89, 79), ACCESS_ZOOM)
 
     # ===== CENTRE: mechanism (cell -> ASO:target duplex -> RNase H1) + hand-off to TAUSO =====
-    rbox(ax, 8, 53, 47, 20, fc=BLUE, ec="#bcd3e2", lw=1.2, rad=3.0, alpha=0.10, z=0)
-    ax.text(10, 54.2, "target cell", fontsize=7.6, ha="left", va="bottom", color="#9aa5b1", style="italic")
+    rbox(ax, 8, 53, 52, 20, fc=BLUE, ec="#bcd3e2", lw=1.2, rad=3.0, alpha=0.10, z=0)
     yT = 63.0
     for (x0, x1) in [(12, 22), (27, 43), (48, 58)]:
         rbox(ax, x0, yT - 1.3, x1 - x0, 2.6, fc=BLUE, ec=BLUE, rad=0.6, z=2)
@@ -134,9 +135,9 @@ def panel_a(ax):
         xt = aso_x0 + 1.6 + i * 1.8
         ax.plot([xt, xt], [yT + 1.3, yA - 1.2], color="#6b7885", lw=1.3, zorder=2)   # base-pairing (between the RNAs)
     ax.text(35, yA + 1.8, "gapmer ASO", fontsize=9.6, ha="center", va="bottom", fontweight="bold", color=ACCENT)
-    ax.add_patch(Ellipse((35, yT - 5.6), 13, 6.4, fc=PURPLE, ec=PURPLE, alpha=0.22, zorder=1))
-    ax.text(35, yT - 5.6, "RNase H1", fontsize=8.8, ha="center", va="center", color=PURPLE, fontweight="bold")
-    arrow(ax, (35, yT - 2.4), (35, yT - 1.4), color=PURPLE, lw=1.6, ms=11)          # cleavage
+    ax.add_patch(Wedge((35, 59.0), 3.5, 122, 58, fc=PURPLE, ec=PURPLE, lw=1.0, alpha=0.85, zorder=2))  # RNase H1 (pac-man)
+    ax.text(35, 53.9, "RNase H1", fontsize=8.2, ha="center", va="center", color=PURPLE, fontweight="bold")
+    arrow(ax, (35, 60.9), (35, 61.9), color=PURPLE, lw=1.6, ms=11)          # cleavage
     arrow(ax, (60, 63), (66, 63), color=INK, lw=2.4, ms=18)
     rbox(ax, 67, 56, 33, 14, fc=ACCENT_L, ec=ACCENT, lw=1.8, rad=1.6, z=2)
     ax.text(83.5, 63, TAUSO_CALL, fontsize=9.4, ha="center", va="center", color=INK, zorder=6)
