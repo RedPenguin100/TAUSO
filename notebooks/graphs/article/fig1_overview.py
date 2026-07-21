@@ -38,12 +38,13 @@ HYBR_IMGS = (ASSETS / "weak_hybridization.png", ASSETS / "hybr_strong.png")   # 
 HYBR_ZOOM = 0.128         # thumbnail size of the hybridization insets
 DELIV_IMGS = (ASSETS / "delivery_lipofection.png", ASSETS / "delivery_electroporation.png",
               ASSETS / "delivery_freeuptake.png")   # lipofection · electroporation · free uptake
-DELIV_ZOOM = 0.085        # thumbnail size of the delivery insets
+DELIV_ZOOM = 0.098        # thumbnail size of the delivery insets
+DELIV_LABELS = ["lipofection", "electroporation", "gymnosis"]   # gymnosis = free (gymnotic) uptake
 OFFT_IMG = ASSETS / "offtarget.png"          # off-target: target vs off-target gene + "?"
 OFFT_ZOOM = 0.10          # thumbnail size of the off-target inset
 ASO_IMG = ASSETS / "seq_aso.png"             # lettered gapmer strand for sequence composition & motifs
 ASO_ZOOM = 0.17           # thumbnail size of the sequence strand
-SEQ_CLOUDS = ["Sequence composition\n(GC · AT-skew)", "RNase-H1 motif", "RBP motif"]
+SEQ_FEATURES = ["Sequence composition (GC · AT-skew)", "RNase-H1 motif", "RBP motif"]
 
 TAUSO_CALL = "TAUSO learns these signals\nand ranks candidate ASOs\nby predicted knockdown"
 
@@ -82,82 +83,86 @@ def arrow(ax, xy1, xy2, color=INK, lw=2.2, ms=16, ls="-", z=5):
                                  color=color, ls=ls, shrinkA=0, shrinkB=0, zorder=z))
 
 
-def leader(ax, xy1, xy2, color=GREY, lw=1.0):
-    ax.plot([xy1[0], xy2[0]], [xy1[1], xy2[1]], color=color, lw=lw, zorder=3, solid_capstyle="round")
-
-
 def inset_img(ax, path, xy, zoom, z=6, align=(0.5, 0.0)):
     ax.add_artist(AnnotationBbox(OffsetImage(plt.imread(str(path)), zoom=zoom), xy,
                                  frameon=False, box_alignment=align, zorder=z))
 
 
-def cloud(ax, x, y, text, fs=8.4):
-    ax.text(x, y, text, fontsize=fs, ha="center", va="center", color=INK, zorder=9,
-            bbox=dict(boxstyle="round,pad=0.5", fc="#eef2f7", ec="#9fb0c3", lw=1.1))
+def calculator(ax, cx, cy, w=9.0, h=12.5, z=6):
+    """Small calculator glyph centred at (cx, cy) — the 'these are computed' motif for the feature list."""
+    x0, y0 = cx - w / 2, cy - h / 2
+    rbox(ax, x0, y0, w, h, fc="white", ec="#5b6b78", lw=1.4, rad=1.1, z=z)
+    rbox(ax, x0 + 1.1, y0 + h - 3.4, w - 2.2, 2.3, fc="#dfe7ee", ec="#9fb0c3", lw=0.8, rad=0.4, z=z + 1)  # screen
+    for ry in (y0 + 1.7, y0 + 4.0, y0 + 6.3):                    # 3x3 keypad
+        for rx in (cx - 3.0, cx - 0.7, cx + 1.6):
+            rbox(ax, rx, ry, 1.4, 1.4, fc="#eef2f7", ec="#9fb0c3", lw=0.7, rad=0.3, z=z + 1)
 
 
 # ------------------------------------------------------------------ panel a
 def panel_a(ax):
-    ax.set_xlim(-4, 104); ax.set_ylim(5, 99); ax.axis("off")
+    ax.set_xlim(-4, 104); ax.set_ylim(1, 99); ax.axis("off")
     ax.text(-3, 97.5, "a", fontsize=19, fontweight="bold", va="top")
     ax.text(4, 97.5, "What determines gapmer ASO efficacy", fontsize=13.5, fontweight="bold", va="top", color=INK)
 
     BF, BE = "#f7f8fa", "#c9d2da"                              # showcase box fill / edge
 
-    # ===== TOP ROW: Hybridization | Off-target | Accessibility =====
-    rbox(ax, 1, 77, 29, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
-    ax.text(15.5, 92.4, "Hybridization affinity", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    inset_img(ax, HYBR_IMGS[0], (15.5, 87), HYBR_ZOOM, align=(0.5, 0.5))
-    inset_img(ax, HYBR_IMGS[1], (15.5, 81), HYBR_ZOOM, align=(0.5, 0.5))
-
-    rbox(ax, 33.5, 77, 31, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
-    ax.text(49, 92.4, "Off-target", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    inset_img(ax, OFFT_IMG, (49, 83.5), OFFT_ZOOM, align=(0.5, 0.5))
-    ax.text(36.5, 90.2, "✗", fontsize=15, ha="center", va="center", color="#C0392B", fontweight="bold", zorder=8)
-    ax.text(61.5, 90.2, "✓", fontsize=15, ha="center", va="center", color=GREEN, fontweight="bold", zorder=8)
-
-    rbox(ax, 68, 77, 30, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
-    ax.text(83, 92.4, "Accessibility", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    inset_img(ax, ACCESS_IMGS[0], (77, 79), ACCESS_ZOOM)
-    inset_img(ax, ACCESS_IMGS[1], (89, 79), ACCESS_ZOOM)
-
-    # ===== CENTRE: mechanism (cell -> ASO:target duplex -> RNase H1) + hand-off to TAUSO =====
-    rbox(ax, 8, 53, 52, 20, fc=BLUE, ec="#bcd3e2", lw=1.2, rad=3.0, alpha=0.10, z=0)
-    yT = 63.0
+    # ===== ROW 1: mechanism (cell -> ASO:target duplex -> RNase H1) + hand-off to TAUSO =====
+    rbox(ax, 8, 73, 52, 20, fc=BLUE, ec="#bcd3e2", lw=1.2, rad=3.0, alpha=0.10, z=0)
+    yT = 83.0
     for (x0, x1) in [(12, 22), (27, 43), (48, 58)]:
         rbox(ax, x0, yT - 1.3, x1 - x0, 2.6, fc=BLUE, ec=BLUE, rad=0.6, z=2)
     for (a, b) in [(22, 27), (43, 48)]:
         ax.plot([a, b], [yT, yT], color=GREY, lw=1.4, zorder=1)
     ax.text(12, yT - 3.1, "pre-mRNA target", fontsize=8.2, ha="left", va="center", color="#5b6b78")
-    aso_x0, aso_x1, yA = 28, 42, 67.6
+    aso_x0, aso_x1, yA = 28, 42, 87.6
     rbox(ax, aso_x0, yA - 1.2, aso_x1 - aso_x0, 2.4, fc=ACCENT, ec=ACCENT, rad=0.6, z=3)
     for i in range(7):
         xt = aso_x0 + 1.6 + i * 1.8
         ax.plot([xt, xt], [yT + 1.3, yA - 1.2], color="#6b7885", lw=1.3, zorder=2)   # base-pairing (between the RNAs)
     ax.text(35, yA + 1.8, "gapmer ASO", fontsize=9.6, ha="center", va="bottom", fontweight="bold", color=ACCENT)
-    ax.add_patch(Wedge((35, 59.0), 3.5, 122, 58, fc=PURPLE, ec=PURPLE, lw=1.0, alpha=0.85, zorder=2))  # RNase H1 (pac-man)
-    ax.text(35, 53.9, "RNase H1", fontsize=8.2, ha="center", va="center", color=PURPLE, fontweight="bold")
-    arrow(ax, (35, 60.9), (35, 61.9), color=PURPLE, lw=1.6, ms=11)          # cleavage
-    arrow(ax, (60, 63), (66, 63), color=INK, lw=2.4, ms=18)
-    rbox(ax, 67, 56, 33, 14, fc=ACCENT_L, ec=ACCENT, lw=1.8, rad=1.6, z=2)
-    ax.text(83.5, 63, TAUSO_CALL, fontsize=9.4, ha="center", va="center", color=INK, zorder=6)
+    ax.add_patch(Wedge((35, 79.0), 3.5, 122, 58, fc=PURPLE, ec=PURPLE, lw=1.0, alpha=0.85, zorder=2))  # RNase H1 (pac-man)
+    ax.text(35, 74.0, "RNase H1", fontsize=8.2, ha="center", va="center", color=PURPLE, fontweight="bold")
+    arrow(ax, (35, 80.9), (35, 81.9), color=PURPLE, lw=1.6, ms=11)          # cleavage
+    arrow(ax, (60, 83), (66, 83), color=INK, lw=2.4, ms=18)
+    rbox(ax, 67, 76, 33, 14, fc=ACCENT_L, ec=ACCENT, lw=1.8, rad=1.6, z=2)
+    ax.text(83.5, 83, TAUSO_CALL, fontsize=9.4, ha="center", va="center", color=INK, zorder=6)
 
-    # ===== DELIVERY ROW =====
-    rbox(ax, 14, 32, 72, 18, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
-    ax.text(50, 47.6, "Delivery / uptake", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    for img, cx in zip(DELIV_IMGS, (33, 50, 67)):
-        inset_img(ax, img, (cx, 40), DELIV_ZOOM, align=(0.5, 0.5))
+    # ===== ROW 2: determinants — Hybridization | Off-target | Accessibility =====
+    rbox(ax, 1, 51, 29, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
+    ax.text(15.5, 66.4, "Hybridization affinity", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
+    inset_img(ax, HYBR_IMGS[0], (15.5, 61), HYBR_ZOOM, align=(0.5, 0.5))
+    inset_img(ax, HYBR_IMGS[1], (15.5, 55), HYBR_ZOOM, align=(0.5, 0.5))
 
-    # ===== SEQUENCE COMPOSITION & MOTIFS (full width): lettered strand + extracted 'clouds' =====
-    rbox(ax, 1, 6, 97, 23, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
-    ax.text(49.5, 26.6, "Sequence composition & motifs", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
-    inset_img(ax, ASO_IMG, (49.5, 11.5), ASO_ZOOM, align=(0.5, 0.5))
-    for (cx, anchor) in [(20, 27), (49.5, 48), (79, 71)]:
-        leader(ax, (cx, 18.3), (anchor, 13.6), color="#b9c2cb", lw=0.9)
-        ax.scatter([anchor], [13.6], s=8, color="#8a94a0", zorder=7)
-    cloud(ax, 20, 21, SEQ_CLOUDS[0])
-    cloud(ax, 49.5, 21.2, SEQ_CLOUDS[1])
-    cloud(ax, 79, 21, SEQ_CLOUDS[2])
+    rbox(ax, 33.5, 51, 31, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
+    ax.text(49, 66.4, "Off-target", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
+    inset_img(ax, OFFT_IMG, (49, 57.5), OFFT_ZOOM, align=(0.5, 0.5))
+    ax.text(36.5, 64.2, "✗", fontsize=15, ha="center", va="center", color="#C0392B", fontweight="bold", zorder=8)
+    ax.text(61.5, 64.2, "✓", fontsize=15, ha="center", va="center", color=GREEN, fontweight="bold", zorder=8)
+
+    rbox(ax, 68, 51, 30, 17.5, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
+    ax.text(83, 66.4, "Accessibility", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
+    inset_img(ax, ACCESS_IMGS[0], (77, 53), ACCESS_ZOOM)
+    inset_img(ax, ACCESS_IMGS[1], (89, 53), ACCESS_ZOOM)
+
+    # ===== ROW 3: delivery / uptake (spaced, each method labelled) =====
+    rbox(ax, 6, 27, 88, 22, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
+    ax.text(50, 47.0, "Delivery / uptake", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
+    for img, lbl, cx in zip(DELIV_IMGS, DELIV_LABELS, (24, 50, 76)):
+        inset_img(ax, img, (cx, 39.0), DELIV_ZOOM, align=(0.5, 0.5))
+        ax.text(cx, 30.5, lbl, fontsize=8.6, ha="center", va="center", color=INK)
+
+    # ===== ROW 4: sequence composition & motifs — strand -> compute -> feature list =====
+    rbox(ax, 1, 3, 97, 21, fc=BF, ec=BE, lw=1.1, rad=1.6, z=0)
+    ax.text(49.5, 22.0, "Sequence composition & motifs", fontsize=9.6, ha="center", va="center", fontweight="bold", color=INK)
+    inset_img(ax, ASO_IMG, (21, 12.5), 0.066, align=(0.5, 0.5))
+    calculator(ax, 51, 12.5)
+    arrow(ax, (40, 12.5), (45, 12.5), color=GREY, lw=1.8, ms=13)
+    arrow(ax, (56.5, 12.5), (61.5, 12.5), color=GREY, lw=1.8, ms=13)
+    rbox(ax, 62.5, 5.5, 34, 14, fc="white", ec="#c9d2da", lw=1.0, rad=1.2, z=1)         # feature-list panel
+    for i, it in enumerate(SEQ_FEATURES):
+        yy = 16.0 - i * 3.9
+        ax.text(64.5, yy, "•", fontsize=10, ha="left", va="center", color=BLUE)
+        ax.text(66.2, yy, it, fontsize=8.4, ha="left", va="center", color=INK)
 
 
 # ------------------------------------------------------------------ panel b
