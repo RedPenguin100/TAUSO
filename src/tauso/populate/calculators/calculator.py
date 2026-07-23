@@ -43,6 +43,7 @@ from ...data.consts import (
     TRANSFECTION_RAW,
     VOLUME_NM,
 )
+from ...features.hybridization.off_target import OFF_TARGET_TOP_NS, RISEARCH_SCORE_CUTOFFS
 from ...features.interaction_features import internal_fold_gymnosis
 from ...timer import Timer
 from ...util import dna_to_rna
@@ -386,7 +387,7 @@ class Calculator:
         """
         from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS
 
-        cutoffs = [800, 1000, 1200]
+        cutoffs = list(RISEARCH_SCORE_CUTOFFS)
         rrna_species = list(RRNA_ACCESSIONS)
         targets = ["RNASEH1"] + rrna_species
         rrna_total_features = [f"off_target_single_rRNA_total_c{c}" for c in cutoffs]
@@ -426,7 +427,7 @@ class Calculator:
     def calculate_on_target_site_features(self):
         """On-target site features against each ASO's canonical gene: total hybridization
         (Sum exp(-E/RT)) and log effective number of sites (target multiplicity), per score cutoff."""
-        cutoffs = [800, 1000, 1200]
+        cutoffs = list(RISEARCH_SCORE_CUTOFFS)
         expected_features = [f"on_target_total_hybridization_{c}" for c in cutoffs] + [
             f"on_target_log_number_of_sites_{c}" for c in cutoffs
         ]
@@ -777,8 +778,8 @@ class Calculator:
 
         # Define the parameter spaces
         methods = [AggregationMethod.BOLTZMANN_SUM]
-        top_ns = [50, 100, 200]
-        cutoffs = [800, 1000, 1200]
+        top_ns = list(OFF_TARGET_TOP_NS)
+        cutoffs = list(RISEARCH_SCORE_CUTOFFS)
 
         # Generate all combinations dynamically
         configs = [(m, n, c) for m in methods for n in top_ns for c in cutoffs]
@@ -837,8 +838,8 @@ class Calculator:
         from tauso.populate.populate_off_target import serialize_feature_name
 
         method = AggregationMethod.BOLTZMANN_SUM
-        top_n_list = [50, 100, 200]
-        cutoff_list = [800, 1000, 1200]
+        top_n_list = list(OFF_TARGET_TOP_NS)
+        cutoff_list = list(RISEARCH_SCORE_CUTOFFS)
 
         # Generate expected combinations
         expected_features = [
