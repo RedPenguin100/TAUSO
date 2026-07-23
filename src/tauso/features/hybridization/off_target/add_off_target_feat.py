@@ -118,12 +118,9 @@ def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs
         return {(top_n, cutoff): pd.Series(dtype=float) for top_n in top_n_to_data for cutoff in cutoffs}
 
     query_pairs = [
-        (str(aso_index), get_antisense(sequence))
-        for aso_index, sequence in zip(aso_indices, group_df[ASO_SEQUENCE])
+        (str(aso_index), get_antisense(sequence)) for aso_index, sequence in zip(aso_indices, group_df[ASO_SEQUENCE])
     ]
-    gene_by_trigger = {
-        str(aso_index): gene for aso_index, gene in zip(aso_indices, group_df[CANONICAL_GENE_NAME])
-    }
+    gene_by_trigger = {str(aso_index): gene for aso_index, gene in zip(aso_indices, group_df[CANONICAL_GENE_NAME])}
 
     per_cutoff = risearch_occupancy_score_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
 
