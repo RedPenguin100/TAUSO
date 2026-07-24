@@ -10,6 +10,7 @@ store) and cached under the data dir, rather than committed to git. Only the per
 list ships in the package.
 """
 
+import logging
 from functools import lru_cache
 from pathlib import Path
 
@@ -18,6 +19,8 @@ import xgboost as xgb
 
 from ..cli_utils import download_with_progress, verify_hash_or_exit
 from ..data.data import get_data_dir
+
+logger = logging.getLogger(__name__)
 
 MODEL_DIR = Path(__file__).resolve().parent / "model"  # committed per-version feature lists
 DEFAULT_VERSION = "v1"
@@ -64,11 +67,75 @@ def load_model(version=DEFAULT_VERSION):
     return booster, features
 
 
-def predict(features_df, version=DEFAULT_VERSION):
+@lru_cache(maxsize=None)
+def load_finite_features(version=DEFAULT_VERSION):
+    """The model features that are never missing in the training data, as a frozenset.
+
+    Part of the feature set is conditionally defined -- codon scores exist only for windows inside a
+    CDS, cEt hybridization terms only for cEt chemistries, splice-junction distances only near a
+    junction -- and the booster learned an explicit missing-value branch for each. A NaN there is a
+    real input the model handles.
+
+    For the features named here it never saw a missing value, so a NaN is either a failed feature
+    computation (a fold, RIsearch or hybridization call that returned nothing for one candidate) or an
+    annotation that does not resolve for the target at all. XGBoost would still route it down an
+    arbitrary default branch and return a plausible score, which is why `predict` flags it."""
+    path = MODEL_DIR / f"tauso_score_{version}.finite.txt"
+    return frozenset(f for f in path.read_text().splitlines() if f.strip())
+
+
+def _find_nonfinite(X, features, version):
+    """Non-finite values in `X` the model cannot interpret, as [(feature, n_candidates), ...] worst
+    first. NaN counts only for the always-finite features; +-inf counts for all of them (no feature
+    is ever infinite in training, so an infinity is out of distribution whatever the feature)."""
+    nonfinite = ~np.isfinite(X)
+    if not nonfinite.any():
+        return []
+    guarded = load_finite_features(version)
+    infinite = np.isinf(X)
+    found = []
+    for col, name in enumerate(features):
+        bad = nonfinite[:, col] if name in guarded else infinite[:, col]
+        count = int(bad.sum())
+        if count:
+            found.append((name, count))
+    found.sort(key=lambda item: -item[1])
+    return found
+
+
+def _classify_nonfinite(offenders, n_candidates):
+    """Split `_find_nonfinite` output into (failures, gaps).
+
+    A feature non-finite for only *some* candidates varies within one batch, which a feature that
+    computed correctly cannot do: it failed for those candidates specifically, and they are the ones
+    that get mis-scored relative to their neighbours. A feature non-finite for *every* candidate is
+    instead unavailable for the target as a whole -- the gene-level annotations (ribosome profiling,
+    mRNA half-life) have no value for a target outside the reference annotation, such as a custom
+    `gene_sequence`. That perturbs the whole ranking rather than singling candidates out.
+
+    With a single candidate the two are indistinguishable and everything reads as a gap."""
+    failures = [item for item in offenders if item[1] < n_candidates]
+    gaps = [item for item in offenders if item[1] == n_candidates]
+    return failures, gaps
+
+
+def _describe(offenders, limit=5):
+    shown = ", ".join(f"{name} ({count} candidates)" for name, count in offenders[:limit])
+    return shown + (f" and {len(offenders) - limit} more" if len(offenders) > limit else "")
+
+
+def predict(features_df, version=DEFAULT_VERSION, strict=True):
     """Score `features_df` with model `version` -> np.ndarray of efficacy ranking scores (higher =
     better predicted knockdown). The frame must contain the model's feature columns; they are
     selected and ordered to the model's feature list, so extra columns are ignored and a missing
-    feature is an error."""
+    feature is an error.
+
+    A feature the model was never trained to see missing (see `load_finite_features`) that is
+    non-finite for only part of the batch failed to compute for those candidates, and scoring them
+    would return a plausible but meaningless number; that raises a ValueError, which `strict=False`
+    downgrades to a warning. One that is non-finite for the whole batch is unavailable for the target
+    rather than broken, and warns: the scores stay comparable to each other but the ranking is
+    perturbed by an input the model has no branch for."""
     booster, features = load_model(version)
     missing = [f for f in features if f not in features_df.columns]
     if missing:
@@ -76,12 +143,31 @@ def predict(features_df, version=DEFAULT_VERSION):
             f"features_df is missing {len(missing)} of the model's {len(features)} features, e.g. {missing[:5]}"
         )
     X = features_df[features].to_numpy(np.float64)
+    failures, gaps = _classify_nonfinite(_find_nonfinite(X, features, version), len(X))
+    if gaps:
+        logger.warning(
+            f"{len(gaps)} of the model's {len(features)} features are non-finite for all {len(X)} "
+            f"candidates: {_describe(gaps)}. They are unavailable for this target rather than broken -- "
+            f"gene-level annotations resolve only for a target in the reference annotation, so a custom "
+            f"gene_sequence has none. The model has no missing-value branch for them, so treat the "
+            f"resulting order as approximate."
+        )
+    if failures:
+        message = (
+            f"{len(failures)} of the model's {len(features)} features failed to compute for part of the "
+            f"{len(X)} candidates: {_describe(failures)}. The model has no missing-value branch for "
+            f"these, so those candidates would be scored and ranked on an arbitrary default. Re-run the "
+            f"feature pipeline for them or drop them; pass strict=False to score them regardless."
+        )
+        if strict:
+            raise ValueError(message)
+        logger.warning(message)
     return booster.predict(xgb.DMatrix(X, feature_names=features))
 
 
-def score(features_df, version=DEFAULT_VERSION):
+def score(features_df, version=DEFAULT_VERSION, strict=True):
     """Return a copy of `features_df` with the model's score added as `tauso_score_<version>`, sorted best-first."""
     out = features_df.copy()
     col = score_column(version)
-    out[col] = predict(out, version)
+    out[col] = predict(out, version, strict=strict)
     return out.sort_values(col, ascending=False, kind="stable")
