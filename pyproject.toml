@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "TAUSO: ASO design toolkit"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
+license = {text = "CC-BY-NC-4.0"}
 authors = [{name = "Michael Kovaliov"}]
 
 dependencies = [
@@ -22,6 +22,9 @@ dependencies = [
     "gffutils>=0.14,<1",
     "pyranges>=0.1.4,<0.2",
     "primer3-py",
+    "pyfaidx>=0.7",
+    "psutil>=5.9",
+    "joblib>=1.2",
     "tqdm",
     "click",
     "gdown",
@@ -32,6 +35,11 @@ dependencies = [
     "codon-bias>=0.5,<0.6",
     "lxml",
     "risearch-tauso>=1.2",
+    # Native libraries provided by conda in the supported install (environment.yml),
+    # declared here so a bare `pip install` resolves the Python bindings too. The
+    # `bowtie` aligner is a separate system binary (bioconda/apt), not pip-installable.
+    "ViennaRNA>=2.7,<3",
+    "pyBigWig>=0.3,<1",
 ]
 
 [project.optional-dependencies]
