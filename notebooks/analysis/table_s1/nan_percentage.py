@@ -12,7 +12,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from notebooks.analysis.table_s1.consts import NAN_PERCENTAGE_CSV
 from notebooks.models.common import load_dataset
-from tauso.inference.predict import DEFAULT_VERSION, MODEL_DIR
+from tauso.inference import DEFAULT_VERSION, get_model_feature_names
 
 # The count Table S1 reports. It is a claim in the paper, so pin it rather than infer it.
 EXPECTED_FEATURES = 485
@@ -20,11 +20,10 @@ EXPECTED_FEATURES = 485
 
 def model_features(version: str = DEFAULT_VERSION) -> list[str]:
     """The shipped model's feature list, which is what Table S1 enumerates."""
-    path = MODEL_DIR / f"tauso_score_{version}.features.txt"
-    features = [line.strip() for line in path.read_text().splitlines() if line.strip()]
+    features = get_model_feature_names(version)
     if len(features) != EXPECTED_FEATURES or len(set(features)) != EXPECTED_FEATURES:
         raise AssertionError(
-            f"{path.name} lists {len(features)} features ({len(set(features))} unique), "
+            f"model {version} lists {len(features)} features ({len(set(features))} unique), "
             f"expected exactly {EXPECTED_FEATURES}"
         )
     return features
