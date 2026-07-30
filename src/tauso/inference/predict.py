@@ -36,6 +36,20 @@ def score_column(version=DEFAULT_VERSION):
     return f"tauso_score_{version}"
 
 
+def get_model_feature_names_file(version: str = DEFAULT_VERSION) -> Path:
+    if version != "v1":
+        raise KeyError(f"Only version 'v1' is supported, got {version!r}.")
+    path = MODEL_DIR / f"tauso_score_{version}.features.txt"
+    if not path.exists():
+        raise FileNotFoundError(f"Feature list missing from the package: {path}")
+    return path
+
+
+def get_model_feature_names(version: str = DEFAULT_VERSION) -> list[str]:
+    lines = get_model_feature_names_file(version).read_text().splitlines()
+    return [line.strip() for line in lines if line.strip()]
+
+
 def ensure_model(version=DEFAULT_VERSION, force=False):
     """Path to the booster for `version`, fetching it from Zenodo into <data_dir>/models/ if absent
     (or if `force`). Verifies the md5 on every call so a truncated or wrong file fails loudly.
@@ -60,8 +74,7 @@ def load_model(version=DEFAULT_VERSION):
     Zenodo on first use (cached under the data dir); the feature list ships in the package."""
     booster = xgb.Booster()
     booster.load_model(str(ensure_model(version)))
-    features = (MODEL_DIR / f"tauso_score_{version}.features.txt").read_text().splitlines()
-    return booster, features
+    return booster, get_model_feature_names(version)
 
 
 def predict(features_df, version=DEFAULT_VERSION):
