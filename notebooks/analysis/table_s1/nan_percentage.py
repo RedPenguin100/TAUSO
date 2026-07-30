@@ -1,10 +1,3 @@
-"""Table S1: how often each of the model's features is missing.
-
-NaN is meaningful here -- nothing is imputed, and XGBoost learns a default branch -- so the
-supplementary table has to state the missing fraction per feature. Writes out/nan_percentage.csv
-with one row per model feature so the table can be diffed after a feature-pipeline change.
-"""
-
 import sys
 from pathlib import Path
 
