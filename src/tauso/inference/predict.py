@@ -36,18 +36,18 @@ def score_column(version=DEFAULT_VERSION):
     return f"tauso_score_{version}"
 
 
-def get_model_feature_names_file(version=DEFAULT_VERSION):
-    """Path to the feature list shipped with model `version`."""
-    return MODEL_DIR / f"tauso_score_{version}.features.txt"
-
-
-def get_model_feature_names(version=DEFAULT_VERSION):
-    """Feature columns model `version` expects, in the order it expects them. Reads the list that
-    ships in the package, so it needs no booster and no network."""
-    path = get_model_feature_names_file(version)
+def get_model_feature_names_file(version: str = DEFAULT_VERSION) -> Path:
+    if version != "v1":
+        raise KeyError(f"Only version 'v1' is supported, got {version!r}.")
+    path = MODEL_DIR / f"tauso_score_{version}.features.txt"
     if not path.exists():
-        raise KeyError(f"No feature list shipped for version {version!r} ({path.name}).")
-    return [line.strip() for line in path.read_text().splitlines() if line.strip()]
+        raise FileNotFoundError(f"Feature list missing from the package: {path}")
+    return path
+
+
+def get_model_feature_names(version: str = DEFAULT_VERSION) -> list[str]:
+    lines = get_model_feature_names_file(version).read_text().splitlines()
+    return [line.strip() for line in lines if line.strip()]
 
 
 def ensure_model(version=DEFAULT_VERSION, force=False):

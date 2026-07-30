@@ -4,6 +4,7 @@ NaN is meaningful here -- nothing is imputed, and XGBoost learns a default branc
 supplementary table has to state the missing fraction per feature. Writes out/nan_percentage.csv
 with one row per model feature so the table can be diffed after a feature-pipeline change.
 """
+
 import sys
 from pathlib import Path
 
@@ -12,6 +13,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from notebooks.analysis.table_s1.consts import NAN_PERCENTAGE_CSV
 from notebooks.models.common import load_dataset
+
 from tauso.inference import DEFAULT_VERSION, get_model_feature_names
 
 # The count Table S1 reports. It is a claim in the paper, so pin it rather than infer it.
@@ -59,9 +61,7 @@ def main():
     NAN_PERCENTAGE_CSV.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(NAN_PERCENTAGE_CSV, index=False)
 
-    ever_missing = table[table["n_missing"] > 0].sort_values(
-        ["n_missing", "feature"], ascending=[False, True]
-    )
+    ever_missing = table[table["n_missing"] > 0].sort_values(["n_missing", "feature"], ascending=[False, True])
     print(f"{len(df):,} rows, {len(table)} model features")
     print(f"{len(ever_missing)} ever missing, {len(table) - len(ever_missing)} never missing\n")
     print(ever_missing.to_string(index=False))

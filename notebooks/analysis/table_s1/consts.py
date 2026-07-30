@@ -1,4 +1,5 @@
 """Paths written by the Table S1 analysis scripts."""
+
 from pathlib import Path
 
 TABLE_S1_PATH = Path(__file__).resolve().parent
