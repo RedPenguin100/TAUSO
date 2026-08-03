@@ -64,9 +64,12 @@ def test_alignment_stats_real_genome(tmp_path):
     expected_columns = [
         "original_target_gene",
         "total_asos",
+        "total_measurements",
         "most_popular_alignment",
-        "original_hit_count",
-        "popular_hit_count",
+        "original_hit_asos",
+        "original_hit_measurements",
+        "popular_hit_asos",
+        "popular_hit_measurements",
     ]
     for col in expected_columns:
         assert col in stats.columns, f"Missing expected column in stats: {col}"
@@ -77,15 +80,49 @@ def test_alignment_stats_real_genome(tmp_path):
     assert kras_stats["total_asos"] == 40
     assert smn_stats["total_asos"] == 40
 
+    # Every sequence here is distinct, so both units agree.
+    assert kras_stats["total_measurements"] == 40
+
     # Bowtie resolves the gene: every KRAS window aligns to KRAS.
     assert kras_stats["most_popular_alignment"] == "KRAS"
-    assert kras_stats["original_hit_count"] == 40
+    assert kras_stats["original_hit_asos"] == 40
 
     # Negative control: scrambled sequences hit nothing.
     unknown_stats = stats[stats["original_target_gene"] == "UNKNOWN"].iloc[0]
     assert unknown_stats["total_asos"] == 6
     assert pd.isna(unknown_stats["most_popular_alignment"])
-    assert unknown_stats["popular_hit_count"] == 0
+    assert unknown_stats["popular_hit_asos"] == 0
+    assert unknown_stats["popular_hit_measurements"] == 0
+
+
+def test_alignment_stats_counts_repeated_assays(tmp_path):
+    """A repeated oligo counts once as an ASO and once per assay as a measurement."""
+    windows = [row for row in TEST_DATA if row["target_gene"] == "KRAS"][:2]
+    repeated = [windows[0]] * 3 + [windows[1]]
+    input_csv = tmp_path / "repeated_oligos.csv"
+    pd.DataFrame(repeated).to_csv(input_csv, index=False)
+
+    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", seq_col="rna_sequence", threads=4)
+    kras = stats[stats["original_target_gene"] == "KRAS"].iloc[0]
+
+    assert kras["total_asos"] == 2
+    assert kras["total_measurements"] == 4
+    assert kras["original_hit_asos"] == 2
+    assert kras["original_hit_measurements"] == 4
+
+
+def test_alignment_stats_labels_fall_back_to_target_mrna(tmp_path):
+    """Patents that leave target_gene blank are still diagnosed, under their target_mrna label."""
+    windows = [row for row in TEST_DATA if row["target_gene"] == "KRAS"][:2]
+    blank = [{**row, "target_gene": None, "target_mrna": "v-Ki-ras2"} for row in windows]
+    input_csv = tmp_path / "blank_target_gene.csv"
+    pd.DataFrame(blank).to_csv(input_csv, index=False)
+
+    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", seq_col="rna_sequence", threads=4).iloc[0]
+
+    assert stats["original_target_gene"] == "v-Ki-ras2"
+    assert stats["label_from"] == "target_mrna"
+    assert stats["most_popular_alignment"] == "KRAS"
 
 
 _CLINICAL_ASOS = [
