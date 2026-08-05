@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from tauso.util import _norm_rna_to_dna, _to_str_seq
+from tauso.util import _norm_rna_to_dna, _to_str_seq, normalize_dna
 
 
 @pytest.mark.parametrize(
@@ -34,3 +34,22 @@ def test_to_str_seq_matches_norm_on_strings():
 )
 def test_to_str_seq_coerces_sequence_like(seq_like, expected):
     assert _to_str_seq(seq_like) == expected
+
+
+@pytest.mark.parametrize("raw, expected", [("acgu", "ACGT"), ("ACGT", "ACGT"), (np.str_("acgt"), "ACGT")])
+def test_normalize_dna_accepts_str_like(raw, expected):
+    assert normalize_dna(raw) == expected
+
+
+@pytest.mark.parametrize("raw, match", [("ACG ACG", "whitespace"), ("", "empty"), ("ACGZT", "non-ACGU")])
+def test_normalize_dna_rejects_bad_sequences(raw, match):
+    with pytest.raises(ValueError, match=match):
+        normalize_dna(raw)
+
+
+@pytest.mark.parametrize("raw", [None, float("nan"), 42, True])
+def test_normalize_dna_rejects_non_string_input(raw):
+    """Non-strings stringify into letters ('nan' -> 'NAN'), so they must fail as a type error
+    rather than be reported as a bad base."""
+    with pytest.raises(TypeError, match="must be a string"):
+        normalize_dna(raw)

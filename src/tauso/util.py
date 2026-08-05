@@ -32,6 +32,11 @@ DNA_BASE_SET = frozenset(DNA_BASES)
 def normalize_dna(seq) -> str:
     """Uppercase and map U->T, then check only DNA codes are present -- no N or IUPAC
     ambiguity codes. Returns the normalized sequence. Whitespace is rejected, not stripped."""
+    # None/NaN/numbers stringify into plausible-looking letters ("nan" -> "NAN"), which would be
+    # reported as a bad base rather than as the wrong type. Sequence-like objects that stringify
+    # to the sequence itself (Bio.Seq, numpy.str_) still pass through.
+    if seq is None or isinstance(seq, (int, float)):
+        raise TypeError(f"sequence must be a string, got {type(seq).__name__}")
     s = str(seq)
     if any(c.isspace() for c in s):
         raise ValueError("sequence must not contain whitespace")
