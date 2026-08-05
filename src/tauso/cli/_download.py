@@ -4,7 +4,7 @@ import sys
 import click
 import pandas as pd
 
-from tauso.cli_utils import download_with_progress, echo_err, echo_ok, echo_warn, sha1_file, verify_hash_or_exit
+from tauso.cli_utils import download_with_progress, echo_err, echo_ok, echo_warn, file_matches_hash, verify_hash_or_exit
 
 # Zenodo-mirrored DepMap "Public 25Q3" snapshot. DepMap silently re-uploads files
 # under the same release name, so we pin to an immutable Zenodo record and verify
@@ -35,7 +35,7 @@ def _ensure_depmap_file(filename: str, expected_sha1: str, data_dir: str, force:
     dest = os.path.join(data_dir, filename)
 
     if os.path.exists(dest) and not force:
-        if sha1_file(dest) == expected_sha1:
+        if file_matches_hash(dest, expected_sha1, algo="sha1"):
             echo_ok(f"{filename} exists (SHA1 verified).")
             return False
         echo_warn(f"SHA1 mismatch for {filename} — re-downloading.")

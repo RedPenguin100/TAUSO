@@ -23,7 +23,7 @@ from tauso.cli_utils import (
     echo_err,
     echo_ok,
     echo_warn,
-    sha1_file,
+    file_matches_hash,
     sha256_file,
     verify_hash_or_exit,
 )
@@ -565,7 +565,7 @@ def setup_rrna(force):
     from tauso.features.hybridization.off_target.rrna_targets import REFERENCE_FILENAME, reference_path
 
     dest = str(reference_path())
-    if os.path.exists(dest) and not force and sha1_file(dest) == RRNA_SHA1:
+    if not force and file_matches_hash(dest, RRNA_SHA1, algo="sha1"):
         echo_ok(f"{REFERENCE_FILENAME} exists (SHA1 verified).")
         return
     download_with_progress(
