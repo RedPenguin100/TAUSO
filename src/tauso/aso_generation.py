@@ -24,7 +24,7 @@ from tauso.data.consts import (
 )
 from tauso.populate.calculators.cache import AssetCache
 from tauso.populate.calculators.calculator import Calculator
-from tauso.util import get_antisense, rna_to_dna
+from tauso.util import get_antisense, normalize_dna
 
 
 def get_initial_data(target_mrna, aso_sizes, canonical_name):
@@ -202,7 +202,7 @@ def design_asos(
     if cache is None:
         cache = AssetCache(genome="GRCm39" if config.organism_name == "mouse" else "GRCh38")
     if gene_sequence is not None:
-        gene_sequence = _normalize_target_sequence(gene_sequence)
+        gene_sequence = normalize_dna(gene_sequence)
         cache.set_custom_gene(name=target_gene, sequence=gene_sequence, cds_start=cds_start, cds_end=cds_end)
     else:
         gene_data = cache.get_full_gene_data()
@@ -247,8 +247,6 @@ def design_asos(
     return ranked
 
 
-_DNA_ALPHABET = set("ACGT")
-
 # ASO-length bounds = the range observed in the training data (shortest 12-mer, longest 28-mer);
 # the model is not calibrated outside it, so design_asos rejects out-of-range lengths.
 MIN_ASO_LENGTH = 12
@@ -265,20 +263,6 @@ def _validate_aso_sizes(aso_sizes):
             f"aso_sizes must be within [{MIN_ASO_LENGTH}, {MAX_ASO_LENGTH}] nt (the model's training range); got {out_of_range}"
         )
     return sizes
-
-
-def _normalize_target_sequence(seq):
-    """Uppercase and map U->T; validate the DNA alphabet. Rejects whitespace rather than stripping it."""
-    s = str(seq)
-    if any(c.isspace() for c in s):
-        raise ValueError("gene_sequence must not contain whitespace")
-    s = rna_to_dna(s)
-    if not s:
-        raise ValueError("gene_sequence is empty")
-    bad = sorted(set(s) - _DNA_ALPHABET)
-    if bad:
-        raise ValueError(f"gene_sequence has non-ACGU characters: {bad[:5]}")
-    return s
 
 
 # --- Result views for consumers -------------------------------------------------------------------
