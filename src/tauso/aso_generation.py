@@ -93,39 +93,6 @@ def default_config():
     return data_config
 
 
-def generate_stub_data(
-    target_gene: str,
-    gene_sequence: str,
-    first_n: int = None,
-    version: str = None,
-    data_config: Config = None,
-):
-    data = get_initial_data(gene_sequence, aso_sizes=[20], canonical_name=target_gene)
-
-    if data_config is None:
-        data_config = default_config()
-
-    if first_n is not None:
-        data = data[300 : 300 + first_n]  # TODO: change at some point
-
-    data[MODIFICATION_STRING] = data_config.standard_modification
-    data[CHEMICAL_PATTERN] = data_config.standard_chemical_pattern
-
-    data[CELL_LINE] = data_config.cell_line  # TODO: handle empty case
-    data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(resolve_depmap_proxy)
-    data[CELL_LINE_DEPMAP] = data[CELL_LINE].map(resolve_depmap_id)
-
-    data[PS_PATTERN] = data_config.standard_ps_pattern
-
-    data[CELL_LINE_ORGANISM] = data_config.organism_name
-    data[TRANSFECTION_RAW] = data_config.transfection_method
-
-    if version is None:
-        version = "generated"
-    data.insert(0, f"index_{version}", range(1, len(data) + 1))
-    return data
-
-
 def generate_aso_features(data, cache: AssetCache, n_jobs=1, get_feature_dir_func=None):
     original_columns = set(data.columns)
 
