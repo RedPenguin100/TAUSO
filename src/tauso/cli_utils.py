@@ -35,6 +35,22 @@ def md5_file(path: str) -> str:
     return h.hexdigest()
 
 
+_HASHERS = {"sha1": sha1_file, "sha256": sha256_file, "md5": md5_file}
+
+
+def hash_file(path: str, algo: str = "sha1") -> str:
+    """Hash `path` with `algo` ('sha1', 'sha256' or 'md5')."""
+    if algo not in _HASHERS:
+        raise ValueError(f"Unsupported hash algorithm: {algo}")
+    return _HASHERS[algo](path)
+
+
+def file_matches_hash(path: str, expected: str, algo: str = "sha1") -> bool:
+    """Whether `path` exists and hashes to `expected`. For deciding whether a local copy can be
+    reused; a missing file is False rather than an error, so callers need no separate exists check."""
+    return os.path.exists(path) and hash_file(path, algo) == expected
+
+
 def echo_err(msg: str) -> None:
     click.echo(click.style(f"❌ {msg}", fg="red"))
 
@@ -49,10 +65,7 @@ def echo_ok(msg: str) -> None:
 
 def verify_hash_or_exit(path: str, expected: str, algo: str = "sha1") -> None:
     """Compute a hash of `path` and exit nonzero if it does not match `expected`."""
-    hashers = {"sha1": sha1_file, "sha256": sha256_file, "md5": md5_file}
-    if algo not in hashers:
-        raise ValueError(f"Unsupported hash algorithm: {algo}")
-    actual = hashers[algo](path)
+    actual = hash_file(path, algo)
     if actual != expected:
         echo_err(f"{algo.upper()} mismatch for {os.path.basename(path)}")
         click.echo(f"  Expected: {expected}")

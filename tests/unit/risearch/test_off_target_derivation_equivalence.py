@@ -20,11 +20,18 @@ from tauso.features.hybridization.fast_hybridization import (
     dump_target_file,
     risearch_hits_dataframe,
 )
+from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.util import get_antisense
 
 LOOSE, STRICT = 800, 1200
 COLS = ["trigger", "target", "trigger_start", "target_start", "score", "energy"]
 _RISEARCH = dict(parsing_type="2", interaction_type=Interaction.RNA_DNA_NO_WOBBLE, transpose=True)
+
+
+@pytest.fixture(scope="module")
+def gene_to_data_full():
+    """Locus-to-data dict for all genes, with introns."""
+    return get_locus_to_data_dict(include_introns=True)
 
 
 @pytest.fixture(scope="module")

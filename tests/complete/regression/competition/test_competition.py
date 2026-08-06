@@ -2,12 +2,13 @@
 
 Each test needs its external tool (OligoWalk/miranda/sfold binaries, or the 'pfred' Docker
 container) and is skipped if it is unavailable -- so CI without the tools just skips them.
-Regenerate baselines locally where the tools exist:  pytest tests/complete/test_competition.py --force-regen
+Regenerate baselines locally where the tools exist:  pytest tests/complete/regression/competition/test_competition.py --force-regen
 """
+
 import pytest
+from tests.complete.regression.competition.competitor_tools import pfred_container_running, tool_missing
 
 from tauso.data.consts import ASO_SEQUENCE
-from tests.complete.competitor_tools import pfred_container_running, tool_missing
 
 
 @pytest.mark.skipif(tool_missing("OligoWalk"), reason="OligoWalk (rnastructure) not on PATH")

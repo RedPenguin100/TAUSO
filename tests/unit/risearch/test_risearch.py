@@ -1,4 +1,5 @@
-import pytest
+from pathlib import Path
+
 from Bio import SeqIO
 
 from tauso.features.hybridization.fast_hybridization import (
@@ -7,12 +8,13 @@ from tauso.features.hybridization.fast_hybridization import (
     get_trigger_mfe_scores_by_risearch,
 )
 from tauso.util import get_antisense
-from tests.common.consts import INTEGRATION_TESTS_PATH
+
+_DATA = Path(__file__).parent / "data"
 
 
 def get_gfp_seq_and_context():
-    gfp_context_path = INTEGRATION_TESTS_PATH / "data" / "GFP_context.txt"
-    gfp_first_exp_path = INTEGRATION_TESTS_PATH / "data" / "GFP_first_exp.fasta"
+    gfp_context_path = _DATA / "GFP_context.txt"
+    gfp_first_exp_path = _DATA / "GFP_first_exp.fasta"
 
     gfp_obj = next(SeqIO.parse(str(gfp_first_exp_path), "fasta"))
     gfp_seq = str(gfp_obj.seq.upper())
@@ -50,7 +52,6 @@ def get_gfp_second_exp():
     return gfp_ext
 
 
-@pytest.mark.integration
 def test_risearch_gfp_modified_transpose(data_regression):
     # --- 2. Data Preparation ---
     gfp_seq = get_gfp_first_exp(gap=0)
@@ -118,7 +119,6 @@ def test_risearch_gfp_modified_transpose(data_regression):
     data_regression.check(regression_data)
 
 
-@pytest.mark.integration
 def test_risearch_gfp_modified_original(data_regression):
     gfp_seq = get_gfp_first_exp(gap=0)
     sample_seq = gfp_seq[:20]

@@ -23,6 +23,43 @@ def dna_to_rna(seq) -> str:
     return str(seq).upper().replace("T", "U")
 
 
+# The accepted alphabet after U->T normalization. Written down once so the scalar and the
+# vectorized validators cannot drift apart.
+DNA_BASES = "ACGT"
+DNA_BASE_SET = frozenset(DNA_BASES)
+
+
+def normalize_dna(seq) -> str:
+    """Uppercase and map U->T, then check only DNA codes are present -- no N or IUPAC
+    ambiguity codes. Returns the normalized sequence. Whitespace is rejected, not stripped."""
+    # None/NaN/numbers stringify into plausible-looking letters ("nan" -> "NAN"), which would be
+    # reported as a bad base rather than as the wrong type. Sequence-like objects that stringify
+    # to the sequence itself (Bio.Seq, numpy.str_) still pass through.
+    if seq is None or isinstance(seq, (int, float)):
+        raise TypeError(f"sequence must be a string, got {type(seq).__name__}")
+    s = str(seq)
+    if any(c.isspace() for c in s):
+        raise ValueError("sequence must not contain whitespace")
+    s = rna_to_dna(s)
+    if not s:
+        raise ValueError("sequence is empty")
+    bad = sorted(set(s) - DNA_BASE_SET)
+    if bad:
+        raise ValueError(f"sequence has non-ACGU characters: {bad[:5]}")
+    return s
+
+
+def validate_dna_sequences(seq_series) -> None:
+    """Raise if any sequence in `seq_series` holds anything but DNA codes -- no N or IUPAC
+    ambiguity codes. Expects a Series already uppercased and mapped U->T."""
+    invalid = seq_series[seq_series.str.contains(rf"[^{DNA_BASES}]", regex=True, na=True)]
+    if len(invalid) > 0:
+        raise ValueError(
+            f"{len(invalid)} sequence(s) contain non-ACGT characters after upper/U->T normalization "
+            f"(only A/C/G/T/U accepted). Examples: {invalid.head(5).tolist()}"
+        )
+
+
 def _norm_rna_to_dna(seq: str) -> str:
     """Normalize RNA to DNA alphabet (U->T), uppercase, strip whitespace."""
     return rna_to_dna(seq).replace(" ", "").replace("\t", "").replace("\n", "")

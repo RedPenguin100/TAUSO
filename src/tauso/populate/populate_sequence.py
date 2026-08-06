@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 from ..data.consts import ASO_SEQUENCE
 from ..features.sequence.seq_features import *
 from ..parallel_utils import make_apply_fn
+from ..util import validate_dna_sequences
 from .feature_runner import FeatureSpec, compute_features
 
 FEATURE_SPECS: list[FeatureSpec] = [
@@ -73,14 +74,7 @@ def populate_sequence_features(
     # Normalize to uppercase DNA once so every feature is robust to lowercase or RNA (U) input.
     seq_series = df[ASO_SEQUENCE].str.upper().str.replace("U", "T", regex=False)
 
-    # Disallow anything but A/C/G/T (e.g. N, gaps, IUPAC ambiguity codes). A feature computed on an
-    # undefined base is silently wrong, which is unacceptable for a design tool — fail loudly instead.
-    invalid = seq_series[seq_series.str.contains(r"[^ACGT]", regex=True, na=True)]
-    if len(invalid) > 0:
-        raise ValueError(
-            f"{len(invalid)} ASO sequence(s) contain non-ACGT characters after upper/U->T normalization "
-            f"(only A/C/G/T/U accepted). Examples: {invalid.head(5).tolist()}"
-        )
+    validate_dna_sequences(seq_series)
 
     return compute_features(
         df,

@@ -1,13 +1,10 @@
 """Per-gene RIsearch scan engine.
 
-Score ASOs against target gene(s) with a loose RIsearch pass per gene, in parallel: build a
-target FASTA per gene, split each gene's ASOs into worker-sized chunks, run the chunks across a
-thread pool, and reduce the hits to site-resolved stats per ASO and cutoff.
-
-The reduction keeps the full ``SiteStats`` (Boltzmann sum, best-site energy, hit count) -- a
-strict superset of what any single per-gene hybridization feature needs -- so the scan feeds
-every such feature. Feature modules derive their columns from the stats via ``emit_site_columns``
-(see off_target_specific_gene.py).
+Scores ASOs against their target gene(s) with one loose RIsearch pass per gene, in parallel: a
+target FASTA per gene, ASOs split into worker chunks over a thread pool, hits reduced to
+site-resolved ``SiteStats`` (Boltzmann occupancy, best-site energy, hit count) per ASO and cutoff.
+That superset feeds every per-gene hybridization feature, which derive their columns via
+``emit_site_columns`` (see off_target_specific_gene.py).
 """
 
 import logging

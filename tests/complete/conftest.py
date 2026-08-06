@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -27,11 +28,13 @@ from notebooks.data.OligoAI.utility import standardize_oligo_ai_data
 from tauso.algorithms.genomic_context_windows import (
     add_external_mrna_and_context_columns,
 )
+from tauso.common.gtf import filter_gtf_genes
 from tauso.data.consts import *
 from tauso.data.consts import CELL_LINE_DEPMAP
-from tauso.data.data import get_data_dir
+from tauso.data.data import get_data_dir, load_gtf_db
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
 from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
+from tauso.features.expression.general_expression import get_general_expression_of_genes
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import build_gene_sequence_registry
@@ -49,6 +52,23 @@ def transcriptomes(base_data, target_genes):
 
         trans = load_cell_line_gene_expression(depmap_ids, target_genes, expression_dir=expression_dir)
         return trans
+
+
+@pytest.fixture(scope="session")
+def transcriptomes_with_general(transcriptomes):
+    """Extends the transcriptomes dict with a 'general' key for use in general off-target tests."""
+    with Timer("Load General Expression"):
+        db = load_gtf_db()
+        valid_genes = filter_gtf_genes(db, filter_mode="non_mt")
+
+        data_dir = get_data_dir()
+        exp_path = Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
+
+        mean_exp_data = get_general_expression_of_genes(exp_path, valid_genes)
+
+        result = dict(transcriptomes)
+        result["general"] = mean_exp_data
+        return result
 
 
 @pytest.fixture(scope="session")
@@ -122,6 +142,13 @@ def structure_data(base_data, target_genes, gene_to_data):
 
 
 @pytest.fixture(scope="session")
+def mini_structure_data(request, structure_data):
+    n_samples = getattr(request, "param", 1000)
+    actual_samples = min(n_samples, len(structure_data))
+    return structure_data.sample(n=actual_samples, random_state=42).copy()
+
+
+@pytest.fixture(scope="session")
 def chemistry_data(structure_data):
     return assign_chemistry(structure_data)
 
@@ -167,3 +194,11 @@ def common_gene_sample(request, base_data):
     genes = base_data[CANONICAL_GENE_NAME].value_counts().index[:n_genes].tolist()
     sub = base_data[base_data[CANONICAL_GENE_NAME].isin(genes)]
     return sub.groupby(CANONICAL_GENE_NAME, group_keys=False).head(max_per_gene).reset_index(drop=True)
+
+
+@pytest.fixture
+def sampled_base_data(request, base_data):
+    """Samples the base data right before the test runs."""
+    n_samples = getattr(request, "param", 1000)
+    actual_samples = min(n_samples, len(base_data))
+    return base_data.sample(n=actual_samples, random_state=42).copy()

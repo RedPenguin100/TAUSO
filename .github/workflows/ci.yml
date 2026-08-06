@@ -2,9 +2,9 @@ name: Build and Test Python
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'v[0-9]*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'v[0-9]*' ]
   schedule:
     - cron: '0 3 * * *' # 3:00 AM UTC -> 6:00 AM Israel Daylight Time
 
@@ -142,6 +142,15 @@ jobs:
         with:
           os: ${{ runner.os }}
           data_dir: ${{ env.TAUSO_DATA_DIR }}
+
+      # Only the immutable Zenodo download is cached, not the tables derived from it: those are
+      # rebuilt from repo code (split, gene corrections, indexing) in seconds, and caching them
+      # would let a code change keep reading stale outputs.
+      - name: Cache raw Oligo dataset
+        uses: actions/cache@v4
+        with:
+          path: notebooks/data/OligoAI/raw_data/aso_inhibitions_21_08_25_incl_context_w_flank_50_df.csv.gz
+          key: oligo-raw-zenodo-20794660
 
       - name: Build Oligo Data (download, split, canonical gene, index)
         run: python notebooks/data/OligoAI/setup_data.py --skip-process
