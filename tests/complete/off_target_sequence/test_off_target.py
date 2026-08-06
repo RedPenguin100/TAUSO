@@ -1,3 +1,4 @@
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -6,7 +7,13 @@ from notebooks.data.OligoAI.curate_gene_labels import alignment_stats
 
 from tauso.data.data import get_paths
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.off_target.search import annotate_hits, count_offtarget_matches_bulk, run_bowtie_search
+from tauso.off_target.search import (
+    annotate_hits,
+    count_offtarget_matches_bulk,
+    find_all_gene_off_targets_BULK,
+    find_all_gene_off_targets_bulk_sequences,
+    run_bowtie_search,
+)
 from tauso.util import get_antisense
 
 
@@ -146,6 +153,22 @@ def test_annotate_hits_sense_strand_is_not_counted_as_the_gene(aso, gene):
     hits, _ = run_bowtie_search(sense, max_mismatches=0)
     assert hits
     assert gene not in set(annotate_hits(hits)["gene_name"])
+
+
+def test_find_all_gene_off_targets_bulk_sequences_matches_the_fasta_path_version():
+    """The sequence-taking wrapper returns what the FASTA-path version does, and handles no input."""
+    seqs = [aso for aso, _ in _CLINICAL_ASOS]
+    from_seqs = find_all_gene_off_targets_bulk_sequences(seqs + seqs, threads=4)  # duplicates deduped
+
+    with tempfile.TemporaryDirectory() as work:
+        fasta = Path(work) / "asos.fasta"
+        fasta.write_text("".join(f">{s}\n{s}\n" for s in seqs))
+        from_path = find_all_gene_off_targets_BULK(str(fasta), threads=4)
+
+    assert {k: sorted(v) for k, v in from_seqs.items()} == {k: sorted(v) for k, v in from_path.items()}
+    for aso, gene in _CLINICAL_ASOS:
+        assert gene in from_seqs[aso]
+    assert find_all_gene_off_targets_bulk_sequences([]) == {}
 
 
 _MALAT1_OFFTARGET_FIXTURE = Path(__file__).parent / "malat1_offtarget_first50.csv"

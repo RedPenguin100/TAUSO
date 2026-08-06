@@ -5,10 +5,7 @@ derived; it is NOT part of the per-run pipeline (2_assign_canonical_gene applies
 Run: python notebooks/data/OligoAI/curate_gene_labels.py   (needs the bowtie index; tauso setup-all)
 """
 import ast
-import os
 import sys
-import tempfile
-import uuid
 from collections import Counter
 from pathlib import Path
 
@@ -18,7 +15,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from notebooks.consts import ORIGINAL_OLIGO_CSV_RAW
 from notebooks.data.OligoAI.gene_corrections import MANUAL_CANONICAL_MAPPING
-from tauso.off_target.search import find_all_gene_off_targets_BULK
+from tauso.off_target.search import find_all_gene_off_targets_bulk_sequences
 
 
 def alignment_stats(input_csv=ORIGINAL_OLIGO_CSV_RAW, genome="GRCh38", threads=16):
@@ -41,15 +38,7 @@ def alignment_stats(input_csv=ORIGINAL_OLIGO_CSV_RAW, genome="GRCh38", threads=1
     df = df.dropna(subset=["label"])
     df["aso_as_dna"] = df[SEQ_COL].str.upper().str.replace("U", "T", regex=False)
 
-    fasta = os.path.join(tempfile.gettempdir(), f"curate_{uuid.uuid4().hex}.fasta")
-    with open(fasta, "w") as f:
-        for seq in df["aso_as_dna"].unique():
-            f.write(f">{seq}\n{seq}\n")
-    try:
-        seq_to_genes = find_all_gene_off_targets_BULK(fasta, genome, threads)
-    finally:
-        if os.path.exists(fasta):
-            os.remove(fasta)
+    seq_to_genes = find_all_gene_off_targets_bulk_sequences(df["aso_as_dna"].unique(), genome, threads)
 
     rows = []
     for gene, group in df.groupby("label"):
