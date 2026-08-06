@@ -108,6 +108,10 @@ jobs:
       - name: Install tauso
         run: micromamba run -n tauso uv pip install -e ".[dev]"
 
+      # Fail fast on import errors before the expensive data setup.
+      - name: Collect tests (fail fast on import errors)
+        run: micromamba run -n tauso pytest --collect-only -q
+
       - name: Install raccess
         run: tauso setup-raccess
 
