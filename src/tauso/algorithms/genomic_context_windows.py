@@ -73,17 +73,17 @@ def add_external_mrna_and_context_columns(
             start, end = max(0, idx - fs), min(len(pre_mrna), idx + aso_len + fs)
             premrna_cols[fs][i] = pre_mrna[start:end]
 
-        # CDS Context. Anchor on the ASO's 5'-tilted centre in pre-mRNA coordinates, so
-        # coding membership matches struct_sense_in_cds exactly (same centre anchor, same
-        # canonical CDS). full_mrna is stored 5'->3', so the centre is sense_start + offset
+        # CDS Context. Anchor on the ASO's 5'-tilted center in pre-mRNA coordinates, so
+        # coding membership matches struct_sense_in_cds exactly (same center anchor, same
+        # canonical CDS). full_mrna is stored 5'->3', so the center is sense_start + offset
         # on both strands; the strand is resolved inside the CDS pre-mRNA intervals.
         center_offset = (aso_len - 1) // 2
         aso_center = idx + center_offset
         cds_center = cds.to_cds_index(aso_center) if cds is not None else None
 
-        if cds_center is not None:
+        if cds is not None and cds_center is not None:
             in_coding_list[i] = True
-            # The spliced CDS is contiguous, so the ASO's 5' end is centre - offset.
+            # The spliced CDS is contiguous, so the ASO's 5' end is center - offset.
             cds_start = cds_center - center_offset
             for fs in flank_sizes_cds:
                 raw_start = max(0, cds_start - fs)

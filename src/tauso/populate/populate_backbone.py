@@ -8,7 +8,6 @@ Callers must guarantee PS_PATTERN / CHEMICAL_PATTERN hold only strings (validate
 Calculator._require_str_columns).
 """
 
-import re
 from collections.abc import Iterable
 
 import numpy as np
@@ -38,7 +37,8 @@ def max_consecutive_po(ps_pattern: str) -> int:
 
 
 def ps_end_score(ps_pattern: str) -> int:
-    return len(re.match(r"^\**", ps_pattern).group()) + len(re.search(r"\**$", ps_pattern).group())
+    """PS bonds at the two ends: leading run plus trailing run."""
+    return (len(ps_pattern) - len(ps_pattern.lstrip("*"))) + (len(ps_pattern) - len(ps_pattern.rstrip("*")))
 
 
 def ps_placement(chemical_pattern: str, ps_pattern: str) -> tuple[int, int, int]:
@@ -88,31 +88,32 @@ def populate_backbone_features(
     need_placement = any(c in todo for c in _PLACEMENT_FEATURES)
     need_interaction = any(c in todo for c in _INTERACTION_FEATURES)
 
-    # mod_ps_wing5/3_count and mod_ps_frac_mod are NaN on non-gapmer rows: their value is 0 by
-    # construction there, which would leak zero-variance noise into split selection.
-    is_gapmer_series = df[CHEMICAL_PATTERN].map(is_gapmer) if need_placement or need_interaction else None
+    if need_placement or need_interaction:
+        # mod_ps_wing5/3_count and mod_ps_frac_mod are NaN on non-gapmer rows: their value is 0 by
+        # construction there, which would leak zero-variance noise into split selection.
+        is_gapmer_series = df[CHEMICAL_PATTERN].map(is_gapmer)
 
-    if need_placement:
-        triples = df.apply(lambda r: ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1)
-        if "mod_ps_gap_count" in todo:
-            # Meaningful for all chemistries (= total PS for all-DNA, 0 for all-modified)
-            df["mod_ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
-        if "mod_ps_wing5_count" in todo:
-            df["mod_ps_wing5_count"] = triples.map(lambda t: float(t[0])).where(is_gapmer_series, np.nan)
-        if "mod_ps_wing3_count" in todo:
-            df["mod_ps_wing3_count"] = triples.map(lambda t: float(t[2])).where(is_gapmer_series, np.nan)
+        if need_placement:
+            triples = df.apply(lambda r: ps_placement(r[CHEMICAL_PATTERN], r[PS_PATTERN]), axis=1)
+            if "mod_ps_gap_count" in todo:
+                # Meaningful for all chemistries (= total PS for all-DNA, 0 for all-modified)
+                df["mod_ps_gap_count"] = triples.map(lambda t: t[1]).astype(int)
+            if "mod_ps_wing5_count" in todo:
+                df["mod_ps_wing5_count"] = triples.map(lambda t: float(t[0])).where(is_gapmer_series, np.nan)
+            if "mod_ps_wing3_count" in todo:
+                df["mod_ps_wing3_count"] = triples.map(lambda t: float(t[2])).where(is_gapmer_series, np.nan)
 
-    if need_interaction:
-        if "mod_ps_frac_mod" in todo:
-            # Fraction of high-affinity-sugar positions (M/C/L) that carry a PS bond on their 3' side.
-            raw = df.apply(lambda r: frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}), axis=1).astype(
-                float
-            )
-            df["mod_ps_frac_mod"] = raw.where(is_gapmer_series, np.nan)
-        if "mod_ps_frac_dna" in todo:
-            # Fraction of deoxy ('d') positions that carry a PS bond on their 3' side.
-            df["mod_ps_frac_dna"] = df.apply(
-                lambda r: frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}), axis=1
-            ).astype(float)
+        if need_interaction:
+            if "mod_ps_frac_mod" in todo:
+                # Fraction of high-affinity-sugar positions (M/C/L) that carry a PS bond on their 3' side.
+                raw = df.apply(
+                    lambda r: frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"M", "C", "L"}), axis=1
+                ).astype(float)
+                df["mod_ps_frac_mod"] = raw.where(is_gapmer_series, np.nan)
+            if "mod_ps_frac_dna" in todo:
+                # Fraction of deoxy ('d') positions that carry a PS bond on their 3' side.
+                df["mod_ps_frac_dna"] = df.apply(
+                    lambda r: frac_with_ps(r[CHEMICAL_PATTERN], r[PS_PATTERN], {"d"}), axis=1
+                ).astype(float)
 
     return df, names

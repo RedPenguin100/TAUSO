@@ -78,7 +78,7 @@ def _is_5_methyl_c(modification_string) -> bool:
 
 
 def to_idt_notation(
-    sequence: str, chemical_pattern: str, ps_pattern: str = None, modification_string: str = None
+    sequence: str, chemical_pattern: str, ps_pattern: str | None = None, modification_string: str | None = None
 ) -> str:
     """Render an ASO as an IDT-style order string, read 5'->3'.
 

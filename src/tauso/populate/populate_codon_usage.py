@@ -195,7 +195,7 @@ def populate_cai(
         op = lambda row, local_col=local_col: _get_row_cai(row, row[local_col])
 
         if use_parallel:
-            df[cai_col] = df.parallel_apply(op, axis=1)
+            df[cai_col] = df.parallel_apply(op, axis=1)  # type: ignore[operator]  # pandarallel, runtime attr
         else:
             df[cai_col] = df.apply(op, axis=1)
 
@@ -214,7 +214,7 @@ def populate_cai(
         return _get_row_cai(row, entry["cds"].sequence)
 
     if use_parallel:
-        df["cai_score_global"] = df.parallel_apply(_get_global_cai, axis=1)
+        df["cai_score_global"] = df.parallel_apply(_get_global_cai, axis=1)  # type: ignore[operator]  # pandarallel, runtime attr
     else:
         df["cai_score_global"] = df.apply(_get_global_cai, axis=1)
 
