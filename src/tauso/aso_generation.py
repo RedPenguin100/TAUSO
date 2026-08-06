@@ -17,6 +17,7 @@ from tauso.data.consts import (
     MODIFICATION_STRING,
     PS_PATTERN,
     STRUCTURE_SENSE_LENGTH,
+    STRUCTURE_SENSE_TYPE,
     TRANSFECTION_RAW,
     VOLUME_NM,
     resolve_depmap_id,
@@ -267,13 +268,6 @@ def _validate_aso_sizes(aso_sizes):
 
 # --- Result views for consumers -------------------------------------------------------------------
 
-_REGION_COLS = [
-    ("5'UTR", "struct_sense_in_5utr"),
-    ("CDS", "struct_sense_in_cds"),
-    ("3'UTR", "struct_sense_in_3utr"),
-    ("intron", "struct_sense_in_intron"),
-]
-
 # Representative top-N / cutoff for the off-target summary (the store carries several; show one).
 _OFFTARGET_SPECIFIC = "off_target_score_specific_BOLTZ_n100_c1000"
 _OFFTARGET_GENERAL = "off_target_score_general_BOLTZ_n100_c1000"
@@ -282,17 +276,12 @@ _RNASEH1_FIT = "rnase_krel_score_R4a_krel_dynamic"
 G4HUNTER_LIABILITY = 1.5  # |G4Hunter| at/above ~1.5 indicates a likely G-quadruplex
 
 
+def _col_or_default(df, name, default):
+    return df[name] if name in df.columns else pd.Series(default, index=df.index)
+
+
 def _col_or_nan(df, name):
-    return df[name] if name in df.columns else pd.Series(np.nan, index=df.index)
-
-
-def _target_region(ranked):
-    """One region label per candidate from the (mutually exclusive) struct_sense_in_* one-hots."""
-    region = pd.Series("unknown", index=ranked.index)
-    for name, col in _REGION_COLS:
-        if col in ranked.columns:
-            region = region.mask((region == "unknown") & ranked[col].astype(bool), name)
-    return region
+    return _col_or_default(df, name, np.nan)
 
 
 def summarize_design(ranked, model_version=None):
@@ -309,18 +298,16 @@ def summarize_design(ranked, model_version=None):
             "aso_sequence": ranked[ASO_SEQUENCE].to_numpy(),
             "length": ranked[STRUCTURE_SENSE_LENGTH].to_numpy(),
             "target_start": _col_or_nan(ranked, "structure_sense_start").to_numpy(),
-            "target_region": _target_region(ranked).to_numpy(),
+            "target_region": _col_or_default(ranked, STRUCTURE_SENSE_TYPE, "unknown").to_numpy(),
             col: ranked[col].to_numpy(),
         }
     )
 
 
 def design_details(ranked):
-    """Per-candidate safety / liability detail, computed from the full feature frame so it is surfaced
-    whether or not these features were selected into the model: transcriptome & rRNA off-target burden,
-    RNase H1 cleavage fit, and toxicity motifs (CpG/immune, G-quadruplex / G-run). Returns raw values
-    plus liability flags and an implications note -- flags mark candidates to scrutinise, not confirmed
-    toxicity."""
+    """
+    Per-candidate safety and toxicity details, that are mentioned in the literature.
+    """
 
     def g(name):
         return _col_or_nan(ranked, name)
@@ -331,7 +318,6 @@ def design_details(ranked):
             "offtarget_transcriptome": g(_OFFTARGET_SPECIFIC).to_numpy(),
             "offtarget_genomewide": g(_OFFTARGET_GENERAL).to_numpy(),
             "offtarget_rrna": g(_RRNA_TOTAL).to_numpy(),
-            "rnaseh1_cleavage_fit": g(_RNASEH1_FIT).to_numpy(),
             "tox_cpg_count": g("tox_cpg_count").to_numpy(),
             "tox_tlr9_motif": g("tox_tlr9_gtcgtt").to_numpy(),
             "tox_g4hunter_max": g("tox_g4hunter_max").to_numpy(),
