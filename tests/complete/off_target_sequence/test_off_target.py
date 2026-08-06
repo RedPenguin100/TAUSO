@@ -28,7 +28,7 @@ def generate_200_test_sequences():
             # Extract a 20bp window
             seq = transcript[i : i + 20]
             if len(seq) == 20:
-                test_data.append({"target_gene": gene, "rna_sequence": seq})
+                test_data.append({"target_gene": gene, "target_mrna": gene, "aso_sequence_5_to_3": seq})
 
     # Add 10 "Scrambled" negatives at the end for controls
     negatives = [
@@ -40,7 +40,7 @@ def generate_200_test_sequences():
         "AUCGACGCUAGCGUAAUCGG",  # Synthetic repeat
     ]
     for neg in negatives:
-        test_data.append({"target_gene": "UNKNOWN", "rna_sequence": neg})
+        test_data.append({"target_gene": "UNKNOWN", "target_mrna": "UNKNOWN", "aso_sequence_5_to_3": neg})
 
     return test_data
 
@@ -58,7 +58,7 @@ def test_alignment_stats_real_genome(tmp_path):
     input_csv = tmp_path / "test_oligos_input.csv"
     pd.DataFrame(TEST_DATA).to_csv(input_csv, index=False)
 
-    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", seq_col="rna_sequence", threads=4)
+    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", threads=4)
 
     assert not stats.empty
     expected_columns = [
@@ -102,7 +102,7 @@ def test_alignment_stats_counts_repeated_assays(tmp_path):
     input_csv = tmp_path / "repeated_oligos.csv"
     pd.DataFrame(repeated).to_csv(input_csv, index=False)
 
-    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", seq_col="rna_sequence", threads=4)
+    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", threads=4)
     kras = stats[stats["original_target_gene"] == "KRAS"].iloc[0]
 
     assert kras["total_asos"] == 2
@@ -118,7 +118,7 @@ def test_alignment_stats_labels_fall_back_to_target_mrna(tmp_path):
     input_csv = tmp_path / "blank_target_gene.csv"
     pd.DataFrame(blank).to_csv(input_csv, index=False)
 
-    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", seq_col="rna_sequence", threads=4).iloc[0]
+    stats = alignment_stats(input_csv=str(input_csv), genome="GRCh38", threads=4).iloc[0]
 
     assert stats["original_target_gene"] == "v-Ki-ras2"
     assert stats["label_from"] == "target_mrna"
