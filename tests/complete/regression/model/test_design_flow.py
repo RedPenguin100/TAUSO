@@ -10,7 +10,7 @@ The validation tests are fast (they raise before any featurization).
 import numpy as np
 import pytest
 
-from tauso.aso_generation import design_asos, design_details, summarize_design
+from tauso.aso_generation import design_asos, tox_details, summarize_design
 from tauso.data.consts import ASO_SEQUENCE
 from tauso.inference import score_column
 
@@ -31,7 +31,7 @@ def test_design_asos_full_circle(dataframe_regression):
     # consumer + safety views
     summary = summarize_design(ranked)
     assert list(summary["rank"]) == [1, 2, 3, 4, 5]
-    details = design_details(ranked)
+    details = tox_details(ranked)
     assert {"flag_immune_cpg", "flag_binds_rrna", "flag_hepatotox_g4_grun", "liabilities"} <= set(details.columns)
 
     # regression-check the slim consumer view (stable columns; tolerance on the float score)

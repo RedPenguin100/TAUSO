@@ -303,9 +303,11 @@ def summarize_design(ranked, model_version=None):
     )
 
 
-def design_details(ranked):
+def tox_details(ranked):
     """
-    Per-candidate safety and toxicity details, that are mentioned in the literature.
+    For the ranked table, we enrich the table by adding toxicity information.
+    It is split into two - known tox motifs from the literature,
+                         - aggregated hybridization based off-target score
     """
 
     def g(name):
