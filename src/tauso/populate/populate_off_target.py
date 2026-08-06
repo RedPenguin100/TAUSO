@@ -12,6 +12,8 @@ from ..features.hybridization.off_target.parallel import run_tasks_parallel
 
 logger = logging.getLogger(__name__)
 
+UNRESOLVED_CELL_LINE = "__unresolved__"
+
 
 def serialize_feature_name(method, top_n, cutoff, is_specific):
     if is_specific:
@@ -97,7 +99,9 @@ def populate_off_target_specific(
     """
     ASO_df = ASO_df.copy()
     feature_names = []
-    groups = list(ASO_df.groupby(CELL_LINE_DEPMAP, observed=True))
+    # Rows without a DepMap cell line ID: kept so they score NaN instead of being dropped.
+    group_keys = ASO_df[CELL_LINE_DEPMAP].fillna(UNRESOLVED_CELL_LINE)
+    groups = list(ASO_df.groupby(group_keys, observed=True))
 
     logger.info(
         "populate_off_target_specific: top_n=%s cutoffs=%s n_aso=%d n_cell_lines=%d n_jobs=%d",
