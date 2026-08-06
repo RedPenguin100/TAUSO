@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from tauso.aso_generation import Transfection, default_config, design_asos, design_details, summarize_design
+from tauso.aso_generation import Transfection, default_config, design_asos, tox_details, summarize_design
 from tauso.data.data import get_paths
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.off_target.search import count_offtarget_matches_bulk
@@ -79,7 +79,7 @@ def main():
 
     summary = summarize_design(ranked)
     summary = add_offtarget_counts(summary)
-    details = design_details(ranked)                       # row-aligned to ranked -> summarize_design
+    details = tox_details(ranked)                       # row-aligned to ranked -> summarize_design
     for col in LIABILITY_COLS:
         summary[col] = details[col].to_numpy()
     summary["chemistry"] = CHEMISTRY
