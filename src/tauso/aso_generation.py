@@ -272,7 +272,6 @@ def _validate_aso_sizes(aso_sizes):
 _OFFTARGET_SPECIFIC = "off_target_score_specific_BOLTZ_n100_c1000"
 _OFFTARGET_GENERAL = "off_target_score_general_BOLTZ_n100_c1000"
 _RRNA_TOTAL = "off_target_single_rRNA_total_c1000"
-_RNASEH1_FIT = "rnase_krel_score_R4a_krel_dynamic"
 G4HUNTER_LIABILITY = 1.5  # |G4Hunter| at/above ~1.5 indicates a likely G-quadruplex
 
 
