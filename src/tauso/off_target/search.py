@@ -538,6 +538,24 @@ def find_all_gene_off_targets_BULK(fasta_path, genome="GRCh38", threads=16, max_
     return seq_to_genes
 
 
+def find_all_gene_off_targets_bulk_sequences(sequences, genome="GRCh38", threads=16, max_mismatches=0):
+    """Genes each sequence aligns to, in a single Bowtie pass. Returns ``{sequence: [gene, ...]}``.
+
+    Sequence-taking counterpart to `find_all_gene_off_targets_BULK`; owns the temp FASTA so callers
+    holding sequences rather than a file do not have to.
+    """
+    seqs = list(dict.fromkeys(sequences))
+    if not seqs:
+        return {}
+
+    with tempfile.TemporaryDirectory() as work:
+        fasta_path = os.path.join(work, "sequences.fasta")
+        with open(fasta_path, "w") as f:
+            for s in seqs:
+                f.write(f">{s}\n{s}\n")
+        return find_all_gene_off_targets_BULK(fasta_path, genome=genome, threads=threads, max_mismatches=max_mismatches)
+
+
 def count_offtarget_matches_bulk(sequences, genome="GRCh38", max_mismatches=2, threads=16, exclude_regions=None):
     """Count genome matches per sequence at each mismatch distance, in a single Bowtie pass.
 
