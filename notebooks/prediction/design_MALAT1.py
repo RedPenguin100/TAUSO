@@ -32,8 +32,7 @@ CHEMISTRY = "2'MOE 5-10-5 gapmer, full PS"
 
 OFFTARGET_MAX_MM = 2  # count genome matches up to 2 mismatches (Bowtie -v caps at 3)
 OFFTARGET_COLS = ["perfect_matches", "off_targets_1mm", "off_targets_2mm"]
-LIABILITY_COLS = ["offtarget_transcriptome", "offtarget_genomewide", "offtarget_rrna",
-                  "rnaseh1_cleavage_fit", "liabilities"]
+LIABILITY_COLS = ["offtarget_transcriptome", "offtarget_genomewide", "offtarget_rrna", "liabilities"]
 
 
 def build_config():
