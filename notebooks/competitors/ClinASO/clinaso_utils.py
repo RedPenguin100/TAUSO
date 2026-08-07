@@ -5,6 +5,13 @@ Transcribed from ClinASO's `asodesigner/scr/_4.py` (vendored as the `ClinASO` su
 github.com/RedPenguin100/ClinASO, a fork of the Yunnan University platform published at
 www.gapmerasodesign.com), using ClinASO's own position weight matrix
 `asodesigner/text/human_rnaseH_pwm.txt` (4 nucleotides x 13 positions).
+Chen et al., Mol Ther Nucleic Acids 37(2):102933, 2026 (doi:10.1016/j.omtn.2026.102933).
+
+That PWM is byte-identical to `tauso.features.rnase_motifs.weights.R7`: both are the human
+RNase H1 logFC weights from the R7 experiment of Kielpinski et al. 2017 (NAR; PMC5728404).
+Negative logFC is the preferred (faster-cleaved) base there, which is why lower is better.
+TAUSO's own `rnase_score_*` features apply the same weights but constrain the window to the
+DNA gap; ClinASO instead sums four fixed offsets and ignores the gapmer design.
 
 Algorithm, per `_4.py`: for offset in 0..3, take the 13-nt window ASO[2 + offset : 15 + offset],
 reverse-complement it, and sum the PWM weights position-wise; the four windows sum to `total_pf`.
