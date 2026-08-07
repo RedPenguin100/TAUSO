@@ -146,7 +146,7 @@ def populate_sequence_one_hot_encoded(
         seq = seq.upper()
         n = len(seq)
 
-        encoded = []
+        encoded: list[float] = []
         # 5' terminus: nucleotide i from the start, kept only while it lies in the 5' half.
         for i in range(terminal_n):
             encoded.extend(nuc_map.get(seq[i], nan_vec) if (i < n and 2 * i <= n - 1) else nan_vec)

@@ -65,10 +65,10 @@ class Calculator:
     def __init__(
         self,
         data: pd.DataFrame,
-        data_version: str = None,
+        data_version: str | None = None,
         overwrite=False,
-        cpus: int = None,
-        cache: AssetCache = None,
+        cpus: int | None = None,
+        cache: AssetCache | None = None,
         get_feature_dir=None,
     ):
         self.data = data
@@ -146,6 +146,8 @@ class Calculator:
         to_load = [f for f in feature_names if f not in self.data.columns]
         if not to_load:  # dependencies already in memory (e.g. the in-memory generation path)
             return
+        if self.index is None:
+            raise ValueError(f"cannot load {to_load} from disk without a data_version")
         feature_dir = self.get_feature_dir_func(self.data_version)
         cache_cols, cache = self._cache_columns()
         for feature in to_load:
