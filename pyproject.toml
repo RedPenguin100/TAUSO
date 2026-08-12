@@ -35,7 +35,7 @@ dependencies = [
     "xgboost>=3.2,<4",
     "codon-bias>=0.5,<0.6",
     "lxml",
-    "risearch-tauso>=1.2",
+    "risearch-tauso>=1.4.2",
     # Native libraries provided by conda in the supported install (environment.yml),
     # declared here so a bare `pip install` resolves the Python bindings too. The
     # `bowtie` aligner is a separate system binary (bioconda/apt), not pip-installable.
