@@ -43,7 +43,7 @@ def _validate_genes_found(target_genes, gene_to_data):
         raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
 
 
-def _scan_one_gene_chunk(row_triggers, target_path, cutoffs, chunk_size=100):
+def _scan_one_gene_chunk(row_triggers, target_path, cutoffs, chunk_size=112):
     """Site-resolved stats for one gene's ASOs against its target, in query chunks, per cutoff.
 
     row_triggers: [(aso_index, trigger_seq)] for ASOs targeting this gene.
