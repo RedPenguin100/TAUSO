@@ -8,7 +8,7 @@ import pandas as pd
 
 from .._raccess.core import find_raccess
 from ..data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
-from ..features.fold.vienna_fold import calculate_avg_mfe_per_step
+from ..features.fold.vienna_fold import calculate_avg_mfe_per_setting
 from ..features.rna_access.access_calculator import get_sense_with_flanks, window_access_energies
 from ..features.rna_access.rna_access import RNAAccess
 from ..parallel_utils import make_apply_fn
@@ -47,15 +47,9 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
 
     lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
 
-    # Group settings by (flank, window). Every entry in a group reuses the same
-    # sub-sequence cut and the same set of folded windows; only the `step` grid
-    # differs. Doing the apply once across all settings (rather than once per
-    # setting) lets us share that work and pays the parallel-dispatch overhead
-    # exactly once.
-    steps_by_window = defaultdict(list)
-    for flank_size, window_size, step in settings:
-        steps_by_window[(flank_size, window_size)].append(step)
-
+    # All settings are handled in a single apply. Every setting's sub-sequence cut sits
+    # inside the widest one, so one pass per row both shares the folding across settings
+    # and pays the parallel-dispatch overhead exactly once.
     feature_names = [f"fold_mfe_win{w}_flank{f}_step{s}" for f, w, s in settings]
 
     def _process_row(row):
@@ -68,21 +62,9 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
             return out
         full_mrna = lightweight_gene_to_data[gene_name]
 
-        for (flank_size, window_size), steps in steps_by_window.items():
-            cut_start = max(0, global_start - flank_size)
-            cut_end = min(len(full_mrna), global_start + sense_len + flank_size)
-            sub_sequence = full_mrna[cut_start:cut_end]
-            if len(sub_sequence) < window_size:
-                continue
-            step_to_value = calculate_avg_mfe_per_step(
-                sequence=sub_sequence,
-                sense_start_in_flank=(global_start - cut_start),
-                sense_length=sense_len,
-                window_size=window_size,
-                steps=steps,
-            )
-            for step, value in step_to_value.items():
-                out[f"fold_mfe_win{window_size}_flank{flank_size}_step{step}"] = value
+        per_setting = calculate_avg_mfe_per_setting(full_mrna, global_start, sense_len, settings)
+        for (flank_size, window_size, step), value in per_setting.items():
+            out[f"fold_mfe_win{window_size}_flank{flank_size}_step{step}"] = value
         return out
 
     apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
