@@ -491,7 +491,7 @@ class Calculator:
 
     def calculate_sense_accessibility(self):
         """Calculates sense accessibility features."""
-        from tauso.populate.populate_fold import DEFAULT_SENSE_CONFIGURATION, populate_sense_accessibility_batch
+        from tauso.populate.populate_fold import DEFAULT_SENSE_CONFIGURATION, populate_sense_accessibility_multi
 
         # Dynamically generate expected feature names based on the configs
         expected_features = []
@@ -509,26 +509,26 @@ class Calculator:
             # Reuse the lean dictionary securely
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
 
-            for config, expected_name in zip(DEFAULT_SENSE_CONFIGURATION, expected_features):
-                if expected_name in missing:
-                    c_flank = config["flank"]
-                    c_access = config["access"]
-                    c_seeds = config["seeds"]
+            # Compute every missing config in one pass: populate_sense_accessibility_multi
+            # groups configs that share a flank, so a single raccess call per batch covers
+            # the union of their seed sizes. raccess wall time is dominated by the flanked
+            # sequence length, not by how many seeds are asked for, so the configs sharing
+            # a flank ride along nearly free.
+            missing_configs = [
+                config for config, name in zip(DEFAULT_SENSE_CONFIGURATION, expected_features) if name in missing
+            ]
 
-                    logger.info("Running: Flank=%d, Access=%d, Seeds=%s...", c_flank, c_access, c_seeds)
+            self.data, generated_features = populate_sense_accessibility_multi(
+                self.data,
+                gene_to_data,
+                missing_configs,
+                batch_size=1000,
+                n_jobs=self.cpus,
+            )
 
-                    self.data, generated_name = populate_sense_accessibility_batch(
-                        self.data,
-                        gene_to_data,
-                        batch_size=1000,
-                        flank_size=c_flank,
-                        access_size=c_access,
-                        seed_sizes=c_seeds,
-                        n_jobs=self.cpus,
-                    )
-
-                    self._save_calculated_feature(feature_name=generated_name)
-                    logger.info("Saved: %s", generated_name)
+            for feature in generated_features:
+                self._save_calculated_feature(feature_name=feature)
+                logger.info("Saved: %s", feature)
         else:
             logger.info("All sense accessibility features exist. Skipping.")
 
