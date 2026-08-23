@@ -1,14 +1,18 @@
-from functools import lru_cache
-
 import numpy as np
-import ViennaRNA as RNA
 
 from ...util import dna_to_rna
+from ._vienna_internal import window_mfe
 
 
-@lru_cache(maxsize=10000)
-def get_cached_mfe(seq):
-    return RNA.fold(seq)[1]
+def _get_cached_mfe(sequence, start=0, window_size=None):
+    """MFE of ``sequence[start:start + window_size]``, sharing one fold of `sequence`.
+
+    The whole `sequence` is folded once and cached, and each window is read back out of
+    those shared matrices rather than folded on its own.
+    """
+    if window_size is None:
+        window_size = len(sequence) - start
+    return window_mfe(sequence, start, window_size)
 
 
 def _per_position_avg_energies(sequence, window_size, start, stop, step):
@@ -22,7 +26,9 @@ def _per_position_avg_energies(sequence, window_size, start, stop, step):
     energy_values = np.zeros(seq_len)
     counts = np.zeros(seq_len)
     for i in range(start, stop, step):
-        mfe_per_nt = get_cached_mfe(sequence[i : i + window_size]) / window_size
+        # get_catched_mfe is equivalent to RNA.fold(sequence[i:i+window_size])[1], but faster.
+        # only fold the entire sequence once, and then fetch folded items.
+        mfe_per_nt = _get_cached_mfe(sequence, i, window_size) / window_size
         energy_values[i : i + window_size] += mfe_per_nt
         counts[i : i + window_size] += 1
     return np.divide(
@@ -41,8 +47,8 @@ def calculate_avg_mfe_per_step(sequence, sense_start_in_flank, sense_length, win
     numbers more cheaply:
       1. Only sweep windows overlapping the sense region — outside windows touch
          only positions the final mean never reads.
-      2. Overlapping windows reuse folds across steps via the module-level
-         `get_cached_mfe` cache (unique windows per call stay well under its size).
+      2. Overlapping windows share a single fold of `sequence`, each reading its own
+         energy back out of the shared matrices.
     """
     sequence = dna_to_rna(sequence)
     seq_len = len(sequence)
