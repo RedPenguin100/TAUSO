@@ -89,17 +89,25 @@ def calculate_avg_mfe_per_step(sequence, sense_start_in_flank, sense_length, win
     return out
 
 
-def calculate_avg_mfe_per_setting(mrna, global_start, sense_length, settings):
+def calculate_avg_mfe_per_setting(mrna, global_start, sense_length, settings, fold_region=None):
     """Run `calculate_avg_mfe_per_step` for every (flank, window, step) in `settings`.
 
     Each setting cuts its own flank-padded sub-sequence around the target site. Those
     cuts are all substrings of the widest one, so the widest is folded once and every
     setting reads its windows out of it. Returns a dict keyed by the setting triples.
+
+    `fold_region` is the (start, end) slice of `mrna` to fold. It defaults to exactly the
+    widest cut; pass a wider region shared with neighbouring target sites and they all
+    read their windows out of that one fold.
     """
     widest_flank = max(flank for flank, _, _ in settings)
     widest_window = max(window for _, window, _ in settings)
-    fold_start = max(0, global_start - widest_flank)
-    fold_end = min(len(mrna), global_start + sense_length + widest_flank)
+    if fold_region is None:
+        fold_region = (
+            max(0, global_start - widest_flank),
+            min(len(mrna), global_start + sense_length + widest_flank),
+        )
+    fold_start, fold_end = fold_region
     fold_sequence = dna_to_rna(mrna[fold_start:fold_end])
 
     out = {}
