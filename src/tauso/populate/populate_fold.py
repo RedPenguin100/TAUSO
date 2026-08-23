@@ -247,10 +247,12 @@ def _sense_region_mean(per_position_df, sense_len_map, sense_start_map, feature_
 
 
 def _assign_feature_column(df_out, batch_results, feature_name):
-    """Write per-batch results into df_out[`feature_name`] via the _temp_id map.
+    """Write per-batch results into df_out[`feature_name`] via the _site_id map.
 
     `batch_results` is a list of DataFrames with columns ["_temp_id", feature_name]
-    (some may be empty). Rows not present in any batch result get NaN.
+    (some may be empty), holding one row per computed target site. Every row reads
+    the value back through `_site_id`, so rows sharing a site share the result.
+    Rows whose site is not present in any batch result get NaN.
     """
     non_empty = [br for br in batch_results if not br.empty]
     if not non_empty:
@@ -258,7 +260,7 @@ def _assign_feature_column(df_out, batch_results, feature_name):
         return
     results_df = pd.concat(non_empty, ignore_index=True)
     result_map = dict(zip(results_df["_temp_id"], results_df[feature_name]))
-    df_out[feature_name] = df_out["_temp_id"].map(result_map)
+    df_out[feature_name] = df_out["_site_id"].map(result_map)
 
 
 def _run_batches(process_batch, valid_df, batch_size, n_jobs):
@@ -344,6 +346,17 @@ def _populate_single_flank_accessibility(
     valid_df = df_out.loc[
         valid_mask, ["_temp_id", STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH, CANONICAL_GENE_NAME]
     ].copy()
+
+    # Accessibility is a property of the target site alone, so rows sharing a
+    # (gene, sense start, sense length) need one raccess job between them. Keep the
+    # first row of each site as the one that gets computed; `_site_id` points every
+    # other row at it so they all read the same value back.
+    site_cols = [CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
+    site_rep = valid_df.groupby(site_cols, sort=False, dropna=False)["_temp_id"].transform("first")
+    df_out["_site_id"] = df_out["_temp_id"]
+    df_out.loc[valid_mask, "_site_id"] = site_rep
+    valid_df = valid_df[valid_df["_temp_id"] == site_rep]
+
     lightweight_gene_to_data = _lightweight_gene_to_data(valid_df[CANONICAL_GENE_NAME].unique(), gene_to_data)
     raccess_exe = find_raccess()
 
@@ -372,7 +385,7 @@ def _populate_single_flank_accessibility(
     batch_results = _run_batches(_process_batch, valid_df, batch_size, n_jobs)
     for fn in feature_names:
         _assign_feature_column(df_out, [br[fn] for br in batch_results], fn)
-    df_out.drop(columns=["_temp_id"], inplace=True)
+    df_out.drop(columns=["_temp_id", "_site_id"], inplace=True)
     return feature_names
 
 
