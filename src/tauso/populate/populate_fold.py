@@ -38,6 +38,53 @@ DEFAULT_SETTINGS = [
 ]
 
 
+# Target sites this close together on one gene share a single fold. A wider chunk serves
+# more sites per fold but costs more to fold; around 500nt the two balance out.
+MFE_CHUNK_SIZE = 500
+
+FOLD_REGION_START = "_mfe_fold_start"
+FOLD_REGION_END = "_mfe_fold_end"
+
+
+def _fold_work_frame(df, lightweight_gene_to_data, widest_flank, chunk_size):
+    """Just the columns the MFE apply reads, plus the region of the gene to fold per row.
+
+    Target sites on the same gene whose flanked cuts all fit within `chunk_size` are given
+    the same region, so one fold serves all of them. Rows come back in region order, so
+    that fold is still cached when the next row asks for it.
+    """
+    work = df[[CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]].copy()
+
+    sites_by_gene = defaultdict(list)
+    for label, gene, start, length in work.itertuples(name=None):
+        if gene in lightweight_gene_to_data and start != -1:
+            sites_by_gene[gene].append((start, length, label))
+
+    regions = {}
+    for gene, sites in sites_by_gene.items():
+        mrna_len = len(lightweight_gene_to_data[gene])
+        sites.sort()
+        i = 0
+        while i < len(sites):
+            region_start = max(0, sites[i][0] - widest_flank)
+            region_end = 0
+            batch = []
+            while i < len(sites):
+                start, length, label = sites[i]
+                site_end = min(mrna_len, start + length + widest_flank)
+                if batch and site_end - region_start > chunk_size:
+                    break
+                region_end = max(region_end, site_end)
+                batch.append(label)
+                i += 1
+            for label in batch:
+                regions[label] = (region_start, region_end)
+
+    work[FOLD_REGION_START] = [regions.get(label, (0, 0))[0] for label in work.index]
+    work[FOLD_REGION_END] = [regions.get(label, (0, 0))[1] for label in work.index]
+    return work.sort_values([CANONICAL_GENE_NAME, FOLD_REGION_START], kind="stable")
+
+
 def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):
     if settings is None:
         settings = DEFAULT_SETTINGS
@@ -52,6 +99,9 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     # and pays the parallel-dispatch overhead exactly once.
     feature_names = [f"fold_mfe_win{w}_flank{f}_step{s}" for f, w, s in settings]
 
+    widest_flank = max(flank for flank, _, _ in settings)
+    work = _fold_work_frame(df, lightweight_gene_to_data, widest_flank, MFE_CHUNK_SIZE)
+
     def _process_row(row):
         gene_name = row[CANONICAL_GENE_NAME]
         global_start = row[STRUCTURE_SENSE_START]
@@ -62,14 +112,20 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
             return out
         full_mrna = lightweight_gene_to_data[gene_name]
 
-        per_setting = calculate_avg_mfe_per_setting(full_mrna, global_start, sense_len, settings)
+        per_setting = calculate_avg_mfe_per_setting(
+            full_mrna,
+            global_start,
+            sense_len,
+            settings,
+            fold_region=(row[FOLD_REGION_START], row[FOLD_REGION_END]),
+        )
         for (flank_size, window_size, step), value in per_setting.items():
             out[f"fold_mfe_win{window_size}_flank{flank_size}_step{step}"] = value
         return out
 
-    apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
+    apply_fn = make_apply_fn(work, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
     results = apply_fn(_process_row, axis=1)
-    results_df = pd.DataFrame(list(results), index=df.index)
+    results_df = pd.DataFrame(list(results), index=work.index)
     for name in feature_names:
         df[name] = results_df[name]
     return df, feature_names
