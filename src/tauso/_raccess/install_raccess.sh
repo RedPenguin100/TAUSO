@@ -68,7 +68,8 @@ PATCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/patches"
 for p in raccess_bugfix.patch \
          raccess_fix.patch \
          raccess_fix_link.patch \
-         raccess_makefile.patch
+         raccess_makefile.patch \
+         raccess_logadd.patch
 do
     echo "Applying patch: $p"
     patch -N -p1 < "$PATCH_DIR/$p" || true

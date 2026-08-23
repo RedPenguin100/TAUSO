@@ -1,0 +1,109 @@
+diff --git a/src/raccess/prob_model.hpp b/src/raccess/prob_model.hpp
+--- a/src/raccess/prob_model.hpp
++++ b/src/raccess/prob_model.hpp
+@@ -302,14 +302,43 @@
+   IntT period() { return _period;}
+   IntT block_len() { return _block_len;}
+   CodeT seq(IntT i) { return _sm->seq(i);}
+-  template <typename T, typename Iter> void log_dot_pm(T& t, IntT n, Iter i1, Iter i2)
+-  { while (n-- > 0) { LOGADD(t, (*i1++) + (*i2--));}}
+-  template <typename T, typename Iter> void log_dot_pp(T& t, IntT n, Iter i1, Iter i2)
+-  { while (n-- > 0) { LOGADD(t, (*i1++) + (*i2++));}}
+-  template <typename T, typename Iter> void log_dot_mp(T& t, IntT n, Iter i1, Iter i2)
+-  { while (n-- > 0) { LOGADD(t, (*i1--) + (*i2++));}}
+-  template <typename T, typename Iter> void log_dot_mm(T& t, IntT n, Iter i1, Iter i2)
+-  { while (n-- > 0) { LOGADD(t, (*i1--) + (*i2--));}}
++  // Each log_dot sums n terms in log space. Folding a term in with LOGADD costs
++  // one exp AND one log1p; taking the maximum first and summing exp(term - max)
++  // costs one exp per term and a single log for the whole reduction. The exp
++  // loop carries no dependency, so it also vectorises.
++  enum { LOG_DOT_BUF = 512};
++  template <typename T> void log_dot_fold(T& t, IntT n, const ScoreT* v) {
++    ScoreT m = NEG_INF();
++    for (IntT k = 0; k < n; ++k) { if (v[k] > m) { m = v[k];}}
++    if (impossible(m)) return;
++    ScoreT s = 0.0;
++    for (IntT k = 0; k < n; ++k) { s += std::exp(v[k] - m);}
++    LOGADD(t, (m + std::log(s)));
++  }
++  template <typename T, typename Iter> void log_dot_pm(T& t, IntT n, Iter i1, Iter i2) {
++    if (n > LOG_DOT_BUF) { while (n-- > 0) { LOGADD(t, (*i1++) + (*i2--));} return;}
++    ScoreT v[LOG_DOT_BUF];
++    for (IntT k = 0; k < n; ++k) { v[k] = (*i1++) + (*i2--);}
++    log_dot_fold(t, n, v);
++  }
++  template <typename T, typename Iter> void log_dot_pp(T& t, IntT n, Iter i1, Iter i2) {
++    if (n > LOG_DOT_BUF) { while (n-- > 0) { LOGADD(t, (*i1++) + (*i2++));} return;}
++    ScoreT v[LOG_DOT_BUF];
++    for (IntT k = 0; k < n; ++k) { v[k] = (*i1++) + (*i2++);}
++    log_dot_fold(t, n, v);
++  }
++  template <typename T, typename Iter> void log_dot_mp(T& t, IntT n, Iter i1, Iter i2) {
++    if (n > LOG_DOT_BUF) { while (n-- > 0) { LOGADD(t, (*i1--) + (*i2++));} return;}
++    ScoreT v[LOG_DOT_BUF];
++    for (IntT k = 0; k < n; ++k) { v[k] = (*i1--) + (*i2++);}
++    log_dot_fold(t, n, v);
++  }
++  template <typename T, typename Iter> void log_dot_mm(T& t, IntT n, Iter i1, Iter i2) {
++    if (n > LOG_DOT_BUF) { while (n-- > 0) { LOGADD(t, (*i1--) + (*i2--));} return;}
++    ScoreT v[LOG_DOT_BUF];
++    for (IntT k = 0; k < n; ++k) { v[k] = (*i1--) + (*i2--);}
++    log_dot_fold(t, n, v);
++  }
+   ScoreT& inside_p(IntT s, IntT i, IntT j) { return _inside.p[_tmx_in.ref(s, i, j)];}
+   ScoreT& inside_s(IntT s, IntT i) { return _inside.s[_tsr.ref(s, i)];}
+   ScoreT& inside_s1(IntT s, IntT i) { return _inside.s1[_tsr.ref(s, i)];}
+diff --git a/src/raccess/score.hpp b/src/raccess/score.hpp
+--- a/src/raccess/score.hpp
++++ b/src/raccess/score.hpp
+@@ -13,11 +13,35 @@
+ // inline bool impossible(ScoreT val) { return (isinf(z1) && z1 < 0);}
+ inline double score_scale() { return 1.0;}
+ #if defined(LOG1P)
++// softplus(-d) = log1p(exp(-d)) for d >= 0, tabulated on [0, CUT] with quadratic
++// interpolation. Replaces the libm log1p+exp pair that dominates logadd.
++struct SoftplusTable {
++  enum {N = 65536, CUT = 40};
++  double v[N + 3];
++  double inv_step, step;
++  SoftplusTable() {
++    step = double(CUT) / N;
++    inv_step = 1.0 / step;
++    for (int i = 0; i <= N + 2; ++i) { v[i] = ::log1p(std::exp(-(i * step)));}
++  }
++  inline double operator()(double d) const {
++    if (d >= CUT) return 0.0;
++    const double x = d * inv_step;
++    const int    i = int(x);
++    const double f = x - i;
++    const double a = v[i], b = v[i + 1], c = v[i + 2];
++    // Newton form through (0,a),(1,b),(2,c) evaluated at f.
++    const double d1 = b - a, d2 = c - b;
++    return a + f * (d1 + 0.5 * (f - 1.0) * (d2 - d1));
++  }
++};
++extern const SoftplusTable g_softplus;
++
+ inline void logadd(ScoreT& z, const ScoreT& z1) {
+   if (impossible(z1)) return;
+   const ScoreT& d = (z - z1);
+-  if (0 <= d) { z += log1p(std::exp(-d));}
+-  else { z = z1 + log1p(std::exp(d));}
++  if (0 <= d) { z += g_softplus(d);}
++  else { z = z1 + g_softplus(-d);}
+ }
+ #else
+ inline void logadd(ScoreT& z, const ScoreT& z1) {
+diff --git a/src/raccess/run_raccess.cpp b/src/raccess/run_raccess.cpp
+--- a/src/raccess/run_raccess.cpp
++++ b/src/raccess/run_raccess.cpp
+@@ -4,6 +4,9 @@
+ #ifndef RUN_RACCESS__RACCESS_CPP
+ #define RUN_RACCESS__RACCESS_CPP
+ #include "raccess.hpp"
++// Defined ahead of obj so the table is built before any other static
++// object in this file could reach logadd.
++const SoftplusTable g_softplus;
+ static Raccess::Raccess obj;
+ int main(int argc, char** argv){return Raccess::Raccess::main(argc, argv, obj);}
+ #endif
