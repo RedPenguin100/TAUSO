@@ -174,58 +174,43 @@ def _build_batch_rna_seqs(batch_rows, lightweight_gene_to_data, flank_size, min_
     return rna_seqs, sense_len_map, sense_start_map
 
 
-def _per_position_avg_access(raccess_res, rna_seqs, access_size, seed_sizes):
-    """Per-position avg_access frame for ONE (access_size, seed_sizes) config.
+def _sense_region_mean(raccess_res, rna_seqs, config, sense_len_map, sense_start_map, feature_name):
+    """Mean accessibility over each rna_id's sense window, for ONE config.
 
-    For each rna_id, slide an `access_size` window over the raccess energies
-    (window_access_energies) and average the per-seed columns into a single
-    `avg_access`. Seeds larger than `access_size`, and sequences shorter than it,
-    contribute nothing. Returns a DataFrame ["rna_id", "avg_access"] in per-rna_id
-    position order.
+    Slides an `access_size` window over the raccess energies (window_access_energies)
+    and averages the per-seed columns, but only over the window starts inside the
+    sense region -- a start beyond `rna_size - access_size` has no window, so the
+    region is clipped to the starts that exist. Seeds larger than `access_size`, and
+    sequences shorter than it, contribute nothing.
+
+    Returns a DataFrame with columns ["_temp_id", <feature_name>], one row per
+    rna_id that had at least one window.
     """
-    eligible_seeds = [s for s in seed_sizes if s <= access_size]
+    access_size = config["access"]
+    eligible_seeds = [s for s in config["seeds"] if s <= access_size]
     if not eligible_seeds:
-        return pd.DataFrame(columns=["rna_id", "avg_access"])
+        return pd.DataFrame(columns=["_temp_id", feature_name])
+    seed_cols = [f"{s}_avg" for s in eligible_seeds]
 
-    df_list = []
+    ids = []
+    means = []
     for rna_id, rna_seq in rna_seqs:
         rna_size = len(rna_seq)
         if rna_size < access_size:
             continue
-        access_res = raccess_res[rna_id]
-        df = window_access_energies(access_res, rna_size, access_size, eligible_seeds)
-        target_cols = [f"{s}_avg" for s in eligible_seeds if f"{s}_avg" in df.columns]
-        df["avg_access"] = df[target_cols].mean(axis=1) if target_cols else 0.0
-        df["rna_id"] = rna_id
-        df_list.append(df[["rna_id", "avg_access"]])
+        start = sense_start_map[rna_id]
+        end = min(start + sense_len_map[rna_id], rna_size - access_size + 1)
+        if end <= start:
+            continue
+        windows = window_access_energies(
+            raccess_res[rna_id], rna_size, access_size, eligible_seeds, positions=np.arange(start, end)
+        )
+        ids.append(int(rna_id))
+        means.append(windows[seed_cols].to_numpy().mean(axis=1).mean())
 
-    if not df_list:
-        return pd.DataFrame(columns=["rna_id", "avg_access"])
-    return pd.concat(df_list, ignore_index=True)
-
-
-def _sense_region_mean(per_position_df, sense_len_map, sense_start_map, feature_name):
-    """Collapse a per-position avg_access frame to one number per rna_id.
-
-    Averages only positions inside the sense window
-    [rel_start, rel_start + sense_length) for each rna_id. Returns DataFrame
-    with columns ["_temp_id", <feature_name>].
-    """
-    if per_position_df.empty:
+    if not ids:
         return pd.DataFrame(columns=["_temp_id", feature_name])
-
-    df = per_position_df  # caller hands us an owned frame; mutate in place
-    df["pos_in_flank"] = df.groupby("rna_id", sort=False, observed=True).cumcount()
-    df["structure_sense_length"] = df["rna_id"].map(sense_len_map)
-    df["rel_start"] = df["rna_id"].map(sense_start_map)
-    mask = (df["pos_in_flank"] >= df["rel_start"]) & (
-        df["pos_in_flank"] < df["rel_start"] + df["structure_sense_length"]
-    )
-
-    result = df[mask].groupby("rna_id", as_index=False, observed=True)["avg_access"].mean()
-    result.rename(columns={"rna_id": "_temp_id", "avg_access": feature_name}, inplace=True)
-    result["_temp_id"] = result["_temp_id"].astype(int)
-    return result
+    return pd.DataFrame({"_temp_id": ids, feature_name: means})
 
 
 def _assign_feature_column(df_out, batch_results, feature_name):
@@ -342,12 +327,7 @@ def _populate_single_flank_accessibility(
         raccess_res = ra.calculate(rna_seqs)
 
         return {
-            feature_name: _sense_region_mean(
-                _per_position_avg_access(raccess_res, rna_seqs, c["access"], c["seeds"]),
-                sense_len_map,
-                sense_start_map,
-                feature_name,
-            )
+            feature_name: _sense_region_mean(raccess_res, rna_seqs, c, sense_len_map, sense_start_map, feature_name)
             for c, feature_name in zip(configs, feature_names)
         }
 

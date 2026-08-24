@@ -9,7 +9,7 @@ def get_sense_with_flanks(pre_mrna: str, sense_start: int, sense_length: int, fl
     return pre_mrna[start:end]
 
 
-def window_access_energies(access_res, rna_size, access_size, seed_sizes):
+def window_access_energies(access_res, rna_size, access_size, seed_sizes, positions=None):
     """Per-position accessibility energy of an `access_size`-wide window, one column per seed.
 
     `access_res` is raccess' per-position opening energy for each seed size (one
@@ -19,10 +19,15 @@ def window_access_energies(access_res, rna_size, access_size, seed_sizes):
     the fractional step -- and rescale by `access_size / seed`. raccess reports
     energies from the 3' end, hence the reversed lookup index.
 
+    `positions` restricts the result to those window starts; None means every start
+    in 0 .. rna_size - access_size. The sampling below costs
+    O(len(positions) x sub-windows), so passing only the starts that are actually
+    read back matters when the caller wants a few of them.
+
     Returns a DataFrame with one `{seed}_avg` column per seed, indexed by window
-    start position (0 .. rna_size - access_size).
+    start position.
     """
-    positions = np.arange(rna_size - access_size + 1)
+    positions = np.arange(rna_size - access_size + 1) if positions is None else np.asarray(positions)
 
     avg_cols = {}
     for seed in seed_sizes:
