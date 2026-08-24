@@ -5,13 +5,13 @@ diff --git a/src/raccess/prob_model.hpp b/src/raccess/prob_model.hpp
    IntT period() { return _period;}
    IntT block_len() { return _block_len;}
    CodeT seq(IntT i) { return _sm->seq(i);}
--  template <typename T, typename Iter> void log_dot_pm(T& t, IntT n, Iter i1, Iter i2)
+-  template <typename T, typename Iter> void log_dot_pm(T& t, IntT n, Iter i1, Iter i2) 
 -  { while (n-- > 0) { LOGADD(t, (*i1++) + (*i2--));}}
--  template <typename T, typename Iter> void log_dot_pp(T& t, IntT n, Iter i1, Iter i2)
+-  template <typename T, typename Iter> void log_dot_pp(T& t, IntT n, Iter i1, Iter i2) 
 -  { while (n-- > 0) { LOGADD(t, (*i1++) + (*i2++));}}
--  template <typename T, typename Iter> void log_dot_mp(T& t, IntT n, Iter i1, Iter i2)
+-  template <typename T, typename Iter> void log_dot_mp(T& t, IntT n, Iter i1, Iter i2) 
 -  { while (n-- > 0) { LOGADD(t, (*i1--) + (*i2++));}}
--  template <typename T, typename Iter> void log_dot_mm(T& t, IntT n, Iter i1, Iter i2)
+-  template <typename T, typename Iter> void log_dot_mm(T& t, IntT n, Iter i1, Iter i2) 
 -  { while (n-- > 0) { LOGADD(t, (*i1--) + (*i2--));}}
 +  // Each log_dot sums n terms in log space. Folding a term in with LOGADD costs
 +  // one exp AND one log1p; taking the maximum first and summing exp(term - max)
@@ -56,7 +56,7 @@ diff --git a/src/raccess/prob_model.hpp b/src/raccess/prob_model.hpp
 diff --git a/src/raccess/score.hpp b/src/raccess/score.hpp
 --- a/src/raccess/score.hpp
 +++ b/src/raccess/score.hpp
-@@ -13,11 +13,35 @@
+@@ -13,11 +13,37 @@
  // inline bool impossible(ScoreT val) { return (isinf(z1) && z1 < 0);}
  inline double score_scale() { return 1.0;}
  #if defined(LOG1P)
@@ -82,7 +82,9 @@ diff --git a/src/raccess/score.hpp b/src/raccess/score.hpp
 +    return a + f * (d1 + 0.5 * (f - 1.0) * (d2 - d1));
 +  }
 +};
-+extern const SoftplusTable g_softplus;
++// Defined here rather than in a .cpp: run_raccess_contrafold includes this
++// header too and does not link run_raccess.cpp.
++inline const SoftplusTable g_softplus;
 +
  inline void logadd(ScoreT& z, const ScoreT& z1) {
    if (impossible(z1)) return;
@@ -94,16 +96,3 @@ diff --git a/src/raccess/score.hpp b/src/raccess/score.hpp
  }
  #else
  inline void logadd(ScoreT& z, const ScoreT& z1) {
-diff --git a/src/raccess/run_raccess.cpp b/src/raccess/run_raccess.cpp
---- a/src/raccess/run_raccess.cpp
-+++ b/src/raccess/run_raccess.cpp
-@@ -4,6 +4,9 @@
- #ifndef RUN_RACCESS__RACCESS_CPP
- #define RUN_RACCESS__RACCESS_CPP
- #include "raccess.hpp"
-+// Defined ahead of obj so the table is built before any other static
-+// object in this file could reach logadd.
-+const SoftplusTable g_softplus;
- static Raccess::Raccess obj;
- int main(int argc, char** argv){return Raccess::Raccess::main(argc, argv, obj);}
- #endif
