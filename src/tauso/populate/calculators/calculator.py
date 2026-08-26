@@ -489,49 +489,6 @@ class Calculator:
         else:
             logger.info("All MFE features exist. Skipping.")
 
-    def calculate_sense_accessibility(self):
-        """Calculates sense accessibility features."""
-        from tauso.populate.populate_fold import DEFAULT_SENSE_CONFIGURATION, populate_sense_accessibility_multi
-
-        # Dynamically generate expected feature names based on the configs
-        expected_features = []
-        for config in DEFAULT_SENSE_CONFIGURATION:
-            seeds_str = "-".join(map(str, config["seeds"]))
-            expected_features.append(
-                f"fold_access_{config['flank']}flank_{config['access']}access_{seeds_str}seed_sizes"
-            )
-
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing sense accessibility features...")
-
-            # Reuse the lean dictionary securely
-            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-
-            # Compute every missing config in one pass: populate_sense_accessibility_multi
-            # groups configs that share a flank, so a single raccess call per batch covers
-            # the union of their seed sizes. raccess wall time is dominated by the flanked
-            # sequence length, not by how many seeds are asked for, so the configs sharing
-            # a flank ride along nearly free.
-            missing_configs = [
-                config for config, name in zip(DEFAULT_SENSE_CONFIGURATION, expected_features) if name in missing
-            ]
-
-            self.data, generated_features = populate_sense_accessibility_multi(
-                self.data,
-                gene_to_data,
-                missing_configs,
-                batch_size=1000,
-                n_jobs=self.cpus,
-            )
-
-            for feature in generated_features:
-                self._save_calculated_feature(feature_name=feature)
-                logger.info("Saved: %s", feature)
-        else:
-            logger.info("All sense accessibility features exist. Skipping.")
-
     def calculate_sequence_one_hot(self):
         """Calculates terminal one-hot encoded sequence features."""
 
@@ -1050,7 +1007,6 @@ class Calculator:
             self.calculate_rnase,
             self.calculate_on_target_site_features,
             self.calculate_mfe,
-            self.calculate_sense_accessibility,
             self.calculate_flank_features,
             self.calculate_duplication,
             self.calculate_sequence_one_hot,

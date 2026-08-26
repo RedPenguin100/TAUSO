@@ -112,9 +112,6 @@ jobs:
       - name: Collect tests (fail fast on import errors)
         run: micromamba run -n tauso pytest --collect-only -q
 
-      - name: Install raccess
-        run: tauso setup-raccess
-
       # The coordinate-only locus pickle (built by `setup-genome`) is cached here too,
       # which skips its ~24s gffutils traversal. It lives in THIS cache rather than a
       # separate one so it is restored with the same preserved mtime ordering as the
