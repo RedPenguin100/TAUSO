@@ -30,13 +30,12 @@ Default location: `~/.local/share/tauso`. Set this before the first `tauso setup
 
 ```bash
 # Everything the package downloads/builds (see TODO in DATA_SETUP.md — omits the two below)
-tauso setup-all                          # genome + bowtie + omics + raccess
+tauso setup-all                          # genome + bowtie + omics
 tauso build-cell-context                 # cohort + per-cell expression + CAI + tGCN
 
 # Genome (required)
 tauso setup-genome [--genome GRCh38]     # genome FASTA + annotations + gffutils DB
 tauso setup-bowtie [-t THREADS]          # off-target alignment index
-tauso setup-raccess                      # RNA folding tool (compiled locally)
 
 # Omics
 tauso setup-omics                        # all of the below
@@ -105,7 +104,7 @@ python -c "from tauso.data.data import load_gtf_db; db = load_gtf_db('GRCh38'); 
 | Ribo-seq (40S + 80S) | ~20 MB | Translation features |
 | mRNA half-life | ~150 MB | Stability features |
 | Processed expression | ~100 MB | Per-cell features |
-| ATtRACT / raccess / tGCN / CAI | <100 MB | Respective features |
+| ATtRACT / tGCN / CAI | <100 MB | Respective features |
 | **Total (full setup)** | **~10–12 GB** | All features |
 
 The genome and the off-target index account for most of this — they are the cost of doing genome-wide off-target analysis.
@@ -117,7 +116,6 @@ The genome and the off-target index account for most of this — they are the co
 | setup-genome | 5–10 min | Download |
 | setup-bowtie (1 thread) | 30–60 min | CPU |
 | setup-bowtie (16 threads) | 5–10 min | CPU |
-| setup-raccess | 2–5 min | Compilation |
 | setup-omics | 10–20 min | Download + conversion |
 | build-cell-context | 5–10 min | CAI computation |
 | **setup-all (16 threads)** | **~30–45 min** | Bowtie indexing |
@@ -127,7 +125,6 @@ The genome and the off-target index account for most of this — they are the co
 ```bash
 # Minimal: genome + folding only (basic features; no off-target, no cell-specific)
 tauso setup-genome
-tauso setup-raccess
 
 # Off-target analysis
 tauso setup-genome

@@ -7,7 +7,7 @@ Install TAUSO first ([Installation](INSTALLATION.md)). Everything below writes t
 ## All at once
 
 ```bash
-tauso setup-all            # genome + bowtie index + omics + raccess
+tauso setup-all            # genome + bowtie index + omics
 tauso build-cell-context   # per-cell expression, CAI weights, human tGCN
 ```
 
@@ -33,15 +33,6 @@ tauso setup-bowtie [-t THREADS] [--mem-per-thread MB]
 
 Builds the bowtie index used for off-target search. Single-threaded this takes 30–60 minutes and scales with `-t`. Default memory is 800 MB/thread.
 
-### RNA folding tool (required for structure features)
-
-```bash
-tauso setup-raccess
-```
-
-Compiles `raccess` locally — its license prohibits redistribution, so it cannot be bundled. It needs a C/C++ toolchain and zlib headers; if compilation fails, make sure these are installed:
-
-```bash
 # Debian/Ubuntu
 sudo apt-get install build-essential zlib1g-dev
 # RHEL/CentOS

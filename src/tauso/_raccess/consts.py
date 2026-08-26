@@ -1,2 +1,0 @@
-RACCESS_EXE_ENV = "RACCESS_EXE"
-RACCESS_EXE_NAME = "run_raccess"

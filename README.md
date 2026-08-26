@@ -47,7 +47,7 @@ most of it the genome and the bowtie off-target index. The build is dominated by
 it; budget the better part of an hour.
 
 ```bash
-tauso setup-all              # genome, bowtie off-target index, omics, raccess
+tauso setup-all              # genome, bowtie off-target index, omics
 tauso build-cell-context     # per-cell expression + CAI weights + tGCN
 ```
 

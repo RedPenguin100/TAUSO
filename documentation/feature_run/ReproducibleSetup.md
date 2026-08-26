@@ -110,7 +110,7 @@ bash "$BASE/TAUSO/documentation/feature_run/setup_data.sh"
 ```
 
 It runs (verified against `cli.py`):
-1. `tauso setup-all` — genome → bowtie → omics → raccess, where **omics** =
+1. `tauso setup-all` — genome → bowtie → omics, where **omics** =
    DepMap, mRNA half-life, tGCN, **ATtRACT RBP motifs**, and the **ribo-seq**
    bigWig. (So the omics sub-steps are *not* called separately — that would be
    redundant.)

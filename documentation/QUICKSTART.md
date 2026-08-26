@@ -24,7 +24,7 @@ mamba deactivate && mamba activate tauso
 ## 3. Download and build the data
 
 ```bash
-tauso setup-all            # genome + bowtie off-target index + omics + raccess
+tauso setup-all            # genome + bowtie off-target index + omics
 tauso build-cell-context   # per-cell expression, CAI weights, human tGCN
 ```
 
