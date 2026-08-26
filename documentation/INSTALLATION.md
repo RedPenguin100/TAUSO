@@ -18,8 +18,6 @@ bash Miniforge3-Linux-x86_64.sh
 # restart your shell afterwards
 ```
 
-`raccess`, the RNA-folding tool used during data setup, is compiled from source and needs a C/C++ toolchain and zlib headers:
-
 ```bash
 # Debian/Ubuntu
 sudo apt-get install build-essential zlib1g-dev

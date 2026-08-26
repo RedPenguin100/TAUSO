@@ -4,10 +4,8 @@ import logging
 import os
 import re
 import shutil
-import subprocess
 import sys
 import time
-from importlib.resources import files
 from pathlib import Path
 
 import click
@@ -155,7 +153,7 @@ def setup_omics(ctx, force):
 @click.pass_context
 def setup_all(ctx, genome, force, threads, mem_per_thread):
     """
-    End-to-end setup: genome + bowtie + omics + raccess. Idempotent — already-present
+    End-to-end setup: genome + bowtie + omics. Idempotent — already-present
     datasets are verified by hash and skipped unless --force is given.
     """
     click.echo(click.style("=== setup-all: genome ===", bold=True))
@@ -166,9 +164,6 @@ def setup_all(ctx, genome, force, threads, mem_per_thread):
     click.echo()
     click.echo(click.style("=== setup-all: omics ===", bold=True))
     ctx.invoke(setup_omics, force=force)
-    click.echo()
-    click.echo(click.style("=== setup-all: raccess ===", bold=True))
-    ctx.invoke(setup_raccess)
     click.echo()
     click.echo(click.style("=== setup-all: rRNA ===", bold=True))
     ctx.invoke(setup_rrna, force=force)
@@ -1069,50 +1064,6 @@ def setup_bowtie(genome, force, threads, mem_per_thread):
         sys.exit(1)
     except Exception as e:
         click.echo(click.style(f"Error building Bowtie index: {e}", fg="red"))
-        sys.exit(1)
-
-
-@main.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
-@click.pass_context
-@click.option(
-    "--force-clone",
-    "-f",
-    is_flag=True,
-    help="Force re-cloning of the raccess repository (passed to install_raccess.sh).",
-)
-@click.option(
-    "--march",
-    default=None,
-    help="-march for the raccess build (default: native, or $RACCESS_MARCH). "
-    "Use 'x86-64-v2' for a portable binary that runs across heterogeneous "
-    "cluster CPUs (native can crash with SIGILL when build and run nodes differ).",
-)
-def setup_raccess(ctx, force_clone, march):
-    """
-    Run the raccess installation per their license.
-    Installs into the configured TAUSO_DATA_DIR.
-    """
-    script_path = files("tauso._raccess") / "install_raccess.sh"
-    data_dir = get_data_dir()
-    raccess_dir = os.path.join(data_dir, "raccess")
-
-    forwarded_args = list(ctx.args)
-    if force_clone:
-        forwarded_args.append("--force-clone")
-
-    # Pass raccess_dir as the first argument to the script
-    cmd = ["bash", str(script_path), raccess_dir] + forwarded_args
-
-    # --march flag wins, else inherit $RACCESS_MARCH, else the script's 'native' default
-    env = os.environ.copy()
-    if march:
-        env["RACCESS_MARCH"] = march
-
-    click.echo(f"+ {' '.join(cmd)} (RACCESS_MARCH={env.get('RACCESS_MARCH', 'native')})")
-    try:
-        subprocess.run(cmd, check=True, env=env)
-    except subprocess.CalledProcessError:
-        logger.error("install_raccess.sh failed, consider installing zlib1g-dev")
         sys.exit(1)
 
 
