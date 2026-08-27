@@ -94,17 +94,27 @@ def assign_target_position(out, hit_rows, hit_pos, pre_mrna_len, locus_info):
 
 def assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinates, locus_info):
     """Distance (bp) to the nearest CANONICAL-transcript intron boundary, filed by exon/intron side so a 0
-    is unambiguous, both raw and log1p (the model-facing form). Single-exon genes stay NaN."""
+    is unambiguous, both raw and log1p (the model-facing form). The signed variants carry the junction's
+    direction in transcript orientation: positive = the junction lies 5' of the target's center,
+    negative = 3'. Single-exon genes stay NaN."""
     splice_junction = np.array(locus_info._intron_indices).flatten()
     if splice_junction.size == 0:
         return
-    dist = np.abs(genetic_coordinates[:, None] - splice_junction).min(axis=1)
+    offsets = genetic_coordinates[:, None] - splice_junction
+    nearest = np.abs(offsets).argmin(axis=1)
+    signed = offsets[np.arange(offsets.shape[0]), nearest]
+    if locus_info.strand == StrandType.NEG:
+        signed = -signed  # genomic offsets run backwards on the minus strand
+    dist = np.abs(signed)
+    signed_logdist = np.sign(signed) * np.log1p(dist)
     in_exon = _in_intervals(genetic_coordinates, locus_info._exon_indices)
     in_intron = _in_intervals(genetic_coordinates, locus_info._intron_indices)
     out.dist_sj_exonic[hit_rows] = np.where(in_exon, dist, np.nan)
     out.dist_sj_intronic[hit_rows] = np.where(in_intron, dist, np.nan)
     out.junction_logdist_exonic[hit_rows] = np.where(in_exon, np.log1p(dist), np.nan)
     out.junction_logdist_intronic[hit_rows] = np.where(in_intron, np.log1p(dist), np.nan)
+    out.junction_signed_logdist_exonic[hit_rows] = np.where(in_exon, signed_logdist, np.nan)
+    out.junction_signed_logdist_intronic[hit_rows] = np.where(in_intron, signed_logdist, np.nan)
 
 
 def assign_closest_splice_junction_distance(out, hit_rows, genetic_coordinates, locus_info):
@@ -227,6 +237,8 @@ def _init_outputs(n_rows):
         junction_logdist_exonic=nan(),
         junction_logdist_intronic=nan(),
         junction_logdist_closest=nan(),
+        junction_signed_logdist_exonic=nan(),
+        junction_signed_logdist_intronic=nan(),
     )
 
 
@@ -306,6 +318,8 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_EXONIC] = out.junction_logdist_exonic
     all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_INTRONIC] = out.junction_logdist_intronic
     all_data[STRUCTURE_SENSE_JUNCTION_LOGDIST_CLOSEST] = out.junction_logdist_closest
+    all_data[STRUCTURE_SENSE_JUNCTION_SIGNED_LOGDIST_EXONIC] = out.junction_signed_logdist_exonic
+    all_data[STRUCTURE_SENSE_JUNCTION_SIGNED_LOGDIST_INTRONIC] = out.junction_signed_logdist_intronic
 
     all_data.drop(columns=["__temp_idx", "__temp_sense"], inplace=True)
     return all_data
