@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from ..data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
+from ..features.fold.vienna_access import calculate_avg_access_per_setting
 from ..features.fold.vienna_fold import calculate_avg_mfe_per_setting
 from ..parallel_utils import make_apply_fn
 
@@ -84,6 +85,11 @@ def _fold_work_frame(df, lightweight_gene_to_data, widest_flank, chunk_size):
     return work.sort_values([CANONICAL_GENE_NAME, FOLD_REGION_START], kind="stable")
 
 
+def mfe_feature_name(flank, window_size, step):
+    """Stable column name for one MFE setting."""
+    return f"fold_mfe_win{window_size}_flank{flank}_step{step}"
+
+
 def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):
     if settings is None:
         settings = DEFAULT_SETTINGS
@@ -96,7 +102,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     # All settings are handled in a single apply. Every setting's sub-sequence cut sits
     # inside the widest one, so one pass per row both shares the folding across settings
     # and pays the parallel-dispatch overhead exactly once.
-    feature_names = [f"fold_mfe_win{w}_flank{f}_step{s}" for f, w, s in settings]
+    feature_names = [mfe_feature_name(f, w, s) for f, w, s in settings]
 
     widest_flank = max(flank for flank, _, _ in settings)
     work = _fold_work_frame(df, lightweight_gene_to_data, widest_flank, MFE_CHUNK_SIZE)
@@ -119,12 +125,70 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
             fold_region=(row[FOLD_REGION_START], row[FOLD_REGION_END]),
         )
         for (flank_size, window_size, step), value in per_setting.items():
-            out[f"fold_mfe_win{window_size}_flank{flank_size}_step{step}"] = value
+            out[mfe_feature_name(flank_size, window_size, step)] = value
         return out
 
     apply_fn = make_apply_fn(work, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
     results = apply_fn(_process_row, axis=1)
     results_df = pd.DataFrame(list(results), index=work.index)
+    for name in feature_names:
+        df[name] = results_df[name]
+    return df, feature_names
+
+
+# Accessibility grid: (flank, max_bp_span, open_len, anchor). One fold read at nine
+# opening lengths under two anchorings. Flank is the axis that costs and 60 is where
+# the curve flattens; opening lengths and anchorings are free once the fold is done,
+# so the grid takes the whole usable range of both. A span of None leaves the 140nt
+# cut free to pair across itself -- a number wider than the cut would read as
+# unconstrained while silently biting once targets outgrew it.
+DEFAULT_ACCESS_SETTINGS = [
+    (60, None, open_len, anchor) for anchor in ("a5", "a3") for open_len in (4, 6, 8, 10, 13, 16, 20, 26, 32)
+]
+
+
+def access_feature_name(flank, max_bp_span, open_len, anchor):
+    """Stable column name for one accessibility setting; None span is written `sinf`."""
+    span = "inf" if max_bp_span is None else max_bp_span
+    return f"access_f{flank}_s{span}_u{open_len}_{anchor}"
+
+
+def populate_access_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):
+    """Add one accessibility column per (flank, max_bp_span, open_len) setting.
+
+    Rows with an unknown gene, or a sense start of -1, come out NaN.
+    """
+    if settings is None:
+        settings = DEFAULT_ACCESS_SETTINGS
+
+    required_cols = [CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
+    validate_cols_in_df(df, required_cols)
+
+    lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
+
+    feature_names = [access_feature_name(*setting) for setting in settings]
+
+    def _process_row(row):
+        gene_name = row[CANONICAL_GENE_NAME]
+        sense_start = row[STRUCTURE_SENSE_START]
+        sense_len = row[STRUCTURE_SENSE_LENGTH]
+
+        out = {name: np.nan for name in feature_names}
+        # If we can't identify the target RNA
+        if gene_name not in lightweight_gene_to_data or sense_start == -1:
+            return out
+        full_mrna = lightweight_gene_to_data[gene_name]
+
+        per_setting = calculate_avg_access_per_setting(full_mrna, sense_start, sense_len, settings)
+        for setting, value in per_setting.items():
+            out[access_feature_name(*setting)] = value
+        return out
+
+    # ViennaRNA holds the GIL for the duration of a fold, so this has to be
+    # process parallelism -- threads measured identical at n_jobs 1, 8 and 32.
+    apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
+    results = apply_fn(_process_row, axis=1)
+    results_df = pd.DataFrame(list(results), index=df.index)
     for name in feature_names:
         df[name] = results_df[name]
     return df, feature_names
