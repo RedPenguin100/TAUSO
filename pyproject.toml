@@ -7,18 +7,18 @@ name = "tauso"
 version = "1.0.0"
 description = "TAUSO: ASO design toolkit"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "CC-BY-NC-4.0"
 license-files = ["LICENSE"]
 authors = [{name = "Michael Kovaliov"}]
 
 dependencies = [
     "requests",
-    "numpy>=2.3.4,<2.4",
-    "pandas>=2.0,<3",
+    "numpy>=2.5,<2.6",
+    "pandas>=3,<4",
     "pyarrow",
     "scipy",
-    "numba>=0.65,<0.66",
+    "numba>=0.67,<0.68",
     "biopython>=1.87,<2",
     "gffutils>=0.14,<1",
     "pyranges>=0.1.4,<0.2",
@@ -32,10 +32,10 @@ dependencies = [
     "platformdirs",
     "pandarallel",
     "pympler",
-    "xgboost>=3.2,<4",
+    "xgboost>=3.4,<3.5",
     "codon-bias>=0.5,<0.6",
     "lxml",
-    "risearch-tauso==1.6.0b2",
+    "risearch-tauso==1.6.2",
     # Native libraries provided by conda in the supported install (environment.yml),
     # declared here so a bare `pip install` resolves the Python bindings too. The
     # `bowtie` aligner is a separate system binary (bioconda/apt), not pip-installable.
@@ -75,7 +75,7 @@ include = ["tauso*"]
 tauso = "tauso.cli:main"
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 120
 src = ["src", "tests"]
 
@@ -88,7 +88,7 @@ ignore = [
     "UP015",  # Redundant 'r' in open
     "UP022",  # capture_output instead of stdout and stderr
     "TID252", # Allow relative imports
-    # Type/idiom modernization deferred to a dedicated pass (report item 1); py311 target
+    # Type/idiom modernization deferred to a dedicated pass (report item 1); py312 target
     # activates these, but the rewrites are churn we want to land separately.
     "UP045",  # X | None over Optional[X]
     "UP006",  # list over List
@@ -112,6 +112,6 @@ combine-as-imports = true
 [tool.mypy]
 # Advisory only: mypy runs non-blocking in CI (continue-on-error) — it reports, it does not gate.
 # Tighten per-module over time as annotation coverage improves.
-python_version = "3.11"
+python_version = "3.12"
 files = ["src/tauso"]
 ignore_missing_imports = true

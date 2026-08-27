@@ -4,6 +4,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  - python=3.12
   - ruff==0.15.12
   - jupyterlab
   - ipykernel
