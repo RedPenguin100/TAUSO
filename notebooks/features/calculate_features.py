@@ -58,7 +58,7 @@ DATASETS = {
             'calculate_rnase',
             'calculate_on_target_site_features',
             'calculate_mfe',
-            'calculate_sense_accessibility',
+            'calculate_access',
             'calculate_sequence_one_hot',
             'calculate_sequence_chemistry',
             'calculate_modification',
@@ -206,6 +206,11 @@ def main():
         return
 
     steps = config['steps']
+    # Fail before the data load rather than partway through a run of them.
+    stale = [s for s in steps if not hasattr(Calculator, s)]
+    if stale:
+        parser.error(f"Configured step(s) missing from Calculator: {', '.join(stale)}")
+
     if args.step:
         canonical = args.step if args.step.startswith('calculate_') else f'calculate_{args.step}'
         if canonical not in steps:

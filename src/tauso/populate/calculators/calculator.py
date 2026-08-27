@@ -54,6 +54,14 @@ from ..populate_context import (
     populate_target_expression,
     populate_transfection,
 )
+from ..populate_fold import (
+    DEFAULT_ACCESS_SETTINGS,
+    DEFAULT_SETTINGS,
+    access_feature_name,
+    mfe_feature_name,
+    populate_access_features,
+    populate_mfe_features,
+)
 from ..populate_sequence import FEATURE_SPECS, populate_sequence_features
 from ..populate_structure import get_populated_df_with_structure_features
 from .cache import AssetCache
@@ -457,37 +465,59 @@ class Calculator:
 
     def calculate_mfe(self):
         """Calculates Minimum Free Energy (MFE) fold features."""
-        # Lazy import to keep initialization fast
-        from tauso.populate.populate_fold import DEFAULT_SETTINGS, populate_mfe_features
 
-        # Dynamically generate the expected feature names from the settings tuples (flank, window, step)
-        expected_features = [f"fold_mfe_win{w}_flank{f}_step{s}" for f, w, s in DEFAULT_SETTINGS]
+        # Each setting tuple (flank, window, step) under the name of the column it fills.
+        settings_by_name = {mfe_feature_name(*setting): setting for setting in DEFAULT_SETTINGS}
 
-        missing = self._get_missing_features(expected_features)
+        missing = self._get_missing_features(list(settings_by_name))
 
-        if missing:
-            logger.info("Computing %d MFE features...", len(missing))
-
-            self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
-
-            # Reuse the lean dictionary
-            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-
-            # Compute every missing setting in one pass: populate_mfe_features groups
-            # settings that share a (flank, window) so their folds are computed once,
-            # and the parallel dispatch is paid a single time instead of per setting.
-            missing_settings = [
-                (f, w, s) for f, w, s in DEFAULT_SETTINGS if f"fold_mfe_win{w}_flank{f}_step{s}" in missing
-            ]
-
-            self.data, generated_features = populate_mfe_features(
-                self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
-            )
-
-            for feature in generated_features:
-                self._save_calculated_feature(feature_name=feature)
-        else:
+        if not missing:
             logger.info("All MFE features exist. Skipping.")
+
+        logger.info("Computing %d MFE features...", len(missing))
+
+        self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
+
+        # Reuse the lean dictionary
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+
+        # All settings are calculated in a single application
+        missing_settings = [settings_by_name[name] for name in missing]
+
+        self.data, generated_features = populate_mfe_features(
+            self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
+        )
+
+        for feature in generated_features:
+            self._save_calculated_feature(feature_name=feature)
+
+    def calculate_access(self):
+        """Calculates target-site accessibility fold features."""
+
+        # Each setting tuple (flank, max_bp_span, open_len) under the name of the column it fills.
+        settings_by_name = {access_feature_name(*setting): setting for setting in DEFAULT_ACCESS_SETTINGS}
+
+        missing = self._get_missing_features(list(settings_by_name))
+        if not missing:
+            logger.info("All accessibility features exist. Skipping.")
+            return
+
+        logger.info("Computing %d accessibility features...", len(missing))
+
+        self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
+
+        # Reuse the lean dictionary
+        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+
+        # Shared flanks may be computed in a single pass.
+        missing_settings = [settings_by_name[name] for name in missing]
+
+        self.data, generated_features = populate_access_features(
+            self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
+        )
+
+        for feature in generated_features:
+            self._save_calculated_feature(feature_name=feature)
 
     def calculate_sequence_one_hot(self):
         """Calculates terminal one-hot encoded sequence features."""
@@ -1007,6 +1037,7 @@ class Calculator:
             self.calculate_rnase,
             self.calculate_on_target_site_features,
             self.calculate_mfe,
+            self.calculate_access,
             self.calculate_flank_features,
             self.calculate_duplication,
             self.calculate_sequence_one_hot,

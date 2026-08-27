@@ -1,0 +1,85 @@
+import numpy as np
+import ViennaRNA as RNA
+
+from ...common.thermo_consts import RT
+from ...util import dna_to_rna
+
+
+def _unpaired_table(sequence, u_max, max_bp_span):
+    """`up[j][u]`, the probability the `u` nucleotides ending at 1-based `j` are unpaired.
+
+    One call fills every opening length up to `u_max`. A `max_bp_span` of None allows
+    every pair the sequence can hold. The window is the whole sequence, so the answer
+    is a property of that cut rather than of a sub-window sliding through it.
+    """
+    span = len(sequence) if max_bp_span is None else max_bp_span
+    return RNA.pfl_fold_up(sequence, u_max, len(sequence), span)
+
+
+def window_starts(anchor, sense_start, sense_length, open_len):
+    """0-based starts of the windows an anchoring averages over.
+
+    Both give one window per target position. `a5` takes those starting inside the
+    target, so they hang over its 3' edge; `a3` takes those ending inside it, hanging
+    over the 5' edge instead. A window wider than the target cannot sit inside it, so
+    which edge it overhangs is a choice, and the two see different flanking context.
+    """
+    if anchor == "a5":
+        return range(sense_start, sense_start + sense_length)
+    return range(sense_start - open_len + 1, sense_start + sense_length - open_len + 1)
+
+
+def opening_energies(unpaired, starts, open_len):
+    """Opening energy at each window start.
+
+    A window starting at 0-based `i` ends at 1-based `i + open_len`. Starts running off
+    either end of the cut have no entry, as do those whose probability underflows.
+    """
+    out = []
+    for start in starts:
+        end = start + open_len
+        if start < 0 or end >= len(unpaired):
+            continue
+        probability = unpaired[end][open_len]
+        if probability and probability > 0.0:
+            out.append(-RT * np.log(probability))
+    return out
+
+
+def calculate_avg_access_per_setting(mrna, global_start, sense_length, settings):
+    """Accessibility of the target, one value per (flank, max_bp_span, open_len, anchor).
+
+    Accessibility is the free energy needed to hold a stretch of the target
+    single-stranded. Unlike MFE it is an ensemble quantity: it sums over every
+    structure the cut can adopt, weighted by Boltzmann probability.
+
+    Settings sharing a (flank, max_bp_span) fold the same cut, so they are grouped and
+    folded once at the widest opening length in the group; every opening length and
+    anchoring is then a free readout of that one fold. The value is the mean opening
+    energy over the anchoring's windows.
+
+    Returns a dict keyed by the setting tuples, NaN where the cut is too short to hold
+    a window or every window falls outside it.
+    """
+    by_cut = {}
+    for flank, max_bp_span, open_len, anchor in settings:
+        by_cut.setdefault((flank, max_bp_span), []).append((open_len, anchor))
+
+    out = {}
+    for (flank, max_bp_span), reads in by_cut.items():
+        cut_start = max(0, global_start - flank)
+        cut_end = min(len(mrna), global_start + sense_length + flank)
+        cut = dna_to_rna(mrna[cut_start:cut_end])
+        u_max = max(open_len for open_len, _ in reads)
+        if len(cut) < u_max:
+            for open_len, anchor in reads:
+                out[(flank, max_bp_span, open_len, anchor)] = np.nan
+            continue
+
+        unpaired = _unpaired_table(cut, u_max, max_bp_span)
+        sense_start = global_start - cut_start
+        for open_len, anchor in reads:
+            starts = window_starts(anchor, sense_start, sense_length, open_len)
+            energies = opening_energies(unpaired, starts, open_len)
+            out[(flank, max_bp_span, open_len, anchor)] = float(np.mean(energies)) if energies else np.nan
+    return out
