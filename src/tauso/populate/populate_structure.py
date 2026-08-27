@@ -102,7 +102,7 @@ def assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinate
     in_exon = _in_intervals(genetic_coordinates, locus_info._exon_indices)
     in_intron = _in_intervals(genetic_coordinates, locus_info._intron_indices)
     out.dist_sj_exonic[hit_rows] = np.where(in_exon, dist, np.nan)
-    out.dist_sj_intronic[hit_rows] = np.where(in_exon, np.nan, dist)
+    out.dist_sj_intronic[hit_rows] = np.where(in_intron, dist, np.nan)
     out.junction_logdist_exonic[hit_rows] = np.where(in_exon, np.log1p(dist), np.nan)
     out.junction_logdist_intronic[hit_rows] = np.where(in_intron, np.log1p(dist), np.nan)
 
