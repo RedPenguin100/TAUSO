@@ -98,13 +98,10 @@ jobs:
           cache-environment: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
 
-      - name: Cache uv packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
-          restore-keys: ${{ runner.os }}-uv-
-
+      # No uv cache here on purpose. It held ~1.9 GB and was duplicated per PR ref
+      # (a run reads caches from the default branch but saves to refs/pull/N/merge),
+      # which pushed the repo past the 10 GB cache quota and evicted the genome and
+      # bowtie caches — a miss there costs ~15 minutes, far more than this saves.
       - name: Install tauso
         run: micromamba run -n tauso uv pip install -e ".[dev]"
 
