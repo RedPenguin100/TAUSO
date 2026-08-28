@@ -140,17 +140,24 @@ def assign_host_lengths(out, hit_rows, genetic_coordinates, locus_info):
 
 def assign_distance_to_special_codons(out, hit_rows, genetic_coordinates, locus_info):
     """Genomic (intron-inclusive) distance to the nearest special codon -- start / stop, canonical
-    transcript (a single codon) and across all isoforms. Non-coding genes (no such codons) stay NaN."""
+    transcript (a single codon) and across all isoforms. The signed variants carry the codon's
+    direction in transcript orientation: positive = the codon lies 5' of the target's center,
+    negative = 3'. Non-coding genes (no such codons) stay NaN."""
     stop, start = locus_info.stop_codon, locus_info.start_codon
-    for codons, target in (
-        ([stop] if stop else [], out.dist_canonical_stop),
-        (locus_info.all_stop_codons, out.dist_closest_stop),
-        ([start] if start else [], out.dist_canonical_start),
-        (locus_info.all_start_codons, out.dist_closest_start),
+    orientation = -1 if locus_info.strand == StrandType.NEG else 1
+    for codons, target, signed_target in (
+        ([stop] if stop else [], out.dist_canonical_stop, out.signed_dist_canonical_stop),
+        (locus_info.all_stop_codons, out.dist_closest_stop, out.signed_dist_closest_stop),
+        ([start] if start else [], out.dist_canonical_start, out.signed_dist_canonical_start),
+        (locus_info.all_start_codons, out.dist_closest_start, out.signed_dist_closest_start),
     ):
         if codons:
             mids = _codon_midpoints(codons)
-            target[hit_rows] = np.min(np.abs(genetic_coordinates[:, None] - mids[None, :]), axis=1)
+            offsets = genetic_coordinates[:, None] - mids[None, :]
+            nearest = np.abs(offsets).argmin(axis=1)
+            signed = offsets[np.arange(offsets.shape[0]), nearest] * orientation
+            target[hit_rows] = np.abs(signed)
+            signed_target[hit_rows] = signed
 
 
 def assign_mrna_stop_distance(out, hit_rows, genetic_coordinates, locus_info):
@@ -227,6 +234,10 @@ def _init_outputs(n_rows):
         dist_closest_stop=nan(),
         dist_canonical_start=nan(),
         dist_closest_start=nan(),
+        signed_dist_canonical_stop=nan(),
+        signed_dist_closest_stop=nan(),
+        signed_dist_canonical_start=nan(),
+        signed_dist_closest_start=nan(),
         mrna_dist_canonical_stop=nan(),
         mrna_dist_closest_stop=nan(),
         dist_sj_exonic=nan(),
@@ -308,6 +319,10 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_STOP] = out.dist_closest_stop
     all_data[STRUCTURE_SENSE_DIST_TO_CANONICAL_START] = out.dist_canonical_start
     all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_START] = out.dist_closest_start
+    all_data[STRUCTURE_SENSE_SIGNED_DIST_TO_CANONICAL_STOP] = out.signed_dist_canonical_stop
+    all_data[STRUCTURE_SENSE_SIGNED_DIST_TO_CLOSEST_STOP] = out.signed_dist_closest_stop
+    all_data[STRUCTURE_SENSE_SIGNED_DIST_TO_CANONICAL_START] = out.signed_dist_canonical_start
+    all_data[STRUCTURE_SENSE_SIGNED_DIST_TO_CLOSEST_START] = out.signed_dist_closest_start
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out.mrna_dist_canonical_stop
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out.mrna_dist_closest_stop
     all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC] = out.dist_sj_exonic
