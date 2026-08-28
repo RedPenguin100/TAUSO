@@ -116,7 +116,7 @@ https://conda.anaconda.org/conda-forge/noarch/babel-2.18.0-pyhcf101f3_1.conda#f1
 https://conda.anaconda.org/conda-forge/linux-64/backports.zstd-1.7.0-py312h3f22e6b_0.conda#e7eb25765bdf21397cc6e30828871625
 https://conda.anaconda.org/conda-forge/linux-64/brotli-python-1.2.0-py312he9c40d5_3.conda#d176f3ed2824f930b524c45eb8f158bb
 https://conda.anaconda.org/conda-forge/noarch/cached_property-2.0.1-pyhcf101f3_0.conda#256d863ded0f79464391a075944d24a6
-https://conda.anaconda.org/conda-forge/linux-64/cairo-1.18.4-he90730b_1.conda#bb6c4808bfa69d6f7f6b07e5846ced37
+https://conda.anaconda.org/conda-forge/linux-64/cairo-1.18.4-h3c89d7e_2.conda#e83331a940393006789fedddc3b492f3
 https://conda.anaconda.org/conda-forge/noarch/certifi-2026.7.22-pyhd8ed1ab_0.conda#37e13edbe3b48f1095a9d085ef9cd83b
 https://conda.anaconda.org/conda-forge/noarch/charset-normalizer-3.5.1-pyhd8ed1ab_0.conda#e0ac3accc64e23e40969d660e5f58ac8
 https://conda.anaconda.org/conda-forge/noarch/comm-0.2.3-pyhe01879c_0.conda#2da13f2b299d8e1995bafbbe9689a2f7
@@ -225,7 +225,7 @@ https://conda.anaconda.org/conda-forge/noarch/bleach-with-css-6.4.0-hac0b51c_0.c
 https://conda.anaconda.org/bioconda/linux-64/bowtie-1.3.1-hb82490e_11.conda#007449bdcc7c6289936e03d8b8d67650
 https://conda.anaconda.org/conda-forge/linux-64/cupy-core-14.2.0-py312hb359bca_0.conda#e6f28953fb339c090031c4c2c3697a0b
 https://conda.anaconda.org/conda-forge/noarch/fqdn-1.5.1-pyhd8ed1ab_1.conda#d3549fd50d450b6d9e7dddff25dd2110
-https://conda.anaconda.org/conda-forge/noarch/ipython-9.16.1-pyh53cf698_0.conda#23564ed27c9c7714905be96ac5786500
+https://conda.anaconda.org/conda-forge/noarch/ipython-9.17.0-pyh53cf698_0.conda#6ebd34681d8bc56e474fac76999de45a
 https://conda.anaconda.org/conda-forge/noarch/jsonschema-specifications-2025.9.1-pyhcf101f3_0.conda#439cd0f567d697b20a8f45cb70a1005a
 https://conda.anaconda.org/conda-forge/noarch/jupyter-builder-1.2.2-pyhcf101f3_0.conda#9672806e67ea8b09a61408597a418e20
 https://conda.anaconda.org/conda-forge/noarch/jupyter_server_terminals-0.5.4-pyhcf101f3_0.conda#7b8bace4943e0dc345fc45938826f2b8
