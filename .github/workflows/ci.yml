@@ -98,13 +98,10 @@ jobs:
           cache-environment: true
           cache-environment-key: ${{ runner.os }}-tauso-${{ hashFiles('conda-linux-64-dev.lock') }}
 
-      - name: Cache uv packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
-          restore-keys: ${{ runner.os }}-uv-
-
+      # No uv cache here on purpose. It held ~1.9 GB and was duplicated per PR ref
+      # (a run reads caches from the default branch but saves to refs/pull/N/merge),
+      # which pushed the repo past the 10 GB cache quota and evicted the genome and
+      # bowtie caches — a miss there costs ~15 minutes, far more than this saves.
       - name: Install tauso
         run: micromamba run -n tauso uv pip install -e ".[dev]"
 
@@ -112,10 +109,6 @@ jobs:
       - name: Collect tests (fail fast on import errors)
         run: micromamba run -n tauso pytest --collect-only -q
 
-      # The coordinate-only locus pickle (built by `setup-genome`) is cached here too,
-      # which skips its ~24s gffutils traversal. It lives in THIS cache rather than a
-      # separate one so it is restored with the same preserved mtime ordering as the
-      # gff db — the loader rebuilds the pickle if it looks older than GRCh38.gff3.db.
       - name: Cache Genome Database
         id: cache-genome
         uses: actions/cache@v4
@@ -128,8 +121,20 @@ jobs:
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.fa.fai
             ${{ env.TAUSO_DATA_DIR }}/GRCh38.gtf.gz
-            ${{ env.TAUSO_DATA_DIR }}/GRCh38.locus.v1.introns1.canon1.pkl
           key: ${{ runner.os }}-tauso.genome-GRCh38-v6
+
+      # The coordinate-only locus pickle that `setup-genome` builds from the gff db.
+      # Its own cache, keyed on the module that defines the pickle layout and
+      # _LOCUS_CACHE_VERSION, so bumping that constant invalidates this entry and the
+      # rebuilt pickle gets saved. Keying it with the genome files instead would mean
+      # every edit to that module also re-downloads GRCh38.
+      # The loader rebuilds the pickle whenever it is older than GRCh38.gff3.db;
+      # actions/cache preserves mtimes, and a newer gff db *should* force a rebuild.
+      - name: Cache locus pickle
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/GRCh38.locus.*.pkl
+          key: ${{ runner.os }}-tauso.locus-${{ hashFiles('src/tauso/genome/read_human_genome.py') }}
 
       - name: Install genome
         run: tauso setup-genome
