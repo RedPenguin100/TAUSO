@@ -31,7 +31,6 @@ dependencies = [
     "gdown",
     "platformdirs",
     "pandarallel",
-    "pympler",
     "xgboost>=3.4,<3.5",
     "codon-bias>=0.5,<0.6",
     "lxml",

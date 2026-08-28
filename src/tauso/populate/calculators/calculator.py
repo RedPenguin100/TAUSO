@@ -2,9 +2,7 @@ import logging
 import os
 
 import pandas as pd
-import psutil
 import pyarrow.parquet as pq
-from pympler import asizeof
 
 from ...data.consts import (
     CANONICAL_GENE_NAME,
@@ -49,6 +47,7 @@ from ...data.consts import (
     TRANSFECTION_RAW,
     VOLUME_NM,
 )
+from ...debug import log_dataframe_memory
 from ...features.hybridization.off_target import OFF_TARGET_TOP_NS, RISEARCH_SCORE_CUTOFFS
 from ...features.interaction_features import internal_fold_gymnosis
 from ...timer import Timer
@@ -86,15 +85,14 @@ class Calculator:
         get_feature_dir=None,
     ):
         self.data = data
-        self.cpus = cpus if cpus else 32
+        self.cpus = cpus or 32
         self.data_version = data_version
         self.index = f"index_{data_version}" if data_version else None
         self.overwrite = overwrite
         self.get_feature_dir_func = get_feature_dir
-        self.cache = cache if cache else AssetCache(genome="GRCh38")  # TODO: generalize for mice as well
+        self.cache = cache or AssetCache(genome="GRCh38")  # TODO: generalize for mice as well
 
         self._genes_u = None
-        self._genes_u = self._get_unique_genes()
         self._context_added = False
 
         if self.get_feature_dir_func is None:
@@ -1069,35 +1067,20 @@ class Calculator:
 
         logger.info("=== Starting pipeline with %d steps ===", len(pipeline_steps))
 
+        # Opt-in: a long cluster run that dies on memory can be re-run with this set to
+        # see which step grew the frame and which columns carry it.
+        profile_memory = os.environ.get("TAUSO_PROFILE_MEM") == "1"
+
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
             logger.info(f"[Calculator] Starting step: {step.__name__}")
             try:
                 with Timer(name=step.__name__):
                     step()
-                    self.monitor_internal_objects(f"AFTER {step.__name__}")
-            except Exception as _:
+                if profile_memory:
+                    log_dataframe_memory(self.data, f"after {step.__name__}")
+            except Exception:
                 logger.error(f"\n[Calculator] Crashed during step: {step.__name__}\n")
                 raise
 
         logger.info("[Calculator] Pipeline Complete")
-
-    def monitor_internal_objects(self, label=""):
-        logger.debug(f"\n>>> INTERNAL MEMORY REPORT: {label} <<<")
-
-        # 1. Inspect self.data (The DataFrame)
-        if hasattr(self, "data") and hasattr(self.data, "memory_usage"):
-            usage = self.data.memory_usage(deep=True).sum() / (1024**2)
-            logger.debug(f"  [DF] self.data: {usage:.2f} MB")
-            # Print top 3 heaviest columns
-            col_usage = self.data.memory_usage(deep=True) / (1024**2)
-            logger.debug(f"       Heaviest Cols: {col_usage.sort_values(ascending=False).head(3).to_dict()}")
-
-        # 2. Inspect self.cache (The AssetCache)
-        if hasattr(self, "cache"):
-            # asizeof is recursive; it's better for complex objects like caches
-            cache_size = asizeof.asizeof(self.cache) / (1024**2)
-            logger.debug(f"  [CACHE] self.cache: {cache_size:.2f} MB")
-
-        # 3. Check for large local variables in the current scope
-        logger.debug(f"  [PROC] Total Process RSS: {psutil.Process(os.getpid()).memory_info().rss / (1024**2):.1f} MB")
