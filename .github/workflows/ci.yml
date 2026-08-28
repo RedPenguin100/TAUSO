@@ -230,14 +230,18 @@ jobs:
       #   run: tauso setup-model
 
       - name: Run tests
-        # -n 4 splits tests across the runner's 4 cores; --n-jobs 1 stops each test
-        # from forking its own workers on top. The parallel feature path stays
-        # covered by test_mfe_parallel_matches_baseline, which hardcodes n_jobs=4.
-        # log_cli streams DEBUG for every test, which under -n 4 interleaves four
+        # -n 2 with --dist loadfile: every test in a file goes to the same worker, so
+        # the module-scoped fixtures (structure_data, gene_to_data) are built once per
+        # file instead of once per worker. -n 4 with the default round-robin rebuilt
+        # them on every worker and came out slower than running serially.
+        # --n-jobs 2 keeps each worker's internal parallelism from oversubscribing the
+        # runner's 4 cores. The parallel feature path stays covered by
+        # test_mfe_parallel_matches_baseline, which hardcodes n_jobs=4.
+        # log_cli streams DEBUG for every test, which under xdist interleaves the
         # workers into unreadable output. log_level=DEBUG instead captures the same
         # lines and prints them under "Captured log call" for the tests that fail,
         # attributed to the right test and worker. Without it there is no captured
         # log section at all.
         run: >-
-          micromamba run -n tauso pytest -q --durations=15 -n 4 --n-jobs 1
+          micromamba run -n tauso pytest -q --durations=15 -n 2 --dist loadfile --n-jobs 2
           -o log_cli=false -o log_level=DEBUG
