@@ -197,6 +197,31 @@ class Calculator:
 
         return missing
 
+    def _step(self, label, expected, compute, *, save_only_missing=False, load_if_present=False):
+        """Run one feature step: skip when everything is already stored, else compute and save.
+
+        `compute` receives the missing feature names and returns the ``(data, generated_names)``
+        pair the ``populate_*`` functions produce. `save_only_missing` restricts saving to names
+        that were absent, for steps whose populate function returns its whole family regardless
+        of what was asked for. `load_if_present` reads the features back into ``self.data`` when
+        the step is skipped, for the columns later steps depend on.
+        """
+        missing = self._get_missing_features(expected)
+        if not missing:
+            if load_if_present:
+                logger.info("All %s features exist. Loading from disk...", label)
+                self._load_features_into_data(expected)
+            else:
+                logger.info("All %s features exist. Skipping.", label)
+            return []
+
+        logger.info("Computing %d %s features...", len(missing), label)
+        self.data, generated = compute(missing)
+        for feature in generated:
+            if not save_only_missing or feature in missing:
+                self._save_calculated_feature(feature_name=feature)
+        return generated
+
     def _get_unique_genes(self):
         """Lazy getter for the unique genes list."""
         if self._genes_u is None:
@@ -225,71 +250,44 @@ class Calculator:
             self._context_added = True
 
     def calculate_sequence(self):
-        features = [name for name, _ in FEATURE_SPECS]
-        missing = self._get_missing_features(features)
-
-        if missing:
-            logger.info("Computing %d sequence features...", len(missing))
-            self.data, feature_names = populate_sequence_features(self.data, features=missing, cpus=self.cpus)
-
-            for feature in feature_names:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All sequence features exist. Skipping.")
+        self._step(
+            "sequence",
+            [name for name, _ in FEATURE_SPECS],
+            lambda missing: populate_sequence_features(self.data, features=missing, cpus=self.cpus),
+        )
 
     def calculate_basic(self):
         """Calculates fast boolean/categorical and transfection features with dependency checking."""
 
-        # ==========================================
-        # 1. Basic Chemistry Features (chem_*_gen generation flags)
-        # ==========================================
         # chem_1st_gen completes the {1st, 2nd, 3rd}-generation triple: 1st-gen is a pure
         # DNA/PS oligo (no sugar mods); 2nd-gen has 2'-MOE; 3rd-gen has LNA or cEt. They're
         # not mutually exclusive in general but are in this dataset's gapmer chemistries.
-        expected_basic = ["chem_1st_gen", "chem_2nd_gen", "chem_3rd_gen"]
-        missing_basic = self._get_missing_features(expected_basic)
-
-        if missing_basic:
-            logger.info("Computing %d basic features...", len(missing_basic))
-
+        def compute_chemistry(missing):
             from tauso.data.consts import MODIFICATION_STRING
 
             self._check_dependencies([MODIFICATION_STRING])
-
             has_moe = self.data[MODIFICATION_STRING].str.contains("MOE", na=False)
             has_high_aff = self.data[MODIFICATION_STRING].str.contains("LNA|cEt", na=False)
 
-            if "chem_1st_gen" in missing_basic:
+            if "chem_1st_gen" in missing:
                 self.data["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(int)
-            if "chem_2nd_gen" in missing_basic:
+            if "chem_2nd_gen" in missing:
                 self.data["chem_2nd_gen"] = has_moe.astype(int)
-            if "chem_3rd_gen" in missing_basic:
+            if "chem_3rd_gen" in missing:
                 self.data["chem_3rd_gen"] = has_high_aff.astype(int)
+            return self.data, missing
 
-            for feature in missing_basic:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All basic chemistry features exist. Skipping.")
-
-        # ==========================================
-        # 2. Transfection Features
-        # ==========================================
-        expected_transfection = ["transfection_electroporation", "transfection_gymnosis", "transfection_lipofection"]
-        missing_transfection = self._get_missing_features(expected_transfection)
-
-        if missing_transfection:
-            logger.info("Computing %d transfection features...", len(missing_transfection))
-
-            # 2. Check Dependency
+        def compute_transfection(missing):
             self._check_dependencies([TRANSFECTION_RAW])
+            data, _ = populate_transfection(self.data)
+            return data, missing
 
-            self.data, _ = populate_transfection(self.data)
-
-            # 4. Save
-            for feature in missing_transfection:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All transfection features exist. Skipping.")
+        self._step("basic chemistry", ["chem_1st_gen", "chem_2nd_gen", "chem_3rd_gen"], compute_chemistry)
+        self._step(
+            "transfection",
+            ["transfection_electroporation", "transfection_gymnosis", "transfection_lipofection"],
+            compute_transfection,
+        )
 
     def calculate_structure(self):
         expected_features = [
@@ -329,44 +327,28 @@ class Calculator:
             STRUCTURE_SENSE_HOST_INTRON_LOG_LENGTH,
         ]
 
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing structure features...")
-
+        def compute(missing):
             genes_u = self._get_unique_genes()
             gene_to_data = self.cache.get_lean_gene(genes_u=genes_u)
+            data = get_populated_df_with_structure_features(self.data, genes_u, gene_to_data)
+            # The populate function fills the whole family in one pass.
+            return data, expected_features
 
-            self.data = get_populated_df_with_structure_features(self.data, genes_u, gene_to_data)
-
-            for feature in expected_features:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All structure features exist. Loading from disk...")
-            self._load_features_into_data(expected_features)
+        # Later steps read these columns, so they are reloaded when the step is skipped.
+        self._step("structure", expected_features, compute, load_if_present=True)
 
     def calculate_expression(self):
         """Calculates mRNA expression features."""
-        expected_features = EXPRESSION_FEATURE_NAMES
-        missing = self._get_missing_features(expected_features)
 
-        if missing:
-            logger.info("Computing %d expression features...", len(missing))
-
+        def compute(missing):
             self._check_dependencies([CELL_LINE_DEPMAP])
             cell_lines_depmap = self.data[CELL_LINE_DEPMAP].dropna().unique().tolist()
-
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
+            data, target_feats = populate_target_expression(self.data, transcriptomes)
+            data, special_feats = populate_special_gene_expression(data, transcriptomes)
+            return data, target_feats + special_feats
 
-            self.data, target_feats = populate_target_expression(self.data, transcriptomes)
-            for feature in target_feats:
-                self._save_calculated_feature(feature_name=feature)
-
-            self.data, special_feats = populate_special_gene_expression(self.data, transcriptomes)
-            for feature in special_feats:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All expression features exist. Skipping.")
+        self._step("expression", EXPRESSION_FEATURE_NAMES, compute)
 
     def calculate_rnase(self):
         """Calculates RNase H features."""
@@ -385,22 +367,12 @@ class Calculator:
             "rnase_score_R7_dynamic",
         ]
 
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d RNase H features...", len(missing))
-
-            # Lazy import to keep initialization fast
+        def compute(missing):
             from tauso.populate.populate_rnase import populate_rnase_features
 
-            # Compute the features
-            self.data, generated_features = populate_rnase_features(self.data)
+            return populate_rnase_features(self.data)
 
-            # Save them securely
-            for feature in generated_features:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All RNase H features exist. Skipping.")
+        self._step("RNase H", expected_features, compute)
 
     def calculate_off_target_single(self):
         """Off-target features for RNase H1 + cytoplasmic rRNA (18S/5.8S/28S/5S) and their sum.
@@ -416,11 +388,7 @@ class Calculator:
         rrna_total_features = [f"off_target_single_rRNA_total_c{c}" for c in cutoffs]
         expected_features = [f"off_target_single_{g}_c{c}" for g in targets for c in cutoffs] + rrna_total_features
 
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d specific off-target features...", len(missing))
-
+        def compute(missing):
             from tauso.features.hybridization.off_target.off_target_specific_gene import (
                 off_target_single_gene_hybridization,
             )
@@ -431,21 +399,22 @@ class Calculator:
             for name, locus in get_rrna_loci().items():
                 gene_to_data_full.setdefault(name, locus)
 
+            generated = []
             # All cutoffs for a gene are derived together per ASO batch.
             for target_gene in targets:
                 self.data, feature_names = off_target_single_gene_hybridization(
                     self.data, target_gene, gene_to_data_full, cutoffs=cutoffs, n_jobs=self.cpus
                 )
-                for feature_name in feature_names:
-                    self._save_calculated_feature(feature_name=feature_name)
+                generated.extend(feature_names)
 
             for cutoff in cutoffs:
                 total_col = f"off_target_single_rRNA_total_c{cutoff}"
                 species_cols = [f"off_target_single_{sp}_c{cutoff}" for sp in rrna_species]
                 self.data[total_col] = self.data[species_cols].sum(axis=1)
-                self._save_calculated_feature(feature_name=total_col)
-        else:
-            logger.info("All specific off-target features exist. Skipping.")
+                generated.append(total_col)
+            return self.data, generated
+
+        self._step("single-gene off-target", expected_features, compute)
 
     def calculate_on_target_site_features(self):
         """On-target site features against each ASO's canonical gene: total hybridization
@@ -455,26 +424,16 @@ class Calculator:
             f"on_target_log_number_of_sites_{c}" for c in cutoffs
         ]
 
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d on-target site features...", len(missing))
-
+        def compute(missing):
             from tauso.features.hybridization.off_target.off_target_specific_gene import (
                 add_on_target_site_features,
             )
 
             # On-target evaluates only against each row's canonical gene, so the lean dict suffices.
-            # Only the missing shards are saved.
             gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-            self.data, generated_names = add_on_target_site_features(
-                self.data, gene_to_data, cutoffs=cutoffs, n_jobs=self.cpus
-            )
-            for feature_name in generated_names:
-                if feature_name in missing:
-                    self._save_calculated_feature(feature_name=feature_name)
-        else:
-            logger.info("All on-target site features exist. Skipping.")
+            return add_on_target_site_features(self.data, gene_to_data, cutoffs=cutoffs, n_jobs=self.cpus)
+
+        self._step("on-target site", expected_features, compute, save_only_missing=True)
 
     def calculate_mfe(self):
         """Calculates Minimum Free Energy (MFE) fold features."""
@@ -482,27 +441,14 @@ class Calculator:
         # Each setting tuple (flank, window, step) under the name of the column it fills.
         settings_by_name = {mfe_feature_name(*setting): setting for setting in DEFAULT_SETTINGS}
 
-        missing = self._get_missing_features(list(settings_by_name))
+        def compute(missing):
+            self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
+            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+            # All settings are calculated in a single application.
+            settings = [settings_by_name[name] for name in missing]
+            return populate_mfe_features(self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=settings)
 
-        if not missing:
-            logger.info("All MFE features exist. Skipping.")
-
-        logger.info("Computing %d MFE features...", len(missing))
-
-        self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
-
-        # Reuse the lean dictionary
-        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-
-        # All settings are calculated in a single application
-        missing_settings = [settings_by_name[name] for name in missing]
-
-        self.data, generated_features = populate_mfe_features(
-            self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
-        )
-
-        for feature in generated_features:
-            self._save_calculated_feature(feature_name=feature)
+        self._step("MFE", list(settings_by_name), compute)
 
     def calculate_access(self):
         """Calculates target-site accessibility fold features."""
@@ -510,162 +456,97 @@ class Calculator:
         # Each setting tuple (flank, max_bp_span, open_len) under the name of the column it fills.
         settings_by_name = {access_feature_name(*setting): setting for setting in DEFAULT_ACCESS_SETTINGS}
 
-        missing = self._get_missing_features(list(settings_by_name))
-        if not missing:
-            logger.info("All accessibility features exist. Skipping.")
-            return
+        def compute(missing):
+            self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
+            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+            # Shared flanks may be computed in a single pass.
+            settings = [settings_by_name[name] for name in missing]
+            return populate_access_features(self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=settings)
 
-        logger.info("Computing %d accessibility features...", len(missing))
-
-        self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
-
-        # Reuse the lean dictionary
-        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-
-        # Shared flanks may be computed in a single pass.
-        missing_settings = [settings_by_name[name] for name in missing]
-
-        self.data, generated_features = populate_access_features(
-            self.data, gene_to_data, n_jobs=self.cpus, verbose=False, settings=missing_settings
-        )
-
-        for feature in generated_features:
-            self._save_calculated_feature(feature_name=feature)
+        self._step("accessibility", list(settings_by_name), compute)
 
     def calculate_sequence_one_hot(self):
         """Calculates terminal one-hot encoded sequence features."""
 
-        # Determine the expected names BEFORE running the heavy function, from the same
-        # helper the populate step uses, so the two lists cannot drift apart.
+        # The expected names come from the same helper the populate step uses, so the two
+        # lists cannot drift apart.
         from tauso.populate.populate_sequence import one_hot_feature_names
 
-        expected_features = one_hot_feature_names()
-
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing sequence one-hot features...")
+        def compute(missing):
             from tauso.populate.populate_sequence import populate_sequence_one_hot_encoded
 
-            self.data, generated_features = populate_sequence_one_hot_encoded(self.data, cpus=self.cpus)
-            for feature in generated_features:
-                if feature in missing:
-                    self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All sequence one-hot features exist. Skipping.")
+            return populate_sequence_one_hot_encoded(self.data, cpus=self.cpus)
+
+        self._step("sequence one-hot", one_hot_feature_names(), compute, save_only_missing=True)
 
     def calculate_sequence_chemistry(self):
         """Calculates sequence chemistry features."""
-        from tauso.populate.populate_sequence_chemistry import FEATURE_SPECS
+        from tauso.populate.populate_sequence_chemistry import FEATURE_SPECS as CHEMISTRY_SPECS
 
-        expected_features = [name for name, _ in FEATURE_SPECS]
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d sequence chemistry features...", len(missing))
+        def compute(missing):
             from tauso.populate.populate_sequence_chemistry import populate_sequence_chemistry_features
 
-            # Pass only the missing features to avoid redundant calculations
-            self.data, generated_features = populate_sequence_chemistry_features(
-                self.data, features=missing, cpus=self.cpus
-            )
+            return populate_sequence_chemistry_features(self.data, features=missing, cpus=self.cpus)
 
-            for feature in generated_features:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All sequence chemistry features exist. Skipping.")
+        self._step("sequence chemistry", [name for name, _ in CHEMISTRY_SPECS], compute)
 
     def calculate_toxicity(self):
         """Calculates sequence-derived toxicity / liability features (tox_* family)."""
         from tauso.populate.populate_toxicity import FEATURE_SPECS as TOX_SPECS
 
-        expected_features = [name for name, _ in TOX_SPECS]
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d toxicity features...", len(missing))
+        def compute(missing):
             from tauso.populate.populate_toxicity import populate_toxicity_features
 
-            self.data, generated_features = populate_toxicity_features(self.data, features=missing, cpus=self.cpus)
+            return populate_toxicity_features(self.data, features=missing, cpus=self.cpus)
 
-            for feature in generated_features:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All toxicity features exist. Skipping.")
+        self._step("toxicity", [name for name, _ in TOX_SPECS], compute)
 
     def calculate_hybridization(self):
         """Calculates hybridization features."""
         from tauso.populate.populate_hybridization import HYBR_FEATURE_TO_CALCULATION
 
-        # Dynamically grab expected features (row-wise + derived)
-        expected_features = list(HYBR_FEATURE_TO_CALCULATION.keys())
-
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d hybridization features...", len(missing))
+        def compute(missing):
             from tauso.populate.populate_hybridization import populate_hybridization
 
-            # Pass `missing` so it ONLY computes the deltas
-            self.data, generated_features = populate_hybridization(
-                self.data, n_cores=self.cpus, features_to_run=missing
-            )
+            return populate_hybridization(self.data, n_cores=self.cpus, features_to_run=missing)
 
-            for feature in generated_features:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All hybridization features exist. Skipping.")
+        self._step("hybridization", list(HYBR_FEATURE_TO_CALCULATION), compute)
 
     def calculate_modification(self):
         """Calculates modification features."""
         from tauso.populate.populate_modification import MODIFICATION_FEATURE_TO_CALCULATION
 
-        # Dynamically grab expected features
-        expected_features = list(MODIFICATION_FEATURE_TO_CALCULATION.keys())
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d modification features...", len(missing))
+        def compute(missing):
             from tauso.populate.populate_modification import populate_modifications
 
-            # Pass `missing` to `features_to_run` so it ONLY computes the deltas
-            self.data, generated_features = populate_modifications(
-                self.data, n_cores=self.cpus, features_to_run=missing
-            )
+            return populate_modifications(self.data, n_cores=self.cpus, features_to_run=missing)
 
-            for feature in generated_features:
-                self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All modification features exist. Skipping.")
+        self._step("modification", list(MODIFICATION_FEATURE_TO_CALCULATION), compute)
 
     def calculate_backbone_features(self):
         """Populates the PS-backbone features (mod_ps_* family) from PS_PATTERN."""
         from tauso.populate.populate_backbone import BACKBONE_FEATURES, populate_backbone_features
 
-        missing = self._get_missing_features(BACKBONE_FEATURES)
-        if not missing:
-            logger.info("All backbone features exist. Skipping.")
-            return
-
-        logger.info("Computing %d backbone features...", len(missing))
-        self.data, names = populate_backbone_features(self.data, features=missing)
-        for feature in names:
-            self._save_calculated_feature(feature_name=feature)
+        self._step(
+            "backbone",
+            BACKBONE_FEATURES,
+            lambda missing: populate_backbone_features(self.data, features=missing),
+        )
 
     def calculate_interaction(self):
         """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
         feature = "interaction_internal_fold_rna_gymnosis"
-        if not self._get_missing_features([feature]):
-            logger.info("Interaction features exist. Skipping.")
-            return
 
-        deps = ["seq_internal_fold_rna", "transfection_gymnosis"]
-        self._load_features_into_data(deps)
-        self._check_dependencies(deps)
-        self.data[feature] = internal_fold_gymnosis(
-            self.data["seq_internal_fold_rna"], self.data["transfection_gymnosis"]
-        )
-        self._save_calculated_feature(feature_name=feature)
+        def compute(missing):
+            deps = ["seq_internal_fold_rna", "transfection_gymnosis"]
+            self._load_features_into_data(deps)
+            self._check_dependencies(deps)
+            self.data[feature] = internal_fold_gymnosis(
+                self.data["seq_internal_fold_rna"], self.data["transfection_gymnosis"]
+            )
+            return self.data, [feature]
+
+        self._step("interaction", [feature], compute)
 
     def calculate_experimental_conditions(self):
         """Pass-through experimental-condition features: ASO dose and plating density.
@@ -673,15 +554,14 @@ class Calculator:
         Both arrive on the loaded data (renamed from the raw OligoAI columns) and are stored as
         raw values -- XGBoost is monotone-invariant, so no log transform is applied.
         """
-        expected = [VOLUME_NM, DENSITY_CELLS_PER_WELL]
-        missing = self._get_missing_features(expected)
-        if not missing:
-            logger.info("Experimental-condition features exist. Skipping.")
-            return
 
-        self._check_dependencies(missing)
-        for feature in missing:
-            self._save_calculated_feature(feature_name=feature)
+        def compute(missing):
+            # Nothing to compute: the columns arrive on the loaded data, so the step only
+            # checks they are there and hands them to the saver.
+            self._check_dependencies(missing)
+            return self.data, missing
+
+        self._step("experimental-condition", [VOLUME_NM, DENSITY_CELLS_PER_WELL], compute)
 
     def calculate_ribo_seq(self):
         """Calculates ribosome profiling (Ribo-seq) features for both 40S and 80S subunits."""
@@ -695,83 +575,60 @@ class Calculator:
         expected_features = []
         for track in tracks:
             expected_features.extend(feature_names(flanks, how, prefix=get_feature_prefix(track)))
-        missing = self._get_missing_features(expected_features)
 
-        if not missing:
-            logger.info("All Ribo-seq features exist. Skipping.")
-            return
+        def compute(missing):
+            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+            self.data = add_genomic_coordinates(self.data, gene_to_data)
+            generated = []
+            for track in tracks:
+                self.data, track_features = populate_ribo_seq(
+                    "human", self.data, flanks=flanks, how=how, n_jobs=self.cpus, track=track
+                )
+                generated.extend(track_features)
+            return self.data, generated
 
-        logger.info("Computing %d Ribo-seq features across %d tracks...", len(missing), len(tracks))
-        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-        self.data = add_genomic_coordinates(self.data, gene_to_data)
-
-        for track in tracks:
-            self.data, generated_features = populate_ribo_seq(
-                "human",
-                self.data,
-                flanks=flanks,
-                how=how,
-                n_jobs=self.cpus,
-                track=track,
-            )
-            for feature in generated_features:
-                if feature in missing:
-                    self._save_calculated_feature(feature_name=feature)
+        self._step("Ribo-seq", expected_features, compute, save_only_missing=True)
 
     def calculate_cub(self):
         """Calculates all Codon Usage Bias (CUB) features: tAI, CAI, and ENC."""
+        from tauso.populate.populate_codon_usage import populate_cai, populate_enc, populate_tai
+
         cds_windows = [20, 30, 40, 50, 60, 70]
 
-        # 1. Define expected features for all three
-        expected_tai = [f"tai_score_{flank}" for flank in cds_windows] + ["tai_score_global"]
-        expected_cai = [f"cai_score_{flank}" for flank in cds_windows] + ["cai_score_global"]
-        expected_enc = [f"enc_score_{flank}" for flank in cds_windows] + ["enc_score_global"]
+        def expected(prefix):
+            return [f"{prefix}_{flank}" for flank in cds_windows] + [f"{prefix}_global"]
 
-        # 2. Check disk for missing files
-        missing_tai = self._get_missing_features(expected_tai)
-        missing_cai = self._get_missing_features(expected_cai)
-        missing_enc = self._get_missing_features(expected_enc)
-
-        # 3. If nothing is missing, skip everything
-        if not any([missing_tai, missing_cai, missing_enc]):
+        families = [("tAI", "tai_score"), ("CAI", "cai_score"), ("ENC", "enc_score")]
+        if not any(self._get_missing_features(expected(prefix)) for _, prefix in families):
             logger.info("All Codon Usage Bias (CUB) features exist. Skipping.")
             return
 
-        logger.info("Computing Codon Usage Bias (CUB) features...")
-
         self._check_dependencies([STRUCTURE_SENSE_START])
 
-        # 4. Load the shared heavy dependencies EXACTLY ONCE
+        # The registry and the genomic context are shared by all three families, so they are
+        # loaded once here rather than inside each step.
         registry = self.cache.get_gene_registry(self._get_unique_genes())
         self._ensure_genomic_context(cds_windows)
 
-        # 5. Execute conditionally based on what is missing
-        if missing_tai:
-            logger.info("Computing %d tAI features...", len(missing_tai))
-            from tauso.populate.populate_codon_usage import populate_tai
-
-            self.data, generated_features = populate_tai(self.data, cds_windows, registry)
-            for feature in generated_features:
-                if feature in missing_tai:
-                    self._save_calculated_feature(feature_name=feature)
-
-        if missing_cai:
-            logger.info("Computing %d CAI features...", len(missing_cai))
-            from tauso.populate.populate_codon_usage import populate_cai
-
-            self.data, generated_features = populate_cai(self.data, cds_windows, registry, n_jobs=self.cpus)
-            for feature in generated_features:
-                if feature in missing_cai:
-                    self._save_calculated_feature(feature_name=feature)
-
-        if missing_enc:
-            logger.info("Computing %d ENC features...", len(missing_enc))
-            from tauso.populate.populate_codon_usage import populate_enc
-
-            self.data, generated_features = populate_enc(self.data, cds_windows, registry, n_jobs=self.cpus)
-            for feature in generated_features:
-                if feature in missing_enc:
-                    self._save_calculated_feature(feature_name=feature)
+        # populate_tai takes no n_jobs; the other two do.
+        self._step(
+            "tAI",
+            expected("tai_score"),
+            lambda missing: populate_tai(self.data, cds_windows, registry),
+            save_only_missing=True,
+        )
+        self._step(
+            "CAI",
+            expected("cai_score"),
+            lambda missing: populate_cai(self.data, cds_windows, registry, n_jobs=self.cpus),
+            save_only_missing=True,
+        )
+        self._step(
+            "ENC",
+            expected("enc_score"),
+            lambda missing: populate_enc(self.data, cds_windows, registry, n_jobs=self.cpus),
+            save_only_missing=True,
+        )
 
     def calculate_off_target_general(self):
         """Calculates general off-target hybridization scores."""
@@ -787,18 +644,13 @@ class Calculator:
         configs = [(m, n, c) for m in methods for n in top_ns for c in cutoffs]
 
         expected_features = [serialize_feature_name(m, n, c, is_specific=False) for m, n, c in configs]
-        missing = self._get_missing_features(expected_features)
 
-        if missing:
-            logger.info("Computing %d general off-target features...", len(missing))
+        def compute(missing):
             from tauso.populate.populate_off_target import populate_off_target_general
 
-            # Load the heavy dictionaries (happens instantly if already in memory)
             gene_to_data = self.cache.get_full_gene_data()
-
             self._check_dependencies([CELL_LINE_DEPMAP])
             cell_lines_depmap = self.data[CELL_LINE_DEPMAP].dropna().unique().tolist()
-
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
             # All (top_n, cutoff) features are derived together per chunk:
@@ -806,6 +658,7 @@ class Calculator:
             # gene-subset filter, cutoffs by score-filter on the streaming pyarrow
             # output. Only the top_n values whose features are still missing are
             # passed in, so we don't grow the target FASTA past what's needed.
+            generated = []
             for method in methods:
                 needed_top_ns = sorted(
                     {
@@ -818,7 +671,7 @@ class Calculator:
                 if not needed_top_ns:
                     continue
 
-                self.data, generated_features = populate_off_target_general(
+                self.data, method_features = populate_off_target_general(
                     ASO_df=self.data,
                     gene_to_data=gene_to_data,
                     cell_line2data=transcriptomes,
@@ -827,12 +680,10 @@ class Calculator:
                     method=method,
                     n_jobs=self.cpus,
                 )
+                generated.extend(method_features)
+            return self.data, generated
 
-                for feature in generated_features:
-                    if feature in missing:
-                        self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All general off-target features exist. Skipping.")
+        self._step("general off-target", expected_features, compute, save_only_missing=True)
 
     def calculate_off_target_specific(self):
         """Calculates cell-line specific off-target hybridization scores."""
@@ -848,16 +699,12 @@ class Calculator:
             serialize_feature_name(method, n, c, is_specific=True) for n in top_n_list for c in cutoff_list
         ]
 
-        missing = self._get_missing_features(expected_features)
-
-        if missing:
-            logger.info("Computing %d specific off-target features...", len(missing))
+        def compute(missing):
             from tauso.populate.populate_off_target import populate_off_target_specific
 
             gene_to_data = self.cache.get_full_gene_data()
             self._check_dependencies([CELL_LINE_DEPMAP])
             cell_lines_depmap = self.data[CELL_LINE_DEPMAP].dropna().unique().tolist()
-
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
 
             # All (top_n, cutoff) features are derived together per
@@ -873,50 +720,35 @@ class Calculator:
                     if serialize_feature_name(method, n, c, is_specific=True) in missing
                 }
             )
-            if needed_top_ns:
-                self.data, generated_features = populate_off_target_specific(
-                    ASO_df=self.data,
-                    gene_to_data=gene_to_data,
-                    cell_line2data=transcriptomes,
-                    top_n_list=needed_top_ns,
-                    cutoff_list=cutoff_list,
-                    method=method,
-                    n_jobs=self.cpus,
-                )
+            if not needed_top_ns:
+                return self.data, []
 
-                for feature in generated_features:
-                    if feature in missing:
-                        self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All specific off-target features exist. Skipping.")
+            return populate_off_target_specific(
+                ASO_df=self.data,
+                gene_to_data=gene_to_data,
+                cell_line2data=transcriptomes,
+                top_n_list=needed_top_ns,
+                cutoff_list=cutoff_list,
+                method=method,
+                n_jobs=self.cpus,
+            )
+
+        self._step("cell-line specific off-target", expected_features, compute, save_only_missing=True)
 
     def calculate_mrna_halflife(self):
         """Calculates mRNA stability and half-life features."""
         expected_features = ["halflife_value", "halflife_source", "halflife_cell_proxy"]
-        missing = self._get_missing_features(expected_features)
 
-        if missing:
-            logger.info("Computing %d mRNA half-life features...", len(missing))
-
-            # Check dependencies BEFORE loading heavy objects
+        def compute(missing):
+            # Dependencies are checked before the provider is loaded, which is expensive.
             from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE
-
-            self._check_dependencies([CANONICAL_GENE_NAME, CELL_LINE])
-
             from tauso.populate.populate_mrna_halflife import populate_mrna_halflife_features
 
-            # 1. Lazy load the provider
+            self._check_dependencies([CANONICAL_GENE_NAME, CELL_LINE])
             provider = self.cache.get_halflife_provider()
+            return populate_mrna_halflife_features(self.data, provider)
 
-            # 2. Compute
-            self.data, generated_features = populate_mrna_halflife_features(self.data, provider)
-
-            # 3. Save only what was missing
-            for feature in generated_features:
-                if feature in missing:
-                    self._save_calculated_feature(feature_name=feature)
-        else:
-            logger.info("All mRNA half-life features exist. Skipping.")
+        self._step("mRNA half-life", expected_features, compute, save_only_missing=True)
 
     def calculate_rbp(self):
         """RBP motif-occupancy features."""
@@ -924,33 +756,28 @@ class Calculator:
         window_col = f"flank_sequence_{flank_size}"
 
         # Sentinel: if the summary feature exists on disk the block already completed.
-        expected = [f"rbp_interaction_total_{flank_size}_generic"]
-        if not self._get_missing_features(expected):
-            logger.info("All RBP features exist. Skipping.")
-            return
+        sentinel = [f"rbp_interaction_total_{flank_size}_generic"]
 
-        logger.info("Computing RBP affinity pipeline...")
-        # RBP uses only the +-5 pre-mRNA flank, which _ensure_genomic_context always builds; it
-        # needs no CDS windows, so none are requested.
-        self._ensure_genomic_context(cds_windows=[])
-        rbp_map, pwm_db = self.cache.get_rbp_assets()
+        def compute(missing):
+            from tauso.populate.populate_rbp import (
+                populate_complexity_features,
+                populate_rbp_affinity_features,
+            )
 
-        from tauso.populate.populate_rbp import (
-            populate_complexity_features,
-            populate_rbp_affinity_features,
-        )
+            # RBP uses only the +-5 pre-mRNA flank, which _ensure_genomic_context always builds;
+            # it needs no CDS windows, so none are requested.
+            self._ensure_genomic_context(cds_windows=[])
+            rbp_map, pwm_db = self.cache.get_rbp_assets()
+            # Empty gene->data map: every row falls back to the uniform [.25]*4 background, so no
+            # per-transcript composition is used.
+            uniform_background = {}
+            data, ind_feats = populate_rbp_affinity_features(
+                self.data, rbp_map, pwm_db, uniform_background, window_col, n_jobs=self.cpus
+            )
+            data, glob_feats = populate_complexity_features(data, ind_feats, suffix=str(flank_size), type="generic")
+            return data, ind_feats + glob_feats
 
-        # Empty gene->data map: every row falls back to the uniform [.25]*4 background, so no
-        # per-transcript composition is used.
-        uniform_background = {}
-        self.data, ind_feats = populate_rbp_affinity_features(
-            self.data, rbp_map, pwm_db, uniform_background, window_col, n_jobs=self.cpus
-        )
-        self.data, glob_feats = populate_complexity_features(
-            self.data, ind_feats, suffix=str(flank_size), type="generic"
-        )
-        for feature in ind_feats + glob_feats:
-            self._save_calculated_feature(feature_name=feature)
+        self._step("RBP", sentinel, compute)
 
     def calculate_oligowalk(self):
         import shutil
@@ -988,22 +815,21 @@ class Calculator:
         from tauso.features.flank_features import compute_flank_composition
 
         feats = ["flank_at_skew_20", "flank_gc_content_20"]
-        if not self._get_missing_features(feats):
-            logger.info("Flank composition features exist. Skipping.")
-            return
-        self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
 
-        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-        skew, gc = compute_flank_composition(
-            self.data[STRUCTURE_SENSE_START].to_numpy(),
-            self.data[STRUCTURE_SENSE_LENGTH].to_numpy(),
-            self.data[CANONICAL_GENE_NAME].to_numpy(),
-            gene_to_data,
-        )
-        self.data["flank_at_skew_20"] = skew
-        self.data["flank_gc_content_20"] = gc
-        self._save_calculated_feature(feature_name="flank_at_skew_20")
-        self._save_calculated_feature(feature_name="flank_gc_content_20")
+        def compute(missing):
+            self._check_dependencies([STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH])
+            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+            skew, gc = compute_flank_composition(
+                self.data[STRUCTURE_SENSE_START].to_numpy(),
+                self.data[STRUCTURE_SENSE_LENGTH].to_numpy(),
+                self.data[CANONICAL_GENE_NAME].to_numpy(),
+                gene_to_data,
+            )
+            self.data["flank_at_skew_20"] = skew
+            self.data["flank_gc_content_20"] = gc
+            return self.data, feats
+
+        self._step("flank composition", feats, compute)
 
     def calculate_duplication(self):
         """Distinct near-full-length copies of the ASO target in its own pre-mRNA:
@@ -1013,27 +839,26 @@ class Calculator:
         from tauso.features.duplication_features import compute_duplications
 
         feats = ["on_target_duplication_exact", "on_target_duplication_near1"]
-        if not self._get_missing_features(feats):
-            logger.info("Duplication features exist. Skipping.")
-            return
-        self._check_dependencies([STRUCTURE_SENSE_START])
 
-        gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-        gene_mrna = {
-            g: dna_to_rna(gene_to_data[g].full_mrna)
-            for g in gene_to_data
-            if getattr(gene_to_data[g], "full_mrna", None)
-        }
-        de, dn = compute_duplications(
-            self.data[STRUCTURE_SENSE_START].to_numpy(),
-            self.data[CANONICAL_GENE_NAME].to_numpy(),
-            self.data[ASO_SEQUENCE].astype(str).to_numpy(),
-            gene_mrna,
-        )
-        self.data["on_target_duplication_exact"] = de
-        self.data["on_target_duplication_near1"] = dn
-        self._save_calculated_feature(feature_name="on_target_duplication_exact")
-        self._save_calculated_feature(feature_name="on_target_duplication_near1")
+        def compute(missing):
+            self._check_dependencies([STRUCTURE_SENSE_START])
+            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
+            gene_mrna = {
+                g: dna_to_rna(gene_to_data[g].full_mrna)
+                for g in gene_to_data
+                if getattr(gene_to_data[g], "full_mrna", None)
+            }
+            exact, near1 = compute_duplications(
+                self.data[STRUCTURE_SENSE_START].to_numpy(),
+                self.data[CANONICAL_GENE_NAME].to_numpy(),
+                self.data[ASO_SEQUENCE].astype(str).to_numpy(),
+                gene_mrna,
+            )
+            self.data["on_target_duplication_exact"] = exact
+            self.data["on_target_duplication_near1"] = near1
+            return self.data, feats
+
+        self._step("duplication", feats, compute)
 
     def calculate_all(self):
         """Executes the full calculation pipeline and times each step."""
