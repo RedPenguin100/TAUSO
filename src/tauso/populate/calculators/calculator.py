@@ -181,6 +181,9 @@ class Calculator:
     def _get_missing_features(self, expected_features: list) -> list:
         if self.overwrite:
             return expected_features
+        if self.get_feature_dir_func is None:
+            # Features are never written without a feature dir, so none can be found on disk.
+            return expected_features
 
         feature_dir = self.get_feature_dir_func(self.data_version)
         cache_cols, cache = self._cache_columns()
