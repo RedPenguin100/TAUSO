@@ -110,11 +110,10 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
 
 _RNASE_GENE = "RNASEH1"
 
-# Scavenger receptors that govern gymnotic (naked ASO) uptake — STAB2 and MSR1 (SR-A1)
-# are the primary endocytic receptors responsible for gymnosis efficiency across cell lines.
+# Stabilin-2 is an established endocytic receptor for phosphorothioate-modified
+# oligonucleotides, which is the chemistry this model is trained on.
 _SCAVENGER_RECEPTOR_GENES = {
     "expr_stab2": "STAB2",
-    "expr_msr1": "MSR1",  # SR-A1
 }
 
 _SPECIAL_GENES: Dict[str, str] = {"expr_rnase": _RNASE_GENE, **_SCAVENGER_RECEPTOR_GENES}
