@@ -43,6 +43,7 @@ from ...data.consts import (
     TRANSFECTION_RAW,
     VOLUME_NM,
 )
+from ...debug import log_dataframe_memory
 from ...features.hybridization.off_target import OFF_TARGET_TOP_NS, RISEARCH_SCORE_CUTOFFS
 from ...features.interaction_features import internal_fold_gymnosis
 from ...timer import Timer
@@ -1058,12 +1059,18 @@ class Calculator:
 
         logger.info("=== Starting pipeline with %d steps ===", len(pipeline_steps))
 
+        # Opt-in: a long cluster run that dies on memory can be re-run with this set to
+        # see which step grew the frame and which columns carry it.
+        profile_memory = os.environ.get("TAUSO_PROFILE_MEM") == "1"
+
         for step in pipeline_steps:
             # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
             logger.info(f"[Calculator] Starting step: {step.__name__}")
             try:
                 with Timer(name=step.__name__):
                     step()
+                if profile_memory:
+                    log_dataframe_memory(self.data, f"after {step.__name__}")
             except Exception:
                 logger.error(f"\n[Calculator] Crashed during step: {step.__name__}\n")
                 raise

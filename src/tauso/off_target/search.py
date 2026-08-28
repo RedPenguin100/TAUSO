@@ -10,8 +10,8 @@ import pandas as pd
 import pyranges as pr
 
 from ..data.data import get_paths, load_gtf_db, load_gtf_pyranges_gene_only
+from ..debug import log_memory_usage
 from ..timer import Timer
-from ..util import log_memory_usage
 
 logger = logging.getLogger(__name__)
 
