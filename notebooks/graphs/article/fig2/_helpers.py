@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from matplotlib.ticker import FixedFormatter, FixedLocator
+from matplotlib.ticker import FixedFormatter, FixedLocator, NullFormatter
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # notebooks/graphs, for consts
 from consts import ACCENT, BLUE, GREY, INK   # noqa: E402  (re-exported for panels)
@@ -54,6 +54,9 @@ def logx_features(ax, kmax):
     ax.set_xscale("log")
     ax.xaxis.set_major_locator(FixedLocator(_XTICKS))
     ax.xaxis.set_major_formatter(FixedFormatter([str(k) for k in _XTICKS]))
+    # A log axis spanning under two decades also labels its minor ticks, which collide with
+    # the fixed labels above. Silencing them keeps the ticks and drops only their text.
+    ax.xaxis.set_minor_formatter(NullFormatter())
     ax.set_xlim(17, kmax * 1.15)
     ax.set_xlabel("number of features (top-K)", fontsize=10)
 
