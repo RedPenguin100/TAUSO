@@ -35,12 +35,17 @@ def test_mipomersen_real_search(tmp_path):
 
     assert result.exit_code == 0
 
-    assert "APOB" in result.output
-    assert "chr2" in result.output
-    assert "exon" in result.output
+    # The normalization notice is printed before the search, so it is safe to read from
+    # stdout. The hit table is asserted against the saved CSV instead: the command logs
+    # while searching, and a log record mid-command can cut result.output short.
+    assert "Normalized input sequence" in result.output
 
-    # Changed from .all() to .any() to verify the perfect match exists
-    # among the off-targets.
+    on_target = df[df["gene_name"] == "APOB"]
+    assert not on_target.empty, f"APOB not among the hits:\n{df.head()}"
+    assert (on_target["chrom"] == "chr2").any()
+    assert (on_target["region_type"] == "exon").any()
+
+    # The perfect match must exist among the off-targets.
     assert (df["mismatches"] == 0).any()
 
 
