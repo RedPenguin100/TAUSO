@@ -102,7 +102,7 @@ class Calculator:
         logger.info("[Calculator] Initialized successfully.")
 
     def _save_calculated_feature(self, feature_name):
-        # Will silently fail, but the warning will be displayed in the constructor
+        # Without a feature dir nothing is written; the constructor warns about that once.
         if self.get_feature_dir_func is not None:
             save_feature_internal(
                 self.data,
@@ -635,12 +635,10 @@ class Calculator:
         from tauso.features.hybridization.off_target.add_off_target_feat import AggregationMethod
         from tauso.populate.populate_off_target import serialize_feature_name
 
-        # Define the parameter spaces
         methods = [AggregationMethod.BOLTZMANN_SUM]
         top_ns = list(OFF_TARGET_TOP_NS)
         cutoffs = list(RISEARCH_SCORE_CUTOFFS)
 
-        # Generate all combinations dynamically
         configs = [(m, n, c) for m in methods for n in top_ns for c in cutoffs]
 
         expected_features = [serialize_feature_name(m, n, c, is_specific=False) for m, n, c in configs]
@@ -694,7 +692,6 @@ class Calculator:
         top_n_list = list(OFF_TARGET_TOP_NS)
         cutoff_list = list(RISEARCH_SCORE_CUTOFFS)
 
-        # Generate expected combinations
         expected_features = [
             serialize_feature_name(method, n, c, is_specific=True) for n in top_n_list for c in cutoff_list
         ]
@@ -864,7 +861,6 @@ class Calculator:
         """Executes the full calculation pipeline and times each step."""
         self._require_str_columns([PS_PATTERN, CHEMICAL_PATTERN])
 
-        # 1. Define the pipeline as a list of functions (no parentheses!)
         pipeline_steps = [
             self.calculate_structure,
             self.calculate_cub,
@@ -900,7 +896,6 @@ class Calculator:
         profile_memory = os.environ.get("TAUSO_PROFILE_MEM") == "1"
 
         for step in pipeline_steps:
-            # step.__name__ dynamically grabs the name of the function (e.g., 'calculate_cub')
             logger.info(f"[Calculator] Starting step: {step.__name__}")
             try:
                 with Timer(name=step.__name__):
