@@ -56,6 +56,7 @@ from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature
 from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
     populate_special_gene_expression,
+    populate_special_transcript_expression,
     populate_target_expression,
     populate_transfection,
 )
@@ -346,7 +347,9 @@ class Calculator:
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
             data, target_feats = populate_target_expression(self.data, transcriptomes)
             data, special_feats = populate_special_gene_expression(data, transcriptomes)
-            return data, target_feats + special_feats
+            transcript_expression = self.cache.get_transcript_transcriptomes(cell_lines_depmap)
+            data, transcript_feats = populate_special_transcript_expression(data, transcript_expression)
+            return data, target_feats + special_feats + transcript_feats
 
         self._step("expression", EXPRESSION_FEATURE_NAMES, compute)
 

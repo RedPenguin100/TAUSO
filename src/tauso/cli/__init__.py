@@ -38,6 +38,9 @@ from ..util import rna_to_dna
 from ._download import (
     DEPMAP_FILES_SHA1,
     RRNA_SHA1,
+    TRANSCRIPT_EXPRESSION_CSV,
+    TRANSCRIPT_EXPRESSION_PARQUET,
+    TRANSCRIPT_EXPRESSION_SHA1,
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
     _ensure_zenodo_content_file,
@@ -56,6 +59,38 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
+
+
+@main.command()
+@click.option("--force", is_flag=True, help="Reconvert even if the Parquet is already present.")
+def setup_depmap_transcripts(force):
+    """
+    Converts the DepMap transcript expression CSV to Parquet, alongside setup-depmap.
+
+    Separate from setup-depmap because the CSV is 4.5 GB and only isoform-level features need
+    it. It comes from the same pinned Zenodo record, with the same SHA1 verification, and is
+    converted then removed exactly as setup-depmap treats the gene-level file.
+    """
+    data_dir = get_data_dir()
+    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
+    parquet_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
+    sidecar = parquet_path + ".sha256"
+
+    if os.path.exists(parquet_path) and not force:
+        if os.path.exists(sidecar) and sha256_file(parquet_path) != Path(sidecar).read_text().strip():
+            echo_warn(f"{TRANSCRIPT_EXPRESSION_PARQUET} hash mismatch - reconverting.")
+        else:
+            echo_ok(f"{TRANSCRIPT_EXPRESSION_PARQUET} exists.")
+            return
+
+    _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, force)
+
+    click.echo(f"  Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet...")
+    pd.read_csv(csv_path).to_parquet(parquet_path, index=False)
+    echo_ok("Converted to Parquet.")
+    Path(sidecar).write_text(sha256_file(parquet_path))
+    os.remove(csv_path)
+    echo_ok(f"Removed {TRANSCRIPT_EXPRESSION_CSV} (Parquet supersedes it).")
 
 
 @main.command()
@@ -92,8 +127,15 @@ def setup_depmap(force):
             os.remove(omics_parquet_sha)
             parquet_already_built = False
 
+    transcript_parquet = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
+
     for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
         if filename == omics_csv_name and parquet_already_built:
+            echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
+            continue
+        # 4.5 GB, and only isoform-level features read it. setup-depmap-transcripts converts
+        # it; this loop only has to avoid re-fetching a copy that is already converted.
+        if filename == TRANSCRIPT_EXPRESSION_CSV and os.path.exists(transcript_parquet) and not force:
             echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
             continue
         _ensure_depmap_file(filename, expected_sha1, data_dir, force)
@@ -329,6 +371,90 @@ def add_cell(cell_names, reset):
         json.dump(cohort, f, indent=4)
 
     click.echo(f"Cohort saved to {manifest_path} ({len(cohort)} cell lines).")
+
+
+@main.command()
+def build_cohort_transcript_expression():
+    """
+    Generates transcript-level expression files for all cell lines in the cohort.
+
+    The transcript twin of build-cohort-expression: same cohort, same per-cell-line CSV shape,
+    keyed on Transcript instead of Gene. Uses DepMap 'TranscriptTPMLogp1' (Log2(TPM+1)).
+    """
+    data_dir = get_data_dir()
+    manifest_path = os.path.join(data_dir, "cell_cohort.json")
+    exp_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
+
+    if not os.path.exists(manifest_path):
+        echo_err("No cohort found. Use 'tauso add-cell' first.")
+        return
+
+    if not os.path.exists(exp_path):
+        echo_err(f"Transcript expression parquet not found: {exp_path}")
+        click.echo("Run 'tauso setup-depmap-transcripts' to convert it.")
+        return
+
+    with open(manifest_path, "r") as f:
+        cohort = json.load(f)
+
+    target_ids = set(cohort.values())
+    click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
+
+    click.echo(f"Loading {os.path.basename(exp_path)}...")
+    exp_df = pd.read_parquet(exp_path)
+
+    model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
+    # A model can carry several sequencing profiles; DepMap flags the one to use with the
+    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
+    if "IsDefaultEntryForModel" in exp_df.columns:
+        exp_df = exp_df[exp_df["IsDefaultEntryForModel"] == "Yes"]
+    transcript_cols = [c for c in exp_df.columns if c.startswith("ENST")]
+    clean_transcript_map = {c: c.split(".", 1)[0] for c in transcript_cols}
+
+    # Carry the gene each transcript belongs to, so the files can be filtered by gene the way
+    # the gene-level ones are. Transcripts the annotation does not know get an empty Gene.
+    click.echo("Mapping transcripts to genes from the annotation...")
+    genome_db = load_gtf_db()
+    transcript_to_gene = {}
+    transcript_to_name = {}
+    for feature in genome_db.features_of_type(("mRNA", "transcript")):
+        names = feature.attributes.get("gene_name")
+        if not names:
+            continue
+        accession = feature.id.split(".", 1)[0]
+        transcript_to_gene[accession] = names[0]
+        transcript_name = feature.attributes.get("transcript_name")
+        if transcript_name:
+            transcript_to_name[accession] = transcript_name[0]
+    click.echo(
+        f"  {len(transcript_to_gene):,} transcripts mapped to a gene name, "
+        f"{len(transcript_to_name):,} with a transcript name."
+    )
+
+    output_dir = os.path.join(data_dir, "processed_transcript_expression")
+    os.makedirs(output_dir, exist_ok=True)
+
+    found_count = 0
+    for curr_id in target_ids:
+        cell_rows = exp_df[exp_df[model_col] == curr_id]
+        if cell_rows.empty:
+            continue
+
+        click.echo(f"  Extracting {curr_id}...")
+        row = cell_rows.iloc[0]
+        vals = pd.to_numeric(row[transcript_cols], errors="coerce").fillna(0.0).values
+        clean_transcripts = [clean_transcript_map[c] for c in transcript_cols]
+
+        out_df = pd.DataFrame({"Transcript": clean_transcripts, "expression_norm": vals})
+        out_df["Gene"] = out_df["Transcript"].map(transcript_to_gene)
+        out_df["TranscriptName"] = out_df["Transcript"].map(transcript_to_name)
+        out_df["expression_TPM"] = (2 ** out_df["expression_norm"]) - 1
+        out_df = out_df.sort_values("expression_norm", ascending=False)
+        out_df = out_df[["Transcript", "TranscriptName", "Gene", "expression_norm", "expression_TPM"]]
+        out_df.to_csv(os.path.join(output_dir, f"{curr_id}_transcript_expression.csv"), index=False)
+        found_count += 1
+
+    click.echo(f"✓ Processed {found_count} cell lines. Data in {output_dir}")
 
 
 @main.command()

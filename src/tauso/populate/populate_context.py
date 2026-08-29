@@ -108,19 +108,33 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     return aso_df, feat_cols
 
 
-_RNASE_GENE = "RNASEH1"
-
-# Stabilin-2 is an established endocytic receptor for phosphorothioate-modified
-# oligonucleotides, which is the chemistry this model is trained on.
-_SCAVENGER_RECEPTOR_GENES = {
-    "expr_stab2": "STAB2",
-}
-
-_SPECIAL_GENES: Dict[str, str] = {"expr_rnase": _RNASE_GENE, **_SCAVENGER_RECEPTOR_GENES}
+# Maps a feature name to the gene symbol whose per-cell-line expression fills it. Empty: the
+# expression features that are about a fixed species take it per transcript, in
+# _SPECIAL_TRANSCRIPTS. A gene whose signal is not isoform-specific belongs here.
+_SPECIAL_GENES: Dict[str, str] = {}
 
 TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["expr_target"]
+
+# RNase H1 cleaves the ASO:RNA heteroduplex, so how much of it a cell line carries matters. It
+# is taken per transcript rather than per gene: a gene's expression can sit in one isoform or be
+# split across several, and only the former means an abundant single species.
+#
+# A feature names every transcript that encodes the species it is about, and their expression is
+# summed, so an isoform that does not encode that species can be left out. Transcripts are named
+# outright rather than resolved per cell line, so a column holds the same species everywhere.
+# Ensembl transcript names are used rather than accessions because they say which gene and which
+# isoform without a lookup. A name that falls out of a future annotation leaves the feature NaN
+# and says so, rather than quietly switching isoform.
+_SPECIAL_TRANSCRIPTS: Dict[str, Tuple[str, ...]] = {
+    "expr_rnase_transcript": ("RNASEH1-201",),
+}
+SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES: List[str] = list(_SPECIAL_TRANSCRIPTS.keys())
 SPECIAL_GENE_EXPRESSION_FEATURE_NAMES: List[str] = list(_SPECIAL_GENES.keys())
-EXPRESSION_FEATURE_NAMES: List[str] = TARGET_EXPRESSION_FEATURE_NAMES + SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
+EXPRESSION_FEATURE_NAMES: List[str] = (
+    TARGET_EXPRESSION_FEATURE_NAMES
+    + SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
+    + SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
+)
 
 
 def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -172,7 +186,7 @@ def populate_target_expression(
 def populate_special_gene_expression(
     df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """Merges per-cell-line expression for fixed special genes (RNASEH1 + gymnosis scavenger receptors)."""
+    """Merges per-cell-line expression for the genes named in _SPECIAL_GENES."""
     existing_cols = [c for c in SPECIAL_GENE_EXPRESSION_FEATURE_NAMES if c in df.columns]
     if existing_cols:
         logger.warning("Dropping existing columns to prevent alignment breaks: %s", existing_cols)
@@ -184,6 +198,55 @@ def populate_special_gene_expression(
         df = _merge_fixed_gene(df, expression_master, gene_symbol, feat_name)
 
     return df, SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
+
+
+def populate_special_transcript_expression(
+    df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
+) -> Tuple[pd.DataFrame, List[str]]:
+    """Merges per-cell-line expression of each named special transcript.
+
+    The transcript-level twin of populate_special_gene_expression. Where that one takes a
+    gene's expression, this takes one named isoform of it: a gene whose expression sits in a
+    single isoform and one split across four share a gene-level value but hold different
+    amounts of any one species. Ids are matched unversioned.
+    """
+    existing_cols = [c for c in SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES if c in df.columns]
+    if existing_cols:
+        logger.warning("Dropping existing columns to prevent alignment breaks: %s", existing_cols)
+        df = df.drop(columns=existing_cols)
+
+    rows = []
+    for depmap_id, t_df in expression_dict.items():
+        indexed = t_df.set_index("TranscriptName")
+        for feat_name, transcript_names in _SPECIAL_TRANSCRIPTS.items():
+            present = [n for n in transcript_names if n in indexed.index]
+            if not present:
+                continue
+            if len(present) < len(transcript_names):
+                logger.warning(
+                    "%s: %s absent for %s", feat_name, sorted(set(transcript_names) - set(present)), depmap_id
+                )
+            # Expression is log2(TPM + 1), so it is summed in TPM and converted back.
+            total_tpm = float(indexed.loc[present, "expression_TPM"].sum())
+            rows.append({"Gene": feat_name, "expression_norm": np.log2(total_tpm + 1.0), CELL_LINE_DEPMAP: depmap_id})
+
+    if not rows:
+        logger.warning("No expression found for the special transcripts")
+        for feat_name in SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES:
+            df[feat_name] = np.nan
+        return df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
+
+    master = pd.DataFrame(rows)
+    for feat_name in _SPECIAL_TRANSCRIPTS:
+        df = _merge_fixed_gene(df, master, feat_name, feat_name)
+
+    return df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
+
+    master = pd.concat(rows, ignore_index=True)
+    for feat_name, transcript_name in _SPECIAL_TRANSCRIPTS.items():
+        df = _merge_fixed_gene(df, master, transcript_name, feat_name)
+
+    return df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
 
 
 _TRANSFECTION_LABEL_TO_COLUMN = {

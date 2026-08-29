@@ -19,6 +19,7 @@ class AssetCache:
 
         self._halflife_provider = None
         self._transcriptomes = None
+        self._transcript_transcriptomes = None
 
         self._gene_to_data_lean = None
         self._genes_u = None
@@ -68,6 +69,30 @@ class AssetCache:
             self._halflife_provider = HalfLifeProvider(mapping)
 
         return self._halflife_provider
+
+    def get_transcript_transcriptomes(self, cell_lines_depmap):
+        """Lazy loader for per-cell-line TRANSCRIPT expression, the twin of get_transcriptomes.
+
+        Only the transcripts the special-transcript features name are kept: the DepMap table
+        has ~237,000 of them and nothing needs the rest in memory.
+        """
+        if self._transcript_transcriptomes is None:
+            logger.info("Loading transcript expression into memory (happens once)...")
+            import os
+
+            from tauso.data.data import get_data_dir
+            from tauso.features.codon_usage.find_cai_reference import (
+                load_cell_line_transcript_expression,
+            )
+            from tauso.populate.populate_context import _SPECIAL_TRANSCRIPTS
+
+            self._transcript_transcriptomes = load_cell_line_transcript_expression(
+                cell_lines_depmap,
+                {name for names in _SPECIAL_TRANSCRIPTS.values() for name in names},
+                expression_dir=os.path.join(get_data_dir(), "processed_transcript_expression"),
+            )
+
+        return self._transcript_transcriptomes
 
     def get_transcriptomes(self, cell_lines_depmap):
         """Lazy loader for the FULL transcriptomes (required for off-target scanning)."""
