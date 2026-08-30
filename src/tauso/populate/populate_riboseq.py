@@ -13,7 +13,6 @@ from ..features.context.ribo_seq import (
     process_gene_group,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -106,4 +105,3 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
         )
 
     return aso_df, feat_cols
-
