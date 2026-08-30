@@ -156,40 +156,42 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     return df, feature_names
 
 
-# Accessibility grid: (flank, max_bp_span, open_len, anchor). Every setting shares one
-# fold of the flank-60 cut, so opening lengths and anchorings are free once it is done
-# and the grid takes the whole usable range of both. Flank is the axis that costs, and
-# 60 is where the curve flattens. A span of None leaves the 140nt cut free to pair across
-# itself -- a number wider than the cut would read as unconstrained while silently biting
-# once targets outgrew it.
-DEFAULT_ACCESS_SETTINGS = (
-    [
-        # `a5` and `a3` sweep the whole target, one window per position.
-        (60, None, open_len, anchor)
-        for anchor in ("a5", "a3")
-        for open_len in (4, 6, 8, 10, 13, 16, 20, 26, 32)
-    ]
-    + [
-        # `aso5end` and `aso3end` take the single window flush with each end of it.
-        (60, None, END_LEN, anchor)
-        for anchor in ("aso5end", "aso3end")
-    ]
-    + [
-        # The spread of the `a5` sweep: how uneven the target is, not how open.
-        (60, None, END_LEN, "a5", "std"),
-    ]
-)
+# Accessibility grid: (flank, max_bp_span, open_len, anchor, reducer). Every setting
+# shares one fold of the flank-60 cut, so opening lengths, anchorings and reducers are
+# free once it is done and the grid takes the whole usable range of them. Flank is the
+# axis that costs, and 60 is where the curve flattens. A span of None leaves the 140nt
+# cut free to pair across itself -- a number wider than the cut would read as
+# unconstrained while silently biting once targets outgrew it.
+ACCESS_OPEN_LENS = (4, 6, 8, 10, 13, 16, 20, 26, 32)
+
+DEFAULT_ACCESS_SETTINGS = [
+    # `a5` and `a3` sweep the whole target, one window per position. The mean says how
+    # open it is, the spread how evenly.
+    (60, None, open_len, anchor, reducer)
+    for reducer in ("mean", "std")
+    for anchor in ("a5", "a3")
+    for open_len in ACCESS_OPEN_LENS
+] + [
+    # `aso5end` and `aso3end` take the single window flush with each end of it. One
+    # window has no spread, so these are mean only.
+    (60, None, END_LEN, anchor, "mean")
+    for anchor in ("aso5end", "aso3end")
+]
 
 
-def access_feature_name(flank, max_bp_span, open_len, anchor, reducer="mean"):
+def access_feature_name(flank, max_bp_span, open_len, anchor, reducer):
     """Stable column name for one accessibility setting; None span is written `sinf`.
 
-    The mean is the default readout and is left unmarked, so adding a reducer does not
-    rename the columns that already exist.
+    The mean is left unmarked in the name so that adding a reducer to the grid does not
+    rename columns that already exist.
     """
     span = "inf" if max_bp_span is None else max_bp_span
     name = f"access_f{flank}_s{span}_u{open_len}_{anchor}"
-    return name if reducer == "mean" else f"{name}_{reducer}"
+    if reducer == "mean":
+        return name
+    if reducer == "std":
+        return f"{name}_std"
+    raise ValueError(f"unknown reducer {reducer!r}; expected one of mean, std")
 
 
 def populate_access_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):

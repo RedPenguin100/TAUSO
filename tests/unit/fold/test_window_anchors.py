@@ -51,3 +51,29 @@ def test_end_windows_are_the_extremes_of_the_sweeps():
 def test_unknown_anchor_raises():
     with pytest.raises(ValueError, match="unknown anchor"):
         window_starts("middle", SENSE_START, SENSE_LENGTH, 6)
+
+
+def test_reducers_are_named_and_unknown_ones_raise():
+    from tauso.features.fold.vienna_access import reduce_energies
+
+    energies = [1.0, 2.0, 6.0]
+    assert reduce_energies(energies, "mean") == 3.0
+    assert reduce_energies(energies, "std") == pytest.approx(2.160246899469287)
+    with pytest.raises(ValueError, match="unknown reducer"):
+        reduce_energies(energies, "median")
+
+
+def test_a_single_window_has_no_spread():
+    """Why the end anchorings are mean-only: std over one window is always zero."""
+    from tauso.features.fold.vienna_access import reduce_energies
+
+    assert reduce_energies([4.2], "std") == 0.0
+
+
+def test_feature_name_marks_std_and_leaves_mean_unmarked():
+    from tauso.populate.populate_fold import access_feature_name
+
+    assert access_feature_name(60, None, 6, "a5", "mean") == "access_f60_sinf_u6_a5"
+    assert access_feature_name(60, None, 6, "a5", "std") == "access_f60_sinf_u6_a5_std"
+    with pytest.raises(ValueError, match="unknown reducer"):
+        access_feature_name(60, None, 6, "a5", "median")

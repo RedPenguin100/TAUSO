@@ -16,19 +16,19 @@ def _unpaired_table(sequence, u_max, max_bp_span):
     return RNA.pfl_fold_up(sequence, u_max, len(sequence), span)
 
 
-REDUCERS = {"mean": np.mean, "std": np.std}
-"""How the windows an anchoring selects are collapsed to one number.
+def reduce_energies(energies, reducer):
+    """Collapse the windows an anchoring selected to one number.
 
-`mean` is how open the target is on average. `std` is how uneven that is across it --
-two sites can share a mean while one is uniformly half-open and the other alternates
-between a closed stretch and an open one, and only the spread separates them.
-"""
-
-
-def _key(flank, max_bp_span, open_len, anchor, reducer):
-    """Settings are keyed by their tuple; the mean is the default and stays a 4-tuple."""
-    base = (flank, max_bp_span, open_len, anchor)
-    return base if reducer == "mean" else base + (reducer,)
+    `mean` is how open the target is on average. `std` is how uneven that is across it:
+    two sites can share a mean while one is uniformly half-open and the other alternates
+    between a closed stretch and an open one, and only the spread separates them. A
+    single-window anchoring has no spread, so `std` over one window is always zero.
+    """
+    if reducer == "mean":
+        return float(np.mean(energies))
+    if reducer == "std":
+        return float(np.std(energies))
+    raise ValueError(f"unknown reducer {reducer!r}; expected one of mean, std")
 
 
 def window_starts(anchor, sense_start, sense_length, open_len):
@@ -74,7 +74,7 @@ def opening_energies(unpaired, starts, open_len):
 
 
 def calculate_avg_access_per_setting(mrna, global_start, sense_length, settings):
-    """Accessibility of the target, one value per (flank, max_bp_span, open_len, anchor).
+    """Accessibility of the target, one value per (flank, max_bp_span, open_len, anchor, reducer).
 
     Accessibility is the free energy needed to hold a stretch of the target
     single-stranded. Unlike MFE it is an ensemble quantity: it sums over every
@@ -89,9 +89,7 @@ def calculate_avg_access_per_setting(mrna, global_start, sense_length, settings)
     a window or every window falls outside it.
     """
     by_cut = {}
-    for setting in settings:
-        flank, max_bp_span, open_len, anchor = setting[:4]
-        reducer = setting[4] if len(setting) > 4 else "mean"
+    for flank, max_bp_span, open_len, anchor, reducer in settings:
         by_cut.setdefault((flank, max_bp_span), []).append((open_len, anchor, reducer))
 
     out = {}
@@ -102,7 +100,7 @@ def calculate_avg_access_per_setting(mrna, global_start, sense_length, settings)
         u_max = max(open_len for open_len, _, _ in reads)
         if len(cut) < u_max:
             for open_len, anchor, reducer in reads:
-                out[_key(flank, max_bp_span, open_len, anchor, reducer)] = np.nan
+                out[(flank, max_bp_span, open_len, anchor, reducer)] = np.nan
             continue
 
         unpaired = _unpaired_table(cut, u_max, max_bp_span)
@@ -110,6 +108,6 @@ def calculate_avg_access_per_setting(mrna, global_start, sense_length, settings)
         for open_len, anchor, reducer in reads:
             starts = window_starts(anchor, sense_start, sense_length, open_len)
             energies = opening_energies(unpaired, starts, open_len)
-            value = float(REDUCERS[reducer](energies)) if energies else np.nan
-            out[_key(flank, max_bp_span, open_len, anchor, reducer)] = value
+            value = reduce_energies(energies, reducer) if energies else np.nan
+            out[(flank, max_bp_span, open_len, anchor, reducer)] = value
     return out
