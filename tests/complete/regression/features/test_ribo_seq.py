@@ -4,7 +4,7 @@ import time
 import pytest
 
 from tauso.features.context.ribo_seq import add_genomic_coordinates
-from tauso.populate.populate_context import populate_ribo_seq
+from tauso.populate.populate_riboseq import populate_ribo_seq
 
 
 @pytest.mark.parametrize("mini_sampled_data", [500], indirect=True)

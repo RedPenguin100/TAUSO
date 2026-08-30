@@ -1,129 +1,63 @@
 import logging
-import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 
 from ..data.consts import CANONICAL_GENE_NAME, CELL_LINE_DEPMAP, TRANSFECTION_RAW
-from ..features.context.ribo_seq import (
-    feature_names,
-    get_feature_prefix,
-    get_ribo_bigwig_path,
-    process_gene_group,
-)
 
 logger = logging.getLogger(__name__)
 
 
-def _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs, prefix="ribo"):
-    """
-    Dispatch process_gene_group over all (gene, gene_rows) pairs.
-
-    Each worker opens its own BigWig handle so threads don't share state.
-    Returns (results, skipped) where results is {df_index: feat_dict} and
-    skipped is {contig_str: set_of_gene_names}.
-    """
-    results = {}
-    skipped = {}
-
-    def _collect(gene, gene_rows):
-        try:
-            return gene, process_gene_group(bw_path, gene_rows, flanks, how, prefix), None
-        except KeyError as exc:
-            return gene, {}, str(exc).strip("'\"")
-
-    if n_jobs > 1 and len(gene_groups) > 1:
-        with ThreadPoolExecutor(max_workers=min(n_jobs, len(gene_groups))) as pool:
-            futures = {pool.submit(_collect, gene, rows): gene for gene, rows in gene_groups}
-            for fut in futures:
-                _, group_results, contig_err = fut.result()
-                gene = futures[fut]
-                if contig_err is not None:
-                    skipped.setdefault(contig_err, set()).add(gene)
-                else:
-                    results.update(group_results)
-    else:
-        for gene, gene_rows in gene_groups:
-            _, group_results, contig_err = _collect(gene, gene_rows)
-            if contig_err is not None:
-                skipped.setdefault(contig_err, set()).add(gene)
-            else:
-                results.update(group_results)
-
-    return results, skipped
-
-
-def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), how="mean", n_jobs=1, track="40s"):
-    if organism != "human":
-        raise ValueError("Unsupported organism for ribo_seq feature")
-    if how not in {"sum", "mean", "max", "nz_mean", "nz_frac"}:
-        raise ValueError(how)
-
-    bw_path = str(get_ribo_bigwig_path(track))
-    prefix = get_feature_prefix(track)  # "ribo_40s" or "ribo_80s"
-    feat_cols = feature_names(flanks, how, prefix=prefix)
-
-    for col in feat_cols:
-        aso_df[col] = np.nan
-
-    valid_mask = aso_df["chrom"].notna() & aso_df["target_start"].notna()
-    valid_df = aso_df[valid_mask]
-    n_valid = len(valid_df)
-    n_genes = valid_df[CANONICAL_GENE_NAME].nunique()
-
-    logger.info(
-        "populate_ribo_seq[%s]: %d valid rows across %d genes × %d features (n_jobs=%d)",
-        track,
-        n_valid,
-        n_genes,
-        len(feat_cols),
-        n_jobs,
-    )
-
-    gene_groups = list(valid_df.groupby(CANONICAL_GENE_NAME))
-
-    t0 = time.perf_counter()
-    results, skipped = _run_gene_groups_parallel(bw_path, gene_groups, flanks, how, n_jobs, prefix=prefix)
-    elapsed = time.perf_counter() - t0
-
-    logger.info(
-        "populate_ribo_seq: done in %.2fs (%.0f rows/s)",
-        elapsed,
-        n_valid / elapsed if elapsed > 0 else 0,
-    )
-
-    if results:
-        result_df = pd.DataFrame.from_dict(results, orient="index")
-        aso_df.update(result_df)
-
-    for contig, genes in skipped.items():
-        logger.warning(
-            "Skipped ribo-seq for contig '%s' (genes: %s). Rows will have NaN features.",
-            contig,
-            ", ".join(sorted(genes)),
-        )
-
-    return aso_df, feat_cols
-
-
-_RNASE_GENE = "RNASEH1"
-
-# Stabilin-2 is an established endocytic receptor for phosphorothioate-modified
-# oligonucleotides, which is the chemistry this model is trained on.
-_SCAVENGER_RECEPTOR_GENES = {
+# Proteins a PS-ASO has to get past in the cell it is dosed into, taken per gene. EGFR,
+# stabilin-1 and stabilin-2 are endocytic receptors for phosphorothioate oligonucleotides;
+# TREX1 is the 3'-exonuclease that degrades them. A gene total is the measure here because
+# these features stand for how much of the protein a cell line carries, which does not turn on
+# which isoform the message sits in.
+_SPECIAL_GENES: Dict[str, str] = {
+    "expr_egfr": "EGFR",
+    "expr_stab1": "STAB1",
     "expr_stab2": "STAB2",
+    "expr_trex1": "TREX1",
 }
 
-_SPECIAL_GENES: Dict[str, str] = {"expr_rnase": _RNASE_GENE, **_SCAVENGER_RECEPTOR_GENES}
-
 TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["expr_target"]
+
+# How concentrated the target's expression is: the share of its TPM carried by its single most
+# abundant transcript, from 0 to 1. A gene at 100 TPM in one isoform and one at 100 TPM split
+# across five present the ASO with different amounts of the sequence it was designed against,
+# and expr_target alone cannot tell them apart. A share rather than an amount, so it says
+# something expr_target does not already carry. The dominant transcript is resolved per cell
+# line rather than named: the target differs from row to row.
+TARGET_TRANSCRIPT_FEATURE_NAMES: List[str] = ["expr_target_dom_fraction"]
+
+# RNase H1 cleaves the ASO:RNA heteroduplex, and unlike the genes above it is taken per
+# transcript: RNASEH1-201 carries 90% of the gene, so the gene total and the canonical
+# transcript say the same thing and the transcript says it about one species.
+#
+# A feature names every transcript that encodes the species it is about, and their expression is
+# summed. Transcripts are named outright rather than resolved per cell line, so a column holds
+# the same species everywhere. Ensembl transcript names are used rather than accessions because
+# they say which gene and which isoform without a lookup. A name that falls out of a future
+# annotation leaves the feature NaN and says so, rather than quietly switching isoform.
+_SPECIAL_TRANSCRIPTS: Dict[str, Tuple[str, ...]] = {
+    "expr_rnase_transcript": ("RNASEH1-201",),
+}
+SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES: List[str] = list(_SPECIAL_TRANSCRIPTS.keys())
 SPECIAL_GENE_EXPRESSION_FEATURE_NAMES: List[str] = list(_SPECIAL_GENES.keys())
-EXPRESSION_FEATURE_NAMES: List[str] = TARGET_EXPRESSION_FEATURE_NAMES + SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
+EXPRESSION_FEATURE_NAMES: List[str] = (
+    TARGET_EXPRESSION_FEATURE_NAMES
+    + TARGET_TRANSCRIPT_FEATURE_NAMES
+    + SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
+    + SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
+)
 
 
 def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """
+    Convert from expression_dict (depmap_id : DataFrame(gene / expr)
+    To expression_master (DataFrame (gene / expr / depmap_id))
+    """
     dfs = []
     for depmap_id, t_df in expression_dict.items():
         temp = t_df[["Gene", "expression_norm"]].copy()
@@ -133,27 +67,19 @@ def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.Dat
     return master.drop_duplicates(subset=[CELL_LINE_DEPMAP, "Gene"])
 
 
-def _merge_fixed_gene(
-    df: pd.DataFrame, expression_master: pd.DataFrame, gene_symbol: str, feat_name: str
-) -> pd.DataFrame:
-    gene_vals = expression_master[expression_master["Gene"] == gene_symbol]
-    merged = df.merge(
-        gene_vals[[CELL_LINE_DEPMAP, "expression_norm"]],
-        on=CELL_LINE_DEPMAP,
-        how="left",
-        suffixes=("", f"_{feat_name}"),
-    )
-    return merged.rename(columns={"expression_norm": feat_name})
+def _drop_existing(df: pd.DataFrame, cols: Sequence[str]) -> pd.DataFrame:
+    existing_cols = [c for c in cols if c in df.columns]
+    if existing_cols:
+        logger.warning("Dropping existing columns: %s", existing_cols)
+        return df.drop(columns=existing_cols)
+    return df
 
 
 def populate_target_expression(
     df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
     """Merges the ASO's target gene expression (per cell line × gene) into df."""
-    existing_cols = [c for c in TARGET_EXPRESSION_FEATURE_NAMES if c in df.columns]
-    if existing_cols:
-        logger.warning("Dropping existing columns to prevent alignment breaks: %s", existing_cols)
-        df = df.drop(columns=existing_cols)
+    _drop_existing(df, TARGET_EXPRESSION_FEATURE_NAMES)
 
     expression_master = _build_expression_master(expression_dict)
 
@@ -169,14 +95,64 @@ def populate_target_expression(
     return enhanced_df, TARGET_EXPRESSION_FEATURE_NAMES
 
 
+def populate_target_dominant_transcript(
+    df: pd.DataFrame, transcript_dict: Dict[str, pd.DataFrame]
+) -> Tuple[pd.DataFrame, List[str]]:
+    """Merges the target gene's dominant-transcript share (per cell line x gene) into df.
+
+    The share is the most abundant transcript's TPM over the gene's total, so 1.0 is a gene
+    expressed as a single species and 0.2 one spread across several.
+    """
+    _drop_existing(df, TARGET_TRANSCRIPT_FEATURE_NAMES)
+
+    frames = []
+    for depmap_id, t_df in transcript_dict.items():
+        grouped = t_df.groupby("Gene")["expression_TPM"]
+        best = grouped.max().rename("top_tpm").to_frame()
+        best["gene_tpm"] = grouped.sum()
+        best = best.reset_index().assign(**{CELL_LINE_DEPMAP: depmap_id})
+        frames.append(best)
+
+    if not frames:
+        logger.warning("No transcript expression found for the target genes")
+        df[TARGET_TRANSCRIPT_FEATURE_NAMES[0]] = np.nan
+        return df, TARGET_TRANSCRIPT_FEATURE_NAMES
+
+    master = pd.concat(frames, ignore_index=True)
+    # A gene with no expression at all has no dominant share to speak of.
+    master["expr_target_dom_fraction"] = np.where(
+        master["gene_tpm"] > 0, master["top_tpm"] / master["gene_tpm"], np.nan
+    )
+    master = master.drop(columns=["top_tpm", "gene_tpm"])
+
+    merged = df.merge(
+        master,
+        left_on=[CELL_LINE_DEPMAP, CANONICAL_GENE_NAME],
+        right_on=[CELL_LINE_DEPMAP, "Gene"],
+        how="left",
+    ).drop(columns=["Gene"])
+
+    return merged, TARGET_TRANSCRIPT_FEATURE_NAMES
+
+
+def _merge_fixed_gene(
+    df: pd.DataFrame, expression_master: pd.DataFrame, gene_symbol: str, feat_name: str
+) -> pd.DataFrame:
+    gene_vals = expression_master[expression_master["Gene"] == gene_symbol]
+    merged = df.merge(
+        gene_vals[[CELL_LINE_DEPMAP, "expression_norm"]],
+        on=CELL_LINE_DEPMAP,
+        how="left",
+        suffixes=("", f"_{feat_name}"),
+    )
+    return merged.rename(columns={"expression_norm": feat_name})
+
+
 def populate_special_gene_expression(
     df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """Merges per-cell-line expression for fixed special genes (RNASEH1 + gymnosis scavenger receptors)."""
-    existing_cols = [c for c in SPECIAL_GENE_EXPRESSION_FEATURE_NAMES if c in df.columns]
-    if existing_cols:
-        logger.warning("Dropping existing columns to prevent alignment breaks: %s", existing_cols)
-        df = df.drop(columns=existing_cols)
+    """Merges per-cell-line expression for the genes named in _SPECIAL_GENES."""
+    _drop_existing(df, SPECIAL_GENE_EXPRESSION_FEATURE_NAMES)
 
     expression_master = _build_expression_master(expression_dict)
 
@@ -184,6 +160,46 @@ def populate_special_gene_expression(
         df = _merge_fixed_gene(df, expression_master, gene_symbol, feat_name)
 
     return df, SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
+
+
+def populate_special_transcript_expression(
+    df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
+) -> Tuple[pd.DataFrame, List[str]]:
+    """Merges per-cell-line expression of each named special transcript.
+
+    The transcript-level twin of populate_special_gene_expression. Where that one takes a
+    gene's expression, this takes one named isoform of it: a gene whose expression sits in a
+    single isoform and one split across four share a gene-level value but hold different
+    amounts of any one species. Ids are matched unversioned.
+    """
+    _drop_existing(df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES)
+
+    rows = []
+    for depmap_id, t_df in expression_dict.items():
+        indexed = t_df.set_index("TranscriptName")
+        for feat_name, transcript_names in _SPECIAL_TRANSCRIPTS.items():
+            present = [n for n in transcript_names if n in indexed.index]
+            if not present:
+                continue
+            if len(present) < len(transcript_names):
+                logger.warning(
+                    "%s: %s absent for %s", feat_name, sorted(set(transcript_names) - set(present)), depmap_id
+                )
+            # Expression is log2(TPM + 1), so it is summed in TPM and converted back.
+            total_tpm = float(indexed.loc[present, "expression_TPM"].sum())
+            rows.append({"Gene": feat_name, "expression_norm": np.log2(total_tpm + 1.0), CELL_LINE_DEPMAP: depmap_id})
+
+    if not rows:
+        logger.warning("No expression found for the special transcripts")
+        for feat_name in SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES:
+            df[feat_name] = np.nan
+        return df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
+
+    master = pd.DataFrame(rows)
+    for feat_name in _SPECIAL_TRANSCRIPTS:
+        df = _merge_fixed_gene(df, master, feat_name, feat_name)
+
+    return df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
 
 
 _TRANSFECTION_LABEL_TO_COLUMN = {

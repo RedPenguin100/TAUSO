@@ -9,12 +9,18 @@ from tauso.cli_utils import download_with_progress, echo_err, echo_ok, echo_warn
 # Zenodo-mirrored DepMap "Public 25Q3" snapshot. DepMap silently re-uploads files
 # under the same release name, so we pin to an immutable Zenodo record and verify
 # the SHA1 of each download.
-ZENODO_DEPMAP_RECORD = "20355477"
+ZENODO_DEPMAP_RECORD = "22158936"
+
+TRANSCRIPT_EXPRESSION_CSV = "OmicsExpressionTranscriptTPMLogp1HumanAllGenes.csv"
+TRANSCRIPT_EXPRESSION_PARQUET = TRANSCRIPT_EXPRESSION_CSV.replace(".csv", ".parquet")
+
 DEPMAP_FILES_SHA1 = {
     "Model.csv": "4e9805ecf79d187e1fb5d4c760312e5a40729e34",
     "OmicsProfiles.csv": "fc5a1ed86ea89f805d56715f439e9738b3e28a72",
     "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv": "22ac03aa45a6b9ef4f60e9ed8bb574e64dcb56f6",
+    TRANSCRIPT_EXPRESSION_CSV: "c1277e2bf88b14f18b133a5d31516872856396cc",
 }
+TRANSCRIPT_EXPRESSION_SHA1 = DEPMAP_FILES_SHA1[TRANSCRIPT_EXPRESSION_CSV]
 
 # rRNA off-target reference: human cytoplasmic 18S/5.8S/28S/5S RefSeq records, frozen on Zenodo.
 ZENODO_RRNA_RECORD = "21071791"

@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 
 import pandas as pd
@@ -129,22 +128,3 @@ def load_cell_line_gene_maps(
         logger.warning("No data available for intersection.")
 
     return cell_line_top_genes, fallback_genes, global_fetch_set
-
-
-def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
-    transcriptomes = {}
-
-    for ach_id in depmap_ids:
-        path = os.path.join(expression_dir, f"{ach_id}_expression.csv")
-        if not os.path.exists(path):
-            logger.warning("No expression data for %s", ach_id)
-            continue
-
-        # Load and Filter
-        df = pd.read_csv(path)
-        df = df[df["Gene"].isin(valid_genes)].copy()
-
-        if not df.empty:
-            transcriptomes[ach_id] = df
-
-    return transcriptomes
