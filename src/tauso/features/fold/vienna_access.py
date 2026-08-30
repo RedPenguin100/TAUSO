@@ -19,14 +19,23 @@ def _unpaired_table(sequence, u_max, max_bp_span):
 def window_starts(anchor, sense_start, sense_length, open_len):
     """0-based starts of the windows an anchoring averages over.
 
-    Both give one window per target position. `a5` takes those starting inside the
-    target, so they hang over its 3' edge; `a3` takes those ending inside it, hanging
-    over the 5' edge instead. A window wider than the target cannot sit inside it, so
-    which edge it overhangs is a choice, and the two see different flanking context.
+    `a5` and `a3` sweep the whole target, one window per position: `a5` takes those
+    starting inside it, so they hang over its 3' edge; `a3` takes those ending inside it,
+    hanging over the 5' edge instead. A window wider than the target cannot sit inside it,
+    so which edge it overhangs is a choice, and the two see different flanking context.
+
+    `aso5end` and `aso3end` take a single window flush with one end of the target. The
+    oligo binds antiparallel, so its 5' terminus pairs with the target's 3' side and its
+    3' terminus with the target's 5' side; RNase H1 then cleaves in a fixed register from
+    the ASO-3' end, which is why the two ends are not interchangeable.
     """
     if anchor == "a5":
         return range(sense_start, sense_start + sense_length)
-    return range(sense_start - open_len + 1, sense_start + sense_length - open_len + 1)
+    if anchor == "a3":
+        return range(sense_start - open_len + 1, sense_start + sense_length - open_len + 1)
+    if anchor == "aso3end":
+        return range(sense_start, sense_start + 1)
+    return range(sense_start + sense_length - open_len, sense_start + sense_length - open_len + 1)
 
 
 def opening_energies(unpaired, starts, open_len):
