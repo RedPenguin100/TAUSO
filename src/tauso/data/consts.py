@@ -177,16 +177,22 @@ _PROXY_LOOKUP_NORM = {_norm_cell_line_key(k): v for k, v in CELL_LINE_TO_DEPMAP_
 def resolve_depmap_proxy(raw):
     """Return the canonical DepMap proxy spelling for a dataset cell-line name.
 
-    Lookup is case- and punctuation-insensitive. Returns:
+    Lookup is case- and punctuation-insensitive. The proxy table is keyed by the
+    spellings that occur in the ASO training data, so a caller naming a cell line
+    the way DepMap does falls through to CELL_LINE_TO_DEPMAP's own keys. Returns:
       - the canonical proxy string when one is registered,
       - None when the entry is explicitly blocked (primary cell / iPSC / etc.)
         OR the name is unknown -- treated the same so unknown spellings
         propagate as a NaN DepMap ID rather than silently using the raw input.
+
+    The proxy table is consulted first, so a blocked entry stays blocked.
     """
     key = _norm_cell_line_key(raw)
-    if key is None or key not in _PROXY_LOOKUP_NORM:
+    if key is None:
         return None
-    return _PROXY_LOOKUP_NORM[key]
+    if key in _PROXY_LOOKUP_NORM:
+        return _PROXY_LOOKUP_NORM[key]
+    return _DEPMAP_NAME_NORM.get(key)
 
 
 def resolve_depmap_id(raw):
@@ -257,6 +263,8 @@ CELL_LINE_TO_DEPMAP = {
     "U-251 MG": "ACH-000232",
     "VCaP": "ACH-000115",
 }
+
+_DEPMAP_NAME_NORM = {_norm_cell_line_key(name): name for name in CELL_LINE_TO_DEPMAP}
 
 HUMAN = "human"
 MONKEY = "monkey"
