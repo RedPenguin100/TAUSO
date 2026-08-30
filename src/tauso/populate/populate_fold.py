@@ -164,19 +164,27 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
 # unconstrained while silently biting once targets outgrew it.
 ACCESS_OPEN_LENS = (4, 6, 8, 10, 13, 16, 20, 26, 32)
 
-DEFAULT_ACCESS_SETTINGS = [
-    # `a5` and `a3` sweep the whole target, one window per position. The mean says how
-    # open it is, the spread how evenly.
-    (60, None, open_len, anchor, reducer)
-    for reducer in ("mean", "std")
-    for anchor in ("a5", "a3")
-    for open_len in ACCESS_OPEN_LENS
-] + [
-    # `aso5end` and `aso3end` take the single window flush with each end of it. One
-    # window has no spread, so these are mean only.
-    (60, None, END_LEN, anchor, "mean")
-    for anchor in ("aso5end", "aso3end")
-]
+DEFAULT_ACCESS_SETTINGS = (
+    [
+        # `a5` and `a3` sweep the whole target, one window per position.
+        (60, None, open_len, anchor, "mean")
+        for anchor in ("a5", "a3")
+        for open_len in ACCESS_OPEN_LENS
+    ]
+    + [
+        # `aso5end` and `aso3end` take the single window flush with each end of it. One
+        # window has no spread, so these are mean only.
+        (60, None, END_LEN, anchor, "mean")
+        for anchor in ("aso5end", "aso3end")
+    ]
+    + [
+        # How evenly open the target is, rather than how open. Taken at one opening length
+        # under both anchorings: spreads at neighbouring opening lengths measure nearly the
+        # same thing, and carrying all nine scored worse than carrying one.
+        (60, None, END_LEN, anchor, "std")
+        for anchor in ("a5", "a3")
+    ]
+)
 
 
 def access_feature_name(flank, max_bp_span, open_len, anchor, reducer):
