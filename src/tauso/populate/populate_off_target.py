@@ -103,6 +103,23 @@ def populate_off_target_specific(
     group_keys = ASO_df[CELL_LINE_DEPMAP].fillna(UNRESOLVED_CELL_LINE)
     groups = list(ASO_df.groupby(group_keys, observed=True))
 
+    # Scoring NaN is the documented fallback, but silently returning an all-NaN column looks
+    # identical to a successful run. Say so, and say it louder when nothing resolved at all --
+    # that is a misconfigured cell line rather than a gap in the reference data.
+    n_unresolved = int((group_keys == UNRESOLVED_CELL_LINE).sum())
+    if n_unresolved == len(ASO_df) and len(ASO_df):
+        logger.warning(
+            "populate_off_target_specific: no row has a resolvable DepMap cell line, so every "
+            "cell-line-specific off-target feature will be NaN. Check the cell line name."
+        )
+    elif n_unresolved:
+        logger.warning(
+            "populate_off_target_specific: %d of %d rows have no DepMap cell line; their "
+            "cell-line-specific off-target features will be NaN.",
+            n_unresolved,
+            len(ASO_df),
+        )
+
     logger.info(
         "populate_off_target_specific: top_n=%s cutoffs=%s n_aso=%d n_cell_lines=%d n_jobs=%d",
         top_n_list,
