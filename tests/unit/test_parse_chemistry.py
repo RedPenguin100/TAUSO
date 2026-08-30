@@ -8,7 +8,8 @@ gapmer sugar. These tests pin the length invariant and the mixmer labelling.
 import logging
 
 import pytest
-from notebooks.data.OligoAI.parse_chemistry import GAPMER_LABEL, MIXMER, SUGAR_CHAR, _process_chemistry
+from notebooks.data.OligoAI.parse_chemistry import GAPMER_LABEL, SUGAR_CHAR, _process_chemistry
+from tauso.data.consts import MIXMER_MODIFICATION
 
 MOE_GAPMER = ["MOE"] * 5 + ["DNA"] * 10 + ["MOE"] * 5
 CET_GAPMER = ["CET"] * 3 + ["DNA"] * 10 + ["CET"] * 3
@@ -75,6 +76,6 @@ def test_the_mixmer_label_is_what_excludes_the_row():
     rename on either side cannot quietly let an unmodelled sugar through."""
     from notebooks.preprocessing import SUPPORTED_CHEMISTRIES
 
-    assert MIXMER not in SUPPORTED_CHEMISTRIES
+    assert MIXMER_MODIFICATION not in SUPPORTED_CHEMISTRIES
     for label in GAPMER_LABEL.values():
         assert label in SUPPORTED_CHEMISTRIES

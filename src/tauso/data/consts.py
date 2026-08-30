@@ -14,6 +14,10 @@ CELL_LINE = "cell_line"
 TRANSFECTION_RAW = "transfection_raw"
 DENSITY_CELLS_PER_WELL = "density_cells_per_well"
 MODIFICATION_STRING = "modification_string"  # LNA / MOE / cEt
+
+# The MODIFICATION_STRING of an oligo that is not a gapmer. It names no sugar, so features
+# derived from the string cannot be computed for these rows.
+MIXMER_MODIFICATION = "mixmer"
 STRUCTURE_SENSE_START = "structure_sense_start"
 STRUCTURE_SENSE_START_FROM_END = "structure_sense_start_from_end"
 STRUCTURE_SENSE_LENGTH = "structure_sense_length"

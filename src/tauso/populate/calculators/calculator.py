@@ -277,18 +277,22 @@ class Calculator:
         # DNA/PS oligo (no sugar mods); 2nd-gen has 2'-MOE; 3rd-gen has LNA or cEt. They're
         # not mutually exclusive in general but are in this dataset's gapmer chemistries.
         def compute_chemistry(missing):
-            from tauso.data.consts import MODIFICATION_STRING
+            from tauso.data.consts import MIXMER_MODIFICATION, MODIFICATION_STRING
 
             self._check_dependencies([MODIFICATION_STRING])
-            has_moe = self.data[MODIFICATION_STRING].str.contains("MOE", na=False)
-            has_high_aff = self.data[MODIFICATION_STRING].str.contains("LNA|cEt", na=False)
+            modification = self.data[MODIFICATION_STRING]
+            has_moe = modification.str.contains("MOE", na=False)
+            has_high_aff = modification.str.contains("LNA|cEt", na=False)
+            # A mixmer's modification string names no sugar, so the absence of MOE/LNA/cEt in it
+            # says nothing about the oligo. Leave the triple unset rather than read it as 1st-gen.
+            unknown = modification.eq(MIXMER_MODIFICATION)
 
             if "chem_1st_gen" in missing:
-                self.data["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(int)
+                self.data["chem_1st_gen"] = (~(has_moe | has_high_aff)).astype(float).mask(unknown)
             if "chem_2nd_gen" in missing:
-                self.data["chem_2nd_gen"] = has_moe.astype(int)
+                self.data["chem_2nd_gen"] = has_moe.astype(float).mask(unknown)
             if "chem_3rd_gen" in missing:
-                self.data["chem_3rd_gen"] = has_high_aff.astype(int)
+                self.data["chem_3rd_gen"] = has_high_aff.astype(float).mask(unknown)
             return self.data, missing
 
         def compute_transfection(missing):
