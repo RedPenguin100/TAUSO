@@ -123,7 +123,9 @@ def assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinate
 # A in the window and keeping the best. The score is coarse by construction (four positions, so 1 to 4)
 # and the window is wide, which is why the distance to the chosen A carries more than the score does.
 _BRANCH_POINT_WINDOW = (18, 44)
-_PYRIMIDINES = frozenset("CT")
+# The locus sequences are RNA, but the same scan reads DNA, so both alphabets are accepted.
+_PYRIMIDINES = frozenset("CTU")
+_URACIL = frozenset("TU")
 
 
 def _find_branch_point(intron_sequence: str):
@@ -148,7 +150,7 @@ def _find_branch_point(intron_sequence: str):
         score = 1
         if intron_sequence[i - 2] in _PYRIMIDINES:
             score += 1
-        if intron_sequence[i - 1] == "T":
+        if intron_sequence[i - 1] in _URACIL:
             score += 1
         if i + 1 < length and intron_sequence[i + 1] in _PYRIMIDINES:
             score += 1
