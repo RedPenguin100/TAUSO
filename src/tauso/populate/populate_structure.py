@@ -117,6 +117,88 @@ def assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinate
     out.junction_signed_logdist_intronic[hit_rows] = np.where(in_intron, signed_logdist, np.nan)
 
 
+# The spliceosome cuts at a branch-point adenosine 18-44 nt upstream of the 3' splice site, whose
+# 2'-OH attacks the donor to open the lariat. It is recognised through the yUnAy motif -- pyrimidine,
+# U, anything, the branch A, pyrimidine -- so the position is found by scoring that consensus at every
+# A in the window and keeping the best. The score is coarse by construction (four positions, so 1 to 4)
+# and the window is wide, which is why the distance to the chosen A carries more than the score does.
+_BRANCH_POINT_WINDOW = (18, 44)
+_PYRIMIDINES = frozenset("CT")
+
+
+def _find_branch_point(intron_sequence: str):
+    """Best yUnAy match in the branch-point window of one intron, in transcript orientation.
+
+    Returns the branch A's distance upstream of the 3' splice site, its motif score out of 4, and
+    how many candidates in the window score full marks. All NaN when the intron is too short to
+    hold the window.
+    """
+    lo, hi = _BRANCH_POINT_WINDOW
+    if intron_sequence is None or len(intron_sequence) < hi + 2:
+        return np.nan, np.nan, np.nan
+
+    length = len(intron_sequence)
+    best_score, best_offset, strong = -1, np.nan, 0
+    for offset in range(lo, hi + 1):
+        i = length - offset
+        if i < 2 or i + 2 > length:
+            continue
+        if intron_sequence[i] != "A":
+            continue
+        score = 1
+        if intron_sequence[i - 2] in _PYRIMIDINES:
+            score += 1
+        if intron_sequence[i - 1] == "T":
+            score += 1
+        if i + 1 < length and intron_sequence[i + 1] in _PYRIMIDINES:
+            score += 1
+        if score >= 4:
+            strong += 1
+        if score > best_score:
+            best_score, best_offset = score, float(offset)
+
+    if best_score < 0:
+        return np.nan, np.nan, 0.0
+    return best_offset, float(best_score), float(strong)
+
+
+def assign_branch_point_distances(out, hit_rows, genetic_coordinates, locus_info):
+    """Where the target sits relative to the branch point of the intron it lies in.
+
+    Only intronic targets have one: the branch point belongs to the intron being spliced, so a
+    target in an exon leaves these NaN. The signed distance is positive when the target is 5' of the
+    branch A in transcript orientation, matching the junction distances above.
+    """
+    intron_intervals = locus_info._intron_indices
+    if not intron_intervals:
+        return
+
+    is_negative = locus_info.strand == StrandType.NEG
+    intron_sequences = locus_info.introns
+    branch_points: dict = {}
+
+    for row, coord in zip(hit_rows, genetic_coordinates):
+        host = next((j for j, (s, e) in enumerate(intron_intervals) if s <= coord < e), None)
+        if host is None:
+            continue
+        if host not in branch_points:
+            sequence = intron_sequences[host] if host < len(intron_sequences) else None
+            branch_points[host] = _find_branch_point(sequence)
+        offset, score, strong = branch_points[host]
+
+        out.branch_point_offset[row] = offset
+        out.branch_point_score[row] = score
+        out.branch_point_strong[row] = strong
+        if not np.isfinite(offset):
+            continue
+
+        start, end = intron_intervals[host]
+        acceptor_distance = (coord - start) if is_negative else ((end - 1) - coord)
+        signed = acceptor_distance - offset
+        out.branch_point_signed_dist[row] = signed
+        out.branch_point_signed_logdist[row] = np.sign(signed) * np.log1p(abs(signed))
+
+
 def assign_closest_splice_junction_distance(out, hit_rows, genetic_coordinates, locus_info):
     """Distance to the nearest splice junction across ALL transcript isoforms (side-agnostic, single value),
     raw and log1p (the model-facing form). NaN if the gene is single-exon in every isoform."""
@@ -240,6 +322,11 @@ def _init_outputs(n_rows):
         signed_dist_closest_start=nan(),
         mrna_dist_canonical_stop=nan(),
         mrna_dist_closest_stop=nan(),
+        branch_point_offset=nan(),
+        branch_point_score=nan(),
+        branch_point_strong=nan(),
+        branch_point_signed_dist=nan(),
+        branch_point_signed_logdist=nan(),
         dist_sj_exonic=nan(),
         dist_sj_intronic=nan(),
         dist_closest_sj=nan(),
@@ -296,6 +383,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         assign_target_position(out, hit_rows, hit_pos, len(pre_mrna), locus_info)
         assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinates, locus_info)
         assign_closest_splice_junction_distance(out, hit_rows, genetic_coordinates, locus_info)
+        assign_branch_point_distances(out, hit_rows, genetic_coordinates, locus_info)
         assign_host_lengths(out, hit_rows, genetic_coordinates, locus_info)
         assign_distance_to_special_codons(out, hit_rows, genetic_coordinates, locus_info)
         assign_mrna_stop_distance(out, hit_rows, genetic_coordinates, locus_info)
@@ -325,6 +413,11 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[STRUCTURE_SENSE_SIGNED_DIST_TO_CLOSEST_START] = out.signed_dist_closest_start
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out.mrna_dist_canonical_stop
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out.mrna_dist_closest_stop
+    all_data[STRUCTURE_SENSE_BRANCH_POINT_OFFSET] = out.branch_point_offset
+    all_data[STRUCTURE_SENSE_BRANCH_POINT_SCORE] = out.branch_point_score
+    all_data[STRUCTURE_SENSE_BRANCH_POINT_STRONG_COUNT] = out.branch_point_strong
+    all_data[STRUCTURE_SENSE_BRANCH_POINT_SIGNED_DIST] = out.branch_point_signed_dist
+    all_data[STRUCTURE_SENSE_BRANCH_POINT_SIGNED_LOGDIST] = out.branch_point_signed_logdist
     all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_EXONIC] = out.dist_sj_exonic
     all_data[STRUCTURE_SENSE_DIST_TO_SPLICE_JUNCTION_INTRONIC] = out.dist_sj_intronic
     all_data[STRUCTURE_SENSE_DIST_TO_CLOSEST_SPLICE_JUNCTION] = out.dist_closest_sj
