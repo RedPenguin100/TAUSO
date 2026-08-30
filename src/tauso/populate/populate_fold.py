@@ -6,7 +6,7 @@ import pandas as pd
 
 from ..data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
 from ..features.fold.vienna_access import calculate_avg_access_per_setting
-from ..features.fold.vienna_fold import calculate_avg_mfe_per_setting
+from ..features.fold.vienna_fold import calculate_avg_mfe_per_setting, calculate_end_mfe
 from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,13 @@ DEFAULT_SETTINGS = [
 # Target sites this close together on one gene share a single fold. A wider chunk serves
 # more sites per fold but costs more to fold; around 500nt the two balance out.
 MFE_CHUNK_SIZE = 500
+
+# The two ASO ends contact different target sub-windows and are not interchangeable:
+# hybridisation nucleates at whichever terminus makes first contact, while RNase H1 then
+# cleaves in a fixed register from the ASO-3' end. Both readouts come off folds the grids
+# above already do, so the four end features cost no additional folding.
+END_LEN = 6
+MFE_END_SETTING = (30, 40, 5)
 
 FOLD_REGION_START = "_mfe_fold_start"
 FOLD_REGION_END = "_mfe_fold_end"
@@ -103,6 +110,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     # inside the widest one, so one pass per row both shares the folding across settings
     # and pays the parallel-dispatch overhead exactly once.
     feature_names = [mfe_feature_name(f, w, s) for f, w, s in settings]
+    end_names = [f"fold_mfe_{k}" for k in ("aso5end", "aso3end", "std")] if MFE_END_SETTING in settings else []
 
     widest_flank = max(flank for flank, _, _ in settings)
     work = _fold_work_frame(df, lightweight_gene_to_data, widest_flank, MFE_CHUNK_SIZE)
@@ -112,7 +120,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
         global_start = row[STRUCTURE_SENSE_START]
         sense_len = row[STRUCTURE_SENSE_LENGTH]
 
-        out = {name: np.nan for name in feature_names}
+        out = {name: np.nan for name in feature_names + end_names}
         if gene_name not in lightweight_gene_to_data or global_start == -1:
             return out
         full_mrna = lightweight_gene_to_data[gene_name]
@@ -126,31 +134,72 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
         )
         for (flank_size, window_size, step), value in per_setting.items():
             out[mfe_feature_name(flank_size, window_size, step)] = value
+        if end_names:
+            ends = calculate_end_mfe(
+                full_mrna,
+                global_start,
+                sense_len,
+                *MFE_END_SETTING,
+                END_LEN,
+                fold_region=(row[FOLD_REGION_START], row[FOLD_REGION_END]),
+            )
+            for end, value in ends.items():
+                out[f"fold_mfe_{end}"] = value
         return out
 
     apply_fn = make_apply_fn(work, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
     results = apply_fn(_process_row, axis=1)
     results_df = pd.DataFrame(list(results), index=work.index)
+    feature_names = feature_names + end_names
     for name in feature_names:
         df[name] = results_df[name]
     return df, feature_names
 
 
-# Accessibility grid: (flank, max_bp_span, open_len, anchor). One fold read at nine
-# opening lengths under two anchorings. Flank is the axis that costs and 60 is where
-# the curve flattens; opening lengths and anchorings are free once the fold is done,
-# so the grid takes the whole usable range of both. A span of None leaves the 140nt
+# Accessibility grid: (flank, max_bp_span, open_len, anchor, reducer). Every setting
+# shares one fold of the flank-60 cut, so opening lengths, anchorings and reducers are
+# free once it is done and the grid takes the whole usable range of them. Flank is the
+# axis that costs, and 60 is where the curve flattens. A span of None leaves the 140nt
 # cut free to pair across itself -- a number wider than the cut would read as
 # unconstrained while silently biting once targets outgrew it.
-DEFAULT_ACCESS_SETTINGS = [
-    (60, None, open_len, anchor) for anchor in ("a5", "a3") for open_len in (4, 6, 8, 10, 13, 16, 20, 26, 32)
-]
+ACCESS_OPEN_LENS = (4, 6, 8, 10, 13, 16, 20, 26, 32)
+
+DEFAULT_ACCESS_SETTINGS = (
+    [
+        # `a5` and `a3` sweep the whole target, one window per position.
+        (60, None, open_len, anchor, "mean")
+        for anchor in ("a5", "a3")
+        for open_len in ACCESS_OPEN_LENS
+    ]
+    + [
+        # `aso5end` and `aso3end` take the single window flush with each end of it. One
+        # window has no spread, so these are mean only.
+        (60, None, END_LEN, anchor, "mean")
+        for anchor in ("aso5end", "aso3end")
+    ]
+    + [
+        # How evenly open the target is, rather than how open. Taken at one opening length
+        # under both anchorings: spreads at neighbouring opening lengths measure nearly the
+        # same thing, and carrying all nine scored worse than carrying one.
+        (60, None, END_LEN, anchor, "std")
+        for anchor in ("a5", "a3")
+    ]
+)
 
 
-def access_feature_name(flank, max_bp_span, open_len, anchor):
-    """Stable column name for one accessibility setting; None span is written `sinf`."""
+def access_feature_name(flank, max_bp_span, open_len, anchor, reducer):
+    """Stable column name for one accessibility setting; None span is written `sinf`.
+
+    The mean is left unmarked in the name so that adding a reducer to the grid does not
+    rename columns that already exist.
+    """
     span = "inf" if max_bp_span is None else max_bp_span
-    return f"access_f{flank}_s{span}_u{open_len}_{anchor}"
+    name = f"access_f{flank}_s{span}_u{open_len}_{anchor}"
+    if reducer == "mean":
+        return name
+    if reducer == "std":
+        return f"{name}_std"
+    raise ValueError(f"unknown reducer {reducer!r}; expected one of mean, std")
 
 
 def populate_access_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):

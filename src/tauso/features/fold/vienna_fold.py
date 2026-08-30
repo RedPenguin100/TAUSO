@@ -57,36 +57,65 @@ def _per_position_avg_energies(sequence, window_size, start, stop, step, fold=No
     )
 
 
-def calculate_avg_mfe_per_step(sequence, sense_start_in_flank, sense_length, window_size, steps, fold=None):
-    """Sliding-window MFE averaged over the sense region, for several `step` values at once.
+def sense_profile(sequence, sense_start_in_flank, sense_length, window_size, step, fold=None):
+    """Per-position average MFE across the sense region alone.
 
-    The plain version of each step sweeps windows from position 0 across the whole
-    sequence and nanmeans the sense-region positions. Two shortcuts give the same
-    numbers more cheaply:
-      1. Only sweep windows overlapping the sense region — outside windows touch
-         only positions the final mean never reads.
-      2. Overlapping windows share a single fold, each reading its own energy back
-         out of the shared matrices.
+    Only windows overlapping the sense region are swept; the ones outside touch only
+    positions no caller reads. The sweep keeps the grid it would have starting from 0.
     """
-    sequence = dna_to_rna(sequence)
     seq_len = len(sequence)
     sense_end = sense_start_in_flank + sense_length
-
-    if not (0 <= sense_start_in_flank < seq_len and sense_end <= seq_len):
-        return {step: np.nan for step in steps}
-
     # A window at position i overlaps the sense region iff
     # i+window-1 >= sense_start AND i <= sense_end-1.
     min_i = max(0, sense_start_in_flank - window_size + 1)
     max_i = min(seq_len - window_size, sense_end - 1)
+    # First multiple of `step` >= min_i. Same grid as starting at 0, just filtered.
+    start_i = ((min_i + step - 1) // step) * step
+    avg_energies = _per_position_avg_energies(sequence, window_size, start_i, max_i + 1, step, fold)
+    return avg_energies[sense_start_in_flank:sense_end]
 
-    out = {}
-    for step in steps:
-        # First multiple of `step` >= min_i. Same grid as starting at 0, just filtered.
-        start_i = ((min_i + step - 1) // step) * step
-        avg_energies = _per_position_avg_energies(sequence, window_size, start_i, max_i + 1, step, fold)
-        out[step] = np.nanmean(avg_energies[sense_start_in_flank:sense_end])
-    return out
+
+def calculate_avg_mfe_per_step(sequence, sense_start_in_flank, sense_length, window_size, steps, fold=None):
+    """Sliding-window MFE averaged over the sense region, for several `step` values at once.
+
+    Overlapping windows share a single fold, each reading its own energy back out of the
+    shared matrices rather than folding on its own.
+    """
+    sequence = dna_to_rna(sequence)
+    if not (0 <= sense_start_in_flank < len(sequence) and sense_start_in_flank + sense_length <= len(sequence)):
+        return {step: np.nan for step in steps}
+    return {
+        step: np.nanmean(sense_profile(sequence, sense_start_in_flank, sense_length, window_size, step, fold))
+        for step in steps
+    }
+
+
+def calculate_end_mfe(mrna, global_start, sense_length, flank, window_size, step, end_len, fold_region=None):
+    """Sliding-window MFE over the terminal `end_len` target positions at each ASO end.
+
+    The oligo binds antiparallel, so its 5' terminus pairs with the target's 3' side and
+    its 3' terminus with the target's 5' side. Also returns "std", the spread of the
+    profile across the whole target: how uneven its structure is rather than how much of
+    it there is. Returns those three keyed by name.
+
+    Reads out of the same fold `calculate_avg_mfe_per_setting` uses, so passing the same
+    `fold_region` costs no extra folding.
+    """
+    cut_start = max(0, global_start - flank)
+    cut_end = min(len(mrna), global_start + sense_length + flank)
+    cut = mrna[cut_start:cut_end]
+    if len(cut) < window_size or sense_length < end_len:
+        return {"aso5end": np.nan, "aso3end": np.nan, "std": np.nan}
+    if fold_region is None:
+        fold_region = (cut_start, cut_end)
+    fold_start, fold_end = fold_region
+    fold = SharedFold(dna_to_rna(mrna[fold_start:fold_end]), cut_start - fold_start, window_size)
+    profile = sense_profile(dna_to_rna(cut), global_start - cut_start, sense_length, window_size, step, fold)
+    return {
+        "aso5end": float(np.nanmean(profile[sense_length - end_len :])),
+        "aso3end": float(np.nanmean(profile[:end_len])),
+        "std": float(np.nanstd(profile)),
+    }
 
 
 def calculate_avg_mfe_per_setting(mrna, global_start, sense_length, settings, fold_region=None):
