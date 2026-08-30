@@ -107,3 +107,22 @@ def test_proxy_dict_values_are_all_known_depmap_ids():
         if proxy is None:
             continue
         assert proxy in CELL_LINE_TO_DEPMAP, f"Proxy {proxy!r} (from {input_name!r}) missing CELL_LINE_TO_DEPMAP entry"
+
+
+@pytest.mark.parametrize("raw", ["HEK-293", "HEK293", "hek 293"])
+def test_hek293_resolves_to_its_depmap_model(raw):
+    """HEK-293 is ACH-001085 in DepMap. Spelling is punctuation- and case-insensitive."""
+    assert resolve_depmap_proxy(raw) == "HEK-293"
+    assert resolve_depmap_id(raw) == "ACH-001085"
+
+
+@pytest.mark.parametrize("raw", ["HEK293T", "hek293t", "HEK-293T"])
+def test_hek293t_stays_blocked(raw):
+    """293T is a different line and is deliberately unmapped — it must not collide with 293."""
+    assert resolve_depmap_proxy(raw) is None
+    assert resolve_depmap_id(raw) is None
+
+
+def test_ts24_is_the_patent_typo_for_t24():
+    """US20040102399A1 writes "TS 24" where it means T-24; both must land on the same model."""
+    assert resolve_depmap_id("Ts-24") == resolve_depmap_id("T-24") == "ACH-000018"

@@ -101,6 +101,7 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "A172": "A-172",
     "G-361": "G-361",
     "H929": "NCI-H929",
+    "HEK-293": "HEK-293",
     "HeLa": "HeLa",
     "Hep3B": "Hep 3B2.1-7",
     "HepB3": "Hep 3B2.1-7",  # Typo
@@ -125,6 +126,10 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "SNU-449": "SNU-449",
     "SW872": "SW872",
     "T24": "T24",
+    # US20040102399A1 writes "TS 24" in the paragraph introducing its inhibition table, but
+    # Example 9 of that same patent defines only T-24, A549, NHDF and HEK, and spells the
+    # bladder line "T-24" three times. It is the patent's own typo.
+    "Ts-24": "T24",
     "THP-1": "THP-1",
     "U251": "U-251 MG",
     "VCaP": "VCaP",
@@ -224,6 +229,7 @@ CELL_LINE_TO_DEPMAP = {
     "A-431": "ACH-001328",
     "A549": "ACH-000681",
     "G-361": "ACH-000572",
+    "HEK-293": "ACH-001085",
     "HK-2": "ACH-001087",
     "HeLa": "ACH-001086",
     "Hep 3B2.1-7": "ACH-000625",
