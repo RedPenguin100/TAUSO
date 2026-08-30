@@ -29,13 +29,16 @@ def window_starts(anchor, sense_start, sense_length, open_len):
     3' terminus with the target's 5' side; RNase H1 then cleaves in a fixed register from
     the ASO-3' end, which is why the two ends are not interchangeable.
     """
+    sense_end = sense_start + sense_length
     if anchor == "a5":
-        return range(sense_start, sense_start + sense_length)
+        return range(sense_start, sense_end)
     if anchor == "a3":
-        return range(sense_start - open_len + 1, sense_start + sense_length - open_len + 1)
+        return range(sense_start - open_len + 1, sense_end - open_len + 1)
     if anchor == "aso3end":
         return range(sense_start, sense_start + 1)
-    return range(sense_start + sense_length - open_len, sense_start + sense_length - open_len + 1)
+    if anchor == "aso5end":
+        return range(sense_end - open_len, sense_end - open_len + 1)
+    raise ValueError(f"unknown anchor {anchor!r}; expected one of a5, a3, aso5end, aso3end")
 
 
 def opening_energies(unpaired, starts, open_len):

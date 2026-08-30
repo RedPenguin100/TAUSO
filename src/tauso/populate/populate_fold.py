@@ -156,15 +156,22 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     return df, feature_names
 
 
-# Accessibility grid: (flank, max_bp_span, open_len, anchor). One fold read at nine
-# opening lengths under two anchorings. Flank is the axis that costs and 60 is where
-# the curve flattens; opening lengths and anchorings are free once the fold is done,
-# so the grid takes the whole usable range of both. A span of None leaves the 140nt
-# cut free to pair across itself -- a number wider than the cut would read as
-# unconstrained while silently biting once targets outgrew it.
+# Accessibility grid: (flank, max_bp_span, open_len, anchor). Every setting shares one
+# fold of the flank-60 cut, so opening lengths and anchorings are free once it is done
+# and the grid takes the whole usable range of both. Flank is the axis that costs, and
+# 60 is where the curve flattens. A span of None leaves the 140nt cut free to pair across
+# itself -- a number wider than the cut would read as unconstrained while silently biting
+# once targets outgrew it.
 DEFAULT_ACCESS_SETTINGS = [
-    (60, None, open_len, anchor) for anchor in ("a5", "a3") for open_len in (4, 6, 8, 10, 13, 16, 20, 26, 32)
-] + [(60, None, END_LEN, anchor) for anchor in ("aso5end", "aso3end")]
+    # `a5` and `a3` sweep the whole target, one window per position.
+    (60, None, open_len, anchor)
+    for anchor in ("a5", "a3")
+    for open_len in (4, 6, 8, 10, 13, 16, 20, 26, 32)
+] + [
+    # `aso5end` and `aso3end` take the single window flush with each end of it.
+    (60, None, END_LEN, anchor)
+    for anchor in ("aso5end", "aso3end")
+]
 
 
 def access_feature_name(flank, max_bp_span, open_len, anchor):
