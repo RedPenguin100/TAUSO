@@ -32,7 +32,7 @@ from tauso.common.gtf import filter_gtf_genes
 from tauso.data.consts import *
 from tauso.data.consts import CELL_LINE_DEPMAP
 from tauso.data.data import get_data_dir, load_gtf_db
-from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
+from tauso.dependencies.depmap import load_cell_line_gene_expression
 from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
 from tauso.features.expression.general_expression import get_general_expression_of_genes
 from tauso.features.rbp.load_rbp import load_attract_data

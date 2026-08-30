@@ -48,6 +48,7 @@ from ...data.consts import (
     VOLUME_NM,
 )
 from ...debug import log_dataframe_memory
+from ...features.context.ribo_seq import add_genomic_coordinates, feature_names, get_feature_prefix
 from ...features.hybridization.off_target import OFF_TARGET_TOP_NS, RISEARCH_SCORE_CUTOFFS
 from ...features.interaction_features import internal_fold_gymnosis
 from ...timer import Timer
@@ -57,6 +58,7 @@ from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
     populate_special_gene_expression,
     populate_special_transcript_expression,
+    populate_target_dominant_transcript,
     populate_target_expression,
     populate_transfection,
 )
@@ -68,6 +70,7 @@ from ..populate_fold import (
     populate_access_features,
     populate_mfe_features,
 )
+from ..populate_riboseq import populate_ribo_seq
 from ..populate_sequence import FEATURE_SPECS, populate_sequence_features
 from ..populate_structure import get_populated_df_with_structure_features
 from .cache import AssetCache
@@ -347,9 +350,12 @@ class Calculator:
             transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
             data, target_feats = populate_target_expression(self.data, transcriptomes)
             data, special_feats = populate_special_gene_expression(data, transcriptomes)
+            target_genes = self.data[CANONICAL_GENE_NAME].dropna().unique().tolist()
+            target_transcripts = self.cache.get_target_gene_transcripts(cell_lines_depmap, target_genes)
+            data, dominant_feats = populate_target_dominant_transcript(data, target_transcripts)
             transcript_expression = self.cache.get_transcript_transcriptomes(cell_lines_depmap)
             data, transcript_feats = populate_special_transcript_expression(data, transcript_expression)
-            return data, target_feats + special_feats + transcript_feats
+            return data, target_feats + dominant_feats + special_feats + transcript_feats
 
         self._step("expression", EXPRESSION_FEATURE_NAMES, compute)
 
@@ -571,9 +577,6 @@ class Calculator:
         flanks = (0, 10, 20, 50, 100, 125, 150)
         how = "mean"
         tracks = ("40s", "80s")
-
-        from ...features.context.ribo_seq import add_genomic_coordinates, feature_names, get_feature_prefix
-        from ..populate_context import populate_ribo_seq
 
         expected_features = []
         for track in tracks:

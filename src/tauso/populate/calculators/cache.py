@@ -1,7 +1,18 @@
 import logging
+import os
+from pathlib import Path
 
+from ...common.gtf import filter_gtf_genes
+from ...data.data import get_data_dir, load_gtf_db
+from ...dependencies.depmap import (
+    load_cell_line_gene_expression,
+    load_cell_line_gene_transcripts,
+    load_cell_line_transcript_expression,
+)
+from ...features.expression.general_expression import get_general_expression_of_genes
 from ...genome.LocusInfo import LocusInfo
 from ...genome.read_human_genome import get_locus_to_data_dict
+from ...populate.populate_context import _SPECIAL_TRANSCRIPTS
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +31,7 @@ class AssetCache:
         self._halflife_provider = None
         self._transcriptomes = None
         self._transcript_transcriptomes = None
+        self._target_gene_transcripts = None
 
         self._gene_to_data_lean = None
         self._genes_u = None
@@ -78,13 +90,6 @@ class AssetCache:
         """
         if self._transcript_transcriptomes is None:
             logger.info("Loading transcript expression into memory (happens once)...")
-            import os
-
-            from tauso.data.data import get_data_dir
-            from tauso.features.codon_usage.find_cai_reference import (
-                load_cell_line_transcript_expression,
-            )
-            from tauso.populate.populate_context import _SPECIAL_TRANSCRIPTS
 
             self._transcript_transcriptomes = load_cell_line_transcript_expression(
                 cell_lines_depmap,
@@ -94,17 +99,27 @@ class AssetCache:
 
         return self._transcript_transcriptomes
 
+    def get_target_gene_transcripts(self, cell_lines_depmap, genes):
+        """Lazy loader for the transcripts of the target genes, keyed by cell line.
+
+        Kept apart from get_transcript_transcriptomes because that one filters to named
+        transcripts and this one needs whole genes: the target differs from row to row.
+        """
+        if self._target_gene_transcripts is None:
+            logger.info("Loading target-gene transcript expression into memory (happens once)...")
+
+            self._target_gene_transcripts = load_cell_line_gene_transcripts(
+                cell_lines_depmap,
+                genes,
+                expression_dir=os.path.join(get_data_dir(), "processed_transcript_expression"),
+            )
+
+        return self._target_gene_transcripts
+
     def get_transcriptomes(self, cell_lines_depmap):
         """Lazy loader for the FULL transcriptomes (required for off-target scanning)."""
         if self._transcriptomes is None:
             logger.info("Loading FULL transcriptomes into memory (happens once)...")
-            import os
-            from pathlib import Path
-
-            from tauso.common.gtf import filter_gtf_genes
-            from tauso.data.data import get_data_dir, load_gtf_db
-            from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
-            from tauso.features.expression.general_expression import get_general_expression_of_genes
 
             db = load_gtf_db()
             valid_genes = filter_gtf_genes(db, filter_mode="non_mt")

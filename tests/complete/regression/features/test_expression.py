@@ -5,12 +5,13 @@ import pytest
 
 from tauso.data.consts import CELL_LINE_DEPMAP
 from tauso.data.data import get_data_dir
-from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_expression
+from tauso.dependencies.depmap import load_cell_line_gene_expression
 from tauso.populate.populate_context import (
     _SPECIAL_GENES,
     _SPECIAL_TRANSCRIPTS,
     populate_special_gene_expression,
     populate_special_transcript_expression,
+    populate_target_dominant_transcript,
     populate_target_expression,
 )
 from tauso.timer import Timer
@@ -69,4 +70,34 @@ def transcript_transcriptomes(base_data):
 def test_special_transcript_expression_regression(mini_sampled_data, transcript_transcriptomes, dataframe_regression):
     data = mini_sampled_data.copy()
     result, feats = populate_special_transcript_expression(data, transcript_transcriptomes)
+    dataframe_regression.check(result[feats])
+
+
+@pytest.fixture(scope="session")
+def target_gene_transcripts(base_data, target_genes):
+    """Transcript-level expression for the cohort's target genes."""
+    expression_dir = os.path.join(get_data_dir(), "processed_transcript_expression")
+    if not os.path.isdir(expression_dir):
+        pytest.skip("processed_transcript_expression not built; run build-cohort-transcript-expression")
+    depmap_ids = list(set(base_data[CELL_LINE_DEPMAP]))
+    wanted = set(target_genes)
+    frames = {}
+    with Timer("Load Target Gene Transcripts"):
+        for ach_id in depmap_ids:
+            path = os.path.join(expression_dir, f"{ach_id}_transcript_expression.csv")
+            if not os.path.exists(path):
+                continue
+            frame = pd.read_csv(path)
+            kept = frame[frame["Gene"].isin(wanted)]
+            if not kept.empty:
+                frames[ach_id] = kept
+    if not frames:
+        pytest.skip("no transcript expression for the cohort's target genes")
+    return frames
+
+
+@pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
+def test_target_dominant_transcript_regression(mini_sampled_data, target_gene_transcripts, dataframe_regression):
+    data = mini_sampled_data.copy()
+    result, feats = populate_target_dominant_transcript(data, target_gene_transcripts)
     dataframe_regression.check(result[feats])
