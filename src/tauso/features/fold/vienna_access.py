@@ -16,6 +16,21 @@ def _unpaired_table(sequence, u_max, max_bp_span):
     return RNA.pfl_fold_up(sequence, u_max, len(sequence), span)
 
 
+REDUCERS = {"mean": np.mean, "std": np.std}
+"""How the windows an anchoring selects are collapsed to one number.
+
+`mean` is how open the target is on average. `std` is how uneven that is across it --
+two sites can share a mean while one is uniformly half-open and the other alternates
+between a closed stretch and an open one, and only the spread separates them.
+"""
+
+
+def _key(flank, max_bp_span, open_len, anchor, reducer):
+    """Settings are keyed by their tuple; the mean is the default and stays a 4-tuple."""
+    base = (flank, max_bp_span, open_len, anchor)
+    return base if reducer == "mean" else base + (reducer,)
+
+
 def window_starts(anchor, sense_start, sense_length, open_len):
     """0-based starts of the windows an anchoring averages over.
 
@@ -74,24 +89,27 @@ def calculate_avg_access_per_setting(mrna, global_start, sense_length, settings)
     a window or every window falls outside it.
     """
     by_cut = {}
-    for flank, max_bp_span, open_len, anchor in settings:
-        by_cut.setdefault((flank, max_bp_span), []).append((open_len, anchor))
+    for setting in settings:
+        flank, max_bp_span, open_len, anchor = setting[:4]
+        reducer = setting[4] if len(setting) > 4 else "mean"
+        by_cut.setdefault((flank, max_bp_span), []).append((open_len, anchor, reducer))
 
     out = {}
     for (flank, max_bp_span), reads in by_cut.items():
         cut_start = max(0, global_start - flank)
         cut_end = min(len(mrna), global_start + sense_length + flank)
         cut = dna_to_rna(mrna[cut_start:cut_end])
-        u_max = max(open_len for open_len, _ in reads)
+        u_max = max(open_len for open_len, _, _ in reads)
         if len(cut) < u_max:
-            for open_len, anchor in reads:
-                out[(flank, max_bp_span, open_len, anchor)] = np.nan
+            for open_len, anchor, reducer in reads:
+                out[_key(flank, max_bp_span, open_len, anchor, reducer)] = np.nan
             continue
 
         unpaired = _unpaired_table(cut, u_max, max_bp_span)
         sense_start = global_start - cut_start
-        for open_len, anchor in reads:
+        for open_len, anchor, reducer in reads:
             starts = window_starts(anchor, sense_start, sense_length, open_len)
             energies = opening_energies(unpaired, starts, open_len)
-            out[(flank, max_bp_span, open_len, anchor)] = float(np.mean(energies)) if energies else np.nan
+            value = float(REDUCERS[reducer](energies)) if energies else np.nan
+            out[_key(flank, max_bp_span, open_len, anchor, reducer)] = value
     return out

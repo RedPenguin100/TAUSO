@@ -94,7 +94,9 @@ def calculate_end_mfe(mrna, global_start, sense_length, flank, window_size, step
     """Sliding-window MFE over the terminal `end_len` target positions at each ASO end.
 
     The oligo binds antiparallel, so its 5' terminus pairs with the target's 3' side and
-    its 3' terminus with the target's 5' side. Returns {"aso5end": value, "aso3end": value}.
+    its 3' terminus with the target's 5' side. Also returns "std", the spread of the
+    profile across the whole target: how uneven its structure is rather than how much of
+    it there is. Returns those three keyed by name.
 
     Reads out of the same fold `calculate_avg_mfe_per_setting` uses, so passing the same
     `fold_region` costs no extra folding.
@@ -103,7 +105,7 @@ def calculate_end_mfe(mrna, global_start, sense_length, flank, window_size, step
     cut_end = min(len(mrna), global_start + sense_length + flank)
     cut = mrna[cut_start:cut_end]
     if len(cut) < window_size or sense_length < end_len:
-        return {"aso5end": np.nan, "aso3end": np.nan}
+        return {"aso5end": np.nan, "aso3end": np.nan, "std": np.nan}
     if fold_region is None:
         fold_region = (cut_start, cut_end)
     fold_start, fold_end = fold_region
@@ -112,6 +114,7 @@ def calculate_end_mfe(mrna, global_start, sense_length, flank, window_size, step
     return {
         "aso5end": float(np.nanmean(profile[sense_length - end_len :])),
         "aso3end": float(np.nanmean(profile[:end_len])),
+        "std": float(np.nanstd(profile)),
     }
 
 

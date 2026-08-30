@@ -110,7 +110,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     # inside the widest one, so one pass per row both shares the folding across settings
     # and pays the parallel-dispatch overhead exactly once.
     feature_names = [mfe_feature_name(f, w, s) for f, w, s in settings]
-    end_names = [f"fold_mfe_{end}" for end in ("aso5end", "aso3end")] if MFE_END_SETTING in settings else []
+    end_names = [f"fold_mfe_{k}" for k in ("aso5end", "aso3end", "std")] if MFE_END_SETTING in settings else []
 
     widest_flank = max(flank for flank, _, _ in settings)
     work = _fold_work_frame(df, lightweight_gene_to_data, widest_flank, MFE_CHUNK_SIZE)
@@ -162,22 +162,34 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
 # 60 is where the curve flattens. A span of None leaves the 140nt cut free to pair across
 # itself -- a number wider than the cut would read as unconstrained while silently biting
 # once targets outgrew it.
-DEFAULT_ACCESS_SETTINGS = [
-    # `a5` and `a3` sweep the whole target, one window per position.
-    (60, None, open_len, anchor)
-    for anchor in ("a5", "a3")
-    for open_len in (4, 6, 8, 10, 13, 16, 20, 26, 32)
-] + [
-    # `aso5end` and `aso3end` take the single window flush with each end of it.
-    (60, None, END_LEN, anchor)
-    for anchor in ("aso5end", "aso3end")
-]
+DEFAULT_ACCESS_SETTINGS = (
+    [
+        # `a5` and `a3` sweep the whole target, one window per position.
+        (60, None, open_len, anchor)
+        for anchor in ("a5", "a3")
+        for open_len in (4, 6, 8, 10, 13, 16, 20, 26, 32)
+    ]
+    + [
+        # `aso5end` and `aso3end` take the single window flush with each end of it.
+        (60, None, END_LEN, anchor)
+        for anchor in ("aso5end", "aso3end")
+    ]
+    + [
+        # The spread of the `a5` sweep: how uneven the target is, not how open.
+        (60, None, END_LEN, "a5", "std"),
+    ]
+)
 
 
-def access_feature_name(flank, max_bp_span, open_len, anchor):
-    """Stable column name for one accessibility setting; None span is written `sinf`."""
+def access_feature_name(flank, max_bp_span, open_len, anchor, reducer="mean"):
+    """Stable column name for one accessibility setting; None span is written `sinf`.
+
+    The mean is the default readout and is left unmarked, so adding a reducer does not
+    rename the columns that already exist.
+    """
     span = "inf" if max_bp_span is None else max_bp_span
-    return f"access_f{flank}_s{span}_u{open_len}_{anchor}"
+    name = f"access_f{flank}_s{span}_u{open_len}_{anchor}"
+    return name if reducer == "mean" else f"{name}_{reducer}"
 
 
 def populate_access_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):
