@@ -374,7 +374,8 @@ def add_cell(cell_names, reset):
 
 
 @main.command()
-def build_cohort_transcript_expression():
+@click.option("--force", is_flag=True, help="Rebuild even if every cohort cell line already has a file.")
+def build_cohort_transcript_expression(force):
     """
     Generates transcript-level expression files for all cell lines in the cohort.
 
@@ -384,20 +385,34 @@ def build_cohort_transcript_expression():
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
     exp_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
+    output_dir = os.path.join(data_dir, "processed_transcript_expression")
 
     if not os.path.exists(manifest_path):
         echo_err("No cohort found. Use 'tauso add-cell' first.")
-        return
-
-    if not os.path.exists(exp_path):
-        echo_err(f"Transcript expression parquet not found: {exp_path}")
-        click.echo("Run 'tauso setup-depmap-transcripts' to convert it.")
         return
 
     with open(manifest_path, "r") as f:
         cohort = json.load(f)
 
     target_ids = set(cohort.values())
+
+    # Nothing to do when the last successful build covered this same cohort. A cohort cell
+    # line DepMap has no transcript data for never gets a file, so "every id has a file" is
+    # never true; the sentinel records the cohort that was built instead. Checked before the
+    # parquet, which is the expensive input and is not needed when the output already exists.
+    sentinel = os.path.join(output_dir, ".cohort.json")
+    if not force and os.path.exists(sentinel):
+        with open(sentinel, "r") as f:
+            built_for = json.load(f)
+        if set(built_for) == target_ids:
+            echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
+            return
+
+    if not os.path.exists(exp_path):
+        echo_err(f"Transcript expression parquet not found: {exp_path}")
+        click.echo("Run 'tauso setup-depmap-transcripts' to convert it.")
+        return
+
     click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
     click.echo(f"Loading {os.path.basename(exp_path)}...")
@@ -431,7 +446,6 @@ def build_cohort_transcript_expression():
         f"{len(transcript_to_name):,} with a transcript name."
     )
 
-    output_dir = os.path.join(data_dir, "processed_transcript_expression")
     os.makedirs(output_dir, exist_ok=True)
 
     found_count = 0
@@ -454,6 +468,8 @@ def build_cohort_transcript_expression():
         out_df.to_csv(os.path.join(output_dir, f"{curr_id}_transcript_expression.csv"), index=False)
         found_count += 1
 
+    with open(sentinel, "w") as f:
+        json.dump(sorted(target_ids), f)
     click.echo(f"✓ Processed {found_count} cell lines. Data in {output_dir}")
 
 
