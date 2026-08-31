@@ -14,6 +14,10 @@ from tauso.data.consts import (
     STRUCTURE_SENSE_BRANCH_POINT_SIGNED_DIST,
     STRUCTURE_SENSE_BRANCH_POINT_SIGNED_LOGDIST,
     STRUCTURE_SENSE_BRANCH_POINT_STRONG_COUNT,
+    STRUCTURE_SENSE_CRYPTIC_ACCEPTOR_DELTA,
+    STRUCTURE_SENSE_CRYPTIC_ACCEPTOR_MAX,
+    STRUCTURE_SENSE_CRYPTIC_DONOR_DELTA,
+    STRUCTURE_SENSE_CRYPTIC_DONOR_MAX,
     STRUCTURE_SENSE_DIST_TO_CANONICAL_START,
     STRUCTURE_SENSE_DIST_TO_CANONICAL_STOP,
     STRUCTURE_SENSE_DIST_TO_CLOSEST_SPLICE_JUNCTION,
@@ -29,6 +33,8 @@ from tauso.data.consts import (
     STRUCTURE_SENSE_JUNCTION_SIGNED_LOGDIST_EXONIC,
     STRUCTURE_SENSE_JUNCTION_SIGNED_LOGDIST_INTRONIC,
     STRUCTURE_SENSE_LENGTH,
+    STRUCTURE_SENSE_LOCAL_ACCEPTOR_MEAN,
+    STRUCTURE_SENSE_LOCAL_DONOR_MEAN,
     STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP,
     STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP,
     STRUCTURE_SENSE_SIGNED_DIST_TO_CANONICAL_START,
@@ -41,7 +47,7 @@ from tauso.data.consts import (
     STRUCTURE_SENSE_START_NORM,
     STRUCTURE_SENSE_TYPE,
 )
-from tauso.populate.populate_structure import get_populated_df_with_structure_features
+from tauso.populate.populate_structure import get_populated_df_with_structure_features, maxent_scorers
 from tauso.timer import Timer
 
 
@@ -101,5 +107,18 @@ def test_structure_features_regression(sampled_base_data, target_genes, gene_to_
         STRUCTURE_SENSE_BRANCH_POINT_SIGNED_DIST,
         STRUCTURE_SENSE_BRANCH_POINT_SIGNED_LOGDIST,
     ]
+
+    # maxentpy has no PyPI release, so the cryptic-site columns are NaN wherever it is absent.
+    # Comparing them there would only assert that it is absent; test_cryptic_splice_sites covers
+    # the values themselves.
+    if maxent_scorers() is not None:
+        features += [
+            STRUCTURE_SENSE_CRYPTIC_DONOR_MAX,
+            STRUCTURE_SENSE_CRYPTIC_ACCEPTOR_MAX,
+            STRUCTURE_SENSE_LOCAL_DONOR_MEAN,
+            STRUCTURE_SENSE_LOCAL_ACCEPTOR_MEAN,
+            STRUCTURE_SENSE_CRYPTIC_DONOR_DELTA,
+            STRUCTURE_SENSE_CRYPTIC_ACCEPTOR_DELTA,
+        ]
 
     dataframe_regression.check(processed_data[features])
