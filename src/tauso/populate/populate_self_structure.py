@@ -25,7 +25,7 @@ def populate_self_structure_features(df, weight_set=WEIGHT_SET):
     """Add one column per self-structure quantity.
 
     Scored from the oligo alone -- its sequence and its chemistry -- so no target, locus or
-    fold is involved. Rows whose oligo is too long or carries a base outside ACGT come out NaN.
+    fold is involved.
     """
     missing = [c for c in (ASO_SEQUENCE, CHEMICAL_PATTERN) if c not in df.columns]
     if missing:

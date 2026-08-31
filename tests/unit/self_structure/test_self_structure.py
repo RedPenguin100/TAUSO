@@ -5,11 +5,9 @@ needs a loop, that chemistry changes the answer, and that the reported energies 
 structure found rather than an arbitrary one.
 """
 
-import numpy as np
 import pytest
 
 from tauso.features.self_structure.self_structure import (
-    FEATURE_NAMES,
     calculate_self_structure,
     encode,
 )
@@ -79,11 +77,10 @@ def test_per_nucleotide_divides_by_length():
     assert out["dim_dg_per_nt"] == pytest.approx(out["dim_dg"] / len(seq))
 
 
-def test_a_base_outside_acgt_is_nan_not_zero():
-    """Zero would read as a free oligo; an unstackable base is unknown, not free."""
-    out = calculate_self_structure(["ACGNACGT"], ["D" * 8])
-    for name in FEATURE_NAMES:
-        assert np.isnan(out[name]).all()
+def test_a_base_the_weights_cannot_stack_raises():
+    """There is no stacking parameter for an ambiguity code, and no value to stand in."""
+    with pytest.raises(ValueError, match="non-ACGU"):
+        calculate_self_structure(["ACGNACGT"], ["D" * 8])
 
 
 def test_length_is_not_capped():

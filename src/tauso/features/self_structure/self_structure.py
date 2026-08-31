@@ -12,7 +12,7 @@ the single best structure, not an ensemble average.
 import numpy as np
 from numba import njit
 
-from ...util import DNA_BASES
+from ...util import DNA_BASES, normalize_dna
 from .nn_tables import (
     CET,
     CLASS_MAP,
@@ -159,20 +159,18 @@ def _score_all(seqs, lengths, sugars, parameters, class_map):
 def encode(sequences, chemical_patterns):
     """Sequences and sugars as integer arrays, sized to the longest oligo given.
 
-    A `chemical_pattern` letter of M is 2'-MOE and C is cEt; anything else is deoxy. Oligos
-    carrying a letter outside ACGT are left at length zero and come back unscored, since a
-    base the weights do not cover cannot be stacked.
+    A `chemical_pattern` letter of M is 2'-MOE and C is cEt; anything else is deoxy.
+    `normalize_dna` raises on anything the weights cannot stack, since there is no
+    stacking parameter for an ambiguity code and no sensible value to return instead.
     """
     index = {base: i for i, base in enumerate(DNA_BASES)}
-    count = len(sequences)
-    width = max((len(str(s)) for s in sequences), default=0)
+    normalized = [normalize_dna(sequence) for sequence in sequences]
+    count = len(normalized)
+    width = max((len(sequence) for sequence in normalized), default=0)
     seqs = np.zeros((count, width), dtype=np.int8)
     sugars = np.zeros((count, width), dtype=np.int8)
     lengths = np.zeros(count, dtype=np.int64)
-    for r, (sequence, pattern) in enumerate(zip(sequences, chemical_patterns)):
-        sequence = str(sequence).upper()
-        if any(base not in index for base in sequence):
-            continue
+    for r, (sequence, pattern) in enumerate(zip(normalized, chemical_patterns)):
         lengths[r] = len(sequence)
         for k, base in enumerate(sequence):
             seqs[r, k] = index[base]
@@ -183,15 +181,10 @@ def encode(sequences, chemical_patterns):
 
 
 def calculate_self_structure(sequences, chemical_patterns):
-    """The nine self-structure features, one row per oligo, in `FEATURE_NAMES` order.
-
-    Unscorable oligos come back NaN rather than zero, so they are not read as a free oligo.
-    """
+    """The nine self-structure features, one row per oligo, in `FEATURE_NAMES` order."""
     seqs, lengths, sugars = encode(sequences, chemical_patterns)
     raw = _score_all(seqs, lengths, sugars, PARAMETERS, CLASS_MAP)
-    scored = lengths > 0
-    per_nt = np.where(scored, np.maximum(lengths, 1), np.nan)
-    out = {
+    return {
         "hp_dg": raw[:, 0],
         "hp_stem": raw[:, 1],
         "hp_modpairs": raw[:, 2],
@@ -199,9 +192,6 @@ def calculate_self_structure(sequences, chemical_patterns):
         "dim_helix": raw[:, 4],
         "dim_modpairs": raw[:, 5],
         "dim_minus_hp": raw[:, 3] - raw[:, 0],
-        "hp_dg_per_nt": raw[:, 0] / per_nt,
-        "dim_dg_per_nt": raw[:, 3] / per_nt,
+        "hp_dg_per_nt": raw[:, 0] / lengths,
+        "dim_dg_per_nt": raw[:, 3] / lengths,
     }
-    for name in FEATURE_NAMES:
-        out[name] = np.where(scored, out[name], np.nan)
-    return out
