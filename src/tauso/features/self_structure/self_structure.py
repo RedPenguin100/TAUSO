@@ -12,10 +12,11 @@ the single best structure, not an ensemble average.
 import numpy as np
 from numba import njit
 
+from ...util import DNA_BASES
 from .nn_tables import (
-    BASES,
     CET,
     CLASS_MAP,
+    COMPLEMENT,
     DEOXY,
     HAIRPIN_LOOP,
     INIT_AT,
@@ -38,21 +39,22 @@ FEATURE_NAMES = [
     "dim_dg_per_nt",
 ]
 
-_A, _C, _G, _T = 0, 1, 2, 3
+_A, _T = DNA_BASES.index("A"), DNA_BASES.index("T")
 
 
 @njit(cache=True)
 def _pairs(a, b):
-    return (a == _A and b == _T) or (a == _T and b == _A) or (a == _C and b == _G) or (a == _G and b == _C)
+    return COMPLEMENT[a] == b
 
 
 @njit(cache=True)
 def _complement(a):
-    return _T if a == _A else (_A if a == _T else (_G if a == _C else _C))
+    return COMPLEMENT[a]
 
 
 @njit(cache=True)
 def _initiation(a):
+    """SantaLucia helix initiation: an A-T terminus frays more easily than G-C."""
     return INIT_AT if (a == _A or a == _T) else INIT_GC
 
 
@@ -161,7 +163,7 @@ def encode(sequences, chemical_patterns):
     carrying a letter outside ACGT are left at length zero and come back unscored, since a
     base the weights do not cover cannot be stacked.
     """
-    index = {base: i for i, base in enumerate(BASES)}
+    index = {base: i for i, base in enumerate(DNA_BASES)}
     count = len(sequences)
     width = max((len(str(s)) for s in sequences), default=0)
     seqs = np.zeros((count, width), dtype=np.int8)

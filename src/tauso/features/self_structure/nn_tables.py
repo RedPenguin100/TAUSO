@@ -24,10 +24,17 @@ from importlib.resources import files
 import numpy as np
 import pandas as pd
 
-BASES = "ACGT"
-A, C, G, T = 0, 1, 2, 3
+from ...util import DNA_BASES, WATSON_CRICK_MAP
+
 DEOXY, MOE, CET = 0, 1, 2
 SUGAR_CODE = {DEOXY: "D", MOE: "M", CET: "E"}
+
+COMPLEMENT = np.array([DNA_BASES.index(WATSON_CRICK_MAP[b]) for b in DNA_BASES], dtype=np.int8)
+"""Watson-Crick partner of each base, as indices into DNA_BASES.
+
+Taken from the pairing map in `util` so the two cannot drift apart, and kept as an array
+because the kernels reading it are numba-compiled and cannot look inside a dict.
+"""
 
 INIT_GC, INIT_AT = 0.98, 1.03
 """SantaLucia helix initiation, kcal/mol."""
@@ -102,13 +109,13 @@ def build_tables():
     parameters = np.zeros((len(names), 4, 4), dtype=np.float64)
     for k, cls in enumerate(_BASE_CLASSES):
         for din in table.index:
-            parameters[k, BASES.index(din[0]), BASES.index(din[1])] = table[cls][din]
+            parameters[k, DNA_BASES.index(din[0]), DNA_BASES.index(din[1])] = table[cls][din]
     lumped = table["JUNCTION"]
     for k, (chem, pattern) in enumerate(patterns, start=len(_BASE_CLASSES)):
         sub = junctions[(junctions.chem == chem) & (junctions.pattern == pattern)].set_index("din")
         for din in table.index:
             value = sub.dG[din] if din in sub.index else lumped[din]
-            parameters[k, BASES.index(din[0]), BASES.index(din[1])] = value
+            parameters[k, DNA_BASES.index(din[0]), DNA_BASES.index(din[1])] = value
 
     index = {name: i for i, name in enumerate(names)}
     class_map = np.zeros((3, 3, 3, 3, 2), dtype=np.int64)
