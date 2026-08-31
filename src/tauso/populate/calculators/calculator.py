@@ -510,6 +510,18 @@ class Calculator:
 
         self._step("sequence one-hot", one_hot_feature_names(), compute, save_only_missing=True)
 
+    def calculate_self_structure(self):
+        """Calculates ASO hairpin and homodimer features."""
+        from tauso.populate.populate_self_structure import (
+            populate_self_structure_features,
+            self_structure_feature_names,
+        )
+
+        def compute(missing):
+            return populate_self_structure_features(self.data)
+
+        self._step("self-structure", self_structure_feature_names(), compute, save_only_missing=True)
+
     def calculate_sequence_chemistry(self):
         """Calculates sequence chemistry features."""
         from tauso.populate.populate_sequence_chemistry import FEATURE_SPECS as CHEMISTRY_SPECS
@@ -903,6 +915,7 @@ class Calculator:
             self.calculate_flank_features,
             self.calculate_duplication,
             self.calculate_sequence_one_hot,
+            self.calculate_self_structure,
             self.calculate_sequence_chemistry,
             self.calculate_toxicity,
             self.calculate_modification,
