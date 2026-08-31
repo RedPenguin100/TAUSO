@@ -37,11 +37,15 @@ DEFAULT_SETTINGS = [
 # more sites per fold but costs more to fold; around 500nt the two balance out.
 MFE_CHUNK_SIZE = 500
 
-# The two ASO ends contact different target sub-windows and are not interchangeable:
-# hybridisation nucleates at whichever terminus makes first contact, while RNase H1 then
-# cleaves in a fixed register from the ASO-3' end. Both readouts come off folds the grids
-# above already do, so the four end features cost no additional folding.
+# How many nucleotides accessibility holds unpaired for the `aso5end`/`aso3end` anchors and
+# the two `std` features in the grid below.
 END_LEN = 6
+
+# How many terminal target positions each MFE end feature averages over. The two ASO ends
+# contact different target sub-windows and are not interchangeable: hybridisation nucleates
+# at whichever terminus makes first contact, while RNase H1 then cleaves in a fixed register
+# from the ASO-3' end.
+TERMINAL_MFE_DEFAULT = 6
 MFE_END_SETTING = (30, 40, 5)
 
 FOLD_REGION_START = "_mfe_fold_start"
@@ -140,7 +144,7 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
                 global_start,
                 sense_len,
                 *MFE_END_SETTING,
-                END_LEN,
+                TERMINAL_MFE_DEFAULT,
                 fold_region=(row[FOLD_REGION_START], row[FOLD_REGION_END]),
             )
             for end, value in ends.items():

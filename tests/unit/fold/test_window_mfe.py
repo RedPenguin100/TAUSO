@@ -17,8 +17,9 @@ import ViennaRNA as RNA
 from tauso.features.fold._vienna_internal import window_mfe
 from tauso.features.fold.vienna_fold import (
     SharedFold,
+    calculate_avg_mfe,
     calculate_avg_mfe_per_setting,
-    calculate_avg_mfe_per_step,
+    calculate_end_mfe,
 )
 
 # The window sizes populate_fold actually asks for (DEFAULT_SETTINGS).
@@ -30,10 +31,18 @@ def random_rna(length, seed, alphabet="ACGU"):
     return "".join(rng.choice(alphabet) for _ in range(length))
 
 
+def own_region(mrna, start, sense_length, flank):
+    """The cut a setting would fold on its own, with nothing shared from neighbouring sites."""
+    return max(0, start - flank), min(len(mrna), start + sense_length + flank)
+
+
 def assert_matches_direct_fold(sequence, start, window_size, max_bp_span=None):
-    """window_mfe agrees exactly with folding that window on its own."""
+    """window_mfe agrees exactly with folding that window on its own.
+
+    `max_bp_span` of None means the tightest span that is still valid, the window itself.
+    """
     expected = RNA.fold(sequence[start : start + window_size])[1]
-    actual = window_mfe(sequence, start, window_size, max_bp_span)
+    actual = window_mfe(sequence, start, window_size, max_bp_span or window_size)
     assert actual == expected, (
         f"window [{start}:{start + window_size}] of a {len(sequence)}nt sequence: "
         f"got {actual!r}, folding it alone gives {expected!r} (difference {actual - expected!r})"
@@ -88,7 +97,7 @@ def test_matches_on_homopolymers_and_restricted_alphabets(alphabet):
 def test_unpairable_sequence_has_zero_mfe():
     """Nothing can pair in a poly-A window, so the MFE is the empty structure's."""
     sequence = "A" * 100
-    assert window_mfe(sequence, 0, 50) == 0.0
+    assert window_mfe(sequence, 0, 50, 50) == 0.0
 
 
 @pytest.mark.parametrize("window_size", [25, 100])
@@ -119,16 +128,16 @@ def test_every_production_window_size_out_of_one_shared_fold():
 
 @pytest.mark.parametrize("window_size,step", [(25, 4), (70, 5), (100, 7)])
 def test_shared_fold_gives_the_same_answer_as_folding_the_cut_alone(window_size, step):
-    """calculate_avg_mfe_per_step must not care whether it was handed a SharedFold."""
+    """calculate_avg_mfe must not care which enclosing sequence the fold came from."""
     enclosing = random_rna(300, seed=window_size)
     offset, cut_length = 40, 220
     cut = enclosing[offset : offset + cut_length]
 
-    standalone = calculate_avg_mfe_per_step(cut, 60, 20, window_size, [step])
-    shared = calculate_avg_mfe_per_step(
-        cut, 60, 20, window_size, [step], fold=SharedFold(enclosing, offset, max(PRODUCTION_WINDOWS))
+    standalone = calculate_avg_mfe(60, 20, window_size, step, fold=SharedFold(cut, 0, len(cut), window_size))
+    shared = calculate_avg_mfe(
+        60, 20, window_size, step, fold=SharedFold(enclosing, offset, len(cut), max(PRODUCTION_WINDOWS))
     )
-    assert shared[step] == standalone[step]
+    assert shared == standalone
 
 
 def test_per_setting_matches_running_each_setting_on_its_own():
@@ -137,14 +146,22 @@ def test_per_setting_matches_running_each_setting_on_its_own():
     mrna = random_rna(1200, seed=7)
     global_start, sense_length = 500, 20
 
-    combined = calculate_avg_mfe_per_setting(mrna, global_start, sense_length, settings)
+    widest_flank = max(flank for flank, _, _ in settings)
+    combined = calculate_avg_mfe_per_setting(
+        mrna, global_start, sense_length, settings, own_region(mrna, global_start, sense_length, widest_flank)
+    )
 
     for flank_size, window_size, step in settings:
         cut_start = max(0, global_start - flank_size)
         cut_end = min(len(mrna), global_start + sense_length + flank_size)
-        expected = calculate_avg_mfe_per_step(
-            mrna[cut_start:cut_end], global_start - cut_start, sense_length, window_size, [step]
-        )[step]
+        cut = mrna[cut_start:cut_end]
+        expected = calculate_avg_mfe(
+            global_start - cut_start,
+            sense_length,
+            window_size,
+            step,
+            fold=SharedFold(cut, 0, len(cut), window_size),
+        )
         assert combined[(flank_size, window_size, step)] == expected, (
             f"setting (flank={flank_size}, window={window_size}, step={step}) disagrees"
         )
@@ -154,5 +171,57 @@ def test_setting_is_nan_when_the_cut_is_shorter_than_its_window():
     """A window wider than the available sequence yields no value rather than raising."""
     settings = [(30, 150, 10)]
     mrna = random_rna(60, seed=3)
-    result = calculate_avg_mfe_per_setting(mrna, 10, 20, settings)
+    result = calculate_avg_mfe_per_setting(mrna, 10, 20, settings, own_region(mrna, 10, 20, 30))
     assert np.isnan(result[(30, 150, 10)])
+
+
+def test_a_wider_shared_region_does_not_change_any_setting():
+    """populate_fold folds one region spanning several neighbouring target sites.
+
+    Each setting must still be swept over its own cut. Bounding the sweep by the folded
+    region instead would let the narrow-flank settings run past their cut into a
+    neighbour's sequence, which no golden covers because they all fold the default region.
+    """
+    settings = [(30, 25, 4), (30, 40, 5), (60, 55, 5), (60, 70, 5), (120, 100, 7), (120, 150, 10)]
+    mrna = random_rna(1200, seed=11)
+    global_start, sense_length = 500, 20
+
+    widest_flank = max(flank for flank, _, _ in settings)
+    narrow = calculate_avg_mfe_per_setting(
+        mrna, global_start, sense_length, settings, own_region(mrna, global_start, sense_length, widest_flank)
+    )
+    wide = calculate_avg_mfe_per_setting(mrna, global_start, sense_length, settings, fold_region=(200, 1000))
+    assert narrow == wide
+
+
+def test_a_wider_shared_region_does_not_change_the_end_features():
+    mrna = random_rna(1200, seed=13)
+    narrow = calculate_end_mfe(mrna, 500, 20, 30, 40, 5, 6, own_region(mrna, 500, 20, 30))
+    wide = calculate_end_mfe(mrna, 500, 20, 30, 40, 5, 6, fold_region=(200, 1000))
+    assert narrow == wide
+
+
+@pytest.mark.parametrize(
+    "offset,subseq_length",
+    [(150, 120), (0, 201), (-1, 50)],
+)
+def test_a_subsequence_outside_the_fold_is_rejected(offset, subseq_length):
+    """Reading past the folded region returns garbage energies rather than raising, so the
+    sub-sequence bounds are checked where they are set instead of where they are used."""
+    sequence = random_rna(200, seed=4)
+    with pytest.raises(ValueError, match="does not fit"):
+        SharedFold(sequence, offset, subseq_length, 70)
+
+
+def test_a_subsequence_filling_the_whole_fold_is_allowed():
+    sequence = random_rna(200, seed=4)
+    assert SharedFold(sequence, 0, 200, 70).subseq_length == 200
+
+
+@pytest.mark.parametrize("window_size,max_bp_span", [(150, 40), (70, 25), (25, 24)])
+def test_a_window_wider_than_the_span_is_rejected(window_size, max_bp_span):
+    """Pairs wider than the span were never computed, so the window would come back
+    under-structured -- a plausible-looking energy several kcal/mol too high."""
+    sequence = random_rna(400, seed=11)
+    with pytest.raises(ValueError, match="max_bp_span"):
+        window_mfe(sequence, 0, window_size, max_bp_span)

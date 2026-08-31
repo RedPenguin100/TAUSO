@@ -56,15 +56,26 @@ def _exterior_stem_energies():
 _EXT_STEM = _exterior_stem_energies()
 
 
+def _matrix_data(fold_compound, length):
+    """Zero-copy view of ViennaRNA's `c` matrix, the base for the dynamic programming, read through its payload pointer.
+
+    Indexing follows ViennaRNA's column-wise triangular layout,
+    ``c[j * (j - 1) // 2 + i]`` for 1-based i < j.
+    """
+    address = ctypes.c_void_p.from_address(int(fold_compound.matrices.c.this) + _VAR_ARRAY_DATA_OFFSET).value
+    return np.ctypeslib.as_array(
+        ctypes.cast(address, ctypes.POINTER(ctypes.c_int32)),
+        shape=(length * (length + 1) // 2 + 1,),
+    )
+
+
 # Small on purpose: each entry holds a full set of ViennaRNA DP matrices, not a float.
 @lru_cache(maxsize=8)
 def _folded(sequence, max_bp_span):
     """Fill ViennaRNA's MFE matrices for `sequence` and expose its `c` matrix.
 
-    Returns (fold_compound, c, encoding), where `c` is a zero-copy view into
-    ViennaRNA-owned memory and the fold_compound is carried along to keep that memory
-    alive. Indexing follows ViennaRNA's column-wise triangular layout,
-    ``c[j * (j - 1) // 2 + i]`` for 1-based i < j; `encoding` is 1-based to match.
+    Returns (fold_compound, c, encoding). The fold_compound is carried along to keep the
+    memory `c` views alive; `encoding` is 1-based to match `c`'s indexing.
     """
     model = RNA.md()
     model.max_bp_span = max_bp_span
@@ -72,18 +83,18 @@ def _folded(sequence, max_bp_span):
     fold_compound.mfe()
 
     length = len(sequence)
-    address = ctypes.c_void_p.from_address(int(fold_compound.matrices.c.this) + _VAR_ARRAY_DATA_OFFSET).value
-    c = np.ctypeslib.as_array(
-        ctypes.cast(address, ctypes.POINTER(ctypes.c_int32)),
-        shape=(length * (length + 1) // 2 + 1,),
-    )
     encoding = np.zeros(length + 1, dtype=np.int8)
     encoding[1:] = _BASE_CODE[np.frombuffer(sequence.encode(), dtype=np.uint8)]
-    return fold_compound, c, encoding
+    return fold_compound, _matrix_data(fold_compound, length), encoding
 
 
+# TODO: add this function to ViennaRNA
+# `_PAIR_TYPE` is read as a global but `_EXT_STEM` is passed in, on purpose. `cache=True`
+# freezes a global's values into the on-disk cache, and the cache key is only this function's
+# code, so a global that later changes is silently ignored. `_PAIR_TYPE` is a fixed lookup
+# table; `_EXT_STEM` comes from `RNA.param()` and moves with the installed ViennaRNA.
 @njit(cache=True)
-def _exterior_loop_mfe(c, encoding, ext_stem, pair_type_of, start, end):
+def _exterior_loop_mfe(c, encoding, ext_stem, start, end):
     """MFE in dekacal of `encoding[start..end]` (1-based, inclusive), given a filled `c`."""
     width = end - start + 1
     best_upto = np.zeros(width + 1, dtype=np.int32)
@@ -97,7 +108,7 @@ def _exterior_loop_mfe(c, encoding, ext_stem, pair_type_of, start, end):
             paired = c[column + i]
             if paired >= INF:
                 continue
-            pair_type = pair_type_of[encoding[i], encoding[j]]
+            pair_type = _PAIR_TYPE[encoding[i], encoding[j]]
             if pair_type == 0:
                 continue
             five_prime = -1 if i == start else encoding[i - 1]
@@ -108,7 +119,7 @@ def _exterior_loop_mfe(c, encoding, ext_stem, pair_type_of, start, end):
     return best_upto[width]
 
 
-def window_mfe(sequence, start, window_size, max_bp_span=None):
+def window_mfe(sequence: str, start: int, window_size: int, max_bp_span: int):
     """MFE of ``sequence[start:start + window_size]`` in kcal/mol.
 
     `sequence` is folded once and cached, so overlapping windows share the structure
@@ -118,10 +129,10 @@ def window_mfe(sequence, start, window_size, max_bp_span=None):
     they all land on the same cache entry. The float32 round matches how ViennaRNA
     converts its integer dekacal energies on the way out.
     """
-    if max_bp_span is None:
-        max_bp_span = window_size
+    if window_size > max_bp_span:
+        raise ValueError("[ViennaFold] window_mfe: window size is bigger than max_bp_span")
     _, c, encoding = _folded(sequence, max_bp_span)
-    dekacal = _exterior_loop_mfe(c, encoding, _EXT_STEM, _PAIR_TYPE, start + 1, start + window_size)
+    dekacal = _exterior_loop_mfe(c, encoding, _EXT_STEM, start + 1, start + window_size)
     return float(np.float32(dekacal / 100.0))
 
 
