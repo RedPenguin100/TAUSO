@@ -6,11 +6,8 @@ from ...util import dna_to_rna
 
 
 def _unpaired_table(sequence, u_max, max_bp_span):
-    """`up[j][u]`, the probability the `u` nucleotides ending at 1-based `j` are unpaired.
-
-    One call fills every opening length up to `u_max`. A `max_bp_span` of None allows
-    every pair the sequence can hold. The window is the whole sequence, so the answer
-    is a property of that cut rather than of a sub-window sliding through it.
+    """
+    Return `up[j][u]` - the probability the `u` nucleotides ending at `j` are unpaired.
     """
     span = len(sequence) if max_bp_span is None else max_bp_span
     return RNA.pfl_fold_up(sequence, u_max, len(sequence), span)

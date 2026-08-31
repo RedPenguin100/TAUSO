@@ -7,6 +7,7 @@ import pandas as pd
 from ..data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE_SENSE_START
 from ..features.fold.vienna_access import calculate_avg_access_per_setting
 from ..features.fold.vienna_fold import calculate_avg_mfe_per_setting, calculate_end_mfe
+from ..genome.read_human_genome import get_gene_to_data_subset
 from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
@@ -37,39 +38,41 @@ DEFAULT_SETTINGS = [
 # more sites per fold but costs more to fold; around 500nt the two balance out.
 MFE_CHUNK_SIZE = 500
 
-# The two ASO ends contact different target sub-windows and are not interchangeable:
-# hybridisation nucleates at whichever terminus makes first contact, while RNase H1 then
-# cleaves in a fixed register from the ASO-3' end. Both readouts come off folds the grids
-# above already do, so the four end features cost no additional folding.
+# How many nucleotides accessibility holds unpaired for the `aso5end`/`aso3end` anchors and
+# the two `std` features in the grid below.
 END_LEN = 6
+
+# How many terminal target positions each MFE end feature averages over. The two ASO ends
+# contact different target sub-windows and are not interchangeable: hybridisation nucleates
+# at whichever terminus makes first contact, while RNase H1 then cleaves in a fixed register
+# from the ASO-3' end.
+TERMINAL_MFE_DEFAULT = 6
 MFE_END_SETTING = (30, 40, 5)
 
 FOLD_REGION_START = "_mfe_fold_start"
 FOLD_REGION_END = "_mfe_fold_end"
 
 
-def _lightweight_gene_to_data(genes, gene_to_data):
-    """gene -> mRNA string, so worker threads don't pickle the heavy gene_to_data."""
-    return {gene: str(gene_to_data[gene].full_mrna) for gene in genes if gene in gene_to_data}
-
-
-def _fold_work_frame(df, lightweight_gene_to_data, widest_flank, chunk_size):
-    """Just the columns the MFE apply reads, plus the region of the gene to fold per row.
+def _plan_fold_regions(df, gene_to_premrna, widest_flank, chunk_size):
+    """Decide which region of the gene each row folds, and order the rows to match.
 
     Target sites on the same gene whose flanked cuts all fit within `chunk_size` are given
-    the same region, so one fold serves all of them. Rows come back in region order, so
-    that fold is still cached when the next row asks for it.
+    the same region, so one fold serves all of them. The returned rows are sorted by that
+    region, which is what makes the sharing pay: `_folded` caches only 8 folds, so out of
+    order the fold would be evicted before the next row in its region asked for it.
+
+    Carries only the three columns the apply reads, so workers do not pickle the rest.
     """
-    work = df[[CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]].copy()
+    planned = df[[CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]].copy()
 
     sites_by_gene = defaultdict(list)
-    for label, gene, start, length in work.itertuples(name=None):
-        if gene in lightweight_gene_to_data and start != -1:
+    for label, gene, start, length in planned.itertuples(name=None):
+        if gene in gene_to_premrna and start != -1:
             sites_by_gene[gene].append((start, length, label))
 
     regions = {}
     for gene, sites in sites_by_gene.items():
-        mrna_len = len(lightweight_gene_to_data[gene])
+        mrna_len = len(gene_to_premrna[gene])
         sites.sort()
         i = 0
         while i < len(sites):
@@ -87,9 +90,38 @@ def _fold_work_frame(df, lightweight_gene_to_data, widest_flank, chunk_size):
             for label in batch:
                 regions[label] = (region_start, region_end)
 
-    work[FOLD_REGION_START] = [regions.get(label, (0, 0))[0] for label in work.index]
-    work[FOLD_REGION_END] = [regions.get(label, (0, 0))[1] for label in work.index]
-    return work.sort_values([CANONICAL_GENE_NAME, FOLD_REGION_START], kind="stable")
+    planned[FOLD_REGION_START] = [regions.get(label, (0, 0))[0] for label in planned.index]
+    planned[FOLD_REGION_END] = [regions.get(label, (0, 0))[1] for label in planned.index]
+    return planned.sort_values([CANONICAL_GENE_NAME, FOLD_REGION_START], kind="stable")
+
+
+def _populate_per_row(df, gene_to_mrna, feature_names, compute, n_jobs, verbose, planned=None):
+    """Fill `feature_names` from `compute(full_mrna, sense_start, sense_len, row)` per row.
+
+    Rows whose gene is unknown, or whose sense start is -1, come out NaN without calling
+    `compute`. `planned` is the frame the apply runs over when it differs from `df`: the MFE
+    path hands in one sorted by fold region so neighbouring sites share a fold, while the
+    accessibility path folds each row's own cut and needs no ordering.
+
+    ViennaRNA holds the GIL for the duration of a fold, so this has to be process
+    parallelism -- threads measured identical at n_jobs 1, 8 and 32.
+    """
+    frame = df if planned is None else planned
+
+    def _process_row(row):
+        out = {name: np.nan for name in feature_names}
+        gene_name = row[CANONICAL_GENE_NAME]
+        sense_start = row[STRUCTURE_SENSE_START]
+        if gene_name not in gene_to_mrna or sense_start == -1:
+            return out
+        out.update(compute(gene_to_mrna[gene_name], sense_start, row[STRUCTURE_SENSE_LENGTH], row))
+        return out
+
+    apply_fn = make_apply_fn(frame, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
+    results_df = pd.DataFrame(list(apply_fn(_process_row, axis=1)), index=frame.index)
+    for name in feature_names:
+        df[name] = results_df[name]
+    return df, feature_names
 
 
 def mfe_feature_name(flank, window_size, step):
@@ -104,56 +136,33 @@ def populate_mfe_features(df, gene_to_data, n_jobs=1, verbose=False, settings=No
     required_cols = [CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
-    lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
+    gene_to_mrna = get_gene_to_data_subset(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
 
     # All settings are handled in a single apply. Every setting's sub-sequence cut sits
     # inside the widest one, so one pass per row both shares the folding across settings
     # and pays the parallel-dispatch overhead exactly once.
-    feature_names = [mfe_feature_name(f, w, s) for f, w, s in settings]
     end_names = [f"fold_mfe_{k}" for k in ("aso5end", "aso3end", "std")] if MFE_END_SETTING in settings else []
+    feature_names = [mfe_feature_name(f, w, s) for f, w, s in settings] + end_names
 
     widest_flank = max(flank for flank, _, _ in settings)
-    work = _fold_work_frame(df, lightweight_gene_to_data, widest_flank, MFE_CHUNK_SIZE)
+    planned = _plan_fold_regions(df, gene_to_mrna, widest_flank, MFE_CHUNK_SIZE)
 
-    def _process_row(row):
-        gene_name = row[CANONICAL_GENE_NAME]
-        global_start = row[STRUCTURE_SENSE_START]
-        sense_len = row[STRUCTURE_SENSE_LENGTH]
-
-        out = {name: np.nan for name in feature_names + end_names}
-        if gene_name not in lightweight_gene_to_data or global_start == -1:
-            return out
-        full_mrna = lightweight_gene_to_data[gene_name]
-
-        per_setting = calculate_avg_mfe_per_setting(
-            full_mrna,
-            global_start,
-            sense_len,
-            settings,
-            fold_region=(row[FOLD_REGION_START], row[FOLD_REGION_END]),
-        )
-        for (flank_size, window_size, step), value in per_setting.items():
-            out[mfe_feature_name(flank_size, window_size, step)] = value
+    def compute(full_mrna, sense_start, sense_len, row):
+        fold_region = (row[FOLD_REGION_START], row[FOLD_REGION_END])
+        out = {
+            mfe_feature_name(*setting): value
+            for setting, value in calculate_avg_mfe_per_setting(
+                full_mrna, sense_start, sense_len, settings, fold_region
+            ).items()
+        }
         if end_names:
             ends = calculate_end_mfe(
-                full_mrna,
-                global_start,
-                sense_len,
-                *MFE_END_SETTING,
-                END_LEN,
-                fold_region=(row[FOLD_REGION_START], row[FOLD_REGION_END]),
+                full_mrna, sense_start, sense_len, *MFE_END_SETTING, TERMINAL_MFE_DEFAULT, fold_region
             )
-            for end, value in ends.items():
-                out[f"fold_mfe_{end}"] = value
+            out.update({f"fold_mfe_{end}": value for end, value in ends.items()})
         return out
 
-    apply_fn = make_apply_fn(work, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
-    results = apply_fn(_process_row, axis=1)
-    results_df = pd.DataFrame(list(results), index=work.index)
-    feature_names = feature_names + end_names
-    for name in feature_names:
-        df[name] = results_df[name]
-    return df, feature_names
+    return _populate_per_row(df, gene_to_mrna, feature_names, compute, n_jobs, verbose, planned=planned)
 
 
 # Accessibility grid: (flank, max_bp_span, open_len, anchor, reducer). Every setting
@@ -203,41 +212,19 @@ def access_feature_name(flank, max_bp_span, open_len, anchor, reducer):
 
 
 def populate_access_features(df, gene_to_data, n_jobs=1, verbose=False, settings=None):
-    """Add one accessibility column per (flank, max_bp_span, open_len) setting.
-
-    Rows with an unknown gene, or a sense start of -1, come out NaN.
-    """
+    """Add one accessibility column per (flank, max_bp_span, open_len) setting."""
     if settings is None:
         settings = DEFAULT_ACCESS_SETTINGS
 
     required_cols = [CANONICAL_GENE_NAME, STRUCTURE_SENSE_START, STRUCTURE_SENSE_LENGTH]
     validate_cols_in_df(df, required_cols)
 
-    lightweight_gene_to_data = _lightweight_gene_to_data(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
+    gene_to_mrna = get_gene_to_data_subset(df[CANONICAL_GENE_NAME].dropna().unique(), gene_to_data)
 
     feature_names = [access_feature_name(*setting) for setting in settings]
 
-    def _process_row(row):
-        gene_name = row[CANONICAL_GENE_NAME]
-        sense_start = row[STRUCTURE_SENSE_START]
-        sense_len = row[STRUCTURE_SENSE_LENGTH]
-
-        out = {name: np.nan for name in feature_names}
-        # If we can't identify the target RNA
-        if gene_name not in lightweight_gene_to_data or sense_start == -1:
-            return out
-        full_mrna = lightweight_gene_to_data[gene_name]
-
+    def compute(full_mrna, sense_start, sense_len, row):
         per_setting = calculate_avg_access_per_setting(full_mrna, sense_start, sense_len, settings)
-        for setting, value in per_setting.items():
-            out[access_feature_name(*setting)] = value
-        return out
+        return {access_feature_name(*setting): value for setting, value in per_setting.items()}
 
-    # ViennaRNA holds the GIL for the duration of a fold, so this has to be
-    # process parallelism -- threads measured identical at n_jobs 1, 8 and 32.
-    apply_fn = make_apply_fn(df, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
-    results = apply_fn(_process_row, axis=1)
-    results_df = pd.DataFrame(list(results), index=df.index)
-    for name in feature_names:
-        df[name] = results_df[name]
-    return df, feature_names
+    return _populate_per_row(df, gene_to_mrna, feature_names, compute, n_jobs, verbose)

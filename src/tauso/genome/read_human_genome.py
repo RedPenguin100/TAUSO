@@ -27,6 +27,18 @@ def fetch_full_mrna(genome, chrom, gene_start, gene_end, strand):
     return get_antisense_rna(seq) if strand == StrandType.NEG else seq.upper()
 
 
+def get_gene_to_data_subset(genes, gene_to_data, transform=str):
+    """A sub-dictionary of `gene_to_data`, containing only the keys in `genes`.
+
+    Values are `transform(full_mrna)` rather than the LocusInfo itself, so worker processes
+    do not pickle the heavy objects.
+    """
+    missing = sorted({gene for gene in genes if gene not in gene_to_data})
+    if missing:
+        raise KeyError(f"genes missing from gene_to_data: {missing[:10]}")
+    return {gene: transform(gene_to_data[gene].full_mrna) for gene in genes}
+
+
 logger = logging.getLogger(__name__)
 
 CANONICAL_CHROMS = {f"chr{i}" for i in range(1, 23)} | {"chrX", "chrY"}
