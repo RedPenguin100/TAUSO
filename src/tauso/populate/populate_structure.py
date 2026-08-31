@@ -2,6 +2,8 @@ import logging
 from types import SimpleNamespace
 
 import numpy as np
+from maxentpy import maxent
+from maxentpy.maxent import load_matrix3, load_matrix5
 
 from ..data.consts import *
 from ..genome.LocusInfo import GeneType, StrandType
@@ -164,6 +166,113 @@ def _find_branch_point(intron_sequence: str):
     return best_offset, float(best_score), float(strong)
 
 
+# A target sitting next to sequence the spliceosome could mistake for a splice site is in a
+# different situation from one that is not, whether or not that site is ever used. MaxEntScan
+# scores how well a window matches the donor (9 nt: 3 exonic, 6 intronic) or the acceptor (23 nt:
+# 20 intronic, 3 exonic) consensus, as log-odds: real sites land around 8 to 12, arbitrary sequence
+# around -20. Scanning every window near the target measures how much latent splice-site potential
+# surrounds it, and subtracting the host intron's own site says whether any of that potential is
+# competitive with the real site it would have to outcompete.
+_SPLICE_SCAN_WINDOW = 50
+_DONOR_LEN, _ACCEPTOR_LEN = 9, 23
+_DONOR_EXONIC, _ACCEPTOR_EXONIC = 3, 3
+
+
+def maxent_scorers():
+    """The MaxEntScan donor and acceptor scorers, over freshly loaded matrices."""
+    matrix5, matrix3 = load_matrix5(), load_matrix3()
+
+    # A window overlapping an N run has no score: MaxEntScan indexes its k-mers into tables that
+    # only hold A/C/G/T. The donor and acceptor paths reject anything else differently, one with a
+    # missing key and one with a failed int conversion, so both are caught.
+    def donor(sequence):
+        try:
+            return float(maxent.score5(sequence.upper().replace("U", "T"), matrix=matrix5))
+        except (KeyError, ValueError):
+            return np.nan
+
+    def acceptor(sequence):
+        try:
+            return float(maxent.score3(sequence.upper().replace("U", "T"), matrix=matrix3))
+        except (KeyError, ValueError):
+            return np.nan
+
+    return donor, acceptor
+
+
+def _scan_window(sequence, start, score, length, cache):
+    """Best and mean score over the k-mers starting in the window, scoring each start once.
+
+    Targets within a gene overlap heavily, so the cache is what keeps this affordable.
+    """
+    best, total, count = np.nan, 0.0, 0
+    for i in range(max(0, start), min(start + 2 * _SPLICE_SCAN_WINDOW, len(sequence) - length + 1)):
+        if i not in cache:
+            cache[i] = score(sequence[i : i + length])
+        value = cache[i]
+        if not np.isfinite(value):
+            continue
+        best = value if not np.isfinite(best) else max(best, value)
+        total += value
+        count += 1
+    return (best, total / count) if count else (np.nan, np.nan)
+
+
+def _transcript_span(locus_info, start, end):
+    """A genetic interval as [start, end) along the pre-mRNA, whichever strand the gene is on."""
+    if locus_info.strand == StrandType.NEG:
+        return locus_info.gene_end - end, locus_info.gene_end - start
+    return start - locus_info.gene_start, end - locus_info.gene_start
+
+
+def assign_cryptic_splice_sites(out, hit_rows, genetic_coordinates, locus_info, scorers):
+    """Splice-site potential in the sequence surrounding each target.
+
+    The strongest and the mean donor and acceptor score within the scan window, plus how the
+    strongest compares with the host intron's own site. That comparison needs a host intron, so it
+    is NaN for targets in an exon; the window scores are defined everywhere.
+    """
+    pre_mrna = locus_info.full_mrna
+    if not pre_mrna:
+        return
+    donor, acceptor = scorers
+    donor_cache, acceptor_cache, host_sites = {}, {}, {}
+
+    for row, coord in zip(hit_rows, genetic_coordinates):
+        position, _ = _transcript_span(locus_info, coord, coord + 1)
+        window_start = position - _SPLICE_SCAN_WINDOW
+        donor_max, donor_mean = _scan_window(pre_mrna, window_start, donor, _DONOR_LEN, donor_cache)
+        acceptor_max, acceptor_mean = _scan_window(pre_mrna, window_start, acceptor, _ACCEPTOR_LEN, acceptor_cache)
+        out.cryptic_donor_max[row] = donor_max
+        out.cryptic_acceptor_max[row] = acceptor_max
+        out.local_donor_mean[row] = donor_mean
+        out.local_acceptor_mean[row] = acceptor_mean
+
+        host = next((j for j, (s, e) in enumerate(locus_info._intron_indices) if s <= coord < e), None)
+        if host is None:
+            continue
+        if host not in host_sites:
+            lo, hi = _transcript_span(locus_info, *locus_info._intron_indices[host])
+            host_donor = (
+                donor(pre_mrna[lo - _DONOR_EXONIC : lo - _DONOR_EXONIC + _DONOR_LEN])
+                if lo >= _DONOR_EXONIC and hi >= lo + _DONOR_LEN - _DONOR_EXONIC
+                else np.nan
+            )
+            acceptor_start = hi + _ACCEPTOR_EXONIC - _ACCEPTOR_LEN
+            host_acceptor = (
+                acceptor(pre_mrna[acceptor_start : acceptor_start + _ACCEPTOR_LEN])
+                if acceptor_start >= lo and hi + _ACCEPTOR_EXONIC <= len(pre_mrna)
+                else np.nan
+            )
+            host_sites[host] = (host_donor, host_acceptor)
+        host_donor, host_acceptor = host_sites[host]
+
+        if np.isfinite(donor_max) and np.isfinite(host_donor):
+            out.cryptic_donor_delta[row] = donor_max - host_donor
+        if np.isfinite(acceptor_max) and np.isfinite(host_acceptor):
+            out.cryptic_acceptor_delta[row] = acceptor_max - host_acceptor
+
+
 def assign_branch_point_distances(out, hit_rows, genetic_coordinates, locus_info):
     """Where the target sits relative to the branch point of the intron it lies in.
 
@@ -324,6 +433,12 @@ def _init_outputs(n_rows):
         signed_dist_closest_start=nan(),
         mrna_dist_canonical_stop=nan(),
         mrna_dist_closest_stop=nan(),
+        cryptic_donor_max=nan(),
+        cryptic_acceptor_max=nan(),
+        local_donor_mean=nan(),
+        local_acceptor_mean=nan(),
+        cryptic_donor_delta=nan(),
+        cryptic_acceptor_delta=nan(),
         branch_point_offset=nan(),
         branch_point_score=nan(),
         branch_point_strong=nan(),
@@ -353,6 +468,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     if n_rows == 0:
         return all_data
 
+    scorers = maxent_scorers()
     trans_table = str.maketrans("tT", "uU")
     sense_cache = {seq: get_antisense_rna(seq).encode() for seq in all_data[ASO_SEQUENCE].unique()}
     all_data["__temp_sense"] = all_data[ASO_SEQUENCE].map(sense_cache)
@@ -386,6 +502,7 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
         assign_canonical_splice_junction_distances(out, hit_rows, genetic_coordinates, locus_info)
         assign_closest_splice_junction_distance(out, hit_rows, genetic_coordinates, locus_info)
         assign_branch_point_distances(out, hit_rows, genetic_coordinates, locus_info)
+        assign_cryptic_splice_sites(out, hit_rows, genetic_coordinates, locus_info, scorers)
         assign_host_lengths(out, hit_rows, genetic_coordinates, locus_info)
         assign_distance_to_special_codons(out, hit_rows, genetic_coordinates, locus_info)
         assign_mrna_stop_distance(out, hit_rows, genetic_coordinates, locus_info)
@@ -415,6 +532,12 @@ def get_populated_df_with_structure_features(df, genes_u, gene_to_data, use_mask
     all_data[STRUCTURE_SENSE_SIGNED_DIST_TO_CLOSEST_START] = out.signed_dist_closest_start
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CANONICAL_STOP] = out.mrna_dist_canonical_stop
     all_data[STRUCTURE_SENSE_MRNA_DIST_TO_CLOSEST_STOP] = out.mrna_dist_closest_stop
+    all_data[STRUCTURE_SENSE_CRYPTIC_DONOR_MAX] = out.cryptic_donor_max
+    all_data[STRUCTURE_SENSE_CRYPTIC_ACCEPTOR_MAX] = out.cryptic_acceptor_max
+    all_data[STRUCTURE_SENSE_LOCAL_DONOR_MEAN] = out.local_donor_mean
+    all_data[STRUCTURE_SENSE_LOCAL_ACCEPTOR_MEAN] = out.local_acceptor_mean
+    all_data[STRUCTURE_SENSE_CRYPTIC_DONOR_DELTA] = out.cryptic_donor_delta
+    all_data[STRUCTURE_SENSE_CRYPTIC_ACCEPTOR_DELTA] = out.cryptic_acceptor_delta
     all_data[STRUCTURE_SENSE_BRANCH_POINT_OFFSET] = out.branch_point_offset
     all_data[STRUCTURE_SENSE_BRANCH_POINT_SCORE] = out.branch_point_score
     all_data[STRUCTURE_SENSE_BRANCH_POINT_STRONG_COUNT] = out.branch_point_strong
