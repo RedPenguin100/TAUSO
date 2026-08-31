@@ -40,6 +40,8 @@ dependencies = [
     # `bowtie` aligner is a separate system binary (bioconda/apt), not pip-installable.
     "ViennaRNA>=2.7,<3",
     "pyBigWig>=0.3,<1",
+    # MaxEntScan splice-site scoring. Published only on GitHub, never to PyPI.
+    "maxentpy @ git+https://github.com/kepbod/maxentpy.git",
 ]
 
 [project.optional-dependencies]

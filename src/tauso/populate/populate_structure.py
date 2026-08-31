@@ -2,6 +2,8 @@ import logging
 from types import SimpleNamespace
 
 import numpy as np
+from maxentpy import maxent
+from maxentpy.maxent import load_matrix3, load_matrix5
 
 from ..data.consts import *
 from ..genome.LocusInfo import GeneType, StrandType
@@ -171,22 +173,13 @@ def _find_branch_point(intron_sequence: str):
 # around -20. Scanning every window near the target measures how much latent splice-site potential
 # surrounds it, and subtracting the host intron's own site says whether any of that potential is
 # competitive with the real site it would have to outcompete.
-#
-# maxentpy has no PyPI release, so it may be absent. These features are then NaN rather than fatal.
 _SPLICE_SCAN_WINDOW = 50
 _DONOR_LEN, _ACCEPTOR_LEN = 9, 23
 _DONOR_EXONIC, _ACCEPTOR_EXONIC = 3, 3
 
 
 def maxent_scorers():
-    """The MaxEntScan donor and acceptor scorers, or None when maxentpy is not installed."""
-    try:
-        from maxentpy import maxent
-        from maxentpy.maxent import load_matrix3, load_matrix5
-    except ImportError:
-        logger.warning("maxentpy is not installed; cryptic splice-site features will be NaN")
-        return None
-
+    """The MaxEntScan donor and acceptor scorers, over freshly loaded matrices."""
     matrix5, matrix3 = load_matrix5(), load_matrix3()
 
     # A window overlapping an N run has no score: MaxEntScan indexes its k-mers into tables that
@@ -240,7 +233,7 @@ def assign_cryptic_splice_sites(out, hit_rows, genetic_coordinates, locus_info, 
     is NaN for targets in an exon; the window scores are defined everywhere.
     """
     pre_mrna = locus_info.full_mrna
-    if scorers is None or not pre_mrna:
+    if not pre_mrna:
         return
     donor, acceptor = scorers
     donor_cache, acceptor_cache, host_sites = {}, {}, {}

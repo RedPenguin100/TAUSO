@@ -10,8 +10,6 @@ from tauso.populate.populate_structure import (
     maxent_scorers,
 )
 
-pytestmark = pytest.mark.skipif(maxent_scorers() is None, reason="maxentpy is not installed")
-
 DONOR = "CAGGTAAGT"
 GENE_LENGTH = 600
 INTRON = (200, 400)
@@ -105,25 +103,6 @@ def test_rna_and_dna_score_alike():
     rna = run(locus_with(sequence.replace("T", "U")), [300])
     assert dna.cryptic_donor_max[0] == rna.cryptic_donor_max[0]
     assert dna.cryptic_donor_delta[0] == rna.cryptic_donor_delta[0]
-
-
-def test_missing_scorers_leave_everything_nan():
-    sequence = gene_sequence()
-    result = SimpleNamespace(
-        **{
-            name: np.full(1, np.nan)
-            for name in (
-                "cryptic_donor_max",
-                "cryptic_acceptor_max",
-                "local_donor_mean",
-                "local_acceptor_mean",
-                "cryptic_donor_delta",
-                "cryptic_acceptor_delta",
-            )
-        }
-    )
-    assign_cryptic_splice_sites(result, np.array([0]), np.array([300]), locus_with(sequence), None)
-    assert np.isnan(result.cryptic_donor_max[0])
 
 
 def test_ambiguous_bases_do_not_raise():
