@@ -208,6 +208,30 @@ jobs:
       - name: Build cell context (default cohort + expression + CAI weights + tGCN)
         run: tauso build-cell-context
 
+      # Only the per-cell-line files matter to the tests, so they are what gets cached.
+      # Building them pulls a 4.3 GB CSV and writes a 1.8 GB Parquet from it, so both of
+      # those steps are skipped whenever this cache hits. Must follow build-cell-context,
+      # which writes the cohort manifest they are built against.
+      - name: Cache cohort transcript expression
+        id: cache-transcript-expression
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/processed_transcript_expression
+          key: transcript-expression-25Q3-v1
+
+      - name: Setup DepMap transcripts
+        if: steps.cache-transcript-expression.outputs.cache-hit != 'true'
+        run: tauso setup-depmap-transcripts
+
+      # The command reports missing inputs on stdout and still exits 0, so assert the output
+      # exists: without it a silent failure here just puts the transcript tests back to
+      # skipping, which is what this whole cache exists to stop.
+      - name: Build cohort transcript expression
+        if: steps.cache-transcript-expression.outputs.cache-hit != 'true'
+        run: |
+          tauso build-cohort-transcript-expression
+          test -d "$TAUSO_DATA_DIR/processed_transcript_expression"
+
       - name: Cache rRNA reference
         uses: actions/cache@v4
         with:
