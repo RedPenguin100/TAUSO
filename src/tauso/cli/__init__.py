@@ -1,4 +1,5 @@
 import gzip
+import io
 import json
 import logging
 import os
@@ -61,6 +62,53 @@ def main():
     )
 
 
+def _load_cohort_rows(csv_path, target_ids):
+    """The cohort's rows from a wide expression CSV, without parsing the rest of it.
+
+    The transcript matrix is ~237,000 columns wide, so parsing a row is expensive and parsing
+    all 1,754 of them to keep 31 is most of the cost. `ModelID` sits in the third field, and
+    splitting with a maxsplit stops there, so each 2.5 MB line is identified from its first
+    ~50 bytes and only the wanted lines are handed to the parser.
+    """
+    with open(csv_path) as handle:
+        header = handle.readline()
+        model_index = header.rstrip("\n").split(",").index("ModelID")
+        wanted = [line for line in handle if line.split(",", model_index + 1)[model_index] in target_ids]
+
+    if not wanted:
+        return pd.DataFrame(columns=header.rstrip("\n").split(","))
+    return pd.read_csv(io.StringIO(header + "".join(wanted)))
+
+
+def _convert_wide_csv_to_parquet(csv_path, parquet_path, rows_per_chunk=200):
+    """Convert a CSV to Parquet a few rows at a time, so memory does not track its width.
+
+    The transcript matrix is ~237,000 columns wide. Reading it whole peaks at 26.6 GB, which
+    no standard CI runner has; in chunks it stays around 10 GB. The dtypes are pinned from the
+    header because a column that parses as integer in one chunk and float in the next yields a
+    different Arrow schema, which the writer rejects part-way through.
+    """
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    # Taken from the raw header line rather than from pandas, which renames the leading
+    # unnamed column to "Unnamed: 0" and would change the schema.
+    with open(csv_path) as handle:
+        names = handle.readline().rstrip("\n").split(",")
+    dtypes = {name: "float64" for name in names if name.startswith("ENST")}
+
+    writer = None
+    try:
+        for chunk in pd.read_csv(csv_path, header=0, names=names, chunksize=rows_per_chunk, dtype=dtypes):
+            table = pa.Table.from_pandas(chunk, preserve_index=False)
+            if writer is None:
+                writer = pq.ParquetWriter(parquet_path, table.schema)
+            writer.write_table(table)
+    finally:
+        if writer is not None:
+            writer.close()
+
+
 @main.command()
 @click.option("--force", is_flag=True, help="Reconvert even if the Parquet is already present.")
 def setup_depmap_transcripts(force):
@@ -86,7 +134,7 @@ def setup_depmap_transcripts(force):
     _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, force)
 
     click.echo(f"  Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet...")
-    pd.read_csv(csv_path).to_parquet(parquet_path, index=False)
+    _convert_wide_csv_to_parquet(csv_path, parquet_path)
     echo_ok("Converted to Parquet.")
     Path(sidecar).write_text(sha256_file(parquet_path))
     os.remove(csv_path)
@@ -408,15 +456,21 @@ def build_cohort_transcript_expression(force):
             echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
             return
 
-    if not os.path.exists(exp_path):
-        echo_err(f"Transcript expression parquet not found: {exp_path}")
-        click.echo("Run 'tauso setup-depmap-transcripts' to convert it.")
-        return
+    # The Parquet is read only here, and only 31 of its 1,754 rows are used, so the CSV is
+    # streamed directly when it is available. Converting to Parquet first costs tens of GB and
+    # a quarter of an hour to build a table nothing else consumes.
+    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
+    if not os.path.exists(csv_path) and not os.path.exists(exp_path):
+        _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
 
     click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
-    click.echo(f"Loading {os.path.basename(exp_path)}...")
-    exp_df = pd.read_parquet(exp_path)
+    if os.path.exists(csv_path):
+        click.echo(f"Streaming {TRANSCRIPT_EXPRESSION_CSV}...")
+        exp_df = _load_cohort_rows(csv_path, target_ids)
+    else:
+        click.echo(f"Loading {os.path.basename(exp_path)}...")
+        exp_df = pd.read_parquet(exp_path)
 
     model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
     # A model can carry several sequencing profiles; DepMap flags the one to use with the
