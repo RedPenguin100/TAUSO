@@ -180,7 +180,7 @@ def test_count_offtarget_matches_bulk_malat1_regression():
     designed 2'-MOE ASOs. Locks in the current counts ahead of any de-duplication of the bulk helpers."""
     sentinel = Path(get_paths("GRCh38")["fasta"]).parent / "GRCh38_bowtie_index" / "SUCCESS"
     if not sentinel.exists():
-        pytest.skip("GRCh38 Bowtie index not built (run: tauso setup-bowtie --genome GRCh38)")
+        pytest.fail("GRCh38 Bowtie index not built (run: tauso setup-bowtie --genome GRCh38)")
 
     fixture = pd.read_csv(_MALAT1_OFFTARGET_FIXTURE)
     seqs = fixture["aso_sequence_5_to_3"].tolist()

@@ -48,7 +48,7 @@ def transcript_transcriptomes(base_data):
     """Transcript-level expression for the transcripts the special-transcript features name."""
     expression_dir = os.path.join(get_data_dir(), "processed_transcript_expression")
     if not os.path.isdir(expression_dir):
-        pytest.skip("processed_transcript_expression not built; run build-cohort-transcript-expression")
+        pytest.fail("processed_transcript_expression not built; run build-cohort-transcript-expression")
     depmap_ids = list(set(base_data[CELL_LINE_DEPMAP]))
     wanted = {name for names in _SPECIAL_TRANSCRIPTS.values() for name in names}
     frames = {}
@@ -62,7 +62,7 @@ def transcript_transcriptomes(base_data):
             if not kept.empty:
                 frames[ach_id] = kept
     if not frames:
-        pytest.skip("no transcript expression for the cohort's cell lines")
+        pytest.fail("no transcript expression for the cohort's cell lines")
     return frames
 
 
@@ -78,7 +78,7 @@ def target_gene_transcripts(base_data, target_genes):
     """Transcript-level expression for the cohort's target genes."""
     expression_dir = os.path.join(get_data_dir(), "processed_transcript_expression")
     if not os.path.isdir(expression_dir):
-        pytest.skip("processed_transcript_expression not built; run build-cohort-transcript-expression")
+        pytest.fail("processed_transcript_expression not built; run build-cohort-transcript-expression")
     depmap_ids = list(set(base_data[CELL_LINE_DEPMAP]))
     wanted = set(target_genes)
     frames = {}
@@ -92,7 +92,7 @@ def target_gene_transcripts(base_data, target_genes):
             if not kept.empty:
                 frames[ach_id] = kept
     if not frames:
-        pytest.skip("no transcript expression for the cohort's target genes")
+        pytest.fail("no transcript expression for the cohort's target genes")
     return frames
 
 

@@ -39,7 +39,6 @@ from ._download import (
     DEPMAP_FILES_SHA1,
     RRNA_SHA1,
     TRANSCRIPT_EXPRESSION_CSV,
-    TRANSCRIPT_EXPRESSION_PARQUET,
     TRANSCRIPT_EXPRESSION_SHA1,
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
@@ -59,38 +58,6 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-
-
-@main.command()
-@click.option("--force", is_flag=True, help="Reconvert even if the Parquet is already present.")
-def setup_depmap_transcripts(force):
-    """
-    Converts the DepMap transcript expression CSV to Parquet, alongside setup-depmap.
-
-    Separate from setup-depmap because the CSV is 4.5 GB and only isoform-level features need
-    it. It comes from the same pinned Zenodo record, with the same SHA1 verification, and is
-    converted then removed exactly as setup-depmap treats the gene-level file.
-    """
-    data_dir = get_data_dir()
-    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    parquet_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
-    sidecar = parquet_path + ".sha256"
-
-    if os.path.exists(parquet_path) and not force:
-        if os.path.exists(sidecar) and sha256_file(parquet_path) != Path(sidecar).read_text().strip():
-            echo_warn(f"{TRANSCRIPT_EXPRESSION_PARQUET} hash mismatch - reconverting.")
-        else:
-            echo_ok(f"{TRANSCRIPT_EXPRESSION_PARQUET} exists.")
-            return
-
-    _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, force)
-
-    click.echo(f"  Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet...")
-    pd.read_csv(csv_path).to_parquet(parquet_path, index=False)
-    echo_ok("Converted to Parquet.")
-    Path(sidecar).write_text(sha256_file(parquet_path))
-    os.remove(csv_path)
-    echo_ok(f"Removed {TRANSCRIPT_EXPRESSION_CSV} (Parquet supersedes it).")
 
 
 @main.command()
@@ -127,16 +94,12 @@ def setup_depmap(force):
             os.remove(omics_parquet_sha)
             parquet_already_built = False
 
-    transcript_parquet = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
-
     for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
         if filename == omics_csv_name and parquet_already_built:
             echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
             continue
-        # 4.5 GB, and only isoform-level features read it. setup-depmap-transcripts converts
-        # it; this loop only has to avoid re-fetching a copy that is already converted.
-        if filename == TRANSCRIPT_EXPRESSION_CSV and os.path.exists(transcript_parquet) and not force:
-            echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
+        # 4.5 GB; build-cohort-transcript-expression fetches it itself when needed.
+        if filename == TRANSCRIPT_EXPRESSION_CSV:
             continue
         _ensure_depmap_file(filename, expected_sha1, data_dir, force)
 
@@ -374,7 +337,8 @@ def add_cell(cell_names, reset):
 
 
 @main.command()
-def build_cohort_transcript_expression():
+@click.option("--force", is_flag=True, help="Rebuild even if every cohort cell line already has a file.")
+def build_cohort_transcript_expression(force):
     """
     Generates transcript-level expression files for all cell lines in the cohort.
 
@@ -383,25 +347,39 @@ def build_cohort_transcript_expression():
     """
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
-    exp_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
+    output_dir = os.path.join(data_dir, "processed_transcript_expression")
 
     if not os.path.exists(manifest_path):
         echo_err("No cohort found. Use 'tauso add-cell' first.")
-        return
-
-    if not os.path.exists(exp_path):
-        echo_err(f"Transcript expression parquet not found: {exp_path}")
-        click.echo("Run 'tauso setup-depmap-transcripts' to convert it.")
         return
 
     with open(manifest_path, "r") as f:
         cohort = json.load(f)
 
     target_ids = set(cohort.values())
-    click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
-    click.echo(f"Loading {os.path.basename(exp_path)}...")
-    exp_df = pd.read_parquet(exp_path)
+    # Some cohort cell lines have no DepMap transcript data and never get a file, so the
+    # sentinel records the cohort built rather than checking for one file per id.
+    sentinel = os.path.join(output_dir, ".cohort.json")
+    if not force and os.path.exists(sentinel):
+        with open(sentinel, "r") as f:
+            built_for = json.load(f)
+        if set(built_for) == target_ids:
+            echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
+            return
+
+    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
+    if not os.path.exists(csv_path):
+        _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
+
+    # 237,000 columns wide, and per-column overhead dwarfs the data: reading it whole peaks at
+    # 26.6 GB in pandas, 20 in pyarrow, 28 in polars. Finding the wanted rows first and skipping
+    # the rest before any fields are converted keeps it under 2 GB.
+    click.echo(f"Reading {TRANSCRIPT_EXPRESSION_CSV} for {len(target_ids)} cohort cell lines...")
+    model_ids = pd.read_csv(csv_path, usecols=["ModelID"])["ModelID"]
+    wanted_rows = set(model_ids.index[model_ids.isin(target_ids)])
+    # skiprows counts the header as row 0.
+    exp_df = pd.read_csv(csv_path, skiprows=lambda i: i > 0 and (i - 1) not in wanted_rows)
 
     model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
     # A model can carry several sequencing profiles; DepMap flags the one to use with the
@@ -431,7 +409,6 @@ def build_cohort_transcript_expression():
         f"{len(transcript_to_name):,} with a transcript name."
     )
 
-    output_dir = os.path.join(data_dir, "processed_transcript_expression")
     os.makedirs(output_dir, exist_ok=True)
 
     found_count = 0
@@ -454,6 +431,8 @@ def build_cohort_transcript_expression():
         out_df.to_csv(os.path.join(output_dir, f"{curr_id}_transcript_expression.csv"), index=False)
         found_count += 1
 
+    with open(sentinel, "w") as f:
+        json.dump(sorted(target_ids), f)
     click.echo(f"✓ Processed {found_count} cell lines. Data in {output_dir}")
 
 

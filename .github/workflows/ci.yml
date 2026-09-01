@@ -208,6 +208,22 @@ jobs:
       - name: Build cell context (default cohort + expression + CAI weights + tGCN)
         run: tauso build-cell-context
 
+      - name: Cache cohort transcript expression
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/processed_transcript_expression
+          key: transcript-expression-25Q3-v1
+
+      # Downloads the 4.3 GB CSV on a cache miss and scans it for the cohort's 31 rows, which
+      # takes about a minute. Must follow build-cell-context, which writes the cohort manifest
+      # it is built against. The command reports missing inputs on stdout and still exits 0,
+      # so assert the output exists: a silent failure here just puts the transcript tests back
+      # to skipping, which is what this exists to stop.
+      - name: Build cohort transcript expression
+        run: |
+          tauso build-cohort-transcript-expression
+          test -d "$TAUSO_DATA_DIR/processed_transcript_expression"
+
       - name: Cache rRNA reference
         uses: actions/cache@v4
         with:

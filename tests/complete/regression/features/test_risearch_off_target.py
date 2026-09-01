@@ -1,10 +1,10 @@
 import pytest
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
-
 from tests.complete.conftest import get_n_jobs
-from tauso.populate.populate_off_target import populate_off_target_specific
-from tauso.genome.transcriptome import load_transcriptomes
+
 from tauso.data.consts import CELL_LINE_DEPMAP
+from tauso.genome.transcriptome import load_transcriptomes
+from tauso.populate.populate_off_target import populate_off_target_specific
 
 
 @pytest.fixture(scope="module")

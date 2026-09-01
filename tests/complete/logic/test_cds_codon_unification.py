@@ -6,8 +6,8 @@ The structure flags (canonical-transcript LocusInfo intervals) and the codon win
 must agree on which ASOs sit in the coding region; these tests pin that agreement.
 """
 
-import pytest
 import pandas as pd
+import pytest
 
 from tauso.data.consts import STRUCT_SENSE_IN_CDS
 

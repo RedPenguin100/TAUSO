@@ -53,13 +53,13 @@ def test_off_target_single_regression(mini_structure_data, gene_to_data_full, da
 
 @pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)
 def test_off_target_single_rrna_regression(mini_structure_data, dataframe_regression):
-    """rRNA off-target features + aggregated total across the shipped cutoffs. Skips if FASTA absent."""
+    """rRNA off-target features + aggregated total across the shipped cutoffs."""
     from tauso.features.hybridization.off_target.rrna_targets import RRNA_ACCESSIONS, get_rrna_loci
 
     try:
         rrna_loci = get_rrna_loci()
     except FileNotFoundError:
-        pytest.skip("rRNA reference FASTA not present; run rrna_targets fetch to enable.")
+        pytest.fail("rRNA reference FASTA not present; run rrna_targets fetch to enable.")
 
     data = mini_structure_data.copy()
     rrna_species = list(RRNA_ACCESSIONS)
