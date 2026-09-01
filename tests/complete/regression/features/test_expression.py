@@ -17,17 +17,6 @@ from tauso.populate.populate_context import (
 from tauso.timer import Timer
 
 
-def _missing_data(reason):
-    """Skip locally, fail in CI.
-
-    These fixtures are the only thing covering the transcript features, so a CI run that
-    silently skips them is indistinguishable from one that passes. GitHub Actions sets CI.
-    """
-    if os.environ.get("CI"):
-        pytest.fail(f"{reason} (CI must build this; see the transcript expression step)")
-    pytest.skip(reason)
-
-
 @pytest.fixture(scope="session")
 def expression_transcriptomes(base_data, target_genes):
     """Expression data for the target genes plus whatever genes _SPECIAL_GENES names."""
@@ -59,7 +48,7 @@ def transcript_transcriptomes(base_data):
     """Transcript-level expression for the transcripts the special-transcript features name."""
     expression_dir = os.path.join(get_data_dir(), "processed_transcript_expression")
     if not os.path.isdir(expression_dir):
-        _missing_data("processed_transcript_expression not built; run build-cohort-transcript-expression")
+        pytest.fail("processed_transcript_expression not built; run build-cohort-transcript-expression")
     depmap_ids = list(set(base_data[CELL_LINE_DEPMAP]))
     wanted = {name for names in _SPECIAL_TRANSCRIPTS.values() for name in names}
     frames = {}
@@ -73,7 +62,7 @@ def transcript_transcriptomes(base_data):
             if not kept.empty:
                 frames[ach_id] = kept
     if not frames:
-        _missing_data("no transcript expression for the cohort's cell lines")
+        pytest.fail("no transcript expression for the cohort's cell lines")
     return frames
 
 
@@ -89,7 +78,7 @@ def target_gene_transcripts(base_data, target_genes):
     """Transcript-level expression for the cohort's target genes."""
     expression_dir = os.path.join(get_data_dir(), "processed_transcript_expression")
     if not os.path.isdir(expression_dir):
-        _missing_data("processed_transcript_expression not built; run build-cohort-transcript-expression")
+        pytest.fail("processed_transcript_expression not built; run build-cohort-transcript-expression")
     depmap_ids = list(set(base_data[CELL_LINE_DEPMAP]))
     wanted = set(target_genes)
     frames = {}
@@ -103,7 +92,7 @@ def target_gene_transcripts(base_data, target_genes):
             if not kept.empty:
                 frames[ach_id] = kept
     if not frames:
-        _missing_data("no transcript expression for the cohort's target genes")
+        pytest.fail("no transcript expression for the cohort's target genes")
     return frames
 
 
