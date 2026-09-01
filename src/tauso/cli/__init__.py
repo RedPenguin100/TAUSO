@@ -1,5 +1,4 @@
 import gzip
-import io
 import json
 import logging
 import os
@@ -40,7 +39,6 @@ from ._download import (
     DEPMAP_FILES_SHA1,
     RRNA_SHA1,
     TRANSCRIPT_EXPRESSION_CSV,
-    TRANSCRIPT_EXPRESSION_PARQUET,
     TRANSCRIPT_EXPRESSION_SHA1,
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
@@ -60,85 +58,6 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-
-
-def _load_cohort_rows(csv_path, target_ids):
-    """The cohort's rows from a wide expression CSV, without parsing the rest of it.
-
-    The transcript matrix is ~237,000 columns wide, so parsing a row is expensive and parsing
-    all 1,754 of them to keep 31 is most of the cost. `ModelID` sits in the third field, and
-    splitting with a maxsplit stops there, so each 2.5 MB line is identified from its first
-    ~50 bytes and only the wanted lines are handed to the parser.
-    """
-    with open(csv_path) as handle:
-        header = handle.readline()
-        model_index = header.rstrip("\n").split(",").index("ModelID")
-        wanted = [line for line in handle if line.split(",", model_index + 1)[model_index] in target_ids]
-
-    if not wanted:
-        return pd.DataFrame(columns=header.rstrip("\n").split(","))
-    return pd.read_csv(io.StringIO(header + "".join(wanted)))
-
-
-def _convert_wide_csv_to_parquet(csv_path, parquet_path, rows_per_chunk=200):
-    """Convert a CSV to Parquet a few rows at a time, so memory does not track its width.
-
-    The transcript matrix is ~237,000 columns wide. Reading it whole peaks at 26.6 GB, which
-    no standard CI runner has; in chunks it stays around 10 GB. The dtypes are pinned from the
-    header because a column that parses as integer in one chunk and float in the next yields a
-    different Arrow schema, which the writer rejects part-way through.
-    """
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-
-    # Taken from the raw header line rather than from pandas, which renames the leading
-    # unnamed column to "Unnamed: 0" and would change the schema.
-    with open(csv_path) as handle:
-        names = handle.readline().rstrip("\n").split(",")
-    dtypes = {name: "float64" for name in names if name.startswith("ENST")}
-
-    writer = None
-    try:
-        for chunk in pd.read_csv(csv_path, header=0, names=names, chunksize=rows_per_chunk, dtype=dtypes):
-            table = pa.Table.from_pandas(chunk, preserve_index=False)
-            if writer is None:
-                writer = pq.ParquetWriter(parquet_path, table.schema)
-            writer.write_table(table)
-    finally:
-        if writer is not None:
-            writer.close()
-
-
-@main.command()
-@click.option("--force", is_flag=True, help="Reconvert even if the Parquet is already present.")
-def setup_depmap_transcripts(force):
-    """
-    Converts the DepMap transcript expression CSV to Parquet, alongside setup-depmap.
-
-    Separate from setup-depmap because the CSV is 4.5 GB and only isoform-level features need
-    it. It comes from the same pinned Zenodo record, with the same SHA1 verification, and is
-    converted then removed exactly as setup-depmap treats the gene-level file.
-    """
-    data_dir = get_data_dir()
-    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    parquet_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
-    sidecar = parquet_path + ".sha256"
-
-    if os.path.exists(parquet_path) and not force:
-        if os.path.exists(sidecar) and sha256_file(parquet_path) != Path(sidecar).read_text().strip():
-            echo_warn(f"{TRANSCRIPT_EXPRESSION_PARQUET} hash mismatch - reconverting.")
-        else:
-            echo_ok(f"{TRANSCRIPT_EXPRESSION_PARQUET} exists.")
-            return
-
-    _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, force)
-
-    click.echo(f"  Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet...")
-    _convert_wide_csv_to_parquet(csv_path, parquet_path)
-    echo_ok("Converted to Parquet.")
-    Path(sidecar).write_text(sha256_file(parquet_path))
-    os.remove(csv_path)
-    echo_ok(f"Removed {TRANSCRIPT_EXPRESSION_CSV} (Parquet supersedes it).")
 
 
 @main.command()
@@ -175,16 +94,13 @@ def setup_depmap(force):
             os.remove(omics_parquet_sha)
             parquet_already_built = False
 
-    transcript_parquet = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
-
     for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
         if filename == omics_csv_name and parquet_already_built:
             echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
             continue
-        # 4.5 GB, and only isoform-level features read it. setup-depmap-transcripts converts
-        # it; this loop only has to avoid re-fetching a copy that is already converted.
-        if filename == TRANSCRIPT_EXPRESSION_CSV and os.path.exists(transcript_parquet) and not force:
-            echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
+        # 4.5 GB, and only build-cohort-transcript-expression reads it. It fetches the file
+        # itself when it needs it, so this loop leaves it alone.
+        if filename == TRANSCRIPT_EXPRESSION_CSV:
             continue
         _ensure_depmap_file(filename, expected_sha1, data_dir, force)
 
@@ -432,7 +348,6 @@ def build_cohort_transcript_expression(force):
     """
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
-    exp_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
     output_dir = os.path.join(data_dir, "processed_transcript_expression")
 
     if not os.path.exists(manifest_path):
@@ -456,21 +371,21 @@ def build_cohort_transcript_expression(force):
             echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
             return
 
-    # The Parquet is read only here, and only 31 of its 1,754 rows are used, so the CSV is
-    # streamed directly when it is available. Converting to Parquet first costs tens of GB and
-    # a quarter of an hour to build a table nothing else consumes.
     csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    if not os.path.exists(csv_path) and not os.path.exists(exp_path):
+    if not os.path.exists(csv_path):
         _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
 
-    click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
-
-    if os.path.exists(csv_path):
-        click.echo(f"Streaming {TRANSCRIPT_EXPRESSION_CSV}...")
-        exp_df = _load_cohort_rows(csv_path, target_ids)
-    else:
-        click.echo(f"Loading {os.path.basename(exp_path)}...")
-        exp_df = pd.read_parquet(exp_path)
+    # Read the cohort's rows without materialising the table. It is ~237,000 columns wide, and
+    # per-column overhead, not the data, dominates: the 1,754 rows hold 3.1 GB of numbers but
+    # reading them whole peaks at 26.6 GB in pandas, 20 GB in pyarrow and 28 GB in polars, so
+    # every column-oriented reader dies on a 16 GB CI runner. Only 31 rows are wanted, so the
+    # first pass converts one column to find them and the second skips the rest before pandas
+    # converts any fields. That fits in 1.4 GB.
+    click.echo(f"Reading {TRANSCRIPT_EXPRESSION_CSV} for {len(target_ids)} cohort cell lines...")
+    model_ids = pd.read_csv(csv_path, usecols=["ModelID"])["ModelID"]
+    wanted_rows = set(model_ids.index[model_ids.isin(target_ids)])
+    # skiprows counts the header as row 0, so data row n arrives as n + 1.
+    exp_df = pd.read_csv(csv_path, skiprows=lambda i: i > 0 and (i - 1) not in wanted_rows)
 
     model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
     # A model can carry several sequencing profiles; DepMap flags the one to use with the
