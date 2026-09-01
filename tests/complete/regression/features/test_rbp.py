@@ -1,11 +1,11 @@
 import pandas as pd
 import pytest
+from tests.complete.conftest import get_n_jobs
 
 from tauso.populate.populate_rbp import (
     populate_complexity_features,
     populate_rbp_affinity_features,
 )
-from tests.complete.conftest import get_n_jobs
 
 
 @pytest.fixture

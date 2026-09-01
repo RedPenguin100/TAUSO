@@ -1,7 +1,7 @@
 import pytest
+from tests.complete.conftest import get_n_jobs
 
 from tauso.populate.populate_codon_usage import populate_cai, populate_enc, populate_tai
-from tests.complete.conftest import get_n_jobs
 
 # CDS_WINDOWS must match what was used in conftest.py
 CDS_WINDOWS = [20, 30, 40, 50, 60, 70]

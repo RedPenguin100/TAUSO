@@ -2,7 +2,6 @@ import pytest
 
 from tauso.util import get_antisense, get_antisense_rna
 
-
 # --- get_antisense (DNA-alphabet output) ---
 
 

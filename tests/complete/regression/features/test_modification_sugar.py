@@ -1,8 +1,8 @@
 import pytest
-
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
-from tauso.populate.populate_modification import populate_modifications
 from tests.complete.conftest import get_n_jobs
+
+from tauso.populate.populate_modification import populate_modifications
 
 
 @pytest.fixture(scope="session")

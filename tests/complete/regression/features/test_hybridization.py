@@ -1,7 +1,7 @@
 import pytest
+from tests.complete.conftest import get_n_jobs
 
 from tauso.populate.populate_hybridization import populate_hybridization
-from tests.complete.conftest import get_n_jobs
 
 
 @pytest.fixture(scope="session")
