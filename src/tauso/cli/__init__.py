@@ -98,8 +98,7 @@ def setup_depmap(force):
         if filename == omics_csv_name and parquet_already_built:
             echo_ok(f"{filename} → Parquet already present; skipping CSV download.")
             continue
-        # 4.5 GB, and only build-cohort-transcript-expression reads it. It fetches the file
-        # itself when it needs it, so this loop leaves it alone.
+        # 4.5 GB; build-cohort-transcript-expression fetches it itself when needed.
         if filename == TRANSCRIPT_EXPRESSION_CSV:
             continue
         _ensure_depmap_file(filename, expected_sha1, data_dir, force)
@@ -359,10 +358,8 @@ def build_cohort_transcript_expression(force):
 
     target_ids = set(cohort.values())
 
-    # Nothing to do when the last successful build covered this same cohort. A cohort cell
-    # line DepMap has no transcript data for never gets a file, so "every id has a file" is
-    # never true; the sentinel records the cohort that was built instead. Checked before the
-    # parquet, which is the expensive input and is not needed when the output already exists.
+    # Some cohort cell lines have no DepMap transcript data and never get a file, so the
+    # sentinel records the cohort built rather than checking for one file per id.
     sentinel = os.path.join(output_dir, ".cohort.json")
     if not force and os.path.exists(sentinel):
         with open(sentinel, "r") as f:
@@ -375,16 +372,13 @@ def build_cohort_transcript_expression(force):
     if not os.path.exists(csv_path):
         _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
 
-    # Read the cohort's rows without materialising the table. It is ~237,000 columns wide, and
-    # per-column overhead, not the data, dominates: the 1,754 rows hold 3.1 GB of numbers but
-    # reading them whole peaks at 26.6 GB in pandas, 20 GB in pyarrow and 28 GB in polars, so
-    # every column-oriented reader dies on a 16 GB CI runner. Only 31 rows are wanted, so the
-    # first pass converts one column to find them and the second skips the rest before pandas
-    # converts any fields. That fits in 1.4 GB.
+    # 237,000 columns wide, and per-column overhead dwarfs the data: reading it whole peaks at
+    # 26.6 GB in pandas, 20 in pyarrow, 28 in polars. Finding the wanted rows first and skipping
+    # the rest before any fields are converted keeps it under 2 GB.
     click.echo(f"Reading {TRANSCRIPT_EXPRESSION_CSV} for {len(target_ids)} cohort cell lines...")
     model_ids = pd.read_csv(csv_path, usecols=["ModelID"])["ModelID"]
     wanted_rows = set(model_ids.index[model_ids.isin(target_ids)])
-    # skiprows counts the header as row 0, so data row n arrives as n + 1.
+    # skiprows counts the header as row 0.
     exp_df = pd.read_csv(csv_path, skiprows=lambda i: i > 0 and (i - 1) not in wanted_rows)
 
     model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
