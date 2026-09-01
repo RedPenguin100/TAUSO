@@ -14,11 +14,31 @@ logger = logging.getLogger(__name__)
 # TREX1 is the 3'-exonuclease that degrades them. A gene total is the measure here because
 # these features stand for how much of the protein a cell line carries, which does not turn on
 # which isoform the message sits in.
+# The PS-ASO protein interactome from Crooke et al. (PMC7261153), which sorts the proteins a
+# PS-ASO meets into three jobs: getting it out of the endosome, holding it in the nucleus, and
+# competing with RNase H1 for the bound oligo. All thirteen are expressed across the cohort
+# (median 7 to 1987 TPM), unlike STAB1 and STAB2, which sit at 0.1.
 _SPECIAL_GENES: Dict[str, str] = {
     "expr_egfr": "EGFR",
     "expr_stab1": "STAB1",
     "expr_stab2": "STAB2",
     "expr_trex1": "TREX1",
+    # uptake and endosomal trafficking
+    "expr_anxa2": "ANXA2",
+    "expr_stx5": "STX5",
+    "expr_m6pr": "M6PR",
+    "expr_ap2m1": "AP2M1",
+    "expr_eea1": "EEA1",
+    "expr_rab5c": "RAB5C",
+    "expr_rab7a": "RAB7A",
+    # nuclear retention
+    "expr_ssb": "SSB",
+    "expr_npm1": "NPM1",
+    # competing with RNase H1 for the bound oligo
+    "expr_xrcc6": "XRCC6",
+    "expr_xrcc5": "XRCC5",
+    "expr_nono": "NONO",
+    "expr_sfpq": "SFPQ",
 }
 
 TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["expr_target"]
