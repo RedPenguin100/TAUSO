@@ -1,3 +1,5 @@
+import numpy as np
+
 DNA_DNA_WEIGHTS = {
     # Source: SantaLucia & Hicks, Annu. Rev. Biophys. Biomol. Struct. 2004
     # Table 1: Unified Nearest-Neighbor Parameters for DNA/DNA
@@ -21,3 +23,46 @@ DNA_DNA_WEIGHTS = {
     "GG/CC": {"dH": -8.0, "dS": -19.9},
     "CC/GG": {"dH": -8.0, "dS": -19.9},  # Symmetry
 }
+
+INIT_GC, INIT_AT = 0.98, 1.03
+"""SantaLucia helix initiation, kcal/mol."""
+
+DNA_HAIRPIN_LOOP_PENALTY_RAW = (
+    # Source: SantaLucia & Hicks, Annu. Rev. Biophys. Biomol. Struct. 2004
+    # Hairpin loop initiation dG37, kcal/mol, indexed by the number of unpaired bases.
+    # Transcribed from memory and not yet checked against the paper.
+    # Index 0-2 pad the table so it can be indexed by loop length; a loop needs three bases.
+    0.0,
+    0.0,
+    0.0,
+    3.5,
+    3.5,
+    3.3,
+    4.0,
+    4.2,
+    4.3,
+    4.5,
+    4.6,
+    4.7,
+    4.8,
+    4.9,
+    4.9,
+    5.0,
+    5.1,
+    5.1,
+    5.2,
+    5.2,
+    5.3,
+    5.3,
+    5.4,
+    5.4,
+    5.4,
+    5.5,
+    5.5,
+    5.5,
+    5.6,
+    5.6,
+    5.6,
+)
+
+DNA_HAIRPIN_LOOP_PENALTY = np.array(DNA_HAIRPIN_LOOP_PENALTY_RAW, dtype=np.float64)
