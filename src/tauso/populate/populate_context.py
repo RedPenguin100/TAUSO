@@ -39,6 +39,23 @@ _SPECIAL_GENES: Dict[str, str] = {
     "expr_xrcc5": "XRCC5",
     "expr_nono": "NONO",
     "expr_sfpq": "SFPQ",
+    # TLR9 sensing of the CpG motifs the tox_ features already score on the ASO side, from
+    # Ionis' NAR 2022 study of PS-ASO innate immunity (doi:10.1093/nar/gkac618). TLR9 binds
+    # PS-ASOs directly; MYD88 is its adaptor; UNC93B1 and the COPII pair traffic it to the
+    # endosome; STX5 and STX6 tether it at the Golgi and so limit activation, which is why
+    # depleting them raises the response. HMGB1 and GRN bind PS-ASOs and hand them to TLR9.
+    #
+    # The paper's other PS-ASO binders -- S100A8, HRG, CFHR1, ALB -- are secreted, so in cell
+    # culture they arrive in the serum rather than from the cell line. Cell-line expression is
+    # the wrong measurement for those and they are left out.
+    "expr_tlr9": "TLR9",
+    "expr_myd88": "MYD88",
+    "expr_unc93b1": "UNC93B1",
+    "expr_sec23a": "SEC23A",
+    "expr_sec31a": "SEC31A",
+    "expr_stx6": "STX6",
+    "expr_hmgb1": "HMGB1",
+    "expr_grn": "GRN",
 }
 
 TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["expr_target"]
