@@ -107,3 +107,60 @@ def test_proxy_dict_values_are_all_known_depmap_ids():
         if proxy is None:
             continue
         assert proxy in CELL_LINE_TO_DEPMAP, f"Proxy {proxy!r} (from {input_name!r}) missing CELL_LINE_TO_DEPMAP entry"
+
+
+@pytest.mark.parametrize("raw", ["HEK-293", "HEK293", "hek 293"])
+def test_hek293_resolves_to_its_depmap_model(raw):
+    """HEK-293 is ACH-001085 in DepMap. Spelling is punctuation- and case-insensitive."""
+    assert resolve_depmap_proxy(raw) == "HEK-293"
+    assert resolve_depmap_id(raw) == "ACH-001085"
+
+
+@pytest.mark.parametrize("raw", ["HEK293T", "hek293t", "HEK-293T"])
+def test_hek293t_stays_blocked(raw):
+    """293T is a different line and is deliberately unmapped — it must not collide with 293."""
+    assert resolve_depmap_proxy(raw) is None
+    assert resolve_depmap_id(raw) is None
+
+
+def test_ts24_is_the_patent_typo_for_t24():
+    """US20040102399A1 writes "TS 24" where it means T-24; both must land on the same model."""
+    assert resolve_depmap_id("Ts-24") == resolve_depmap_id("T-24") == "ACH-000018"
+
+
+@pytest.mark.parametrize(
+    "raw, expected_proxy, expected_id",
+    [
+        ("U251MG", "U-251 MG", "ACH-000232"),
+        ("NCIH929", "NCI-H929", "ACH-000050"),
+        ("KARPAS299", "Karpas-299", "ACH-000053"),
+        ("HEP3B217", "Hep 3B2.1-7", "ACH-000625"),
+        ("LNCAPCLONEFGC", "LNCaP clone FGC", "ACH-000977"),
+    ],
+)
+def test_depmap_spellings_resolve(raw, expected_proxy, expected_id):
+    """The proxy table is keyed by training-data spellings, so a caller naming a line the way
+    DepMap does is matched against CELL_LINE_TO_DEPMAP's keys instead."""
+    assert resolve_depmap_proxy(raw) == expected_proxy
+    assert resolve_depmap_id(raw) == expected_id
+
+
+def test_every_canonical_proxy_round_trips():
+    """Feeding a proxy back in must return itself, whichever table it came from."""
+    for proxy in CELL_LINE_TO_DEPMAP:
+        assert resolve_depmap_proxy(proxy) == proxy
+
+
+def test_default_cohort_cells_all_resolve():
+    """cell_cohort.json is keyed by DepMap spellings; design_asos must reach every one."""
+    from tauso.cli import DEFAULT_COHORT_CELLS
+
+    unresolved = [c for c in DEFAULT_COHORT_CELLS if resolve_depmap_id(c) is None]
+    assert unresolved == []
+
+
+@pytest.mark.parametrize("raw", ["HepaRG", "HEK293T", "KARPAS-229", "iCell cardiomyocytes2"])
+def test_blocked_entries_win_over_the_depmap_fallback(raw):
+    """The proxy table is consulted first, so an explicit block is never re-opened."""
+    assert resolve_depmap_proxy(raw) is None
+    assert resolve_depmap_id(raw) is None

@@ -369,6 +369,10 @@ def build_cohort_transcript_expression(force):
             return
 
     csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
+    # A truncated download keeps the full header and reads cleanly, so check the hash, not the name.
+    if os.path.exists(csv_path) and not file_matches_hash(csv_path, TRANSCRIPT_EXPRESSION_SHA1):
+        echo_warn(f"{TRANSCRIPT_EXPRESSION_CSV} does not match its expected SHA1 — re-downloading.")
+        os.remove(csv_path)
     if not os.path.exists(csv_path):
         _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
 
@@ -431,6 +435,9 @@ def build_cohort_transcript_expression(force):
         out_df.to_csv(os.path.join(output_dir, f"{curr_id}_transcript_expression.csv"), index=False)
         found_count += 1
 
+    if not found_count:
+        echo_err(f"No cohort cell line found in {TRANSCRIPT_EXPRESSION_CSV}; wrote nothing.")
+        return
     with open(sentinel, "w") as f:
         json.dump(sorted(target_ids), f)
     click.echo(f"✓ Processed {found_count} cell lines. Data in {output_dir}")
