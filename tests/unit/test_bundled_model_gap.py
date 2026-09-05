@@ -1,11 +1,12 @@
 """What the bundled model asks for that the feature pipeline no longer produces.
 
 `predict` selects the model's feature list out of the frame and raises on anything missing, so
-a retired feature makes the bundled model unscorable rather than slightly wrong. Two rounds of
-feature work have retired columns v1 was trained on, and it has not been retrained since.
+a retired feature makes the bundled model unscorable rather than slightly wrong. Several rounds
+of feature work have retired columns v1 was trained on, and it has not been retrained since.
 
-This records exactly which ones, so the gap cannot grow unnoticed and whoever retrains knows
-what the new model has to do without.
+The count here comes from running the real pipeline over a target and diffing what it produced
+against the model's list, not from reading the code. It records exactly which features are
+gone, so the gap cannot grow unnoticed and whoever retrains knows what to do without.
 """
 
 import pytest
@@ -25,12 +26,17 @@ RETIRED_SELF_STRUCTURE = frozenset(
 )
 """Scored the oligo's own structure before the self-ASO family replaced them."""
 
+RETIRED_EXPRESSION = frozenset({"expr_msr1", "expr_rnase"})
+"""`expr_msr1` was dropped outright; `expr_rnase` became `expr_rnase_transcript`."""
+
 RETIRED_ACCESS_PREFIX = "fold_access_"
 """The accessibility family that went with raccess, replaced by the ViennaRNA one."""
 
+RETIRED = RETIRED_SELF_STRUCTURE | RETIRED_EXPRESSION
+
 
 def _retired(model_features):
-    return {f for f in model_features if f in RETIRED_SELF_STRUCTURE or f.startswith(RETIRED_ACCESS_PREFIX)}
+    return {f for f in model_features if f in RETIRED or f.startswith(RETIRED_ACCESS_PREFIX)}
 
 
 def test_the_bundled_model_is_waiting_on_a_retrain():
@@ -38,9 +44,10 @@ def test_the_bundled_model_is_waiting_on_a_retrain():
     _, model_features = load_model(DEFAULT_VERSION)
     retired = _retired(model_features)
 
-    assert len(retired) == 15, sorted(retired)
+    assert len(retired) == 17, sorted(retired)
     assert sum(f.startswith(RETIRED_ACCESS_PREFIX) for f in retired) == 10
     assert RETIRED_SELF_STRUCTURE <= retired
+    assert RETIRED_EXPRESSION <= retired
 
 
 def test_the_finite_guard_still_names_retired_features():
