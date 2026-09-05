@@ -1,7 +1,12 @@
 import pandas as pd
 import pytest
 
-from tauso.features.context.mrna_halflife import HALFLIFE_SPECIES, select_species
+from tauso.features.context.mrna_halflife import (
+    HALFLIFE_BASELINE_CONDITIONS,
+    HALFLIFE_SPECIES,
+    select_conditions,
+    select_species,
+)
 
 TTDB = pd.DataFrame(
     {
@@ -29,3 +34,27 @@ def test_absent_species_raises_and_names_what_is_available():
     with pytest.raises(ValueError) as e:
         select_species(TTDB, "Humann")
     assert "Human" in str(e.value) and "Mouse" in str(e.value)
+
+
+CONDITIONS = pd.DataFrame(
+    {
+        "condition": ["WT", "uninfected", "heat shock time course", " FP control ", "DDX3X depletion"],
+        "gene": ["ACTB", "GAPDH", "MYC", "TP53", "EGFR"],
+    }
+)
+
+
+def test_default_conditions_are_the_baseline_arms():
+    assert HALFLIFE_BASELINE_CONDITIONS[0] == "WT"
+    assert "uninfected" in HALFLIFE_BASELINE_CONDITIONS
+
+
+def test_keeps_baseline_arms_and_drops_treatments():
+    kept = select_conditions(CONDITIONS, HALFLIFE_BASELINE_CONDITIONS)
+    assert kept.gene.tolist() == ["ACTB", "GAPDH", "TP53"]
+
+
+def test_absent_condition_raises_and_names_what_is_available():
+    with pytest.raises(ValueError) as e:
+        select_conditions(CONDITIONS, ["not a condition"])
+    assert "heat shock time course" in str(e.value)

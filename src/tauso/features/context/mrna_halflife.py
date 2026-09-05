@@ -43,21 +43,42 @@ HALFLIFE_SOURCE_COLUMNS = [
 # TTDB is multi-species; the dataset is human throughout.
 HALFLIFE_SPECIES = "Human"
 
+# A study's baseline arm carries whatever name that study gave it, so "WT" alone misses
+# the untreated arms of the perturbation studies. Everything else TTDB lists is a
+# treatment (infection, heat shock, knockdown, mutant).
+HALFLIFE_BASELINE_CONDITIONS = (
+    "WT",
+    "uninfected",
+    "DRB release control",
+    "FP control",
+    "ZAK control sham vs UVB",
+)
 
-def select_species(df, species):
-    """Return the `species` rows of a TTDB frame, matching the name case-insensitively.
 
-    Raises if the species is absent, naming what the file does hold, so a typo or an
-    organism TTDB never measured fails here instead of yielding an empty mapping.
+def _select(df, column, wanted, what):
+    """Rows whose `column` matches one of `wanted`, case- and padding-insensitively.
+
+    Raises if none match, naming what the file does hold, so a typo or a value TTDB
+    never recorded fails here instead of yielding an empty mapping.
     """
-    present = df["species_name"].astype(str).str.strip()
-    hit = present.str.casefold() == str(species).strip().casefold()
+    present = df[column].astype(str).str.strip()
+    hit = present.str.casefold().isin({str(w).strip().casefold() for w in wanted})
     if not hit.any():
-        raise ValueError(f"No {species!r} rows in the half-life data; it has {sorted(present.unique())}.")
+        raise ValueError(f"No {what} rows in the half-life data; it has {sorted(present.unique())}.")
     return df[hit]
 
 
-def load_halflife_mapping(species=HALFLIFE_SPECIES):
+def select_species(df, species):
+    """Return the `species` rows of a TTDB frame."""
+    return _select(df, "species_name", [species], repr(species))
+
+
+def select_conditions(df, conditions):
+    """Return the baseline-condition rows of a TTDB frame."""
+    return _select(df, "condition", conditions, f"{sorted(conditions)} condition")
+
+
+def load_halflife_mapping(species=HALFLIFE_SPECIES, conditions=HALFLIFE_BASELINE_CONDITIONS):
     """
     Loads the TTDB data using the tauso directory structure.
     Returns a dictionary: {(Gene_Symbol, Cell_Line): Half_Life_Hours}
@@ -85,9 +106,8 @@ def load_halflife_mapping(species=HALFLIFE_SPECIES):
     # otherwise merge into human ACTB.
     df = select_species(df, species)
 
-    # 4. Filter for Wild Type (WT) only
-    # Crucial: We only want baseline stability, not stress responses.
-    df = df[df["condition"].astype(str).str.strip().str.upper() == "WT"]
+    # 4. Baseline arms only; we want resting stability, not a stress response.
+    df = select_conditions(df, conditions)
 
     # 5. Quality Control Filter (Smart R_Squared)
     # Convert to numeric, forcing errors to NaN
