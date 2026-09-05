@@ -31,9 +31,6 @@ HalfLifeResult = namedtuple("HalfLifeResult", ["half_life", "source"])
 # the SAME gene per row (identical after upper()+strip()); the only raw
 # difference (~35% of rows) is letter case, with `gene_name_y` the uppercase-
 # normalized form (~99.8% all-upper vs ~64% for `_x`). We use `_y`.
-#
-# `species_name` is what the file's name refers to: TTDB pools five organisms in
-# one table, and it is the column that separates them.
 HALFLIFE_SOURCE_COLUMNS = [
     "gene_name_y",
     "species_name",
@@ -43,8 +40,7 @@ HALFLIFE_SOURCE_COLUMNS = [
     "r_squared",
 ]
 
-# The only species the dataset can use. Every experiment in the corpus is run in a
-# human cell line against a human transcript.
+# TTDB is multi-species; the dataset is human throughout.
 HALFLIFE_SPECIES = "HUMAN"
 
 
@@ -73,10 +69,6 @@ def load_halflife_mapping():
     df = df.rename(columns={"gene_name_y": "gene", "cell_type": "cell_line"})
 
     # 3. Keep human measurements only.
-    # TTDB pools human, mouse, yeast, zebrafish and fruit fly. Gene symbols are
-    # upper-cased in step 8, so mouse Actb and human ACTB collapse onto one key and
-    # the gene-level estimate would be a cross-species average. The dataset is
-    # entirely human, so a non-human measurement is never the right answer.
     df = df[df["species_name"].astype(str).str.strip().str.upper() == HALFLIFE_SPECIES]
 
     # 4. Filter for Wild Type (WT) only
