@@ -34,7 +34,7 @@ from tauso.genome.read_human_genome import build_locus_cache, get_locus_to_data_
 from tauso.genome.TranscriptMapper import build_gene_sequence_registry
 from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_base
 
-from ..util import rna_to_dna
+from ..util import normalize_dna
 from ._download import (
     DEPMAP_FILES_SHA1,
     RRNA_SHA1,
@@ -1086,6 +1086,19 @@ def run_off_target(sequence, genome, mismatches, output):
     """
     Search for off-target binding sites for a given ASO sequence.
     """
+    original_seq = sequence
+    try:
+        # Surrounding whitespace is a paste artifact and is stripped; anything else that is
+        # not a DNA base is rejected, because bowtie would silently search a sequence the
+        # user did not ask for and the wrong profile would be reported as correct.
+        sequence = normalize_dna(sequence.strip())
+    except (TypeError, ValueError) as e:
+        click.echo(click.style(f"Invalid sequence: {e}", fg="red"))
+        sys.exit(1)
+
+    if original_seq != sequence:
+        click.echo(f"Normalized input sequence: {original_seq} -> {sequence}")
+
     try:
         paths = get_paths(genome)
         # Construct the expected path to the "SUCCESS" sentinel file
@@ -1103,12 +1116,6 @@ def run_off_target(sequence, genome, mismatches, output):
         # Catch issues like get_paths failing (e.g. if setup-genome wasn't run)
         click.echo(click.style(f"Error checking environment: {e}", fg="red"))
         sys.exit(1)
-
-    original_seq = sequence
-    sequence = rna_to_dna(sequence)
-
-    if original_seq != sequence:
-        click.echo(f"Normalized input sequence: {original_seq} -> {sequence}")
 
     click.echo(f"Searching off-targets for {sequence} in {genome} (Max MM: {mismatches})...")
 
