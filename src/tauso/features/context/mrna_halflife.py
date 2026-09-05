@@ -43,9 +43,7 @@ HALFLIFE_SOURCE_COLUMNS = [
 # TTDB is multi-species; the dataset is human throughout.
 HALFLIFE_SPECIES = "Human"
 
-# A study's baseline arm carries whatever name that study gave it, so "WT" alone misses
-# the untreated arms of the perturbation studies. Everything else TTDB lists is a
-# treatment (infection, heat shock, knockdown, mutant).
+# A study's baseline arm carries whatever name that study gave it; the rest are treatments.
 HALFLIFE_BASELINE_CONDITIONS = (
     "WT",
     "uninfected",
@@ -55,27 +53,22 @@ HALFLIFE_BASELINE_CONDITIONS = (
 )
 
 
-def _select(df, column, wanted, what):
-    """Rows whose `column` matches one of `wanted`, case- and padding-insensitively.
-
-    Raises if none match, naming what the file does hold, so a typo or a value TTDB
-    never recorded fails here instead of yielding an empty mapping.
-    """
-    present = df[column].astype(str).str.strip()
-    hit = present.str.casefold().isin({str(w).strip().casefold() for w in wanted})
+def select_species(df, species):
+    """Rows for `species`. Raises if absent, naming what the file has."""
+    present = df["species_name"].astype(str).str.strip()
+    hit = present.str.casefold() == str(species).strip().casefold()
     if not hit.any():
-        raise ValueError(f"No {what} rows in the half-life data; it has {sorted(present.unique())}.")
+        raise ValueError(f"No {species!r} rows in the half-life data; it has {sorted(present.unique())}.")
     return df[hit]
 
 
-def select_species(df, species):
-    """Return the `species` rows of a TTDB frame."""
-    return _select(df, "species_name", [species], repr(species))
-
-
 def select_conditions(df, conditions):
-    """Return the baseline-condition rows of a TTDB frame."""
-    return _select(df, "condition", conditions, f"{sorted(conditions)} condition")
+    """Rows for the baseline `conditions`. Raises if none match, naming what the file has."""
+    present = df["condition"].astype(str).str.strip()
+    hit = present.str.casefold().isin({str(c).strip().casefold() for c in conditions})
+    if not hit.any():
+        raise ValueError(f"No {sorted(conditions)} rows in the half-life data; it has {sorted(present.unique())}.")
+    return df[hit]
 
 
 def load_halflife_mapping(species=HALFLIFE_SPECIES, conditions=HALFLIFE_BASELINE_CONDITIONS):
@@ -102,11 +95,10 @@ def load_halflife_mapping(species=HALFLIFE_SPECIES, conditions=HALFLIFE_BASELINE
     # 2. Rename for clarity
     df = df.rename(columns={"gene_name_y": "gene", "cell_type": "cell_line"})
 
-    # 3. One species only; gene symbols are upper-cased below, so mouse Actb would
-    # otherwise merge into human ACTB.
+    # 3. One species only.
     df = select_species(df, species)
 
-    # 4. Baseline arms only; we want resting stability, not a stress response.
+    # 4. Baseline arms only, not stress responses.
     df = select_conditions(df, conditions)
 
     # 5. Quality Control Filter (Smart R_Squared)
