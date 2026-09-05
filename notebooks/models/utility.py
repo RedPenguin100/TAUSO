@@ -5,7 +5,15 @@ import pandas as pd
 from notebooks.consts import OLIGO_CSV_PROCESSED_AVERAGED
 from notebooks.features.feature_extraction import load_all_features
 
-from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE, INHIBITION_PERCENT, VOLUME_NM
+from tauso.data.consts import (
+    ASO_SEQUENCE,
+    CANONICAL_GENE_NAME,
+    CELL_LINE,
+    CHEMICAL_PATTERN,
+    INHIBITION_PERCENT,
+    PS_PATTERN,
+    VOLUME_NM,
+)
 from tauso.timer import Timer
 
 logger = logging.getLogger(__name__)
@@ -101,6 +109,27 @@ def _standardize_transfection_columns(final_data: pd.DataFrame) -> pd.DataFrame:
     return final_data
 
 
+def validate_chemistry_lengths(data, index):
+    """Raise if a chemistry string does not line up with its sequence.
+
+    `chemical_pattern` carries one character per residue and `ps_pattern` one per linkage.
+    Both hold by construction, so a violation means the row was parsed by a parser that did
+    not recognise one of its modifications and silently dropped it. Checking here rather
+    than in the parser catches it for any data from any parser, including chemistry the
+    current parser has never seen.
+    """
+    length = data[ASO_SEQUENCE].str.len()
+    for column, expected in ((CHEMICAL_PATTERN, length), (PS_PATTERN, length - 1)):
+        offenders = data.loc[data[column].str.len() != expected, index]
+        if len(offenders):
+            shown = ", ".join(str(i) for i in offenders.head(10))
+            more = f" (+{len(offenders) - 10} more)" if len(offenders) > 10 else ""
+            raise ValueError(
+                f"{len(offenders)} of {len(data)} rows have a {column} whose length does not match "
+                f"{ASO_SEQUENCE}. Offending {index}: {shown}{more}."
+            )
+
+
 def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai"):
     """
     Loads features and metadata, ensures shared columns are identical,
@@ -147,17 +176,20 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
 
     final_data = pd.merge(loaded_features, data_to_merge, on=index)
 
-    # 5. Apply split
+    # 5. Chemistry strings must line up with the sequence
+    validate_chemistry_lengths(final_data, index)
+
+    # 6. Apply split
     if split_source == "tauso":
         logger.info("Creating tauso split (stratified temporal per gene×cell-line cohort)...")
         final_data = create_tauso_split(final_data)
     elif split_source != "oligoai":
         raise ValueError(f"Unknown split_source '{split_source}'. Use 'oligoai' or 'tauso'.")
 
-    # 5b. Translate OligoAI's transfection convention to ours if it's present.
+    # 6b. Translate OligoAI's transfection convention to ours if it's present.
     final_data = _standardize_transfection_columns(final_data)
 
-    # 6. Define Final Feature List
+    # 7. Define Final Feature List
     features_to_ignore = [index, INHIBITION_PERCENT, "inhibition_percent", "dosage", "split"]
 
     features = [
