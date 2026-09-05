@@ -4,7 +4,7 @@ from tauso.inference import DEFAULT_VERSION, load_finite_features, load_model
 
 
 @pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
+    reason="the bundled model is trained on fifteen features that no longer exist: the ten fold_access_* ones and the five the self-ASO family replaced. See test_bundled_model_gap. Re-enable once the model is retrained."
 )
 def test_finite_features_are_model_features():
     finite = load_finite_features()
@@ -14,7 +14,7 @@ def test_finite_features_are_model_features():
 
 
 @pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
+    reason="the bundled model is trained on fifteen features that no longer exist: the ten fold_access_* ones and the five the self-ASO family replaced. See test_bundled_model_gap. Re-enable once the model is retrained."
 )
 def test_some_model_features_are_left_unguarded():
     """The conditionally-defined features (codon scores, cEt terms, junction distances) are missing
@@ -26,7 +26,7 @@ def test_some_model_features_are_left_unguarded():
 
 
 @pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
+    reason="the bundled model is trained on fifteen features that no longer exist: the ten fold_access_* ones and the five the self-ASO family replaced. See test_bundled_model_gap. Re-enable once the model is retrained."
 )
 def test_unknown_version_raises():
     with pytest.raises(FileNotFoundError):
