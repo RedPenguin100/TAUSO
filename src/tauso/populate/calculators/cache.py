@@ -186,3 +186,7 @@ class AssetCache:
         self.custom_gene = (name, LocusInfo(seq=sequence, cds_start=cds_start, cds_end=cds_end))
         self._gene_to_data_full = None
         self._gene_registry = None
+        # The lean cache is keyed on the gene NAMES, which do not change when only the
+        # sequence does, so it has to be dropped explicitly.
+        self._gene_to_data_lean = None
+        self._genes_u = None
