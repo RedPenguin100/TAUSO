@@ -1,6 +1,21 @@
 import re
 
 
+def check_pattern_length(sequence, chemical_pattern):
+    """Raise if CHEMICAL_PATTERN does not have one character per residue.
+
+    The pattern is positional, so a length that disagrees with the sequence means the two have
+    drifted apart and every sugar read out of it may belong to a different residue. That is a
+    corrupt row rather than a feature that cannot be computed, so it is raised rather than
+    scored NaN. A pattern that is absent entirely is left to the caller.
+    """
+    if isinstance(chemical_pattern, str) and len(chemical_pattern) != len(sequence):
+        raise ValueError(
+            f"chemical_pattern length {len(chemical_pattern)} != sequence length {len(sequence)} "
+            f"({chemical_pattern!r} against {sequence!r})"
+        )
+
+
 def get_longest_dna_gap(chemical_pattern: str, marker: str = "d") -> tuple[int, int, int]:
     """
     Finds the longest consecutive stretch of DNA markers.

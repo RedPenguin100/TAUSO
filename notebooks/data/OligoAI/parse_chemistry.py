@@ -1,10 +1,34 @@
 import ast
+import logging
 import re
 from functools import lru_cache
 
 import pandas as pd
 
 from tauso.data.consts import BACKBONE_MODS, CHEMICAL_PATTERN, MODIFICATION_STRING, PS_PATTERN, SUGAR_MODS
+
+logger = logging.getLogger(__name__)
+
+# One character per residue. Every sugar the source data can contain must appear here: the
+# pattern is positional, so a residue with no character silently shifts every residue after it
+# and leaves the pattern shorter than the oligo.
+SUGAR_CHAR = {
+    "MOE": "M",
+    "CET": "C",
+    "LNA": "L",
+    "DNA": "d",
+    "OME": "o",  # 2'-O-methyl
+    "F": "f",  # 2'-fluoro
+}
+
+# The high-affinity sugar a gapmer is named for. An oligo carrying any other sugar, or more
+# than one of these, is a mixmer and is excluded upstream.
+GAPMER_LABEL = {
+    "MOE": "MOE/5-methylcytosines/deoxy",
+    "CET": "cEt/5-methylcytosines/deoxy",
+    "LNA": "LNA/5-methylcytosines/deoxy",
+}
+MIXMER = "mixmer"
 
 
 # Cache will help store the most common modifications
@@ -15,35 +39,23 @@ def _process_chemistry(mod_str):
 
     try:
         mod_list = ast.literal_eval(mod_str)
-        mod_set = {m.upper() for m in mod_list}
+        mods = [m.upper() for m in mod_list]
+
+        unknown = sorted({m for m in mods if m not in SUGAR_CHAR})
+        if unknown:
+            logger.warning("Unknown sugar %s in %r; leaving the chemistry unparsed.", unknown, mod_str)
+            return None, None
 
         # 1. Generate the CHEMICAL_PATTERN (e.g., MMMMMddddddddddMMMMM)
-        pattern_chars = []
-        for m in mod_list:
-            m_up = m.upper()
-            if m_up == "MOE":
-                pattern_chars.append("M")
-            elif m_up == "CET":
-                pattern_chars.append("C")
-            elif m_up == "LNA":
-                pattern_chars.append("L")
-            elif m_up == "DNA":
-                pattern_chars.append("d")
-        pattern = "".join(pattern_chars)
+        pattern = "".join(SUGAR_CHAR[m] for m in mods)
 
         # 2. Determine the MODIFICATION_STRING label
-        has_moe = "MOE" in mod_set
-        has_cet = "CET" in mod_set
-        has_lna = "LNA" in mod_set
-
-        if sum([has_moe, has_cet, has_lna]) > 1:
-            label = "mixmer"
-        elif has_moe:
-            label = "MOE/5-methylcytosines/deoxy"
-        elif has_cet:
-            label = "cEt/5-methylcytosines/deoxy"
-        elif has_lna:
-            label = "LNA/5-methylcytosines/deoxy"
+        sugars = set(mods) - {"DNA"}
+        gapmer_sugars = sugars & set(GAPMER_LABEL)
+        if len(sugars) > 1 or sugars - gapmer_sugars:
+            label = MIXMER
+        elif gapmer_sugars:
+            label = GAPMER_LABEL[next(iter(gapmer_sugars))]
         else:
             label = "DNA"
 
