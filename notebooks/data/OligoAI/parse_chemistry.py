@@ -5,7 +5,14 @@ from functools import lru_cache
 
 import pandas as pd
 
-from tauso.data.consts import BACKBONE_MODS, CHEMICAL_PATTERN, MODIFICATION_STRING, PS_PATTERN, SUGAR_MODS
+from tauso.data.consts import (
+    BACKBONE_MODS,
+    CHEMICAL_PATTERN,
+    MIXMER_MODIFICATION,
+    MODIFICATION_STRING,
+    PS_PATTERN,
+    SUGAR_MODS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +35,6 @@ GAPMER_LABEL = {
     "CET": "cEt/5-methylcytosines/deoxy",
     "LNA": "LNA/5-methylcytosines/deoxy",
 }
-MIXMER = "mixmer"
 
 
 # Cache will help store the most common modifications
@@ -53,7 +59,7 @@ def _process_chemistry(mod_str):
         sugars = set(mods) - {"DNA"}
         gapmer_sugars = sugars & set(GAPMER_LABEL)
         if len(sugars) > 1 or sugars - gapmer_sugars:
-            label = MIXMER
+            label = MIXMER_MODIFICATION
         elif gapmer_sugars:
             label = GAPMER_LABEL[next(iter(gapmer_sugars))]
         else:

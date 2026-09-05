@@ -14,6 +14,10 @@ CELL_LINE = "cell_line"
 TRANSFECTION_RAW = "transfection_raw"
 DENSITY_CELLS_PER_WELL = "density_cells_per_well"
 MODIFICATION_STRING = "modification_string"  # LNA / MOE / cEt
+
+# The MODIFICATION_STRING of an oligo that is not a gapmer. It names no sugar, so features
+# derived from the string cannot be computed for these rows.
+MIXMER_MODIFICATION = "mixmer"
 STRUCTURE_SENSE_START = "structure_sense_start"
 STRUCTURE_SENSE_START_FROM_END = "structure_sense_start_from_end"
 STRUCTURE_SENSE_LENGTH = "structure_sense_length"
@@ -101,6 +105,7 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "A172": "A-172",
     "G-361": "G-361",
     "H929": "NCI-H929",
+    "HEK-293": "HEK-293",
     "HeLa": "HeLa",
     "Hep3B": "Hep 3B2.1-7",
     "HepB3": "Hep 3B2.1-7",  # Typo
@@ -125,6 +130,10 @@ CELL_LINE_TO_DEPMAP_PROXY_DICT = {
     "SNU-449": "SNU-449",
     "SW872": "SW872",
     "T24": "T24",
+    # US20040102399A1 writes "TS 24" in the paragraph introducing its inhibition table, but
+    # Example 9 of that same patent defines only T-24, A549, NHDF and HEK, and spells the
+    # bladder line "T-24" three times. It is the patent's own typo.
+    "Ts-24": "T24",
     "THP-1": "THP-1",
     "U251": "U-251 MG",
     "VCaP": "VCaP",
@@ -172,16 +181,22 @@ _PROXY_LOOKUP_NORM = {_norm_cell_line_key(k): v for k, v in CELL_LINE_TO_DEPMAP_
 def resolve_depmap_proxy(raw):
     """Return the canonical DepMap proxy spelling for a dataset cell-line name.
 
-    Lookup is case- and punctuation-insensitive. Returns:
+    Lookup is case- and punctuation-insensitive. The proxy table is keyed by the
+    spellings that occur in the ASO training data, so a caller naming a cell line
+    the way DepMap does falls through to CELL_LINE_TO_DEPMAP's own keys. Returns:
       - the canonical proxy string when one is registered,
       - None when the entry is explicitly blocked (primary cell / iPSC / etc.)
         OR the name is unknown -- treated the same so unknown spellings
         propagate as a NaN DepMap ID rather than silently using the raw input.
+
+    The proxy table is consulted first, so a blocked entry stays blocked.
     """
     key = _norm_cell_line_key(raw)
-    if key is None or key not in _PROXY_LOOKUP_NORM:
+    if key is None:
         return None
-    return _PROXY_LOOKUP_NORM[key]
+    if key in _PROXY_LOOKUP_NORM:
+        return _PROXY_LOOKUP_NORM[key]
+    return _DEPMAP_NAME_NORM.get(key)
 
 
 def resolve_depmap_id(raw):
@@ -224,6 +239,7 @@ CELL_LINE_TO_DEPMAP = {
     "A-431": "ACH-001328",
     "A549": "ACH-000681",
     "G-361": "ACH-000572",
+    "HEK-293": "ACH-001085",
     "HK-2": "ACH-001087",
     "HeLa": "ACH-001086",
     "Hep 3B2.1-7": "ACH-000625",
@@ -251,6 +267,8 @@ CELL_LINE_TO_DEPMAP = {
     "U-251 MG": "ACH-000232",
     "VCaP": "ACH-000115",
 }
+
+_DEPMAP_NAME_NORM = {_norm_cell_line_key(name): name for name in CELL_LINE_TO_DEPMAP}
 
 HUMAN = "human"
 MONKEY = "monkey"
