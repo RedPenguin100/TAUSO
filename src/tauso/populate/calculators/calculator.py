@@ -2,7 +2,6 @@ import logging
 import os
 
 import pandas as pd
-import pyarrow.parquet as pq
 
 from ...data.consts import (
     CANONICAL_GENE_NAME,
@@ -63,7 +62,7 @@ from ...features.context.ribo_seq import add_genomic_coordinates, feature_names,
 from ...features.hybridization.off_target import OFF_TARGET_TOP_NS, RISEARCH_SCORE_CUTOFFS
 from ...timer import Timer
 from ...util import dna_to_rna
-from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
+from ..feature_store import FeatureStore
 from ..populate_context import (
     EXPRESSION_FEATURE_NAMES,
     populate_special_gene_expression,
@@ -104,6 +103,7 @@ class Calculator:
         self.index = f"index_{data_version}" if data_version else None
         self.overwrite = overwrite
         self.get_feature_dir_func = get_feature_dir
+        self.store = FeatureStore(version=data_version, get_feature_dir=get_feature_dir, overwrite=overwrite)
         self.cache = cache or AssetCache(genome="GRCh38")  # TODO: generalize for mice as well
 
         self._genes_u = None
@@ -117,14 +117,7 @@ class Calculator:
 
     def _save_calculated_feature(self, feature_name):
         # Without a feature dir nothing is written; the constructor warns about that once.
-        if self.get_feature_dir_func is not None:
-            save_feature_internal(
-                self.data,
-                feature_name=feature_name,
-                overwrite=self.overwrite,
-                version=self.data_version,
-                saved_dir_func=self.get_feature_dir_func,
-            )
+        self.store.save(self.data, feature_name)
 
     def _check_dependencies(self, required_columns: list):
         """Helper method to ensure upstream prep steps populated the necessary columns."""
@@ -145,71 +138,16 @@ class Calculator:
                 logger.error(message)
                 raise TypeError(message)
 
-    def _cache_columns(self):
-        """Column names in the locally-present wide cache for this run, or empty set."""
-        cache = cache_path_if_present(self.data_version) if self.data_version else None
-        if cache is None:
-            return set(), None
-        return set(pq.read_schema(cache).names), cache
-
-    def _resolve_feature_source(self, feature_dir, feature, cache_cols, cache_path):
-        """Return ('loose', path) | ('cache', cache_path) | None for `feature`. Loose wins.
-
-        Loose shards are read from `<feature_dir>/_patches/` first, then from `feature_dir`
-        itself (legacy location, migration window).
-        """
-        for parent in (loose_shard_dir(feature_dir), feature_dir):
-            for ext in (".parquet", ".csv"):
-                path = os.path.join(parent, f"{feature}{ext}")
-                if os.path.exists(path):
-                    return ("loose", path)
-        if feature in cache_cols:
-            return ("cache", cache_path)
-        return None
-
     def _load_features_into_data(self, feature_names: list):
-        """Reads saved feature shards (or the wide cache) back into self.data for in-memory dependencies."""
+        """Reads saved features back into self.data for in-memory dependencies."""
         to_load = [f for f in feature_names if f not in self.data.columns]
         if not to_load:  # dependencies already in memory (e.g. the in-memory generation path)
             return
-        if self.index is None:
-            raise ValueError(f"cannot load {to_load} from disk without a data_version")
-        feature_dir = self.get_feature_dir_func(self.data_version)
-        cache_cols, cache = self._cache_columns()
-        for feature in to_load:
-            src = self._resolve_feature_source(feature_dir, feature, cache_cols, cache)
-            if src is None:
-                raise FileNotFoundError(
-                    f"No shard or cache column for '{feature}' in {feature_dir} (.parquet, .csv, or wide cache)."
-                )
-            kind, path = src
-            if kind == "cache":
-                feat_df = pd.read_parquet(path, columns=[self.index, feature])
-            elif path.endswith(".parquet"):
-                feat_df = pd.read_parquet(path)
-            else:
-                feat_df = pd.read_csv(path)
-            self.data = self.data.merge(feat_df[[self.index, feature]], on=self.index, how="left")
-            logger.debug("Loaded '%s' from %s into DataFrame.", feature, kind)
+        loaded = self.store.read(to_load, index_values=self.data[self.store.index])
+        self.data = self.data.merge(loaded, on=self.store.index, how="left")
 
     def _get_missing_features(self, expected_features: list) -> list:
-        if self.overwrite:
-            return expected_features
-        if self.get_feature_dir_func is None:
-            # Features are never written without a feature dir, so none can be found on disk.
-            return expected_features
-
-        feature_dir = self.get_feature_dir_func(self.data_version)
-        cache_cols, cache = self._cache_columns()
-        missing = []
-
-        for feature in expected_features:
-            if self._resolve_feature_source(feature_dir, feature, cache_cols, cache) is not None:
-                logger.debug("Skipping '%s': already present.", feature)
-            else:
-                missing.append(feature)
-
-        return missing
+        return self.store.missing(expected_features)
 
     def _step(self, label, expected, compute, *, save_only_missing=False, load_if_present=False):
         """Run one feature step: skip when everything is already stored, else compute and save.
