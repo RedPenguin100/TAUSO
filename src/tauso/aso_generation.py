@@ -113,9 +113,22 @@ def generate_aso_features(data, cache: AssetCache, n_jobs=1, get_feature_dir_fun
 
 
 def _apply_standard_metadata(data, config):
-    """Set the standard chemistry / dose / cell-line / delivery columns the feature pipeline reads."""
+    """Set the standard chemistry / dose / cell-line / delivery columns the feature pipeline reads.
+
+    The standard chemical pattern is one fixed string, so it describes oligos of one length.
+    Stamping it on a candidate of any other length would put a sugar against the wrong residue.
+    """
+    pattern = config.standard_chemical_pattern
+    lengths = sorted(set(data[ASO_SEQUENCE].str.len()))
+    mismatched = [n for n in lengths if n != len(pattern)]
+    if mismatched:
+        raise ValueError(
+            f"standard_chemical_pattern {pattern!r} is {len(pattern)} nt, so it cannot describe "
+            f"candidates of length {mismatched}. Design one length at a time, or set a "
+            f"standard_chemical_pattern of the matching length on the config."
+        )
     data[MODIFICATION_STRING] = config.standard_modification
-    data[CHEMICAL_PATTERN] = config.standard_chemical_pattern
+    data[CHEMICAL_PATTERN] = pattern
     data[PS_PATTERN] = config.standard_ps_pattern
     data[CELL_LINE] = config.cell_line
     data[CELL_LINE_DEPMAP_PROXY] = data[CELL_LINE].map(resolve_depmap_proxy)

@@ -13,7 +13,7 @@ from importlib.resources import files
 
 import pandas as pd
 
-from ...common.modifications import get_longest_dna_gap
+from ...common.modifications import check_pattern_length, get_longest_dna_gap
 from ...util import celsius_to_kelvin, dna_to_rna
 
 _BODY_TEMPERATURE_K = celsius_to_kelvin(37.0)
@@ -51,7 +51,8 @@ def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type
     """
     if "MOE" not in modification:
         return float("nan")
-    if not isinstance(chemical_pattern, str) or len(chemical_pattern) != len(seq):
+    check_pattern_length(seq, chemical_pattern)
+    if not isinstance(chemical_pattern, str):
         return float("nan")
 
     seq = dna_to_rna(seq)

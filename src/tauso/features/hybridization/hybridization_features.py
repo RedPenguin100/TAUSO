@@ -1,6 +1,6 @@
 import logging
 
-from ...common.modifications import get_longest_dna_gap
+from ...common.modifications import check_pattern_length, get_longest_dna_gap
 from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, dna_to_rna, get_nucleotide_watson_crick, rna_to_dna
 from ..hybridization.exp_weights import DNA_RNA_DG37_WEIGHTS, PS_DELTA_DG37_WEIGHTS
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
@@ -48,10 +48,11 @@ def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float
     to the region of its 5' base, so the three regions partition the full DNA/RNA dG.
 
     The sequence and chemical pattern are 5'->3' (the dataset's aso_sequence_5_to_3), so
-    'wing5' is the 5'-terminal wing. Returns 0.0 for an empty region, NaN if the pattern and
-    sequence lengths disagree.
+    'wing5' is the 5'-terminal wing. Returns 0.0 for an empty region, NaN when the oligo has no
+    chemical pattern, and raises when it has one of the wrong length.
     """
-    if not isinstance(chemical_pattern, str) or len(chemical_pattern) != len(seq):
+    check_pattern_length(seq, chemical_pattern)
+    if not isinstance(chemical_pattern, str):
         return float("nan")
 
     gap_start, gap_end, gap_len = get_longest_dna_gap(chemical_pattern)
