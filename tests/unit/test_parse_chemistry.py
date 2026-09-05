@@ -9,6 +9,7 @@ import logging
 
 import pytest
 from notebooks.data.OligoAI.parse_chemistry import GAPMER_LABEL, SUGAR_CHAR, _process_chemistry
+
 from tauso.data.consts import MIXMER_MODIFICATION
 
 MOE_GAPMER = ["MOE"] * 5 + ["DNA"] * 10 + ["MOE"] * 5
