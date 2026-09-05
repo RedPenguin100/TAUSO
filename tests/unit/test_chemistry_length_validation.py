@@ -1,9 +1,4 @@
-"""The chemistry strings must line up with the sequence.
-
-`chemical_pattern` is one character per residue, `ps_pattern` one per linkage. Both hold
-by construction, so a violation means a parser met a modification it did not know and
-dropped it -- the failure mode behind the 651 mis-parsed 2'-OMe rows.
-"""
+"""`chemical_pattern` is one character per residue, `ps_pattern` one per linkage."""
 
 import pandas as pd
 import pytest
@@ -45,7 +40,7 @@ def test_ps_pattern_must_be_one_shorter_than_the_sequence():
 
 
 def test_a_pattern_equal_in_length_to_ps_pattern_is_caught():
-    """The 651-row signature: a chemical_pattern one short reads as a valid ps_pattern."""
+    """The 651-row signature: one short, so it reads as a valid ps_pattern."""
     rows = [(99, "ACGTACGTACGTACGT", "CCCddddddddddCC", "sssssssssssssss")]
     with pytest.raises(ValueError) as e:
         validate_chemistry_lengths(frame(rows), INDEX)
@@ -63,4 +58,4 @@ def test_the_message_caps_the_list_but_reports_the_true_count():
     with pytest.raises(ValueError) as e:
         validate_chemistry_lengths(frame(rows), INDEX)
     assert "15 of 15" in str(e.value)
-    assert "+5 more" in str(e.value)
+    assert str(e.value).endswith("[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]")
