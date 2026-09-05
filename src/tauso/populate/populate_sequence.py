@@ -20,8 +20,6 @@ FEATURE_SPECS: list[FeatureSpec] = [
     # Returns 1 if 3' end is G/C, else 0
     ("seq_3_prime_clamp", lambda x: 1.0 if x and x[-1].upper() in "GC" else 0.0),
     # ASO sequence energy
-    ("seq_self_energy", self_energy),
-    ("seq_internal_fold_rna", internal_fold_rna),
     ("sense_internal_fold", sense_internal_fold),
     # Basic Composition Features
     ("seq_purine_content", purine_content),
@@ -39,10 +37,6 @@ FEATURE_SPECS: list[FeatureSpec] = [
     ("seq_entropy", seq_entropy),
     ("seq_dinucleotide_entropy", dinucleotide_entropy),
     ("seq_dinucleotide_diversity", dinucleotide_diversity),
-    # Structure and Energy (Hairpins/Motifs)
-    ("seq_hairpin_score", hairpin_score),
-    ("seq_hairpin_dG_energy", hairpin_dG_energy),
-    ("seq_hairpin_tm", hairpin_tm),
     # Repeats and Skews
     ("seq_tandem_repeats_score", tandem_repeats_score),
     ("seq_dispersed_repeats_score", dispersed_repeats_score),

@@ -61,7 +61,6 @@ from ...data.consts import (
 from ...debug import log_dataframe_memory
 from ...features.context.ribo_seq import add_genomic_coordinates, feature_names, get_feature_prefix
 from ...features.hybridization.off_target import OFF_TARGET_TOP_NS, RISEARCH_SCORE_CUTOFFS
-from ...features.interaction_features import internal_fold_gymnosis
 from ...timer import Timer
 from ...util import dna_to_rna
 from ..feature_cache import cache_path_if_present, loose_shard_dir, save_feature_internal
@@ -510,6 +509,24 @@ class Calculator:
 
         self._step("sequence one-hot", one_hot_feature_names(), compute, save_only_missing=True)
 
+    def calculate_self_aso(self):
+        """Calculates what the oligo does with itself: hairpin, homodimer, whole overlap."""
+        from tauso.populate.populate_self_aso import (
+            populate_self_aso_features,
+            self_aso_feature_names,
+        )
+
+        def compute(missing):
+            return populate_self_aso_features(self.data, cpus=self.cpus)
+
+        self._step(
+            "self-ASO",
+            self_aso_feature_names(),
+            compute,
+            save_only_missing=True,
+            load_if_present=True,
+        )
+
     def calculate_sequence_chemistry(self):
         """Calculates sequence chemistry features."""
         from tauso.populate.populate_sequence_chemistry import FEATURE_SPECS as CHEMISTRY_SPECS
@@ -565,19 +582,26 @@ class Calculator:
         )
 
     def calculate_interaction(self):
-        """ASO self-fold (RNA parameters) gated to gymnotic uptake."""
-        feature = "interaction_internal_fold_rna_gymnosis"
+        """The oligo's homodimer gated to gymnotic uptake.
+
+        Gymnosis is free uptake with no transfection reagent, so an oligo sits at high local
+        concentration for far longer, and self-dimerisation is concentration-dependent in a
+        way that folding on itself is not.
+        """
+        from tauso.populate.populate_self_aso import self_aso_feature_name
+
+        dimer_source = self_aso_feature_name("homodimer_perfect_dg")
+        dimer_feature = f"interaction_{dimer_source}_gymnosis"
 
         def compute(missing):
-            deps = ["seq_internal_fold_rna", "transfection_gymnosis"]
+            deps = [dimer_source, "transfection_gymnosis"]
             self._load_features_into_data(deps)
             self._check_dependencies(deps)
-            self.data[feature] = internal_fold_gymnosis(
-                self.data["seq_internal_fold_rna"], self.data["transfection_gymnosis"]
-            )
-            return self.data, [feature]
+            gymnosis = self.data["transfection_gymnosis"].fillna(0.0) > 0
+            self.data[dimer_feature] = self.data[dimer_source].where(gymnosis, 0.0)
+            return self.data, [dimer_feature]
 
-        self._step("interaction", [feature], compute)
+        self._step("interaction", [dimer_feature], compute)
 
     def calculate_experimental_conditions(self):
         """Pass-through experimental-condition features: ASO dose and plating density.
@@ -903,6 +927,7 @@ class Calculator:
             self.calculate_flank_features,
             self.calculate_duplication,
             self.calculate_sequence_one_hot,
+            self.calculate_self_aso,
             self.calculate_sequence_chemistry,
             self.calculate_toxicity,
             self.calculate_modification,

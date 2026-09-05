@@ -2,12 +2,10 @@ import math
 from collections import Counter
 
 import pandas as pd
-import primer3
 import ViennaRNA as RNA
 from Bio.SeqUtils import gc_fraction
-from primer3 import calc_hairpin
 
-from ...util import dna_to_rna, get_antisense, get_antisense_rna
+from ...util import dna_to_rna, get_antisense_rna
 
 
 def ry_transition_fraction(seq: str) -> float:
@@ -55,10 +53,6 @@ def terminal_gc_fraction(seq: str) -> float:
     return sum(1 for b in terminals if b in "GC") / 4.0
 
 
-def self_energy(seq: str) -> float:
-    return float(primer3.calc_homodimer(seq).dg)
-
-
 def internal_fold_rna(seq: str) -> float:
     """Self-structure ΔG (kcal/mol) of the ASO folded with RNA (Turner 2004) parameters.
     The ASO is read 5'->3' with T mapped to U.
@@ -74,20 +68,6 @@ def sense_internal_fold(seq: str) -> float:
     structure of the target site with no flanking context.
     """
     return RNA.fold(get_antisense_rna(seq))[1]
-
-
-def hairpin_dG_energy(seq: str):
-    """
-    Returns the raw ΔG (Gibbs free energy, primer3 units) of the predicted hairpin structure.
-
-    Not normalized. Returns 0 when no structure is found; negative values indicate
-    stronger/more stable hairpins that may interfere with ASO activity.
-    """
-    hairpin = calc_hairpin(seq)
-
-    if not hairpin.structure_found:
-        return 0
-    return hairpin.dg if len(seq) > 0 else 0
 
 
 _complement_map = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")
@@ -147,28 +127,6 @@ def seq_entropy(seq: str) -> float:
             ent -= p * math.log2(p)
 
     return ent / 2.0  # normalize to [0, 1]: max entropy over 4 bases is log2(4) = 2
-
-
-def hairpin_score(seq: str, min_overlap: int = 4) -> float:
-    """
-    Estimates hairpin potential in O(N) time using set lookups.
-    """
-    n = len(seq)
-    if n < min_overlap:
-        return 0.0
-
-    seq = seq.upper()
-
-    # 1. Fast reverse complement using the helper function
-    antisense = get_antisense(seq)
-
-    # 2. Build a set of all min_overlap-mers in the antisense for O(1) lookup
-    antisense_kmers = {antisense[i : i + min_overlap] for i in range(n - min_overlap + 1)}
-
-    # 3. Count matches without scanning the whole string every time
-    matches = sum(1 for i in range(n - min_overlap + 1) if seq[i : i + min_overlap] in antisense_kmers)
-
-    return matches / n
 
 
 def gc_skew(seq: str) -> float:
@@ -289,23 +247,6 @@ def flexible_dinucleotide_fraction(seq: str) -> float:
         if pair in ["AT", "TA"]:
             count += 1
     return count / (len(seq) - 1)
-
-
-def hairpin_tm(seq: str) -> float:
-    """
-    Feature: hairpin_tm
-    Melting temperature (Tm) of the predicted hairpin structure.
-    Higher Tm means the structure is more stable at physiological temperatures.
-
-    Returns:
-        float: Tm of the hairpin
-    """
-    if len(seq) == 0:
-        return 0.0
-    hairpin = primer3.calc_hairpin(seq)
-    if not hairpin.structure_found:
-        return 0.0
-    return hairpin.tm
 
 
 def add_interaction_features(df: pd.DataFrame, feature_pairs: list[tuple[str, str]]) -> pd.DataFrame:
