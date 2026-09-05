@@ -41,10 +41,23 @@ HALFLIFE_SOURCE_COLUMNS = [
 ]
 
 # TTDB is multi-species; the dataset is human throughout.
-HALFLIFE_SPECIES = "HUMAN"
+HALFLIFE_SPECIES = "Human"
 
 
-def load_halflife_mapping():
+def select_species(df, species):
+    """Return the `species` rows of a TTDB frame, matching the name case-insensitively.
+
+    Raises if the species is absent, naming what the file does hold, so a typo or an
+    organism TTDB never measured fails here instead of yielding an empty mapping.
+    """
+    present = df["species_name"].astype(str).str.strip()
+    hit = present.str.casefold() == str(species).strip().casefold()
+    if not hit.any():
+        raise ValueError(f"No {species!r} rows in the half-life data; it has {sorted(present.unique())}.")
+    return df[hit]
+
+
+def load_halflife_mapping(species=HALFLIFE_SPECIES):
     """
     Loads the TTDB data using the tauso directory structure.
     Returns a dictionary: {(Gene_Symbol, Cell_Line): Half_Life_Hours}
@@ -68,8 +81,9 @@ def load_halflife_mapping():
     # 2. Rename for clarity
     df = df.rename(columns={"gene_name_y": "gene", "cell_type": "cell_line"})
 
-    # 3. Keep human measurements only.
-    df = df[df["species_name"].astype(str).str.strip().str.upper() == HALFLIFE_SPECIES]
+    # 3. One species only; gene symbols are upper-cased below, so mouse Actb would
+    # otherwise merge into human ACTB.
+    df = select_species(df, species)
 
     # 4. Filter for Wild Type (WT) only
     # Crucial: We only want baseline stability, not stress responses.
@@ -112,7 +126,7 @@ def load_halflife_mapping():
     # 10. Convert to Dictionary
     mapping = df_clean.to_dict()
 
-    logger.info(f"Successfully loaded {len(mapping)} specific (Gene+Cell) stability profiles.")
+    logger.info(f"Successfully loaded {len(mapping)} specific (Gene+Cell) {species} stability profiles.")
     return mapping
 
 
