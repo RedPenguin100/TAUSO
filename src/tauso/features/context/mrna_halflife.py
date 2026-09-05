@@ -4,6 +4,7 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,47 @@ HalfLifeResult = namedtuple("HalfLifeResult", ["half_life", "source"])
 # the SAME gene per row (identical after upper()+strip()); the only raw
 # difference (~35% of rows) is letter case, with `gene_name_y` the uppercase-
 # normalized form (~99.8% all-upper vs ~64% for `_x`). We use `_y`.
-HALFLIFE_SOURCE_COLUMNS = ["gene_name_y", "cell_type", "half_life", "condition", "r_squared"]
+HALFLIFE_SOURCE_COLUMNS = [
+    "gene_name_y",
+    "species_name",
+    "cell_type",
+    "half_life",
+    "condition",
+    "r_squared",
+]
+
+# TTDB is multi-species; the dataset is human throughout.
+HALFLIFE_SPECIES = "Human"
+
+# A study's baseline arm carries whatever name that study gave it; the rest are treatments.
+HALFLIFE_BASELINE_CONDITIONS = (
+    "WT",
+    "uninfected",
+    "DRB release control",
+    "FP control",
+    "ZAK control sham vs UVB",
+)
 
 
-def load_halflife_mapping():
+def select_species(df, species):
+    """Rows for `species`. Raises if absent, naming what the file has."""
+    present = df["species_name"].astype(str).str.strip()
+    hit = present.str.casefold() == str(species).strip().casefold()
+    if not hit.any():
+        raise ValueError(f"No {species!r} rows in the half-life data; it has {sorted(present.unique())}.")
+    return df[hit]
+
+
+def select_conditions(df, conditions):
+    """Rows for the baseline `conditions`. Raises if none match, naming what the file has."""
+    present = df["condition"].astype(str).str.strip()
+    hit = present.str.casefold().isin({str(c).strip().casefold() for c in conditions})
+    if not hit.any():
+        raise ValueError(f"No {sorted(conditions)} rows in the half-life data; it has {sorted(present.unique())}.")
+    return df[hit]
+
+
+def load_halflife_mapping(species=HALFLIFE_SPECIES, conditions=HALFLIFE_BASELINE_CONDITIONS):
     """
     Loads the TTDB data using the tauso directory structure.
     Returns a dictionary: {(Gene_Symbol, Cell_Line): Half_Life_Hours}
@@ -48,16 +86,22 @@ def load_halflife_mapping():
 
     # 1. Load necessary columns. Parquet is columnar, so this reads only these
     # (we use 'gene_name_y' standardized and 'condition' for filtering).
+    have = set(pq.ParquetFile(path).schema_arrow.names)
+    missing = [c for c in HALFLIFE_SOURCE_COLUMNS if c not in have]
+    if missing:
+        raise ValueError(f"{path} is missing {missing}. Rebuild it with 'tauso setup-mrna-halflife --force'.")
     df = pd.read_parquet(path, columns=HALFLIFE_SOURCE_COLUMNS)
 
     # 2. Rename for clarity
     df = df.rename(columns={"gene_name_y": "gene", "cell_type": "cell_line"})
 
-    # 3. Filter for Wild Type (WT) only
-    # Crucial: We only want baseline stability, not stress responses.
-    df = df[df["condition"].astype(str).str.strip().str.upper() == "WT"]
+    # 3. One species only.
+    df = select_species(df, species)
 
-    # 4. Quality Control Filter (Smart R_Squared)
+    # 4. Baseline arms only, not stress responses.
+    df = select_conditions(df, conditions)
+
+    # 5. Quality Control Filter (Smart R_Squared)
     # Convert to numeric, forcing errors to NaN
     df["r_squared"] = pd.to_numeric(df["r_squared"], errors="coerce")
 
@@ -67,22 +111,22 @@ def load_halflife_mapping():
     # - If R^2 is < 0.7: DROP (Proven bad fit / failed experiment)
     df = df[(df["r_squared"] >= 0.7) | (df["r_squared"].isna())]
 
-    # 5. Numerical Cleaning
+    # 6. Numerical Cleaning
     df["half_life"] = pd.to_numeric(df["half_life"], errors="coerce")
     df = df.dropna(subset=["gene", "half_life"])
 
     # Filter out negative or zero half-lives (physically impossible)
     df = df[df["half_life"] > 0]
 
-    # 6. Clip Artifacts
-    # We clip to 48h, but thanks to step 4, we aren't clipping "failed" 1M hour experiments
+    # 7. Clip Artifacts
+    # We clip to 48h, but thanks to step 5, we aren't clipping "failed" 1M hour experiments
     df["half_life"] = df["half_life"].clip(upper=48.0)
 
-    # 7. String Normalization
+    # 8. String Normalization
     df["gene"] = df["gene"].str.upper().str.strip()
     df["cell_line"] = df["cell_line"].str.strip()
 
-    # 8. Handle Duplicates using GEOMETRIC MEAN
+    # 9. Handle Duplicates using GEOMETRIC MEAN
     # Since we have filtered out the "noisy" experiments, the remaining
     # duplicates are likely valid replicates. Geometric mean is best for rates.
     # gmean == exp(mean(log(x))); compute it vectorized via the native groupby
@@ -91,10 +135,10 @@ def load_halflife_mapping():
     df["_log_half_life"] = np.log(df["half_life"])
     df_clean = np.exp(df.groupby(["gene", "cell_line"], observed=True)["_log_half_life"].mean())
 
-    # 9. Convert to Dictionary
+    # 10. Convert to Dictionary
     mapping = df_clean.to_dict()
 
-    logger.info(f"Successfully loaded {len(mapping)} specific (Gene+Cell) stability profiles.")
+    logger.info(f"Successfully loaded {len(mapping)} specific (Gene+Cell) {species} stability profiles.")
     return mapping
 
 
