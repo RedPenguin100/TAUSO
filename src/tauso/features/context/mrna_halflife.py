@@ -66,9 +66,7 @@ def load_halflife_mapping():
     have = set(pq.ParquetFile(path).schema_arrow.names)
     missing = [c for c in HALFLIFE_SOURCE_COLUMNS if c not in have]
     if missing:
-        raise ValueError(
-            f"{path} is missing {missing}. Rebuild it with 'tauso setup-mrna-halflife --force'."
-        )
+        raise ValueError(f"{path} is missing {missing}. Rebuild it with 'tauso setup-mrna-halflife --force'.")
     df = pd.read_parquet(path, columns=HALFLIFE_SOURCE_COLUMNS)
 
     # 2. Rename for clarity
