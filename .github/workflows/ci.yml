@@ -233,17 +233,14 @@ jobs:
       - name: Setup rRNA reference (off-target)
         run: tauso setup-rrna
 
-      # The bundled model is trained on the ten fold_access_* features, which no
-      # longer exist, so nothing in the suite scores with it. Restore both steps
-      # when the replacement accessibility family is in and the model retrained.
-      # - name: Cache model
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ${{ env.TAUSO_DATA_DIR }}/models
-      #     key: tauso-model-21394367-65e184e0
-      #
-      # - name: Setup model (tauso_score)
-      #   run: tauso setup-model
+      - name: Cache model
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TAUSO_DATA_DIR }}/models
+          key: tauso-model-22543712-7db62ebd
+
+      - name: Setup model (tauso_score)
+        run: tauso setup-model
 
       - name: Run tests
         # -n 2 with --dist loadfile: every test in a file goes to the same worker, so
