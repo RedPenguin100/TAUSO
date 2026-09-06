@@ -683,29 +683,26 @@ def setup_rrna(force):
 
 
 @main.command(name="setup-model")
-@click.option("--version", default=None, help="Model version to locate (default: the deployed default).")
-def setup_model(version):
-    """Say where the trained ASO-efficacy booster (tauso_score) goes, and whether it is there.
-
-    The booster is built by notebooks/models/deploy.py and put in place by hand, so this
-    reports the path inference reads rather than fetching anything.
+@click.option("--version", default=None, help="Model version to fetch (default: the deployed default).")
+@click.option("--force", is_flag=True, help="Force redownload if the model file exists.")
+def setup_model(version, force):
+    """Download the trained ASO-efficacy booster (tauso_score) from Zenodo into
+    <data_dir>/models/, verifying its md5, so inference finds it locally instead of
+    fetching it on first use. The per-version registry (Zenodo record + md5) lives in
+    tauso.inference.predict; this command just provisions it like the other setup-* assets.
     """
-    from tauso.inference.predict import DEFAULT_VERSION, MODEL_FILES, model_path
+    from tauso.inference.predict import DEFAULT_VERSION, MODEL_FILES, ZENODO_MODEL_RECORD, model_path
 
     version = version or DEFAULT_VERSION
     if version not in MODEL_FILES:
         echo_err(f"No model registered for version {version!r}.")
         sys.exit(1)
+    spec = MODEL_FILES[version]
     dest = model_path(version)
-    if dest.exists():
-        echo_ok(f"Model '{version}' is in place: {dest}")
-        return
     dest.parent.mkdir(parents=True, exist_ok=True)
-    echo_err(
-        f"Model '{version}' is not at {dest}.\n"
-        f"Build it with `python notebooks/models/deploy.py` and copy the booster there."
-    )
-    sys.exit(1)
+    click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
+    _ensure_zenodo_content_file(ZENODO_MODEL_RECORD, spec["filename"], str(dest), spec["md5"], "md5", force)
+    echo_ok(f"Model ready and verified: {dest}")
 
 
 @main.command(name="setup-tgcn")
