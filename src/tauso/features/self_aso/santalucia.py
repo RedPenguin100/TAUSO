@@ -1,8 +1,8 @@
-"""The terms the self-structure search needs that the TAUSO MD fit does not supply.
+"""The terms the self-structure search needs beyond stacking.
 
-The fit measures stacking inside a helix. It contains no helix end free of fraying and no
-loop, so helix initiation and the hairpin loop penalty come from SantaLucia instead, on the
-same published kcal/mol scale the fit is calibrated to.
+`weights` covers stacking inside a helix. It has no helix end free of fraying and no loop, so
+helix initiation and the hairpin loop penalty come from SantaLucia as well, on the same
+published kcal/mol scale.
 
 Both are chemistry-blind: a 2'-MOE loop is charged as a DNA loop. Nothing better exists for
 the modified sugars, and the alternative -- Turner RNA parameters -- is calibrated to be used
