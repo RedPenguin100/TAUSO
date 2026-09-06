@@ -242,6 +242,17 @@ jobs:
       - name: Setup model (tauso_score)
         run: tauso setup-model
 
+      # The runner has been killed mid-suite with exit 143 and no diagnostic, which is what
+      # happens when the VM goes unhealthy rather than a test failing. This reports the
+      # high-water mark, so the next such kill says whether memory was the reason.
+      - name: Sample memory during the tests
+        run: |
+          ( while true; do
+              free -m | awk '/^Mem:/ {print "mem used " $3 " MB of " $2}'
+              sleep 10
+            done ) &
+          echo "MEM_SAMPLER_PID=$!" >> "$GITHUB_ENV"
+
       - name: Run tests
         # -n 2 with --dist loadfile: every test in a file goes to the same worker, so
         # the module-scoped fixtures (structure_data, gene_to_data) are built once per
@@ -256,5 +267,5 @@ jobs:
         # attributed to the right test and worker. Without it there is no captured
         # log section at all.
         run: >-
-          micromamba run -n tauso pytest -q --durations=15 -n 2 --dist loadfile --n-jobs 2
+          micromamba run -n tauso pytest -q --durations=15 -n 2 --dist loadfile --n-jobs 1
           -o log_cli=false -o log_level=DEBUG
