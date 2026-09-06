@@ -9,16 +9,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tauso.features.self_aso.self_aso import (
+    FEATURE_NAMES,
+    calculate_self_aso,
+    encode,
+)
 from tauso.features.self_aso.weights import (
     DINUCLEOTIDE_ENERGY,
     MISMATCH_ENERGY,
     MODIFICATION_BONUS,
     TANDEM_MISMATCH_ENERGY,
-)
-from tauso.features.self_aso.self_aso import (
-    FEATURE_NAMES,
-    calculate_self_aso,
-    encode,
 )
 from tauso.populate.populate_self_aso import (
     RNA_FOLD_FEATURE,

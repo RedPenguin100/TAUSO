@@ -23,19 +23,19 @@ import numpy as np
 from numba import njit
 
 from ...util import DNA_BASES, normalize_dna
-from .weights import (
-    COMPLEMENT,
-    DEOXY,
-    DINUCLEOTIDE_ENERGY,
-    MISMATCH_ENERGY,
-    TANDEM_MISMATCH_ENERGY,
-)
 from .santalucia import (
     HAIRPIN_LOOP_PENALTY,
     INITIATION_AT,
     INITIATION_GC,
     MAX_LOOP,
     MIN_LOOP,
+)
+from .weights import (
+    COMPLEMENT,
+    DEOXY,
+    DINUCLEOTIDE_ENERGY,
+    MISMATCH_ENERGY,
+    TANDEM_MISMATCH_ENERGY,
 )
 
 SUGARS = {"M": 1, "C": 2}
