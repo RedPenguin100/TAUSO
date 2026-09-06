@@ -5,7 +5,7 @@ within-experiment efficacy *deviation* (the clean_exp target), so the output is 
 higher = more predicted knockdown relative to an experiment's mean. Rank candidates against each
 other within a target; the absolute value is not a percent-inhibition prediction.
 
-The model is large (~100 MB) so it is not committed to git; download it with `tauso setup-model`.
+The model is large (~100 MB) so it is not committed to git; `tauso setup-model` says where to put it.
 """
 
 import logging
@@ -24,12 +24,10 @@ logger = logging.getLogger(__name__)
 MODEL_DIR = Path(__file__).resolve().parent / "model"  # committed per-version feature lists
 DEFAULT_VERSION = "v1"
 
-# Zenodo record holding the trained boosters. Fill in the record id once the model is uploaded.
-ZENODO_MODEL_RECORD = "21394367"
-# Per version: the Zenodo model file + its md5 (pins the exact booster). `filename` must be the exact
-# name of the file uploaded to the Zenodo record; it is fetched and cached under that same name.
+# Per version: the booster's file name under <data_dir>/models/. `notebooks/models/deploy.py`
+# writes it, and it is put in place by hand.
 MODEL_FILES = {
-    "v1": {"filename": "deploy_model_best_clean_exp_trainval_seed1.json", "md5": "65e184e0111b5d4365d1b7d608ae9024"},
+    "v1": {"filename": "tauso_score_v1.json"},
 }
 
 
@@ -39,8 +37,7 @@ def score_column(version: str = DEFAULT_VERSION) -> str:
 
 
 def model_path(version=DEFAULT_VERSION):
-    """Local path to the booster for `version`, under <data_dir>/models/. Does not download it;
-    run `tauso setup-model` to provision it."""
+    """Local path to the booster for `version`, under <data_dir>/models/."""
     if version not in MODEL_FILES:
         raise KeyError(f"No model registered for version {version!r}.")
     return Path(get_data_dir()) / "models" / MODEL_FILES[version]["filename"]
@@ -49,10 +46,10 @@ def model_path(version=DEFAULT_VERSION):
 @lru_cache(maxsize=None)
 def load_model(version=DEFAULT_VERSION):
     """Return (booster, feature_names) for `tauso_score_<version>`. The booster must already be
-    present locally (run `tauso setup-model` to download it); the feature list ships in the package."""
+    present locally (`tauso setup-model` says where); the feature list ships in the package."""
     path = model_path(version)
     if not path.exists():
-        message = f"Model '{version}' not found at {path}. Run `tauso setup-model` to download it."
+        message = f"Model '{version}' not found at {path}. Run `tauso setup-model` to see where it goes."
         logger.error(message)
         raise FileNotFoundError(message)
     booster = xgb.Booster()
