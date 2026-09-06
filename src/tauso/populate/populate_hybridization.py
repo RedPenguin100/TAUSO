@@ -10,14 +10,14 @@ from ..features.hybridization.hybridization_features import (
     get_cet_dna_rna_dg,
     get_cet_wing_dg,
     get_dna_rna_dg,
-    get_lna_dna_rna_dg,
-    get_lna_wing_dg,
     get_ps_delta_dg,
     get_ps_dna_rna_dg,
 )
 from ..features.hybridization.md_weights import get_moe_md_contribution
 
 # Row-wise hybridization features. All dG values are kcal/mol at 37 C, summed 5'->3'.
+# The corpus holds no LNA oligos, so the LNA columns are not among them; get_lna_dna_rna_dg
+# and get_lna_wing_dg compute them for a caller that has such an oligo.
 HYBR_ROWWISE_CALCULATION = {
     # DNA/RNA hybrid baseline and its phosphorothioate-modified counterpart.
     "hybr_dna_rna_dg": lambda row: get_dna_rna_dg(row[ASO_SEQUENCE]),
@@ -26,9 +26,8 @@ HYBR_ROWWISE_CALCULATION = {
     # DNA/DNA duplex (SantaLucia & Hicks 2004).
     "hybr_dna_dna_dg": lambda row: calculate_dna(row[ASO_SEQUENCE]),
     # Whole-oligo modified-vs-RNA affinity per high-affinity sugar (NaN when that chemistry is
-    # absent): cEt/LNA = DNA/RNA baseline + sugar increment; 2'-MOE = full MD duplex energy.
+    # absent): cEt = DNA/RNA baseline + sugar increment; 2'-MOE = full MD duplex energy.
     "hybr_cet_dna_rna_dg": lambda row: get_cet_dna_rna_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
-    "hybr_lna_dna_rna_dg": lambda row: get_lna_dna_rna_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN]),
     "hybr_moe_md_gb_dg": lambda row: get_moe_md_contribution(
         row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb"
     ),
@@ -36,11 +35,9 @@ HYBR_ROWWISE_CALCULATION = {
         row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="pb"
     ),
     # Per-wing high-affinity sugar contribution (5' and 3'); NaN when that chemistry is absent.
-    # cEt/LNA = nearest-neighbour increment over the wing; 2'-MOE = MD energy over the wing (GB).
+    # cEt = nearest-neighbour increment over the wing; 2'-MOE = MD energy over the wing (GB).
     "hybr_cet_wing5_dg": lambda row: get_cet_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
     "hybr_cet_wing3_dg": lambda row: get_cet_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
-    "hybr_lna_wing5_dg": lambda row: get_lna_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing5"),
-    "hybr_lna_wing3_dg": lambda row: get_lna_wing_dg(row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], "wing3"),
     "hybr_moe_wing5_dg": lambda row: get_moe_md_contribution(
         row[ASO_SEQUENCE], row[CHEMICAL_PATTERN], row[MODIFICATION_STRING], simul_type="gb", region="wing5"
     ),
