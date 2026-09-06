@@ -23,7 +23,7 @@ import numpy as np
 from numba import njit
 
 from ...util import DNA_BASES, normalize_dna
-from .md_tables import (
+from .weights import (
     COMPLEMENT,
     DEOXY,
     DINUCLEOTIDE_ENERGY,
@@ -95,7 +95,7 @@ def hairpin(seq: np.ndarray, length: int, sugars: np.ndarray, match_dg: np.ndarr
             if loop < MIN_LOOP or loop > MAX_LOOP:
                 continue
 
-            # We don't have MD weights for loop penalty, so we use SantaLucia
+            # The loop penalty is chemistry-blind; see santalucia.
             base_score = HAIRPIN_LOOP_PENALTY[loop]
             stack = 0.0
             modified = (0 if _is_deoxy(sugars[i]) else 1) + (0 if _is_deoxy(sugars[j]) else 1)
