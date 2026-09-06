@@ -1,5 +1,5 @@
 {
-  "hl_low_rmse": {
+  "v1": {
     "variant": "clean_exp",
     "num_boost_round": 7748,
     "params": {
@@ -16,7 +16,7 @@
     },
     "cv_rmse": 19.37329349509481,
     "study": {
-      "name": "hl-LOW / rmse",
+      "name": "LOW / rmse",
       "trial": 154,
       "trials_total": 223,
       "objective_tuned_on": "cv_rmse"

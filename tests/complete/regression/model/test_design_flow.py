@@ -17,9 +17,6 @@ from tauso.inference import score_column
 TMSB10_PREMRNA = "GTTTCTTGCTGCAGCAACGCGAGTGGGAGCACCAGGATCTCGGGCTCGGAACGAGACTGCACGGTGAGTGCGGCGCCGGGGCGGGGGGCCCACCCAGGGTGTGGTCGGATCCGGTGCACCGGGCGGGCGCGCCGCAACCGCGACAGGCGCCCTTCTCGGACCGGACGCAGGGGCCGGCGACCACGCCCTGGGACCGAGAAGAGGGGTGCGGGACGCGCCCAGATCCTCGGCCTTGGGGCTGCTCGGCACGCCTTGGCGCGAGTGCCACGTCGAGAGGCGTCGGCGGGGAGCGCGGAAGGGGACGCTGGCCCCCAGGCCCAGGTCAAGCGCCTTGGTTTGCCCACTAGGATTGTTTTAAGAAAATGGCAGACAAACCAGACATGGGGGAAATCGCCAGCTTCGATAAGGCCAAGCTGAAGAAAACGGAGACGCAGGAGAAGAACACCCTGCCGACCAAAGAGAGTGAGTGTGCCTCGGTCTCCCGCGCCCCAGCCCAGCCCCTCACCCTGCTCTTCCTTGCAAACCCACTCCTCCACCCCCCACCCCGCCGTTGTCCCCGGTGTGGGCGGCCCCGGCCACTCTTTCAGTTTCACAAAGCGCCTTGTTTCTCCCCAGCCCCAAGCTTCCTTCTAAATCCCCACACCTCGTGGGTGCCTCGCCCACACCGGGAAGCACCTCGGTTGCGGGTGGGGGTTGCAGCTCCCCTCCAGCGCCCGCTTCCCGCTCTCCACAGCCATTGAGCAGGAGAAGCGGAGTGAAATTTCCTAAGATCCTGGAGGATTTCCTACCCCCGTCCTCTTCGAGACCCCAGTCGTGATGTGGAGGAAGAGCCACCTGCAAGATGGACACGAGCCACAAGCTGCACTGTGAACCTGGGCACTCCGCGCCGATGCCACCGGCCTGTGGGTCTCTGAAGGGACCCCCCCCCAATCGGACTGCCAAATTCTCCGGTTTGCCCCGGGATATTATAGAAAATTATTTGTATGAATAATGAAAATAAAACACACCTCGTGGCA"
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_design_asos_full_circle(dataframe_regression):
     ranked = design_asos("USER_TMSB10", gene_sequence=TMSB10_PREMRNA, first_n=5, top_n=5, n_jobs=1)
 
@@ -41,9 +38,6 @@ def test_design_asos_full_circle(dataframe_regression):
     dataframe_regression.check(summary, default_tolerance={"atol": 1e-4, "rtol": 1e-4})
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 @pytest.mark.integration
 def test_design_asos_off_targets_table():
     """off_targets=True returns a tidy per-hit sequence off-target table next to the ranking.
@@ -116,7 +110,8 @@ MALAT1_TOP10 = (
 
 
 @pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
+    reason="the frozen ranking is the one the wet-lab MALAT1 oligos were chosen from, so it records what was predicted before the experiment. tauso_score_v1 ranks the same ten differently "
+    "(Spearman 0.176). Re-enable once it is settled whether this fixture keeps the earlier ranking or moves to the current model."
 )
 def test_malat1_top10_frozen(dataframe_regression):
     """Freeze the published MALAT1 top-10 ASO ranking against model/feature/data drift.

@@ -22,16 +22,10 @@ def frame(features):
     return pd.DataFrame(np.zeros((4, len(features))), columns=features)
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_clean_frame_scores(frame):
     assert len(predict(frame)) == 4
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_partial_failure_raises(frame, guarded_and_unguarded):
     guarded, _ = guarded_and_unguarded
     frame.loc[0, guarded] = np.nan
@@ -39,9 +33,6 @@ def test_partial_failure_raises(frame, guarded_and_unguarded):
         predict(frame)
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_partial_failure_is_a_warning_when_not_strict(frame, guarded_and_unguarded, caplog):
     guarded, _ = guarded_and_unguarded
     frame.loc[0, guarded] = np.nan
@@ -50,9 +41,6 @@ def test_partial_failure_is_a_warning_when_not_strict(frame, guarded_and_unguard
     assert "failed to compute for part of" in caplog.text
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_whole_batch_gap_warns_but_scores(frame, guarded_and_unguarded, caplog):
     """A feature missing for every candidate is unavailable for the target, not broken."""
     guarded, _ = guarded_and_unguarded
@@ -62,9 +50,6 @@ def test_whole_batch_gap_warns_but_scores(frame, guarded_and_unguarded, caplog):
     assert "non-finite for all 4 candidates" in caplog.text
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_nan_in_an_unguarded_feature_is_silent(frame, guarded_and_unguarded, caplog):
     _, unguarded = guarded_and_unguarded
     frame.loc[0, unguarded] = np.nan
@@ -72,9 +57,6 @@ def test_nan_in_an_unguarded_feature_is_silent(frame, guarded_and_unguarded, cap
     assert caplog.text == ""
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_infinity_raises_even_when_unguarded(frame, guarded_and_unguarded):
     _, unguarded = guarded_and_unguarded
     frame.loc[0, unguarded] = np.inf
@@ -82,9 +64,6 @@ def test_infinity_raises_even_when_unguarded(frame, guarded_and_unguarded):
         predict(frame)
 
 
-@pytest.mark.skip(
-    reason="the bundled model is trained on the ten fold_access_* features, which no longer exist. Re-enable once the replacement accessibility family is computed and the model retrained."
-)
 def test_missing_column_still_raises_first(frame, features):
     with pytest.raises(ValueError, match="missing"):
         predict(frame.drop(columns=[features[0]]))
