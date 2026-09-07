@@ -15,7 +15,7 @@ authors = [{name = "Michael Kovaliov"}]
 dependencies = [
     "requests",
     "numpy>=2.5,<2.6",
-    "pandas>=3,<4",
+    "pandas>=2,<3",
     "pyarrow",
     "scipy",
     "numba>=0.67,<0.68",
