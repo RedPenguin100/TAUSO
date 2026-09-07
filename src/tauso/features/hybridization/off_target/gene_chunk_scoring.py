@@ -157,16 +157,20 @@ def emit_site_columns(aso_df, scan, cutoffs, derivations):
     Returns (aso_df, [feature_names]).
     """
     cutoffs = [int(c) for c in cutoffs]
-    feature_names = []
+    columns = {}
     for cutoff in cutoffs:
         per_row = scan.get(cutoff, {})
         for name_fn, derive_fn in derivations:
-            values = pd.Series(0.0, index=aso_df.index)
-            for idx, stats in per_row.items():
-                value = derive_fn(stats)
-                if value is not None:
-                    values[idx] = value
-            name = name_fn(cutoff)
-            aso_df[name] = values
-            feature_names.append(name)
+            derived = {idx: value for idx, stats in per_row.items() if (value := derive_fn(stats)) is not None}
+            mapped = pd.Series(aso_df.index.map(derived.get), index=aso_df.index, dtype=float)
+            columns[name_fn(cutoff)] = mapped.fillna(0.0)
+
+    feature_names = list(columns)
+    aso_df = pd.concat(
+        [
+            aso_df.drop(columns=[c for c in feature_names if c in aso_df.columns]),
+            pd.DataFrame(columns, index=aso_df.index),
+        ],
+        axis=1,
+    )
     return aso_df, feature_names
