@@ -243,12 +243,10 @@ jobs:
         run: tauso setup-model
 
       - name: Run tests
-        # -n 2 with --dist loadfile: every test in a file goes to the same worker, so
-        # the module-scoped fixtures (structure_data, gene_to_data) are built once per
-        # file instead of once per worker. -n 4 with the default round-robin rebuilt
-        # them on every worker and came out slower than running serially.
-        # --n-jobs 1 leaves each worker single-threaded, so the two workers are the only
-        # fan-out. The parallel feature path stays covered by
+        # Serial, because the runner has 16 GB and the module-scoped fixtures
+        # (structure_data, gene_to_data) hold the genome per worker: two xdist workers
+        # take memory in use to ~13 GB and the VM is killed mid-suite. One process keeps
+        # one copy. The parallel feature path stays covered by
         # test_mfe_parallel_matches_baseline, which hardcodes n_jobs=4.
         # log_cli streams DEBUG for every test, which under xdist interleaves the
         # workers into unreadable output. log_level=DEBUG instead captures the same
@@ -265,6 +263,6 @@ jobs:
             done ) &
           SAMPLER=$!
           trap 'kill $SAMPLER 2>/dev/null' EXIT
-          micromamba run -n tauso pytest -q --durations=15 -n 2 --dist loadfile --n-jobs 1 \
+          micromamba run -n tauso pytest -q --durations=15 --n-jobs 2 \
             --timeout=600 --timeout-method=thread \
             -o log_cli=false -o log_level=DEBUG
