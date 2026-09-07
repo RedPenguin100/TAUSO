@@ -119,8 +119,7 @@ def _populate_per_row(df, gene_to_mrna, feature_names, compute, n_jobs, verbose,
 
     apply_fn = make_apply_fn(frame, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
     results_df = pd.DataFrame(list(apply_fn(_process_row, axis=1)), index=frame.index)
-    for name in feature_names:
-        df[name] = results_df[name]
+    df = pd.concat([df.drop(columns=[c for c in feature_names if c in df.columns]), results_df[feature_names]], axis=1)
     return df, feature_names
 
 

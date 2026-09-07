@@ -812,8 +812,7 @@ class Calculator:
                 self.data[CANONICAL_GENE_NAME].to_numpy(),
                 gene_to_data,
             )
-            self.data["flank_at_skew_20"] = skew
-            self.data["flank_gc_content_20"] = gc
+            self.data = self.data.assign(flank_at_skew_20=skew, flank_gc_content_20=gc)
             return self.data, feats
 
         self._step("flank composition", feats, compute)
@@ -841,8 +840,7 @@ class Calculator:
                 self.data[ASO_SEQUENCE].astype(str).to_numpy(),
                 gene_mrna,
             )
-            self.data["on_target_duplication_exact"] = exact
-            self.data["on_target_duplication_near1"] = near1
+            self.data = self.data.assign(on_target_duplication_exact=exact, on_target_duplication_near1=near1)
             return self.data, feats
 
         self._step("duplication", feats, compute)

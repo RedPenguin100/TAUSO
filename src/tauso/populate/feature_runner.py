@@ -32,8 +32,18 @@ def compute_features(
     available = dict(specs)
     names = list(features) if features is not None else [name for name, _ in specs]
     apply_fn = make_apply_fn(apply_target, n_jobs=cpus, progress_bar=verbose, verbose=0, use_memory_fs=False)
+
+    # Each feature reads `apply_target`, never a column written here, so they are collected
+    # and attached in one pass. Assigning them one at a time rebuilds the frame per feature.
+    computed = {}
     for name in names:
         start = time.time()
-        df[name] = apply_feature(apply_fn, available[name])
+        computed[name] = apply_feature(apply_fn, available[name])
         logger.info("[%s] finished in %.4fs", name, time.time() - start)
+
+    for name in names:  # a feature already on the frame keeps its position
+        if name in df.columns:
+            df[name] = computed.pop(name)
+    if computed:
+        df = pd.concat([df, pd.DataFrame(computed, index=df.index)], axis=1)
     return df, names
