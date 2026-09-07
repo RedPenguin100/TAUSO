@@ -255,16 +255,9 @@ jobs:
         # lines and prints them under "Captured log call" for the tests that fail,
         # attributed to the right test and worker. Without it there is no captured
         # log section at all.
-        # The sampler runs inside this step: a process backgrounded in a step of its own is
-        # killed when that step ends. --timeout turns a hung test into a dumped stack that
-        # names it, instead of a silent kill with nothing in the log.
-        run: |
-          ( while true; do
-              free -m | awk '/^Mem:/ {print "[mem] used " $3 " MB of " $2 " avail " $7}'
-              sleep 15
-            done ) &
-          SAMPLER=$!
-          trap 'kill $SAMPLER 2>/dev/null' EXIT
-          micromamba run -n tauso pytest -q --durations=15 -n 2 --dist loadfile --n-jobs 2 \
-            --timeout=600 --timeout-method=thread \
-            -o log_cli=false -o log_level=DEBUG
+        # --timeout names a test that stops making progress, rather than the job dying
+        # partway with nothing in the log to say which one.
+        run: >-
+          micromamba run -n tauso pytest -q --durations=15 -n 2 --dist loadfile --n-jobs 2
+          --timeout=600 --timeout-method=thread
+          -o log_cli=false -o log_level=DEBUG
