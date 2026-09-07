@@ -50,14 +50,38 @@ from ._download import (
 logger = logging.getLogger(__name__)
 
 
+LEVEL_COLOURS = {"WARNING": "yellow", "ERROR": "red", "CRITICAL": "red", "DEBUG": "cyan"}
+
+
+class _LevelColourFormatter(logging.Formatter):
+    """Colours the level name so a warning stands out in a run of INFO.
+
+    Only when the handler's stream is a terminal: escape codes in a redirected log or a
+    CI transcript are noise that every later grep has to carry.
+    """
+
+    def __init__(self, fmt, datefmt=None, stream=None):
+        super().__init__(fmt, datefmt=datefmt)
+        self.colour = bool(stream is not None and hasattr(stream, "isatty") and stream.isatty())
+
+    def format(self, record):
+        colour = LEVEL_COLOURS.get(record.levelname) if self.colour else None
+        if colour:
+            record = logging.makeLogRecord(record.__dict__)
+            record.levelname = click.style(record.levelname, fg=colour, bold=True)
+        return super().format(record)
+
+
 @click.group()
 def main():
     """Tauso: ASO Design Toolkit"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    logging.basicConfig(level=logging.INFO)
+    for handler in logging.getLogger().handlers:
+        handler.setFormatter(
+            _LevelColourFormatter(
+                "%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S", stream=getattr(handler, "stream", None)
+            )
+        )
 
 
 @main.command()
