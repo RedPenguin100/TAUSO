@@ -1,12 +1,12 @@
 """Shared driver for the ``(name, func)`` feature-spec pattern used by the populate modules."""
 
 import logging
-import time
 from collections.abc import Callable, Iterable, Sequence
 
 import pandas as pd
 
 from ..parallel_utils import make_apply_fn
+from ..timer import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +34,9 @@ def compute_features(
     apply_fn = make_apply_fn(apply_target, n_jobs=cpus, progress_bar=verbose, verbose=0, use_memory_fs=False)
 
     # Attached in one pass: a column at a time fragments the frame and pandas warns.
-    computed = {}
-    for name in names:
-        start = time.time()
-        computed[name] = apply_feature(apply_fn, available[name])
-        logger.info("[%s] finished in %.4fs", name, time.time() - start)
+    with Timer(log=False) as timer:
+        computed = {name: apply_feature(apply_fn, available[name]) for name in names}
+    logger.info("Computed %d features in %.4fs: %s", len(names), timer.elapsed_time, ", ".join(names))
 
     for name in names:
         if name in df.columns:
