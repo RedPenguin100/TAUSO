@@ -243,11 +243,11 @@ jobs:
         run: tauso setup-model
 
       - name: Run tests
-        # Serial, because the runner has 16 GB and the module-scoped fixtures
-        # (structure_data, gene_to_data) hold the genome per worker: two xdist workers
-        # take memory in use to ~13 GB and the VM is killed mid-suite. One process keeps
-        # one copy. The parallel feature path stays covered by
-        # test_mfe_parallel_matches_baseline, which hardcodes n_jobs=4.
+        # One pytest per directory, because memory is never given back within a run: the
+        # genome-holding caches accumulate, and by the end of the suite a single process
+        # is at 15.7 GB of the runner's 16 GB and the VM is killed. Ending the process
+        # between directories returns it. Within a directory, -n 2 --dist loadfile keeps
+        # the module-scoped fixtures (structure_data, gene_to_data) built once per file.
         # log_cli streams DEBUG for every test, which under xdist interleaves the
         # workers into unreadable output. log_level=DEBUG instead captures the same
         # lines and prints them under "Captured log call" for the tests that fail,
@@ -263,6 +263,11 @@ jobs:
             done ) &
           SAMPLER=$!
           trap 'kill $SAMPLER 2>/dev/null' EXIT
-          micromamba run -n tauso pytest -q --durations=15 --n-jobs 2 \
-            --timeout=600 --timeout-method=thread \
-            -o log_cli=false -o log_level=DEBUG
+          for suite in tests/unit tests/complete tests/integration; do
+            echo "::group::pytest $suite"
+            micromamba run -n tauso pytest "$suite" -q --durations=15 -n 2 --dist loadfile --n-jobs 1 \
+              --timeout=600 --timeout-method=thread \
+              -o log_cli=false -o log_level=DEBUG || exit 1
+            echo "::endgroup::"
+            free -m | awk '/^Mem:/ {print "[mem] after '"$suite"': used " $3 " MB of " $2}'
+          done
