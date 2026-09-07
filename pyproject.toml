@@ -49,6 +49,7 @@ dev = [
     "pytest",
     "pytest-regressions",
     "pytest-xdist",
+    "pytest-timeout",
     "shap",
     "matplotlib",
     "seaborn",
