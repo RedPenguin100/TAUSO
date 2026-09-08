@@ -25,8 +25,9 @@ def get_data_path(version):
     raise ValueError(f"Invalid version: {version}")
 
 
-def create_tauso_split(data: pd.DataFrame, val_frac: float = 0.15, test_frac: float = 0.15,
-                       seed: int = 42) -> pd.DataFrame:
+def create_tauso_split(
+    data: pd.DataFrame, val_frac: float = 0.15, test_frac: float = 0.15, seed: int = 42
+) -> pd.DataFrame:
     """
     Create a stratified temporal split as an alternative to the OligoAI "split" column.
 
@@ -45,21 +46,22 @@ def create_tauso_split(data: pd.DataFrame, val_frac: float = 0.15, test_frac: fl
         n = len(idx)
         if n < 3:
             continue  # all train
-        n_val  = max(1, round(n * val_frac))
+        n_val = max(1, round(n * val_frac))
         n_test = max(1, round(n * test_frac))
         n_train = n - n_val - n_test
         if n_train < 1:
             continue
-        split.loc[idx[:n_train]]              = "train"
-        split.loc[idx[n_train:n_train+n_val]] = "val"
-        split.loc[idx[n_train+n_val:]]        = "test"
+        split.loc[idx[:n_train]] = "train"
+        split.loc[idx[n_train : n_train + n_val]] = "val"
+        split.loc[idx[n_train + n_val :]] = "test"
 
     data = data.copy()
     data["split"] = split
 
     counts = data["split"].value_counts()
-    logger.info("Tauso split | train=%d val=%d test=%d",
-                counts.get("train", 0), counts.get("val", 0), counts.get("test", 0))
+    logger.info(
+        "Tauso split | train=%d val=%d test=%d", counts.get("train", 0), counts.get("val", 0), counts.get("test", 0)
+    )
     _ = rng  # seed kept for reproducibility but stratified split is deterministic
     return data
 
@@ -96,9 +98,7 @@ def _standardize_transfection_columns(final_data: pd.DataFrame) -> pd.DataFrame:
                 final_data[col] = final_data[col].astype("float64")
                 final_data.loc[other_mask, col] = np.nan
         final_data = final_data.drop(columns=["Other"])
-        logger.info(
-            "OligoAI 'Other' column dropped | %d rows had Other=1, now NaN on the three indicators", n_other
-        )
+        logger.info("OligoAI 'Other' column dropped | %d rows had Other=1, now NaN on the three indicators", n_other)
 
     # 2. Rename OligoAI capitalized one-hots to the canonical transfection_* names.
     oligoai_present = [c for c in _OLIGOAI_TO_TRANSFECTION_COLUMN if c in final_data.columns]
@@ -128,7 +128,7 @@ def validate_chemistry_lengths(data, index):
         )
 
 
-def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai"):
+def load_and_validate_final_data(version="oligo", load_competition=False, split_source="oligoai", use_cache=True):
     """
     Loads features and metadata, ensures shared columns are identical,
     and returns the merged DataFrame along with the final feature list.
@@ -144,7 +144,7 @@ def load_and_validate_final_data(version="oligo", load_competition=False, split_
     data_path = get_data_path(version)
     # 1. Load the data sources
     with Timer("Loading features"):
-        loaded_features = load_all_features(version=version, load_competition=load_competition)
+        loaded_features = load_all_features(version=version, load_competition=load_competition, use_cache=use_cache)
     data = pd.read_csv(data_path)
 
     # 2. Identify all columns that exist in both frames (other than the join key).
