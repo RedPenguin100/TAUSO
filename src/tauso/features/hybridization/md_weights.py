@@ -42,6 +42,21 @@ def _moe_weights(simul_type: str) -> dict:
     raise ValueError(f"Unknown simulation type: {simul_type}")
 
 
+# The weight keys interleave base and sugar marker per residue, while the sum walks a sequence
+# and a chemical pattern side by side. Re-keying by the two slices it already holds -- the RNA
+# dinucleotide followed by its two pattern characters -- makes a stack one dict lookup.
+_MOE_BY_DINUCLEOTIDE = {
+    simul: {
+        b1 + b2 + c1 + c2: weights[b1 + ("*" if c1 == "M" else "'") + b2 + ("*" if c2 == "M" else "'")]
+        for b1 in "ACGU"
+        for b2 in "ACGU"
+        for c1 in "Md"
+        for c2 in "Md"
+    }
+    for simul, weights in (("gb", MOE_MD_GB_WEIGHTS), ("pb", MOE_MD_PB_WEIGHTS))
+}
+
+
 def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type="gb", region=None):
     """Whole-oligo 2'-MOE-modified DNA/RNA affinity from MD (kcal/mol): the MD nearest-neighbour
     energy summed over the full duplex (MOE-bearing stacks plus the unmodified DNA-gap stacks),
@@ -57,17 +72,25 @@ def get_moe_md_contribution(seq: str, chemical_pattern, modification, simul_type
 
     seq = dna_to_rna(seq)
     weights = _moe_weights(simul_type)
+    table = _MOE_BY_DINUCLEOTIDE[simul_type]
     gap_start, gap_end, gap_len = get_longest_dna_gap(chemical_pattern)
     if gap_len == 0:
         gap_start, gap_end = len(seq), len(seq)
 
+    if region == "wing5":
+        start, stop = 0, gap_start
+    elif region == "wing3":
+        start, stop = gap_end, len(seq)
+    else:
+        start, stop = 0, len(seq)
+
     total = 0.0
-    for i in range(len(seq) - 1):
-        if region == "wing5" and not i < gap_start:
-            continue
-        if region == "wing3" and not i >= gap_end:
-            continue
-        L = seq[i] + ("*" if chemical_pattern[i] == "M" else "'")
-        R = seq[i + 1] + ("*" if chemical_pattern[i + 1] == "M" else "'")
-        total += weights[L + R]
+    for i in range(start, min(stop, len(seq) - 1)):
+        key = seq[i : i + 2] + chemical_pattern[i : i + 2]
+        if key in table:
+            total += table[key]
+        else:
+            L = seq[i] + ("*" if chemical_pattern[i] == "M" else "'")
+            R = seq[i + 1] + ("*" if chemical_pattern[i + 1] == "M" else "'")
+            total += weights[L + R]
     return total

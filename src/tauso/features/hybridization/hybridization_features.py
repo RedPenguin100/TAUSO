@@ -1,12 +1,86 @@
 import logging
 
 from ...common.modifications import check_pattern_length, get_longest_dna_gap
-from ...util import BODY_TEMPERATURE_C, celsius_to_kelvin, dna_to_rna, get_nucleotide_watson_crick, rna_to_dna
+from ...util import (
+    BODY_TEMPERATURE_C,
+    DNA_BASES,
+    celsius_to_kelvin,
+    dna_to_rna,
+    get_nucleotide_watson_crick,
+    rna_to_dna,
+)
 from ..hybridization.exp_weights import DNA_RNA_DG37_WEIGHTS, PS_DELTA_DG37_WEIGHTS
 from ..hybridization.weights.dna import DNA_DNA_WEIGHTS
 from ..hybridization.weights.lna import LNA_DNA_WEIGHTS
 
 logger = logging.getLogger(__name__)
+
+# Nearest-neighbour sums below are keyed by the slices the loop already holds -- the two
+# sequence characters, plus the two chemical-pattern characters where the sugar matters -- so a
+# stack costs one dict lookup. The tables are built from the same per-dinucleotide helpers the
+# loops fall back to, so the two paths cannot disagree.
+
+
+def _dna_dna_increment(b1: str, b2: str):
+    """(dH, dS) for one DNA/DNA dinucleotide over its Watson-Crick complement.
+
+    Returns None when the table has no such stack. Raises on a base outside the DNA alphabet.
+    """
+    key = f"{b1}{b2}/{get_nucleotide_watson_crick(b1)}{get_nucleotide_watson_crick(b2)}"
+    entry = DNA_DNA_WEIGHTS.get(key)
+    if entry is None:
+        logger.warning("Unknown key in weights table: %s", key)
+        return None
+    return entry["dH"], entry["dS"]
+
+
+_DNA_DNA_BY_DINUCLEOTIDE = {b1 + b2: _dna_dna_increment(b1, b2) for b1 in DNA_BASES for b2 in DNA_BASES}
+
+
+def _third_gen_increment(b1: str, b2: str, m1: str, m2: str, params: dict, letter: str):
+    """(dH, dS) for one high-affinity-sugar stack, or None when the stack contributes nothing.
+
+    A stack contributes only when it touches a ``letter`` sugar; pure-DNA ('dd') and any other
+    sugar are skipped. Raises on a base outside the DNA alphabet.
+    """
+    if m1 == "d" and m2 == "d":
+        return None
+    if m1 == letter and m2 == letter:
+        top = f"+{b1}+{b2}"
+    elif m1 == "d" and m2 == letter:
+        top = f"{b1}+{b2}"
+    elif m1 == letter and m2 == "d":
+        top = f"+{b1}{b2}"
+    else:
+        return None
+
+    key = f"{top}/{get_nucleotide_watson_crick(b1)}{get_nucleotide_watson_crick(b2)}"
+    entry = params.get(key)
+    if entry is None:
+        logger.warning("Unknown key in weights table: %s", key)
+        return None
+    return entry["dH"], entry["dS"]
+
+
+_THIRD_GEN_TABLES: dict = {}
+
+
+def _third_gen_table(params: dict, letter: str) -> dict:
+    """``"<b1><b2><m1><m2>" -> (dH, dS) | None`` for the sugars that can contribute (``letter``
+    and 'd'). Any other sugar misses the table and takes the ``_third_gen_increment`` path."""
+    cached = _THIRD_GEN_TABLES.get(letter)
+    if cached is not None and cached[0] is params:
+        return cached[1]
+    sugars = (letter, "d")
+    table = {
+        b1 + b2 + m1 + m2: _third_gen_increment(b1, b2, m1, m2, params, letter)
+        for b1 in DNA_BASES
+        for b2 in DNA_BASES
+        for m1 in sugars
+        for m2 in sugars
+    }
+    _THIRD_GEN_TABLES[letter] = (params, table)
+    return table
 
 
 def get_dna_rna_dg(seq: str) -> float:
@@ -14,8 +88,7 @@ def get_dna_rna_dg(seq: str) -> float:
     seq = dna_to_rna(seq)
     total = 0.0
     for i in range(len(seq) - 1):
-        L, R = seq[i], seq[i + 1]
-        total += DNA_RNA_DG37_WEIGHTS[L + R]
+        total += DNA_RNA_DG37_WEIGHTS[seq[i : i + 2]]
     return total
 
 
@@ -28,8 +101,7 @@ def get_ps_delta_dg(seq: str, ps_pattern: str) -> float:
     for i in range(len(seq) - 1):
         if ps_pattern[i] != "*":
             continue
-        L, R = seq[i], seq[i + 1]
-        total += PS_DELTA_DG37_WEIGHTS[L + R]
+        total += PS_DELTA_DG37_WEIGHTS[seq[i : i + 2]]
     return total
 
 
@@ -60,16 +132,14 @@ def get_dna_rna_dg_region(seq: str, chemical_pattern: str, region: str) -> float
         gap_start, gap_end = len(seq), len(seq)
 
     seq = dna_to_rna(seq)
+    # Each dinucleotide belongs to the region of its 5' base, so a region is the half-open
+    # index range [start, stop).
+    bounds = {"wing5": (0, gap_start), "gap": (gap_start, gap_end), "wing3": (gap_end, len(seq))}
+    start, stop = bounds.get(region, (0, 0))
+
     total = 0.0
-    for i in range(len(seq) - 1):
-        if i < gap_start:
-            base_region = "wing5"
-        elif i < gap_end:
-            base_region = "gap"
-        else:
-            base_region = "wing3"
-        if base_region == region:
-            total += DNA_RNA_DG37_WEIGHTS[seq[i] + seq[i + 1]]
+    for i in range(start, min(stop, len(seq) - 1)):
+        total += DNA_RNA_DG37_WEIGHTS[seq[i : i + 2]]
     return total
 
 
@@ -98,35 +168,26 @@ def calculate_3rd_gen_diff(seq, fmt, params, temp_c=BODY_TEMPERATURE_C, letter="
 
     seq = seq.upper()
     temp_k = celsius_to_kelvin(temp_c)
+    table = _third_gen_table(params, letter)
+
+    if region == "wing5":
+        start, stop = 0, gap_start
+    elif region == "wing3":
+        start, stop = gap_end, len(seq)
+    else:
+        start, stop = 0, len(seq)
 
     total_dH = 0.0
     total_dS = 0.0
-    for i in range(len(seq) - 1):
-        if region == "wing5" and not i < gap_start:
-            continue
-        if region == "wing3" and not i >= gap_end:
-            continue
-        b1, b2 = seq[i], seq[i + 1]
-        m1, m2 = fmt[i], fmt[i + 1]
-
-        if m1 == "d" and m2 == "d":
-            continue
-        if m1 == letter and m2 == letter:
-            top = f"+{b1}+{b2}"
-        elif m1 == "d" and m2 == letter:
-            top = f"{b1}+{b2}"
-        elif m1 == letter and m2 == "d":
-            top = f"+{b1}{b2}"
+    for i in range(start, min(stop, len(seq) - 1)):
+        key = seq[i : i + 2] + fmt[i : i + 2]
+        if key in table:
+            increment = table[key]
         else:
-            continue
-
-        c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
-        key = f"{top}/{c1}{c2}"
-        if key in params:
-            total_dH += params[key]["dH"]
-            total_dS += params[key]["dS"]
-        else:
-            logger.warning("Unknown key in weights table: %s", key)
+            increment = _third_gen_increment(seq[i], seq[i + 1], fmt[i], fmt[i + 1], params, letter)
+        if increment is not None:
+            total_dH += increment[0]
+            total_dS += increment[1]
 
     return total_dH - (temp_k * (total_dS / 1000.0))
 
@@ -213,13 +274,13 @@ def calculate_dna(antisense, temp_c=BODY_TEMPERATURE_C):
     total_dH = 0.0
     total_dS = 0.0
     for i in range(len(seq) - 1):
-        b1, b2 = seq[i], seq[i + 1]
-        c1, c2 = get_nucleotide_watson_crick(b1), get_nucleotide_watson_crick(b2)
-        key = f"{b1}{b2}/{c1}{c2}"
-        if key in DNA_DNA_WEIGHTS:
-            total_dH += DNA_DNA_WEIGHTS[key]["dH"]
-            total_dS += DNA_DNA_WEIGHTS[key]["dS"]
+        pair = seq[i : i + 2]
+        if pair in _DNA_DNA_BY_DINUCLEOTIDE:
+            increment = _DNA_DNA_BY_DINUCLEOTIDE[pair]
         else:
-            logger.warning("Unknown key in weights table: %s", key)
+            increment = _dna_dna_increment(seq[i], seq[i + 1])
+        if increment is not None:
+            total_dH += increment[0]
+            total_dS += increment[1]
 
     return total_dH - (temp_k * (total_dS / 1000.0))
