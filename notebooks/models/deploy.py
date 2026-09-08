@@ -82,7 +82,19 @@ def main():
         if strays:
             sys.exit(f"{len(strays)} features are not among the calculated shards: {strays}")
 
-    features = [f for f in features if df[f].nunique(dropna=True) > 1]  # a constant column carries no split
+    # A column with one value carries no split. All-NaN is the degenerate case, and it means
+    # the data behind the feature was never built rather than the feature being uninformative.
+    constant = [f for f in features if df[f].nunique(dropna=True) <= 1]
+    empty = [f for f in constant if df[f].isna().all()]
+    if empty:
+        print(f"\n!! dropping {len(empty)} features that are NaN for every row: {empty}")
+        print("!! the data they are built from is missing; they will be absent from the model\n", flush=True)
+    if len(constant) > len(empty):
+        print(
+            f"dropping {len(constant) - len(empty)} constant features: {[f for f in constant if f not in set(empty)]}",
+            flush=True,
+        )
+    features = [f for f in features if f not in set(constant)]
     trv, test = common.split(df)
     train_df = trv if args.data == "trainval" else df
 
