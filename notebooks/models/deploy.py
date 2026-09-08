@@ -7,9 +7,10 @@ One of --use-calculated / --use-downloaded says where the features come from. Th
 different feature sets whenever the pipeline has moved on since the cache was published, so
 the choice is the caller's rather than whichever happens to be on disk.
 
-  python notebooks/models/deploy.py --use-calculated   # what `calculate_features` wrote
-  python notebooks/models/deploy.py --use-downloaded   # the published cache, fetched if absent
-  python notebooks/models/deploy.py --use-calculated --data all      # train on all data
+  python notebooks/models/deploy.py --use-calculated          # what `calculate_features` wrote
+  python notebooks/models/deploy.py --use-downloaded          # the published cache, fetched if absent
+  python notebooks/models/deploy.py --use-calculated --med    # the MED search's parameters
+  python notebooks/models/deploy.py --use-calculated --data all
 
 The booster is ~100 MB and stays out of git; copy it to <data_dir>/models/ to score with it.
 """
@@ -54,6 +55,9 @@ def main():
     )
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--version", default=DEFAULT_VERSION, help="model version to write")
+    config = ap.add_mutually_exclusive_group()
+    config.add_argument("--low", action="store_true", help="the LOW search's parameters (default)")
+    config.add_argument("--med", action="store_true", help="the MED search's parameters")
     source = ap.add_mutually_exclusive_group(required=True)
     source.add_argument("--use-calculated", action="store_true", help="train on the features this machine computed")
     source.add_argument(
@@ -61,7 +65,8 @@ def main():
     )
     args = ap.parse_args()
 
-    spec = CONFIGS[args.version]
+    config_name = "med" if args.med else "low"
+    spec = CONFIGS[config_name]
 
     if args.use_calculated and not current_pipeline_features():
         sys.exit(
@@ -100,14 +105,14 @@ def main():
 
     params, rounds, variant = spec["params"], spec["num_boost_round"], spec["variant"]
     print(
-        f"deploy {args.version} ({variant}): train on {args.data} ({len(train_df)} rows), "
+        f"deploy {args.version} ({variant}, {config_name}): train on {args.data} ({len(train_df)} rows), "
         f"seed {args.seed}, {rounds} rounds, {len(features)} feats",
         flush=True,
     )
 
     model = common.train(train_df, features, variant, params, rounds, seed=args.seed)
 
-    booster = common.RESULTS_DIR / MODEL_FILES[args.version]["filename"]
+    booster = common.RESULTS_DIR / f"{Path(MODEL_FILES[args.version]['filename']).stem}_{config_name}.json"
     booster.parent.mkdir(parents=True, exist_ok=True)
     model.save_model(str(booster))
 

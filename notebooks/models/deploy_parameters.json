@@ -1,5 +1,5 @@
 {
-  "v1": {
+  "low": {
     "variant": "clean_exp",
     "num_boost_round": 7748,
     "params": {
@@ -31,6 +31,41 @@
       "self_aso_block": "selfaso_new.parquet"
     },
     "unconfirmed": [
+      "inputs: these are the main arm's files (ARM=r485hlome_add, CONFIG=low7, trial 163 in best_m7c163.json). Whether trial 154 of the hl-LOW/rmse study was tuned on this same matrix and feature list is not confirmed.",
+      "selfaso_new.parquet differs in size between the cluster (5386646 B) and the local scratchpad copy (5465584 B); which one fed matrix_hlome_r485.parquet is unknown. The local copy's 15 selfaso_* columns do match the repo's current self-ASO family exactly, so that block is post-#298 rather than the retired self-structure features.",
+      "Whether the 532 features still include the 17 the shipped model retired (10 fold_access_*, expr_msr1, expr_rnase, and the 5 self-structure) is unknown: feats_r485hlome_add.json is cluster-only. The self-ASO block says the 5 self-structure ones are gone; the other 12 are open."
+    ]
+  },
+  "med": {
+    "variant": "clean_exp",
+    "num_boost_round": 13375,
+    "params": {
+      "tree_method": "hist",
+      "device": "cuda",
+      "max_depth": 15,
+      "learning_rate": 0.0059470080438376385,
+      "min_child_weight": 348,
+      "subsample": 0.953798749262374,
+      "colsample_bytree": 0.17648452125667902,
+      "gamma": 33.276835643730486,
+      "reg_lambda": 386.4935782537077,
+      "reg_alpha": 30.099046456436632
+    },
+    "study": {
+      "name": "MED / rmse",
+      "objective_tuned_on": "cv_rmse"
+    },
+    "inputs": {
+      "cluster_dir": "/tamir2/kovaliov/mk_hpo",
+      "matrix": "matrix_hlome_r485.parquet",
+      "matrix_rows": 143253,
+      "feature_list": "feats_r485hlome_add.json",
+      "n_features": 532,
+      "arm": "r485hlome_add",
+      "self_aso_block": "selfaso_new.parquet"
+    },
+    "unconfirmed": [
+      "cv_rmse and the trial it came from were not recorded with these parameters.",
       "inputs: these are the main arm's files (ARM=r485hlome_add, CONFIG=low7, trial 163 in best_m7c163.json). Whether trial 154 of the hl-LOW/rmse study was tuned on this same matrix and feature list is not confirmed.",
       "selfaso_new.parquet differs in size between the cluster (5386646 B) and the local scratchpad copy (5465584 B); which one fed matrix_hlome_r485.parquet is unknown. The local copy's 15 selfaso_* columns do match the repo's current self-ASO family exactly, so that block is post-#298 rather than the retired self-structure features.",
       "Whether the 532 features still include the 17 the shipped model retired (10 fold_access_*, expr_msr1, expr_rnase, and the 5 self-structure) is unknown: feats_r485hlome_add.json is cluster-only. The self-ASO block says the 5 self-structure ones are gone; the other 12 are open."
