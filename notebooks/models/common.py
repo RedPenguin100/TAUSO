@@ -53,14 +53,19 @@ def predict(model, df, features):
     return model.predict(xgb.DMatrix(df[features].to_numpy(np.float64), feature_names=features))
 
 
-def metrics_on(model, df, features):
-    """Full metric suite for `model` on `df`, ranked against actual inhibition."""
+def metrics_from(predictions, df):
+    """Full metric suite for `predictions` on `df`, ranked against actual inhibition."""
     return evaluate(
-        predict(model, df, features),
+        predictions,
         df[INHIBITION_PERCENT].to_numpy(np.float64),
         df["custom_id"].to_numpy(),
         df["cohort_id"].to_numpy(),
     )
+
+
+def metrics_on(model, df, features):
+    """Full metric suite for `model` on `df`, ranked against actual inhibition."""
+    return metrics_from(predict(model, df, features), df)
 
 
 # variant -> (objective, query-group column, demean-by column, extra params)

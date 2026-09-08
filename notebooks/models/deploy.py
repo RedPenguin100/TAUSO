@@ -20,6 +20,8 @@ import json
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root, for the notebooks.* imports
 from notebooks.models import common
 
@@ -122,7 +124,15 @@ def main():
     (MODEL_DIR / f"tauso_score_{args.version}.finite.txt").write_text("\n".join(finite) + "\n")
 
     if args.data == "trainval":
-        scores = common.metrics_on(model, test, features)
+        # Keep the test predictions: the model-comparison figures read one file per model, and
+        # rescoring later would need the exact feature set this run trained on.
+        predictions = common.predict(model, test, features)
+        prediction_path = booster.with_suffix(".test_pred.parquet")
+        pd.DataFrame({"index_oligo": test["index_oligo"].to_numpy(), "tauso": predictions}).to_parquet(
+            prediction_path, index=False
+        )
+        scores = common.metrics_from(predictions, test)
+        print(f"  -> {prediction_path}  ({len(test)} test predictions)")
         print(f"\nTEST (held out, n={len(test)})")
         for metric in common.METRICS:
             print(f"  {metric:>8}: {scores[metric]:.4f}")
