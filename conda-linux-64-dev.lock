@@ -77,7 +77,7 @@ https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-h8b3dc9c_1.conda#06f
 https://conda.anaconda.org/conda-forge/linux-64/perl-5.32.1-7_hd590300_perl5.conda#f2cfec9406850991f4e3d960cc9e3321
 https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda#0ee5bb30034b081a1386c1e2c98ab0a7
 https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-hd6e31c0_1.conda#69c01c781e7c8190bbdaf79e3848c5ca
-https://conda.anaconda.org/conda-forge/linux-64/uv-0.12.10-h86a270d_0.conda#2d862bd3eed02d4c94dd6f6b21377a2a
+https://conda.anaconda.org/conda-forge/linux-64/uv-0.12.10-h841d291_0.conda#53d5102310e81cdc792760d1dbd6a33d
 https://conda.anaconda.org/conda-forge/linux-64/wayland-1.26.0-hc1c935e_2.conda#88a47e22b53e50865b1cabe2eb648352
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libsm-1.2.6-h0d788c3_1.conda#aa7459ed9ad086ba11dda843d764b33d
 https://conda.anaconda.org/conda-forge/linux-64/krb5-1.22.2-hbc21106_2.conda#53318d715316929a574f83591308b1f8
@@ -210,7 +210,7 @@ https://conda.anaconda.org/conda-forge/noarch/referencing-0.37.0-pyhcf101f3_0.co
 https://conda.anaconda.org/conda-forge/noarch/rfc3339-validator-0.1.4-pyhd8ed1ab_1.conda#36de09a8d3e5d5e6f4ee63af49e59706
 https://conda.anaconda.org/conda-forge/noarch/rfc3987-syntax-1.1.0-pyhe01879c_1.conda#7234f99325263a5af6d4cd195035e8f2
 https://conda.anaconda.org/conda-forge/noarch/stack_data-0.6.3-pyhd8ed1ab_1.conda#b1b505328da7a6b246787df4b5a49fbc
-https://conda.anaconda.org/conda-forge/linux-64/tbb-2023.0.0-hab88423_2.conda#7073b15f9364ebc118998601ac6ca6a6
+https://conda.anaconda.org/conda-forge/linux-64/tbb-2023.0.0-hfd44327_3.conda#1363867d90dba50bca10ae59a10d47a3
 https://conda.anaconda.org/conda-forge/noarch/terminado-0.18.1-pyhc90fa1f_1.conda#17b43cee5cc84969529d5d0b0309b2cb
 https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda#f1acf5fdefa8300de697982bcb1761c9
 https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.16.0-h69aa097_0.conda#c680b5747e8c4c8f23dca0bb7042a8fc
