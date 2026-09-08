@@ -1,8 +1,6 @@
 import logging
-import multiprocessing
 
 from ..data.consts import *
-from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
 from ..features.hybridization.hybridization_features import (
@@ -54,6 +52,11 @@ HYBR_DERIVED_FEATURES = [
     # NOT a DNA-vs-RNA target preference.
 ]
 
+# The columns every row-wise calculation above reads. The sum is a handful of dictionary
+# lookups per oligo, so the row mapping is taken over these columns alone rather than over a
+# full-width DataFrame row.
+HYBR_INPUT_COLUMNS = [ASO_SEQUENCE, PS_PATTERN, CHEMICAL_PATTERN, MODIFICATION_STRING]
+
 HYBR_FEATURE_TO_CALCULATION = {
     **HYBR_ROWWISE_CALCULATION,
     **{name: None for name in HYBR_DERIVED_FEATURES},
@@ -61,21 +64,25 @@ HYBR_FEATURE_TO_CALCULATION = {
 
 
 def populate_hybridization(df, n_cores=1, features_to_run=None):
-    """Populates hybridization features using the HYBR_FEATURE_TO_CALCULATION registry."""
+    """Populates hybridization features using the HYBR_FEATURE_TO_CALCULATION registry.
+
+    Each feature is a nearest-neighbour sum over one oligo's dinucleotides, so the whole
+    registry runs in a single pass on one core. ``n_cores`` is accepted for a uniform
+    populate signature and is unused.
+    """
     all_data = df.copy()
 
     if features_to_run is None:
         features_to_run = list(HYBR_FEATURE_TO_CALCULATION.keys())
 
-    nb_workers = n_cores if n_cores is not None else multiprocessing.cpu_count()
-    apply_func = make_apply_fn(all_data, n_jobs=nb_workers)
-
-    # 1. Row-wise calculations (parallelized).
-    for feature in features_to_run:
-        logic = HYBR_ROWWISE_CALCULATION.get(feature)
-        if callable(logic):
+    # 1. Row-wise calculations.
+    rowwise = [f for f in features_to_run if callable(HYBR_ROWWISE_CALCULATION.get(f))]
+    if rowwise:
+        rows = all_data[HYBR_INPUT_COLUMNS].to_dict("records")
+        for feature in rowwise:
             logger.debug("Calculating feature: %s...", feature)
-            all_data[feature] = apply_func(logic, axis=1)
+            logic = HYBR_ROWWISE_CALCULATION[feature]
+            all_data[feature] = [logic(row) for row in rows]
 
     # 2. Vectorized derived features.
     def _have(*cols):
