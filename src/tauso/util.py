@@ -23,6 +23,8 @@ def dna_to_rna(seq) -> str:
 # vectorized validators cannot drift apart.
 DNA_BASES = "ACGT"
 DNA_BASE_SET = frozenset(DNA_BASES)
+BASE_INDEX = {base: i for i, base in enumerate(DNA_BASES)} | {"U": DNA_BASES.index("T")}
+"""Nucleotide to its column in a 4-wide table, in DNA_BASES order. U indexes as T."""
 
 
 def normalize_dna(seq) -> str:
