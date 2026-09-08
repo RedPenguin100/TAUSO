@@ -9,17 +9,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tauso.features.self_aso.md_tables import (
-    DINUCLEOTIDE_ENERGY,
-    FINAL_MISMATCH,
-    FINAL_WC,
-    MISMATCH_ENERGY,
-    MISMATCH_MEAN,
-)
 from tauso.features.self_aso.self_aso import (
     FEATURE_NAMES,
     calculate_self_aso,
     encode,
+)
+from tauso.features.self_aso.weights import (
+    DINUCLEOTIDE_ENERGY,
+    MISMATCH_ENERGY,
+    MODIFICATION_BONUS,
+    TANDEM_MISMATCH_ENERGY,
 )
 from tauso.populate.populate_self_aso import (
     RNA_FOLD_FEATURE,
@@ -215,28 +214,22 @@ def test_every_mismatched_position_is_counted():
 # --- the weight tables -------------------------------------------------------------
 
 
-def test_sugar_pairing_coverage():
-    """2'-MOE never meets cEt: no oligo carries both. Every other pairing has a cell."""
-    covered = ~np.isnan(FINAL_WC).any(axis=(2, 3))
+def test_modification_bonus_scales_with_the_sugars_a_step_spans():
+    """Each modified nucleotide the step spans is worth half the per-modification bonus."""
     deoxy, moe, cet = 0, 1, 2
-    for first, second in (
-        (deoxy, deoxy),
-        (deoxy, moe),
-        (moe, deoxy),
-        (deoxy, cet),
-        (cet, deoxy),
-        (moe, moe),
-        (cet, cet),
-    ):
-        assert covered[first, second], f"no Watson-Crick cell for sugars {first}:{second}"
-    assert not covered[moe, cet] and not covered[cet, moe]
+    plain = DINUCLEOTIDE_ENERGY[deoxy, deoxy, deoxy, deoxy]
+    for sugar in (moe, cet):
+        one_strand = DINUCLEOTIDE_ENERGY[deoxy, deoxy, sugar, sugar] - plain
+        both_strands = DINUCLEOTIDE_ENERGY[sugar, sugar, sugar, sugar] - plain
+        assert np.allclose(one_strand, -MODIFICATION_BONUS[sugar])
+        assert np.allclose(both_strands, -2 * MODIFICATION_BONUS[sugar])
 
 
 def test_mismatch_costs_are_penalties():
-    finite = FINAL_MISMATCH[np.isfinite(FINAL_MISMATCH)]
-
-    assert finite.mean() > 0, "crossing a mismatch must cost on average"
-    assert (MISMATCH_MEAN > 0).all()
+    """A mismatch costs whatever the sugars are; the stacking bonus is not credited to it."""
+    assert (MISMATCH_ENERGY > 0).all()
+    assert (TANDEM_MISMATCH_ENERGY > 0).all()
+    assert len(np.unique(MISMATCH_ENERGY)) == 1
 
 
 def test_every_step_has_a_weight():
