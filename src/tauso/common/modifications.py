@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 
 
 def check_pattern_length(sequence, chemical_pattern):
@@ -16,10 +17,14 @@ def check_pattern_length(sequence, chemical_pattern):
         )
 
 
+@lru_cache(maxsize=4096)
 def get_longest_dna_gap(chemical_pattern: str, marker: str = "d") -> tuple[int, int, int]:
     """
     Finds the longest consecutive stretch of DNA markers.
     Returns (start_index, end_index, length). Returns (-1, -1, 0) if none found.
+
+    Memoized: a corpus holds far fewer distinct chemical patterns than oligos, and the
+    feature sum walks this once per row.
     """
     matches = list(re.finditer(f"{re.escape(marker)}+", chemical_pattern))
     if not matches:
