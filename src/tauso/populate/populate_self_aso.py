@@ -10,11 +10,10 @@ parameters, which is kept under its original column name so existing matrices st
 
 import logging
 
-import pandas as pd
-
 from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
 from ..features.self_aso.self_aso import FEATURE_NAMES, calculate_self_aso
 from ..features.sequence.seq_features import internal_fold_rna
+from ..pandas_utils import add_columns
 from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
@@ -51,8 +50,4 @@ def populate_self_aso_features(df, cpus=1):
     scored = calculate_self_aso(df[ASO_SEQUENCE].to_numpy(), df[CHEMICAL_PATTERN].to_numpy())
     columns = {self_aso_feature_name(q): scored[q] for q in FEATURE_NAMES}
     columns[RNA_FOLD_FEATURE] = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(internal_fold_rna)
-    names = list(columns)
-    df = pd.concat(
-        [df.drop(columns=[c for c in names if c in df.columns]), pd.DataFrame(columns, index=df.index)], axis=1
-    )
-    return df, names
+    return add_columns(df, columns), list(columns)
