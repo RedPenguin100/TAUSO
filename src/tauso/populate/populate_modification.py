@@ -8,6 +8,7 @@ from ..features.sequence_modification.mod_features import (
     compute_mod_sugar_block_count,
     compute_mod_sugar_max_block_length,
 )
+from ..pandas_utils import add_columns
 from ..parallel_utils import make_apply_fn
 
 MODIFICATION_FEATURE_TO_CALCULATION = {
@@ -33,13 +34,14 @@ def populate_modifications(df, n_cores=None, features_to_run=None):  # Added fea
         features_to_run = list(MODIFICATION_FEATURE_TO_CALCULATION.keys())
 
     # 3. Execution Loop
+    computed = {}
     for feature in features_to_run:
         logic = MODIFICATION_FEATURE_TO_CALCULATION.get(feature)
 
         if callable(logic):
             logger.debug("Calculating: %s", feature)
-            all_data[feature] = apply_func(logic, axis=1)
+            computed[feature] = apply_func(logic, axis=1)
         else:
             logger.warning("Feature '%s' logic not found or not callable. Skipping.", feature)
 
-    return all_data, features_to_run
+    return add_columns(all_data, computed), features_to_run

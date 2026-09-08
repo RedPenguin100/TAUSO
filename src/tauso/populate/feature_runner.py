@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 
 import pandas as pd
 
+from ..pandas_utils import add_columns
 from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
@@ -40,9 +41,4 @@ def compute_features(
         computed[name] = apply_feature(apply_fn, available[name])
         logger.info("[%s] finished in %.4fs", name, time.time() - start)
 
-    for name in names:
-        if name in df.columns:
-            df[name] = computed.pop(name)
-    if computed:
-        df = pd.concat([df, pd.DataFrame(computed, index=df.index)], axis=1)
-    return df, names
+    return add_columns(df, computed), names

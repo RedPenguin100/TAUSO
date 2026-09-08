@@ -16,6 +16,7 @@ from typing import NamedTuple
 import pandas as pd
 
 from ....data.consts import ASO_SEQUENCE
+from ....pandas_utils import add_columns
 from ....util import get_antisense
 from ..fast_hybridization import (
     TMP_PATH,
@@ -165,12 +166,4 @@ def emit_site_columns(aso_df, scan, cutoffs, derivations):
             mapped = pd.Series(aso_df.index.map(derived.get), index=aso_df.index, dtype=float)
             columns[name_fn(cutoff)] = mapped.fillna(0.0)
 
-    feature_names = list(columns)
-    aso_df = pd.concat(
-        [
-            aso_df.drop(columns=[c for c in feature_names if c in aso_df.columns]),
-            pd.DataFrame(columns, index=aso_df.index),
-        ],
-        axis=1,
-    )
-    return aso_df, feature_names
+    return add_columns(aso_df, columns), list(columns)
