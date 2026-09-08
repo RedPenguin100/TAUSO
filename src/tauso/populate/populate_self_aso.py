@@ -13,6 +13,7 @@ import logging
 from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
 from ..features.self_aso.self_aso import FEATURE_NAMES, calculate_self_aso
 from ..features.sequence.seq_features import internal_fold_rna
+from ..pandas_utils import add_columns
 from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
@@ -47,12 +48,6 @@ def populate_self_aso_features(df, cpus=1):
         raise ValueError(f"Missing columns in DataFrame: {missing}")
 
     scored = calculate_self_aso(df[ASO_SEQUENCE].to_numpy(), df[CHEMICAL_PATTERN].to_numpy())
-    names = []
-    for quantity in FEATURE_NAMES:
-        name = self_aso_feature_name(quantity)
-        df[name] = scored[quantity]
-        names.append(name)
-
-    df[RNA_FOLD_FEATURE] = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(internal_fold_rna)
-    names.append(RNA_FOLD_FEATURE)
-    return df, names
+    columns = {self_aso_feature_name(q): scored[q] for q in FEATURE_NAMES}
+    columns[RNA_FOLD_FEATURE] = make_apply_fn(df[ASO_SEQUENCE], n_jobs=cpus)(internal_fold_rna)
+    return add_columns(df, columns), list(columns)

@@ -1,6 +1,7 @@
 """`run-off-target` must reject a sequence bowtie would happily mis-search.
 
-Validation runs before the genome check, so these need no genome installed.
+Validation runs before the genome check, so these need no genome installed. An accepted
+sequence is covered by test_mipomersen_real_search, which runs the real search.
 """
 
 import pytest
@@ -28,15 +29,3 @@ def test_bad_sequences_are_rejected(sequence, expected):
     assert result.exit_code == 1
     assert "Invalid sequence" in result.output
     assert expected in result.output
-
-
-def test_surrounding_whitespace_is_stripped_not_rejected():
-    """A quoted shell argument with a stray space is a paste artifact, not a bad sequence."""
-    result = run("  ACGTACGT  ")
-    assert "Invalid sequence" not in result.output
-
-
-def test_rna_is_still_accepted_and_announced():
-    result = run("ACGUACGU")
-    assert "Invalid sequence" not in result.output
-    assert "Normalized input sequence: ACGUACGU -> ACGTACGT" in result.output

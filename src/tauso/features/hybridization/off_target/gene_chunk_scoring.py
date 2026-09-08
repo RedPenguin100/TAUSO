@@ -16,6 +16,7 @@ from typing import NamedTuple
 import pandas as pd
 
 from ....data.consts import ASO_SEQUENCE
+from ....pandas_utils import add_columns
 from ....util import get_antisense
 from ..fast_hybridization import (
     TMP_PATH,
@@ -157,16 +158,12 @@ def emit_site_columns(aso_df, scan, cutoffs, derivations):
     Returns (aso_df, [feature_names]).
     """
     cutoffs = [int(c) for c in cutoffs]
-    feature_names = []
+    columns = {}
     for cutoff in cutoffs:
         per_row = scan.get(cutoff, {})
         for name_fn, derive_fn in derivations:
-            values = pd.Series(0.0, index=aso_df.index)
-            for idx, stats in per_row.items():
-                value = derive_fn(stats)
-                if value is not None:
-                    values[idx] = value
-            name = name_fn(cutoff)
-            aso_df[name] = values
-            feature_names.append(name)
-    return aso_df, feature_names
+            derived = {idx: value for idx, stats in per_row.items() if (value := derive_fn(stats)) is not None}
+            mapped = pd.Series(aso_df.index.map(derived.get), index=aso_df.index, dtype=float)
+            columns[name_fn(cutoff)] = mapped.fillna(0.0)
+
+    return add_columns(aso_df, columns), list(columns)

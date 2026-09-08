@@ -12,6 +12,7 @@ from ..features.context.ribo_seq import (
     get_ribo_bigwig_path,
     process_gene_group,
 )
+from ..pandas_utils import add_columns
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +65,7 @@ def populate_ribo_seq(organism, aso_df, flanks=(0, 10, 20, 50, 100, 125, 150), h
     prefix = get_feature_prefix(track)  # "ribo_40s" or "ribo_80s"
     feat_cols = feature_names(flanks, how, prefix=prefix)
 
-    for col in feat_cols:
-        aso_df[col] = np.nan
+    aso_df = add_columns(aso_df, {col: np.nan for col in feat_cols})
 
     valid_mask = aso_df["chrom"].notna() & aso_df["target_start"].notna()
     valid_df = aso_df[valid_mask]

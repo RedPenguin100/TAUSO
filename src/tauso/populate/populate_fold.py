@@ -8,6 +8,7 @@ from ..data.consts import CANONICAL_GENE_NAME, STRUCTURE_SENSE_LENGTH, STRUCTURE
 from ..features.fold.vienna_access import calculate_avg_access_per_setting
 from ..features.fold.vienna_fold import calculate_avg_mfe_per_setting, calculate_end_mfe
 from ..genome.read_human_genome import get_gene_to_data_subset
+from ..pandas_utils import add_columns
 from ..parallel_utils import make_apply_fn
 
 logger = logging.getLogger(__name__)
@@ -119,9 +120,7 @@ def _populate_per_row(df, gene_to_mrna, feature_names, compute, n_jobs, verbose,
 
     apply_fn = make_apply_fn(frame, n_jobs=n_jobs, progress_bar=verbose, verbose=2 if verbose else 0)
     results_df = pd.DataFrame(list(apply_fn(_process_row, axis=1)), index=frame.index)
-    for name in feature_names:
-        df[name] = results_df[name]
-    return df, feature_names
+    return add_columns(df, {name: results_df[name] for name in feature_names}), feature_names
 
 
 def mfe_feature_name(flank, window_size, step):

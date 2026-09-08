@@ -5,13 +5,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger(__name__)
-
 from ..data.consts import CANONICAL_GENE_NAME, CELL_LINE, standardize_cell_line_name
 from ..data.data import get_data_dir
 from ..features.codon_usage.cai import CAI_WEIGHTS_FILENAME, CAIScorerCache
 from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import compute_tAI
+from ..pandas_utils import add_columns
 from ..parallel_utils import init_pandarallel
 
 logger = logging.getLogger(__name__)
@@ -23,6 +22,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     Raises KeyError if required local context columns are missing.
     """
     feature_names = []
+    local_scores = {}
 
     # 1. Local tAI Scores
     logger.info("Calculating local tAI scores for CDS windows...")
@@ -36,7 +36,7 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
             )
 
         feat_name = f"tai_score_{flank}"
-        df[feat_name] = df[local_col].apply(compute_tAI)
+        local_scores[feat_name] = df[local_col].apply(compute_tAI)
         feature_names.append(feat_name)
 
     # 2. Global tAI Scores (Registry Lookup)
@@ -47,10 +47,10 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     }
 
     logger.info("Mapping Global tAI scores to dataframe...")
-    df["tai_score_global"] = df[CANONICAL_GENE_NAME].map(gene_tai_lookup)
+    local_scores["tai_score_global"] = df[CANONICAL_GENE_NAME].map(gene_tai_lookup)
     feature_names.append("tai_score_global")
 
-    return df, feature_names
+    return add_columns(df, local_scores), feature_names
 
 
 def populate_enc(
@@ -72,6 +72,7 @@ def populate_enc(
         tuple: (Updated DataFrame, List of new feature names)
     """
     feature_names = []
+    local_scores = {}
 
     # 1. Setup Parallelization
     use_parallel = init_pandarallel(n_jobs)
@@ -89,9 +90,9 @@ def populate_enc(
             )
 
         if use_parallel:
-            df[enc_col] = df[local_col].parallel_apply(compute_ENC)
+            local_scores[enc_col] = df[local_col].parallel_apply(compute_ENC)
         else:
-            df[enc_col] = df[local_col].apply(compute_ENC)
+            local_scores[enc_col] = df[local_col].apply(compute_ENC)
 
         feature_names.append(enc_col)
 
@@ -105,12 +106,12 @@ def populate_enc(
 
     logger.info("Mapping Global ENC scores to dataframe...")
 
-    df["enc_score_global"] = df[CANONICAL_GENE_NAME].map(gene_enc_lookup)
+    local_scores["enc_score_global"] = df[CANONICAL_GENE_NAME].map(gene_enc_lookup)
     feature_names.append("enc_score_global")
 
     logger.info("Global ENC Calculation Complete.")
 
-    return df, feature_names
+    return add_columns(df, local_scores), feature_names
 
 
 def populate_cai(
