@@ -5,11 +5,14 @@ import shutil
 import subprocess
 import tempfile
 import time
+from functools import lru_cache
 
+import numpy as np
 import pandas as pd
 import pyranges as pr
+from ncls import NCLS
 
-from ..data.data import get_paths, load_gtf_db, load_gtf_pyranges_gene_only
+from ..data.data import ANNOTATION_PRIORITY, get_paths, load_gene_intervals, load_gtf_pyranges_gene_only
 from ..debug import log_memory_usage
 from ..timer import Timer
 
@@ -229,69 +232,88 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
     return hits, counts
 
 
+@lru_cache(maxsize=2)
+def _annotation_index(genome):
+    """The ranked annotation as (column arrays, one interval tree per chrom/strand).
+
+    One tree per (chrom, strand) so a hit only ever searches the strand it can be antisense
+    to. NCLS is half-open and the GTF is closed, so ends are widened by one; querying with
+    `end + 1` as well then reproduces the closed-interval overlap gffutils tests for.
+    """
+    df = load_gene_intervals(genome)
+    columns = {
+        "start": df["start"].to_numpy(np.int64),
+        "end": df["end"].to_numpy(np.int64),
+        "priority": df["featuretype"].map(ANNOTATION_PRIORITY).to_numpy(np.int16),
+        "featuretype": df["featuretype"].to_numpy(object),
+        "gene_name": df["gene_name"].to_numpy(object),
+        "gene_id": df["gene_id"].to_numpy(object),
+    }
+    trees = {}
+    for key, sub in df.groupby(["chrom", "strand"], sort=False, observed=True):
+        rows = sub.index.to_numpy(np.int64)
+        trees[key] = NCLS(columns["start"][rows], columns["end"][rows] + 1, rows)
+    return columns, trees
+
+
 def annotate_hits(hits_list, genome="GRCh38"):
     """Annotate each hit with its gene and region, counting a gene only when the ASO is antisense to
-    it (hit strand opposite the gene's). Same-strand overlaps are ignored, so the hit is Intergenic."""
+    it (hit strand opposite the gene's). Same-strand overlaps are ignored, so the hit is Intergenic.
+
+    Every hit is resolved in one pass over an in-memory interval index. Querying the annotation
+    per hit instead costs a full chromosome scan each time, because the overlap test cannot use
+    the database's index -- minutes rather than seconds once a low-complexity ASO aligns widely.
+    """
     if not hits_list:
         return pd.DataFrame()
 
-    db = load_gtf_db(genome=genome)
-    annotated = []
+    columns, trees = _annotation_index(genome)
+    hits = pd.DataFrame(hits_list)
+    chroms = hits["chrom"].to_numpy(object)
+    starts = hits["start"].to_numpy(np.int64)
+    ends = hits["end"].to_numpy(np.int64)
+    # A hit only annotates against genes it is antisense to, so search the opposite strand.
+    antisense = np.where(hits["strand"].to_numpy(object) == "+", "-", "+")
 
-    for hit in hits_list:
-        chrom = hit["chrom"]
-        start = hit["start"]
-        end = hit["end"]
+    hit_rows, feature_rows = [], []
+    for key, group in pd.Series(np.arange(len(hits))).groupby([chroms, antisense], sort=False):
+        tree = trees.get(key)
+        if tree is None:
+            continue  # a contig the annotation does not cover
+        rows = group.to_numpy()
+        local, features = tree.all_overlaps_both(starts[rows], ends[rows] + 1, np.arange(len(rows), dtype=np.int64))
+        if len(local):
+            hit_rows.append(rows[local])
+            feature_rows.append(features)
 
-        try:
-            features = list(db.region(region=(chrom, start, end)))
-        except Exception:
-            features = []
+    gene_id = np.full(len(hits), None, dtype=object)
+    gene_name = np.full(len(hits), None, dtype=object)
+    region_type = np.full(len(hits), "Intergenic", dtype=object)
 
-        gene_id = None
-        gene_name = None
-        feature_type = "Intergenic"
-        current_priority = 0
+    if hit_rows:
+        hit_row = np.concatenate(hit_rows)
+        feature_row = np.concatenate(feature_rows)
+        # Highest priority wins; ties go to the earliest feature, ordered as the annotation is.
+        order = np.lexsort(
+            (
+                feature_row,
+                columns["end"][feature_row],
+                columns["start"][feature_row],
+                -columns["priority"][feature_row],
+                hit_row,
+            )
+        )
+        hit_row, feature_row = hit_row[order], feature_row[order]
+        best = np.flatnonzero(np.r_[True, hit_row[1:] != hit_row[:-1]])
+        winner_hit, winner_feature = hit_row[best], feature_row[best]
+        region_type[winner_hit] = columns["featuretype"][winner_feature]
+        gene_name[winner_hit] = columns["gene_name"][winner_feature]
+        gene_id[winner_hit] = columns["gene_id"][winner_feature]
 
-        for feat in features:
-            # Skip sense overlaps: keep only genes the ASO is antisense to.
-            if feat.strand == hit["strand"]:
-                continue
-
-            f_type = feat.featuretype
-
-            # --- UPDATED PRIORITY LOGIC ---
-            if f_type == "exon":
-                priority = 4
-            elif f_type == "CDS":  # Added for Bacteria/Yeast compatibility
-                priority = 4
-            elif f_type == "intron":
-                priority = 2
-            elif f_type == "gene":
-                priority = 1
-            else:
-                priority = 0
-            # ------------------------------
-
-            if priority > current_priority:
-                current_priority = priority
-                feature_type = f_type
-                # Ensembl sometimes uses 'gene_name', sometimes 'Name', sometimes just 'gene_id'
-                # This fallback chain covers Human (gene_name) and Bacteria (Name)
-                gene_name = feat.attributes.get(
-                    "gene_name",
-                    feat.attributes.get("Name", feat.attributes.get("gene_id", [None])),
-                )[0]
-
-                gene_id = feat.attributes.get("gene_id", [None])[0]
-
-        hit_copy = hit.copy()
-        hit_copy["gene_id"] = gene_id
-        hit_copy["gene_name"] = gene_name
-        hit_copy["region_type"] = feature_type
-        annotated.append(hit_copy)
-
-    return pd.DataFrame(annotated)
+    hits["gene_id"] = gene_id
+    hits["gene_name"] = gene_name
+    hits["region_type"] = region_type
+    return hits
 
 
 def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
