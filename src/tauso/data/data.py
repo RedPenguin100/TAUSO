@@ -2,8 +2,10 @@ import gzip
 import logging
 import os
 import tempfile
+from functools import lru_cache
 
 import gffutils
+import pandas as pd
 import pyranges as pr
 from platformdirs import user_data_dir
 from pyfaidx import Fasta
@@ -44,7 +46,64 @@ def get_paths(genome="GRCh38"):
         "gff_gz": os.path.join(d, f"{genome}.gff3.gz"),
         "gff_db": os.path.join(d, f"{genome}.gff3.db"),
         "gtf_db": os.path.join(d, f"{genome}.gtf.db"),
+        "gene_intervals": os.path.join(d, f"{genome}.intervals.parquet"),
     }
+
+
+# Feature types `annotate_hits` ranks a hit against, and the priority it gives each. Introns
+# are listed for annotations that carry them; GTFs generally do not (gffutils does not infer
+# them either), in which case an intronic hit falls through to its gene.
+ANNOTATION_PRIORITY = {"exon": 4, "CDS": 4, "intron": 2, "gene": 1}
+
+
+def _parse_gene_intervals(gtf_gz_path: str):
+    """Read the annotation's ranked features out of the GTF into a flat interval table."""
+    df = pd.read_csv(
+        gtf_gz_path,
+        sep="\t",
+        comment="#",
+        header=None,
+        usecols=[0, 2, 3, 4, 6, 8],
+        names=["chrom", "featuretype", "start", "end", "strand", "attributes"],
+    )
+    # Row order stays the GTF's own line order, which is the order gffutils inserted with and
+    # the order `annotate_hits` breaks priority ties on, so it has to survive the round trip.
+    df = df[df["featuretype"].isin(ANNOTATION_PRIORITY)].reset_index(drop=True)
+    df["gene_id"] = df["attributes"].str.extract(r'gene_id "([^"]+)"', expand=False)
+    # Ensembl writes 'gene_name', some annotations only 'Name', and a few neither: fall back
+    # down that chain to gene_id, as the per-feature attribute lookup this replaced did.
+    name = df["attributes"].str.extract(r'gene_name "([^"]+)"', expand=False)
+    name = name.fillna(df["attributes"].str.extract(r'(?:^|; )Name "([^"]+)"', expand=False))
+    df["gene_name"] = name.fillna(df["gene_id"])
+    df = df.drop(columns="attributes")
+    # Missing values reach callers as None, not NaN, matching the attribute lookup's default.
+    for column in ("gene_name", "gene_id"):
+        df[column] = df[column].astype(object).where(df[column].notna(), None)
+    return df
+
+
+@lru_cache(maxsize=2)
+def load_gene_intervals(genome="GRCh38"):
+    """Ranked annotation features as a flat interval table, one row per exon/CDS/gene.
+
+    Built from the GTF on first use and cached beside it as parquet (~16 MB, a few seconds),
+    then reloaded in well under a second. Cached per process: callers get a shared frame and
+    must not mutate it.
+    """
+    paths = get_paths(genome)
+    cache = paths["gene_intervals"]
+    if os.path.exists(cache):
+        return pd.read_parquet(cache)
+
+    if not os.path.exists(paths["gtf_gz"]):
+        raise FileNotFoundError(f"GTF for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
+    logger.info("Building the gene interval cache for %s (first use only)...", genome)
+    df = _parse_gene_intervals(paths["gtf_gz"])
+    tmp = f"{cache}.{os.getpid()}.tmp"  # write-then-rename: a crash must not leave a half file
+    df.to_parquet(tmp, index=False)
+    os.replace(tmp, cache)
+    logger.info("Cached %d annotation features to %s", len(df), cache)
+    return df
 
 
 def load_gtf_db(genome="GRCh38"):
