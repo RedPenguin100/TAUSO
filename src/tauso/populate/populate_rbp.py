@@ -21,86 +21,81 @@ def _occupancy_from_log2_odds(score):
 
 
 @njit(fastmath=True)
-def _log_unbound_numba_core(flat_seq, offsets, rows, weights, log_unbound):
-    """Add each row's log-probability that this PWM leaves every site unoccupied.
+def _log_unbound_numba_core(seq_indices, weights):
+    """Log-probability that this PWM leaves every site unoccupied over the sequence.
 
-    The sum over gapless placements of log(1 - o), where o = 1/(1 + 2^-s) is the placement's
-    occupancy. Working in log space keeps the value stable when occupancies approach 1.
+    Returns the sum over gapless placements of log(1 - o), where o = 1/(1 + 2^-s) is the
+    placement's occupancy. Working in log space keeps the value stable when occupancies
+    approach 1.
 
-    flat_seq: every sequence end to end, as ints (A=0, C=1, G=2, U/T=3).
-    offsets: where each sequence starts and ends in flat_seq.
-    rows: the rows to score, those sharing one background.
-    weights: (motif_len, 4) log2-odds of the PPM against that background.
-    log_unbound: accumulated into, since an RBP's PWMs multiply.
+    seq_indices: ints, one per nucleotide (A=0, C=1, G=2, U/T=3); -1 is not allowed.
+    weights: (motif_len, 4) log2-odds against the background, columns A/C/G/U.
     """
+    seq_len = len(seq_indices)
     motif_len = weights.shape[0]
 
-    for row in rows:
-        start = offsets[row]
-        seq_len = offsets[row + 1] - start
+    if seq_len < motif_len:
+        return 0.0
 
-        total = 0.0
-        for i in range(seq_len - motif_len + 1):
-            score = 0.0
-            for pos in range(motif_len):
-                score += weights[pos, flat_seq[start + i + pos]]
-            total += math.log1p(-_occupancy_from_log2_odds(score))  # log(1 - o)
+    log_unbound = 0.0
 
-        log_unbound[row] += total
+    for i in range(seq_len - motif_len + 1):
+        score = 0.0
+        for pos in range(motif_len):
+            score += weights[pos, seq_indices[i + pos]]
+        log_unbound += math.log1p(-_occupancy_from_log2_odds(score))  # log(1 - o)
 
-
-BASE_INDEX = {"A": 0, "C": 1, "G": 2, "U": 3, "T": 3}
+    return log_unbound
 
 
-def encode_sequences(sequences):
-    """(flat, offsets): the sequences end to end as PWM column indices, and their boundaries.
-
-    Encoding once is what makes the scan cheap: every PWM reads the same sequences, and
-    converting a string costs more than scanning it.
-    """
-    flat, offsets = [], np.zeros(len(sequences) + 1, dtype=np.int64)
-    for i, sequence in enumerate(sequences):
-        text = "" if sequence is None or pd.isna(sequence) else str(sequence).upper()
-        unknown = sorted(set(text) - BASE_INDEX.keys())
-        if unknown:
-            raise ValueError(f"Unknown base(s) {unknown} in sequence {text!r}; only A/C/G/U/T are allowed.")
-        flat.extend(BASE_INDEX[base] for base in text)
-        offsets[i + 1] = len(flat)
-    return np.array(flat, dtype=np.int8), offsets
-
-
-def log_odds_weights(pwm_matrix, background_probs):
-    """A PWM's per-position log2-odds against the background, (motif_len, 4)."""
-    pwm = pwm_matrix.values if hasattr(pwm_matrix, "values") else np.asarray(pwm_matrix)
-    return np.log2((pwm.astype(np.float64) + 1e-9) / np.asarray(background_probs, dtype=np.float64))
+def _encode_sequence(sequence):
+    """Map A/C/G/U/T to PWM columns; missing sequences have no sites."""
+    if sequence is None or pd.isna(sequence):
+        return np.empty(0, dtype=np.int8)
+    seq_str = str(sequence)
+    base_map = {"A": 0, "C": 1, "G": 2, "U": 3, "T": 3}
+    seq_indices = np.array([base_map.get(base, -1) for base in seq_str.upper()], dtype=np.int8)
+    if (seq_indices == -1).any():
+        unknown = sorted(set(seq_str.upper()) - {"A", "C", "G", "U", "T"})
+        raise ValueError(f"Unknown base(s) {unknown} in sequence {seq_str!r}; only A/C/G/U/T are allowed.")
+    return seq_indices
 
 
 def motif_log_unbound_numba(sequence, pwm_matrix, background_probs=None):
     """Σ log(1 - o) over a PWM's gapless placements (the log-probability it occupies no site).
     NaN/empty sequences contribute 0 (an unoccupied factor). See _log_unbound_numba_core."""
+    seq_indices = _encode_sequence(sequence)
+    if not len(seq_indices):
+        return 0.0
     if background_probs is None:
-        background_probs = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float64)
+        background_probs = np.full(4, 0.25)
+    weights = np.log2((np.asarray(pwm_matrix, dtype=np.float64) + 1e-9) / background_probs)
+    return _log_unbound_numba_core(seq_indices, weights)
 
-    flat, offsets = encode_sequences([sequence])
-    log_unbound = np.zeros(1)
-    _log_unbound_numba_core(flat, offsets, np.arange(1), log_odds_weights(pwm_matrix, background_probs), log_unbound)
-    return float(log_unbound[0])
+
+@njit(fastmath=True)
+def _log_unbound_batch(flat_seq, offsets, rows, weights, out):
+    """Scan rows sharing a background without copying their sequences."""
+    for row in rows:
+        out[row] += _log_unbound_numba_core(flat_seq[offsets[row] : offsets[row + 1]], weights)
 
 
 def process_rbp(task, flat_seq, offsets, background_groups):
     """Worker function: processes ONE RBP for ALL sequences.
 
     The per-RBP score is the probability that the protein occupies at least one site in the
-    window -- a noisy-OR, 1 - prod(1 - o), over the placements of all of its PWMs. Rows are
-    grouped by background, so a PWM's weights are built once per background, not once per row.
+    window -- a noisy-OR, 1 - prod(1 - o), over the placements of all of its PWMs.
     """
     matrices = task["matrices"]
     col_name = task["col_name"]
+    n_rows = len(offsets) - 1
 
-    log_unbound = np.zeros(offsets.shape[0] - 1, dtype=np.float64)
+    log_unbound = np.zeros(n_rows, dtype=np.float64)
     for matrix in matrices:
+        pwm = np.asarray(matrix, dtype=np.float64)
         for background, rows in background_groups:
-            _log_unbound_numba_core(flat_seq, offsets, rows, log_odds_weights(matrix, background), log_unbound)
+            weights = np.log2((pwm + 1e-9) / background)
+            _log_unbound_batch(flat_seq, offsets, rows, weights, log_unbound)
 
     return col_name, 1.0 - np.exp(log_unbound)
 
@@ -112,21 +107,18 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
     flank_param = sequence_col.split("_")[-1]
     df = df.loc[:, ~df.columns.duplicated()].copy()  # Use .copy() to avoid SettingWithCopy warnings later
 
-    # --- 1. OPTIMIZATION: encode every sequence once, since all PWMs read the same ones ---
-    flat_seq, offsets = encode_sequences(df[sequence_col].tolist())
-    n_rows = len(df)
+    sequences = df[sequence_col].fillna("").astype(str).tolist()
+    n_rows = len(sequences)
 
-    # --- 1b. Backgrounds are a property of the gene, so count bases once per gene, and group
-    # the rows that share one: a PWM's weights are then built per background, not per row.
+    # Calculate backgrounds once per gene, then group rows sharing motif weights.
     default_bg = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
-    genes = df[CANONICAL_GENE_NAME].to_numpy()
-    bg_by_gene = {
-        g: (get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg)
-        for g in pd.unique(genes)
+    backgrounds = {
+        g: get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg
+        for g in df[CANONICAL_GENE_NAME].unique()
     }
-    background_probs_arr = np.array([bg_by_gene[g] for g in genes], dtype=np.float32)
-    unique_bg, bg_index = np.unique(background_probs_arr, axis=0, return_inverse=True)
-    background_groups = [(unique_bg[i], np.flatnonzero(bg_index == i)) for i in range(unique_bg.shape[0])]
+    background_probs_arr = np.array(df[CANONICAL_GENE_NAME].map(backgrounds).tolist(), dtype=np.float32).reshape(-1, 4)
+    unique, inverse = np.unique(background_probs_arr, axis=0, return_inverse=True)
+    background_groups = [(bg.astype(np.float64), np.flatnonzero(inverse == i)) for i, bg in enumerate(unique)]
 
     # --- 2. FILTER & PREPARE RBP METADATA ---
     target_tasks = []
@@ -149,15 +141,16 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
 
     logger.info("Calculating affinity features for %d RBPs on %d rows...", len(target_tasks), n_rows)
 
+    # Encode once for all motifs; offsets delimit each row in the shared array.
+    encoded = [_encode_sequence(sequence) for sequence in sequences]
+    offsets = np.concatenate(([0], np.cumsum([len(sequence) for sequence in encoded], dtype=np.int64)))
+    flat_seq = np.concatenate(encoded) if encoded else np.empty(0, dtype=np.int8)
+
     # --- 3. EXECUTION: Parallelize over RBPs, not Rows ---
-    # joblib uses 'loky' backend by default, which excels at memory mapping large arrays (background_probs_arr)
-    # A worker takes about a tenth of a second to start and is handed the PWM database, which
-    # only pays off once the scan is long enough to hide it: under a few hundred rows one
-    # process beats any number of them.
-    workers = 1 if n_rows < 500 else n_jobs
-    results = Parallel(n_jobs=workers)(
+    # Small batches cost less to scan than to dispatch to workers.
+    results = Parallel(n_jobs=1 if n_rows < 500 else n_jobs)(
         delayed(process_rbp)(task, flat_seq, offsets, background_groups)
-        for task in tqdm(target_tasks, desc="Computing RBPs", disable=workers == 1 and n_rows < 500)
+        for task in tqdm(target_tasks, desc="Computing RBPs")
     )
 
     # --- 4. AGGREGATION & ASSIGNMENT ---
