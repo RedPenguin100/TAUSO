@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.features.rbp.rbp_features import get_background_probs
+from tauso.util import BASE_INDEX
 
 
 @njit(fastmath=True)
@@ -53,8 +54,7 @@ def _encode_sequence(sequence):
     if sequence is None or pd.isna(sequence):
         return np.empty(0, dtype=np.int8)
     seq_str = str(sequence)
-    base_map = {"A": 0, "C": 1, "G": 2, "U": 3, "T": 3}
-    seq_indices = np.array([base_map.get(base, -1) for base in seq_str.upper()], dtype=np.int8)
+    seq_indices = np.array([BASE_INDEX.get(base, -1) for base in seq_str.upper()], dtype=np.int8)
     if (seq_indices == -1).any():
         unknown = sorted(set(seq_str.upper()) - {"A", "C", "G", "U", "T"})
         raise ValueError(f"Unknown base(s) {unknown} in sequence {seq_str!r}; only A/C/G/U/T are allowed.")
