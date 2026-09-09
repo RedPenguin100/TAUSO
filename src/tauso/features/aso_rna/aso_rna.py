@@ -38,7 +38,7 @@ OBSERVABLES = (
 )
 REGIONS = ("wing5", "gap", "wing3")
 
-SUGARS = {"M": "M", "C": "E", "O": "O", "R": "R"}
+SUGARS = {"M": "M", "C": "E", "R": "R"}
 """`chemical_pattern` letters mapped to the sugar the weight tables are keyed on.
 
 The column writes cEt as "C" where the tables name it "E". Anything absent is deoxy.
