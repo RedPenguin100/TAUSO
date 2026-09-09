@@ -11,7 +11,7 @@ from ..pandas_utils import add_columns
 
 logger = logging.getLogger(__name__)
 
-PREFIX = "regcomp"
+PREFIX = "dinuc"
 
 
 def regional_composition_feature_name(quantity):
