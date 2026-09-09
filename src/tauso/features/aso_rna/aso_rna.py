@@ -56,9 +56,10 @@ The map has no default, so a residue outside it -- 2'-O-methyl, 2'-fluoro, LNA -
 whole oligo unscorable rather than being read as deoxy.
 """
 
-FEATURE_NAMES = [f"{o}_{r}" for o in OBSERVABLES for r in REGIONS] + [
-    f"{o}_{r}_spread" for o in OBSERVABLES for r in REGIONS
+FEATURE_NAMES = [f"{o.lower()}_{r}" for o in OBSERVABLES for r in REGIONS] + [
+    f"{o.lower()}_{r}_spread" for o in OBSERVABLES for r in REGIONS
 ]
+"""Observables are lower-cased here; the tables key them in the mixed case `OBSERVABLES` holds."""
 
 
 def _load(filename, stat):
@@ -160,5 +161,5 @@ def calculate_aso_rna(sequences, chemical_patterns):
                     inside = values[o][mask]
                     inside = inside[np.isfinite(inside)]
                     if inside.size:
-                        out[f"{o}_{region}{suffix}"][row] = inside.mean()
+                        out[f"{o.lower()}_{region}{suffix}"][row] = inside.mean()
     return out

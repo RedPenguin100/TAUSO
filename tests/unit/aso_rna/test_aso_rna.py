@@ -123,28 +123,28 @@ def test_an_oligo_with_no_gap_is_missing_everywhere():
 
 def test_an_all_dna_oligo_has_no_wings():
     scored = score(SEQ_16, ALL_DNA)
-    assert all(np.isnan(scored[f"{o}_wing5"]) for o in OBSERVABLES)
-    assert all(np.isnan(scored[f"{o}_wing3"]) for o in OBSERVABLES)
-    assert all(np.isfinite(scored[f"{o}_gap"]) for o in OBSERVABLES)
+    assert all(np.isnan(scored[f"{o.lower()}_wing5"]) for o in OBSERVABLES)
+    assert all(np.isnan(scored[f"{o.lower()}_wing3"]) for o in OBSERVABLES)
+    assert all(np.isfinite(scored[f"{o.lower()}_gap"]) for o in OBSERVABLES)
 
 
 # --- what the values must satisfy -----------------------------------------------------
 def test_chemistry_changes_the_answer():
     moe = score(SEQ_16, "MMMddddddddddMMM")
     cet = score(SEQ_16, CET_GAPMER)
-    assert any(not np.isclose(moe[f"{o}_wing5"], cet[f"{o}_wing5"]) for o in OBSERVABLES)
+    assert any(not np.isclose(moe[f"{o.lower()}_wing5"], cet[f"{o.lower()}_wing5"]) for o in OBSERVABLES)
 
 
 def test_the_gap_is_read_against_rna_as_dna():
     # Every gap step is deoxy on both sides, so the gap mean is a mean of D:R cells.
     scored = score(SEQ_20, MOE_GAPMER)
     cells = [UNIFORM_MEAN["Roll"][f"D:R@{SEQ_20[i - 1] + SEQ_20[i]}"] for i in range(6, 15)]
-    assert scored["Roll_gap"] == pytest.approx(float(np.mean(cells)))
+    assert scored["roll_gap"] == pytest.approx(float(np.mean(cells)))
 
 
 def test_spread_and_mean_are_different_readings():
     scored = score(SEQ_20, MOE_GAPMER)
-    assert any(not np.isclose(scored[f"{o}_gap"], scored[f"{o}_gap_spread"]) for o in OBSERVABLES)
+    assert any(not np.isclose(scored[f"{o.lower()}_gap"], scored[f"{o.lower()}_gap_spread"]) for o in OBSERVABLES)
 
 
 # --- the populate step ----------------------------------------------------------------
@@ -163,7 +163,7 @@ def test_populate_needs_the_chemistry():
 
 def test_feature_name_rejects_an_unknown_quantity():
     with pytest.raises(ValueError):
-        aso_rna_feature_name("Roll_middle")
+        aso_rna_feature_name("roll_middle")
 
 
 def test_names_are_every_observable_in_every_region_twice():

@@ -8,7 +8,7 @@ from ..pandas_utils import add_columns
 
 logger = logging.getLogger(__name__)
 
-PREFIX = "asorna"
+PREFIX = "shape"
 
 
 def aso_rna_feature_name(quantity):
