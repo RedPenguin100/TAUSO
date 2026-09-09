@@ -80,6 +80,11 @@ def test_the_wing_grows_with_the_wing_length():
     assert step_regions(MOE_GAPMER, 20)["wing5"].sum() == 4
 
 
+def test_an_oligo_with_no_gap_is_missing_everywhere():
+    scored = score(SEQ_20, "M" * 20)
+    assert all(np.isnan(v) for v in scored.values())
+
+
 def test_an_all_dna_oligo_has_no_wings():
     scored = score(SEQ_16, ALL_DNA)
     assert all(np.isnan(scored[f"{o}_wing5"]) for o in OBSERVABLES)

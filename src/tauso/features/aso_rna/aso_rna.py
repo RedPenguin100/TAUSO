@@ -9,8 +9,13 @@ gap and the 3' wing. The averaging is done twice, once over the tables' mean val
 over their spread, since how variable a step's geometry is carries information the mean does
 not.
 
-Steps straddling a region boundary belong to no region, so a value is averaged only over
-steps that sit wholly inside one.
+Steps straddling the gap boundary belong to no region, so a value is averaged only over steps
+that sit wholly inside one. A step whose chemistry changes elsewhere in the oligo -- a lone
+deoxy base inside a wing, say -- does sit inside a region, and its junction value is averaged
+in with that region's.
+
+An oligo with no deoxy gap has no regions, and every column is NaN: the wings and the gap are
+only meaningful relative to a gap that exists.
 """
 
 import csv
@@ -69,11 +74,15 @@ def sugars(chemical_pattern, length):
 
 
 def step_regions(chemical_pattern, length):
-    """Boolean mask per region over the L-1 steps; a boundary step is in none of them."""
+    """Boolean mask per region over the L-1 steps; a boundary step is in none of them.
+
+    Every mask is empty when the pattern holds no deoxy gap to measure against.
+    """
     start, end, found = get_longest_dna_gap(str(chemical_pattern))
-    if not found:
-        start, end = 0, length
     steps = np.arange(1, length)
+    if not found:
+        empty = np.zeros(length - 1, dtype=bool)
+        return {region: empty for region in REGIONS}
     return {
         "wing5": (steps - 1 < start) & (steps < start),
         "gap": (steps - 1 >= start) & (steps < end),
