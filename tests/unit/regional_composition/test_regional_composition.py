@@ -1,7 +1,7 @@
-"""Dinucleotide composition per gapmer region, measured against the whole oligo.
+"""Dinucleotide composition per gapmer region, measured against the rest of the oligo.
 
 These pin the structure rather than the numbers: the regions partition the steps exactly, a
-region with nothing in it is missing rather than empty, and every region's deviations cancel.
+comparison that cannot be made is missing rather than zero, and every region's values cancel.
 """
 
 import numpy as np
@@ -66,32 +66,33 @@ def test_junction_is_a_single_step_on_a_plain_gapmer():
 
 
 # --- what the values must satisfy ---------------------------------------------------
-def test_deviations_cancel_within_each_region():
+def test_values_cancel_within_each_region():
+    # Both the region and its reference are frequencies over sixteen cells, so they sum to one.
     scored = score(SEQ_20, MOE_GAPMER)
     for region in REGIONS:
         total = sum(scored[f"{d}_{region}"] for d in DINUCLEOTIDES)
         assert total == pytest.approx(0.0, abs=1e-12)
 
 
-def test_region_matching_the_oligo_deviates_by_zero():
-    # An all-DNA oligo is one region, so the gap and the whole oligo are the same thing.
+def test_an_all_dna_oligo_has_nothing_to_compare():
+    # The gap holds every step and the wings hold none, so no region has a reference.
     scored = score(SEQ_16, ALL_DNA)
-    for d in DINUCLEOTIDES:
-        assert scored[f"{d}_gap"] == pytest.approx(0.0, abs=1e-12)
+    assert all(np.isnan(v) for v in scored.values())
 
 
 def test_an_empty_region_is_missing_not_zero():
-    scored = score(SEQ_16, ALL_DNA)
-    for region in ("wing5", "j5", "j3", "wing3"):
-        assert all(np.isnan(scored[f"{d}_{region}"]) for d in DINUCLEOTIDES)
+    scored = score(SEQ_16, "MMMMMMMMMMMMdddd")
+    assert all(np.isnan(scored[f"{d}_wing3"]) for d in DINUCLEOTIDES)
 
 
-def test_values_follow_the_sequence():
-    # AAACCTAAAATAGTGG on MMMddddddddddMMM: the 5' wing is AA twice, the 5' junction is AC.
+def test_a_region_is_not_inside_its_own_reference():
+    # AAACCTAAAATAGTGG on MMMddddddddddMMM has AA on 5 of its 15 steps, 2 of them the 5' wing.
+    # The wing is read against the other 13 steps, which hold the remaining 3.
     scored = score(SEQ_16, "MMMddddddddddMMM")
-    assert scored["AA_wing5"] == pytest.approx(1.0 - 5 / 15)
-    assert scored["AC_j5"] == pytest.approx(1.0 - 1 / 15)
-    assert scored["GT_j3"] == pytest.approx(1.0 - 1 / 15)
+    assert scored["AA_wing5"] == pytest.approx(1.0 - 3 / 13)
+    # AC and GT each occur once, at the two junction steps, so nothing is left outside.
+    assert scored["AC_j5"] == pytest.approx(1.0)
+    assert scored["GT_j3"] == pytest.approx(1.0)
 
 
 def test_chemistry_moves_the_boundary():
