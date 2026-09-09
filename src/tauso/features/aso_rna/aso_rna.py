@@ -15,7 +15,8 @@ deoxy base inside a wing, say -- does sit inside a region, and its junction valu
 in with that region's.
 
 An oligo with no deoxy gap has no regions, and every column is NaN: the wings and the gap are
-only meaningful relative to a gap that exists.
+only meaningful relative to a gap that exists. So is an oligo carrying any sugar beyond deoxy,
+2'-MOE and cEt, which are the only ones the tables cover.
 """
 
 import csv
@@ -43,13 +44,12 @@ OBSERVABLES = (
 )
 REGIONS = ("wing5", "gap", "wing3")
 
-SUGARS = {"M": "M", "C": "E", "O": "O", "R": "R"}
+SUGARS = {"D": "D", "M": "M", "C": "E"}
 """`chemical_pattern` letters mapped to the sugar the weight tables are keyed on.
 
-The column writes cEt as "C" where the tables name it "E". Anything absent is deoxy.
-
-2'-O-methyl is named here but carries no cells in the tables, so a step touching one is left
-unscored and drops out of its region's average rather than being read as deoxy.
+Deoxy, 2'-MOE and cEt are the only sugars the tables cover; the column writes cEt as "C" where
+the tables name it "E". The map has no default, so a residue outside it -- 2'-O-methyl,
+2'-fluoro, LNA -- makes the whole oligo unscorable rather than being read as deoxy.
 """
 
 FEATURE_NAMES = [f"{o}_{r}" for o in OBSERVABLES for r in REGIONS] + [
@@ -72,8 +72,15 @@ JUNCTION_MEAN = _load("rna_junction.csv", "mean")
 
 
 def sugars(chemical_pattern, length):
+    """The sugar at each residue, or None if the pattern names one the tables do not cover."""
     text = str(chemical_pattern)
-    return [SUGARS.get(text[i].upper(), "D") if i < len(text) else "D" for i in range(length)]
+    out = []
+    for i in range(length):
+        letter = text[i].upper() if i < len(text) else "D"
+        if letter not in SUGARS:
+            return None
+        out.append(SUGARS[letter])
+    return out
 
 
 def step_regions(chemical_pattern, length):
@@ -124,6 +131,8 @@ def calculate_aso_rna(sequences, chemical_patterns):
         if length < 2:
             continue
         sugar = sugars(pattern, length)
+        if sugar is None:
+            continue
         masks = step_regions(pattern, length)
         for uniform, suffix in ((UNIFORM_MEAN, ""), (UNIFORM_SPREAD, "_spread")):
             values = _profile(sequence, sugar, uniform)
