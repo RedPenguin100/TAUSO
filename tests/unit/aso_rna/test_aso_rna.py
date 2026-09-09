@@ -62,6 +62,16 @@ def test_every_junction_cell_a_gapmer_needs_is_present():
             assert step_cell("D", sugar, dinucleotide)[0] in JUNCTION_MEAN["Roll"]
 
 
+def test_a_two_prime_o_methyl_step_is_left_unscored():
+    # The tables hold no cells for that sugar, so the step drops out of its region's average
+    # instead of being read as deoxy.
+    assert step_cell("O", "O", "AC")[0] not in UNIFORM_MEAN["Roll"]
+    assert step_cell("D", "O", "AC")[0] not in JUNCTION_MEAN["Roll"]
+    with_ome = score(SEQ_16, "CCCdoddddddddCCC")
+    as_dna = score(SEQ_16, "CCCddddddddddCCC")
+    assert not np.isclose(with_ome["Roll_wing5"], as_dna["Roll_wing5"])
+
+
 def test_the_tables_carry_every_observable():
     for tables in (UNIFORM_MEAN, UNIFORM_SPREAD, JUNCTION_MEAN):
         assert set(tables) == set(OBSERVABLES)

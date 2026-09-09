@@ -43,10 +43,13 @@ OBSERVABLES = (
 )
 REGIONS = ("wing5", "gap", "wing3")
 
-SUGARS = {"M": "M", "C": "E", "R": "R"}
+SUGARS = {"M": "M", "C": "E", "O": "O", "R": "R"}
 """`chemical_pattern` letters mapped to the sugar the weight tables are keyed on.
 
 The column writes cEt as "C" where the tables name it "E". Anything absent is deoxy.
+
+2'-O-methyl is named here but carries no cells in the tables, so a step touching one is left
+unscored and drops out of its region's average rather than being read as deoxy.
 """
 
 FEATURE_NAMES = [f"{o}_{r}" for o in OBSERVABLES for r in REGIONS] + [
