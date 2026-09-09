@@ -483,6 +483,24 @@ class Calculator:
             load_if_present=True,
         )
 
+    def calculate_aso_rna(self):
+        """Calculates ASO:RNA duplex geometry per gapmer region."""
+        from tauso.populate.populate_aso_rna import (
+            aso_rna_feature_names,
+            populate_aso_rna_features,
+        )
+
+        def compute(missing):
+            return populate_aso_rna_features(self.data, cpus=self.cpus)
+
+        self._step(
+            "ASO:RNA duplex",
+            aso_rna_feature_names(),
+            compute,
+            save_only_missing=True,
+            load_if_present=True,
+        )
+
     def calculate_sequence_chemistry(self):
         """Calculates sequence chemistry features."""
         from tauso.populate.populate_sequence_chemistry import FEATURE_SPECS as CHEMISTRY_SPECS
@@ -885,6 +903,7 @@ class Calculator:
             self.calculate_sequence_one_hot,
             self.calculate_self_aso,
             self.calculate_regional_composition,
+            self.calculate_aso_rna,
             self.calculate_sequence_chemistry,
             self.calculate_toxicity,
             self.calculate_modification,

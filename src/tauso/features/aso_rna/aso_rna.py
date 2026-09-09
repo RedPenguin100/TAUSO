@@ -1,0 +1,165 @@
+"""Duplex geometry of the ASO against its RNA target, averaged over each region of the gapmer.
+
+A gapmer wing is 2'-MOE against RNA and its gap is DNA against RNA, so every step of the
+duplex is looked up in a table built for the sugar pair it actually has. Steps where the
+chemistry changes use the junction cells, which are keyed on both sugars.
+
+Thirteen geometric observables are read at every step; each is averaged over the 5' wing, the
+gap and the 3' wing. The averaging is done twice, once over the tables' mean values and once
+over their spread, since how variable a step's geometry is carries information the mean does
+not.
+
+Steps straddling the gap boundary belong to no region, so a value is averaged only over steps
+that sit wholly inside one. A step whose chemistry changes elsewhere in the oligo -- a lone
+deoxy base inside a wing, say -- does sit inside a region, and its junction value is averaged
+in with that region's.
+
+Every column is NaN where there is nothing to measure against: an oligo whose pattern holds
+no single deoxy stretch, and an oligo carrying any sugar beyond deoxy, 2'-MOE and cEt, which
+are the only ones the tables cover. A pattern whose length disagrees with the sequence is a
+corrupt row rather than an unscorable one, and raises.
+"""
+
+import csv
+import re
+from importlib import resources
+
+import numpy as np
+
+from ...common.modifications import check_pattern_length
+from ...util import normalize_dna
+
+OBSERVABLES = (
+    "Roll",
+    "Tilt",
+    "hIncl",
+    "hTip",
+    "hY",
+    "hRise",
+    "Shift",
+    "Rise",
+    "Slide",
+    "Zp",
+    "Twist",
+    "hTwist",
+    "hX",
+)
+REGIONS = ("wing5", "gap", "wing3")
+
+SUGARS = {"D": "D", "M": "M", "C": "E"}
+"""`chemical_pattern` letters mapped to the sugar the weight tables are keyed on.
+
+Deoxy, 2'-MOE and cEt are the only sugars the tables cover. "E" is the label these weight
+tables give cEt and means nothing outside them; the column itself writes cEt as "C".
+
+The map has no default, so a residue outside it -- 2'-O-methyl, 2'-fluoro, LNA -- makes the
+whole oligo unscorable rather than being read as deoxy.
+"""
+
+FEATURE_NAMES = [f"{o.lower()}_{r}" for o in OBSERVABLES for r in REGIONS] + [
+    f"{o.lower()}_{r}_spread" for o in OBSERVABLES for r in REGIONS
+]
+"""Observables are lower-cased here; the tables key them in the mixed case `OBSERVABLES` holds."""
+
+
+def _load(filename, stat):
+    tables = {o: {} for o in OBSERVABLES}
+    with resources.files(__package__).joinpath("weights", filename).open() as handle:
+        for row in csv.DictReader(handle):
+            if row["stat"] == stat and row["obs"] in tables:
+                tables[row["obs"]][row["cell"]] = float(row["value"])
+    return tables
+
+
+UNIFORM_MEAN = _load("rna_uniform.csv", "mean")
+UNIFORM_SPREAD = _load("rna_uniform.csv", "sd")
+JUNCTION_MEAN = _load("rna_junction.csv", "mean")
+
+
+def sugars(chemical_pattern, length):
+    """The sugar at each residue, or None if the pattern names one the tables do not cover."""
+    text = str(chemical_pattern)
+    out = []
+    for i in range(length):
+        letter = text[i].upper()
+        if letter not in SUGARS:
+            return None
+        out.append(SUGARS[letter])
+    return out
+
+
+def single_dna_gap(chemical_pattern):
+    """The one deoxy stretch the regions are measured from, or None if there is not exactly one.
+
+    Two stretches leave no way to say which is the gap: the longest is an arbitrary choice, and
+    where they tie it turns on which the scan reaches first, so the same molecule written
+    backwards would score differently.
+    """
+    runs = list(re.finditer("d+", str(chemical_pattern)))
+    if len(runs) != 1:
+        return None
+    return runs[0].start(), runs[0].end()
+
+
+def step_regions(chemical_pattern, length):
+    """Boolean mask per region over the L-1 steps; a boundary step is in none of them.
+
+    Every mask is empty when the pattern holds no single deoxy stretch to measure against.
+    """
+    span = single_dna_gap(chemical_pattern)
+    steps = np.arange(1, length)
+    if span is None:
+        empty = np.zeros(length - 1, dtype=bool)
+        return {region: empty for region in REGIONS}
+    start, end = span
+    return {
+        "wing5": (steps - 1 < start) & (steps < start),
+        "gap": (steps - 1 >= start) & (steps < end),
+        "wing3": (steps - 1 >= end) & (steps >= end),
+    }
+
+
+def step_cell(sugar_5, sugar_3, dinucleotide):
+    """Which table cell a step is scored in, given the sugars on either side of it."""
+    if sugar_5 == sugar_3:
+        return f"{sugar_5}:R@{dinucleotide}", False
+    return f"{sugar_5}{sugar_3}|RR@{dinucleotide}", True
+
+
+def _profile(sequence, sugar, uniform):
+    """One value per step for every observable, or NaN where the cell is unmeasured."""
+    length = len(sequence)
+    values = {o: np.full(length - 1, np.nan) for o in OBSERVABLES}
+    for i in range(1, length):
+        cell, is_junction = step_cell(sugar[i - 1], sugar[i], sequence[i - 1] + sequence[i])
+        tables = JUNCTION_MEAN if is_junction else uniform
+        for o in OBSERVABLES:
+            values[o][i - 1] = tables[o].get(cell, np.nan)
+    return values
+
+
+def calculate_aso_rna(sequences, chemical_patterns):
+    """One array per feature name, each as long as `sequences`."""
+    if len(sequences) != len(chemical_patterns):
+        raise ValueError(f"got {len(sequences)} sequences against {len(chemical_patterns)} chemical patterns")
+
+    out = {name: np.full(len(sequences), np.nan) for name in FEATURE_NAMES}
+    for row, (sequence, pattern) in enumerate(zip(sequences, chemical_patterns)):
+        sequence = normalize_dna(str(sequence))
+        check_pattern_length(sequence, pattern)
+        length = len(sequence)
+        if length < 2:
+            continue
+        sugar = sugars(pattern, length)
+        if sugar is None:
+            continue
+        masks = step_regions(pattern, length)
+        for uniform, suffix in ((UNIFORM_MEAN, ""), (UNIFORM_SPREAD, "_spread")):
+            values = _profile(sequence, sugar, uniform)
+            for o in OBSERVABLES:
+                for region, mask in masks.items():
+                    inside = values[o][mask]
+                    inside = inside[np.isfinite(inside)]
+                    if inside.size:
+                        out[f"{o.lower()}_{region}{suffix}"][row] = inside.mean()
+    return out
