@@ -17,6 +17,7 @@ from tauso.features.aso_rna.aso_rna import (
     UNIFORM_MEAN,
     UNIFORM_SPREAD,
     calculate_aso_rna,
+    single_dna_gap,
     step_cell,
     step_regions,
     sugars,
@@ -67,6 +68,29 @@ def test_a_sugar_the_tables_do_not_cover_makes_the_oligo_unscorable(pattern):
     # 2'-O-methyl, 2'-fluoro and LNA all appear in chemical_pattern; none has cells here, and
     # reading them as deoxy would be worse than declining to score.
     assert all(np.isnan(v) for v in score(SEQ_16, pattern).values())
+
+
+@pytest.mark.parametrize(
+    "pattern,why",
+    [
+        ("MMMddMddMddMddMddMMM", "five tied deoxy runs, so which is the gap turns on scan order"),
+        ("MMMMddddddddddMMMMMd", "a stray deoxy in the 3' wing"),
+        ("M" * 20, "no deoxy at all"),
+    ],
+)
+def test_without_one_deoxy_stretch_there_is_nothing_to_measure(pattern, why):
+    assert single_dna_gap(pattern) is None, why
+    assert all(np.isnan(v) for v in score("A" * 20, pattern).values())
+
+
+def test_one_deoxy_stretch_is_the_gap():
+    assert single_dna_gap(MOE_GAPMER) == (5, 15)
+    assert single_dna_gap(ALL_DNA) == (0, 16)
+
+
+def test_a_pattern_that_does_not_match_the_sequence_raises():
+    with pytest.raises(ValueError):
+        calculate_aso_rna([SEQ_16], [CET_GAPMER[:-1]])
 
 
 def test_the_three_covered_sugars_score():

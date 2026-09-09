@@ -14,17 +14,19 @@ that sit wholly inside one. A step whose chemistry changes elsewhere in the olig
 deoxy base inside a wing, say -- does sit inside a region, and its junction value is averaged
 in with that region's.
 
-An oligo with no deoxy gap has no regions, and every column is NaN: the wings and the gap are
-only meaningful relative to a gap that exists. So is an oligo carrying any sugar beyond deoxy,
-2'-MOE and cEt, which are the only ones the tables cover.
+Every column is NaN where there is nothing to measure against: an oligo whose pattern holds
+no single deoxy stretch, and an oligo carrying any sugar beyond deoxy, 2'-MOE and cEt, which
+are the only ones the tables cover. A pattern whose length disagrees with the sequence is a
+corrupt row rather than an unscorable one, and raises.
 """
 
 import csv
+import re
 from importlib import resources
 
 import numpy as np
 
-from ...common.modifications import get_longest_dna_gap
+from ...common.modifications import check_pattern_length
 from ...util import normalize_dna
 
 OBSERVABLES = (
@@ -78,23 +80,37 @@ def sugars(chemical_pattern, length):
     text = str(chemical_pattern)
     out = []
     for i in range(length):
-        letter = text[i].upper() if i < len(text) else "D"
+        letter = text[i].upper()
         if letter not in SUGARS:
             return None
         out.append(SUGARS[letter])
     return out
 
 
+def single_dna_gap(chemical_pattern):
+    """The one deoxy stretch the regions are measured from, or None if there is not exactly one.
+
+    Two stretches leave no way to say which is the gap: the longest is an arbitrary choice, and
+    where they tie it turns on which the scan reaches first, so the same molecule written
+    backwards would score differently.
+    """
+    runs = list(re.finditer("d+", str(chemical_pattern)))
+    if len(runs) != 1:
+        return None
+    return runs[0].start(), runs[0].end()
+
+
 def step_regions(chemical_pattern, length):
     """Boolean mask per region over the L-1 steps; a boundary step is in none of them.
 
-    Every mask is empty when the pattern holds no deoxy gap to measure against.
+    Every mask is empty when the pattern holds no single deoxy stretch to measure against.
     """
-    start, end, found = get_longest_dna_gap(str(chemical_pattern))
+    span = single_dna_gap(chemical_pattern)
     steps = np.arange(1, length)
-    if not found:
+    if span is None:
         empty = np.zeros(length - 1, dtype=bool)
         return {region: empty for region in REGIONS}
+    start, end = span
     return {
         "wing5": (steps - 1 < start) & (steps < start),
         "gap": (steps - 1 >= start) & (steps < end),
@@ -129,6 +145,7 @@ def calculate_aso_rna(sequences, chemical_patterns):
     out = {name: np.full(len(sequences), np.nan) for name in FEATURE_NAMES}
     for row, (sequence, pattern) in enumerate(zip(sequences, chemical_patterns)):
         sequence = normalize_dna(str(sequence))
+        check_pattern_length(sequence, pattern)
         length = len(sequence)
         if length < 2:
             continue
