@@ -58,7 +58,6 @@ from ...data.consts import (
     VOLUME_NM,
 )
 from ...debug import log_dataframe_memory
-from ...features.context.ribo_seq import add_genomic_coordinates, feature_names, get_feature_prefix
 from ...features.hybridization.off_target import OFF_TARGET_TOP_NS, RISEARCH_SCORE_CUTOFFS
 from ...timer import Timer
 from ...util import dna_to_rna
@@ -79,7 +78,6 @@ from ..populate_fold import (
     populate_access_features,
     populate_mfe_features,
 )
-from ..populate_riboseq import populate_ribo_seq
 from ..populate_sequence import FEATURE_SPECS, populate_sequence_features
 from ..populate_structure import get_populated_df_with_structure_features
 from .cache import AssetCache
@@ -592,29 +590,6 @@ class Calculator:
 
         self._step("experimental-condition", [VOLUME_NM, DENSITY_CELLS_PER_WELL], compute)
 
-    def calculate_ribo_seq(self):
-        """Calculates ribosome profiling (Ribo-seq) features for both 40S and 80S subunits."""
-        flanks = (0, 10, 20, 50, 100, 125, 150)
-        how = "mean"
-        tracks = ("40s", "80s")
-
-        expected_features = []
-        for track in tracks:
-            expected_features.extend(feature_names(flanks, how, prefix=get_feature_prefix(track)))
-
-        def compute(missing):
-            gene_to_data = self.cache.get_lean_gene(self._get_unique_genes())
-            self.data = add_genomic_coordinates(self.data, gene_to_data)
-            generated = []
-            for track in tracks:
-                self.data, track_features = populate_ribo_seq(
-                    "human", self.data, flanks=flanks, how=how, n_jobs=self.cpus, track=track
-                )
-                generated.extend(track_features)
-            return self.data, generated
-
-        self._step("Ribo-seq", expected_features, compute, save_only_missing=True)
-
     def calculate_cub(self):
         """Calculates all Codon Usage Bias (CUB) features: tAI, CAI, and ENC."""
         from tauso.populate.populate_codon_usage import populate_cai, populate_enc, populate_tai
@@ -910,7 +885,6 @@ class Calculator:
             self.calculate_hybridization,
             self.calculate_backbone_features,
             self.calculate_interaction,
-            self.calculate_ribo_seq,
             self.calculate_off_target_general,
             self.calculate_off_target_single,
             self.calculate_off_target_specific,
