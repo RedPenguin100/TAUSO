@@ -47,9 +47,11 @@ REGIONS = ("wing5", "gap", "wing3")
 SUGARS = {"D": "D", "M": "M", "C": "E"}
 """`chemical_pattern` letters mapped to the sugar the weight tables are keyed on.
 
-Deoxy, 2'-MOE and cEt are the only sugars the tables cover; the column writes cEt as "C" where
-the tables name it "E". The map has no default, so a residue outside it -- 2'-O-methyl,
-2'-fluoro, LNA -- makes the whole oligo unscorable rather than being read as deoxy.
+Deoxy, 2'-MOE and cEt are the only sugars the tables cover. "E" is the label these weight
+tables give cEt and means nothing outside them; the column itself writes cEt as "C".
+
+The map has no default, so a residue outside it -- 2'-O-methyl, 2'-fluoro, LNA -- makes the
+whole oligo unscorable rather than being read as deoxy.
 """
 
 FEATURE_NAMES = [f"{o}_{r}" for o in OBSERVABLES for r in REGIONS] + [
