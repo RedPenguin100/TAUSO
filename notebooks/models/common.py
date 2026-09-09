@@ -68,17 +68,11 @@ def metrics_on(model, df, features):
     return metrics_from(predict(model, df, features), df)
 
 
-# variant -> (objective, query-group column, demean-by column, extra params)
+# variant -> the column whose mean the target is taken against, or None to fit raw inhibition
 VARIANTS = {
-    "reg": ("reg:squarederror", None, None, {}),
-    "clean_exp": ("reg:squarederror", None, "custom_id", {}),
-    "clean_gene": ("reg:squarederror", None, "cohort_id", {}),
-    "pair_exp": ("rank:pairwise", "custom_id", None, {}),
-    "pair_gene": ("rank:pairwise", "cohort_id", None, {}),
-    "ndcg_exp": ("rank:ndcg", "custom_id", None, {}),  # exponential gain (default)
-    "ndcg_gene": ("rank:ndcg", "cohort_id", None, {}),
-    "ndcg_exp_lin": ("rank:ndcg", "custom_id", None, {"ndcg_exp_gain": False}),  # linear gain
-    "ndcg_gene_lin": ("rank:ndcg", "cohort_id", None, {"ndcg_exp_gain": False}),
+    "reg": None,
+    "clean_exp": "custom_id",
+    "clean_gene": "cohort_id",
 }
 
 
@@ -90,18 +84,10 @@ def _target(df, demean_by):
 
 
 def train(df, features, variant, params, rounds, seed=1):
-    """Train one variant (objective + target grouping from VARIANTS) with the given params on `df`."""
-    objective, qid, demean_by, extra = VARIANTS[variant]
-    config = {**params, "objective": objective, "seed": seed, **extra}
-    if qid is not None:  # learning-to-rank: contiguous query groups
-        df = df.sort_values(qid, kind="stable")
-        label = df[INHIBITION_PERCENT].to_numpy(np.float64)
-        if objective == "rank:ndcg":  # NDCG ranks by integer relevance grades
-            label = np.rint(np.clip(label, 0, 100) / 100.0 * 15.0)  # inhibition 0..100% -> grade 0..15
-        dtrain = xgb.DMatrix(df[features].to_numpy(np.float64), label=label, feature_names=features)
-        dtrain.set_info(group=df.groupby(qid, sort=False).size().to_numpy())
-    else:
-        dtrain = xgb.DMatrix(df[features].to_numpy(np.float64), label=_target(df, demean_by), feature_names=features)
+    """Train one variant (target grouping from VARIANTS) with the given params on `df`."""
+    config = {**params, "objective": "reg:squarederror", "seed": seed}
+    dtrain = xgb.DMatrix(df[features].to_numpy(np.float64), label=_target(df, VARIANTS[variant]),
+                         feature_names=features)
     return xgb.train(config, dtrain, rounds)
 
 
