@@ -465,6 +465,24 @@ class Calculator:
             load_if_present=True,
         )
 
+    def calculate_regional_composition(self):
+        """Calculates dinucleotide composition per gapmer region, relative to the whole oligo."""
+        from tauso.populate.populate_regional_composition import (
+            populate_regional_composition_features,
+            regional_composition_feature_names,
+        )
+
+        def compute(missing):
+            return populate_regional_composition_features(self.data, cpus=self.cpus)
+
+        self._step(
+            "regional composition",
+            regional_composition_feature_names(),
+            compute,
+            save_only_missing=True,
+            load_if_present=True,
+        )
+
     def calculate_sequence_chemistry(self):
         """Calculates sequence chemistry features."""
         from tauso.populate.populate_sequence_chemistry import FEATURE_SPECS as CHEMISTRY_SPECS
@@ -866,6 +884,7 @@ class Calculator:
             self.calculate_duplication,
             self.calculate_sequence_one_hot,
             self.calculate_self_aso,
+            self.calculate_regional_composition,
             self.calculate_sequence_chemistry,
             self.calculate_toxicity,
             self.calculate_modification,
