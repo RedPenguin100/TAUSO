@@ -68,6 +68,7 @@ include-package-data = true
 "tauso.features.rnase_motifs" = ["weights/*.json"]
 "tauso.features.hybridization" = ["weights/*.csv"]
 "tauso.features.aso_rna" = ["weights/*.csv"]
+"tauso.data" = ["cell_lines/*.csv"]
 
 "tauso.inference" = ["model/*.json", "model/*.txt"]
 

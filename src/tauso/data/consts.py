@@ -1,4 +1,6 @@
+import csv
 import re
+from importlib import resources
 
 ASO_SEQUENCE = "aso_sequence"
 INHIBITION_PERCENT = "inhibition_percent"
@@ -192,7 +194,10 @@ def resolve_depmap_proxy(raw):
         return None
     if key in _PROXY_LOOKUP_NORM:
         return _PROXY_LOOKUP_NORM[key]
-    return _DEPMAP_NAME_NORM.get(key)
+    if key in _DEPMAP_NAME_NORM:
+        return _DEPMAP_NAME_NORM[key]
+    known = DEPMAP_MODELS.get(key)
+    return known[0] if known else None
 
 
 def resolve_depmap_id(raw):
@@ -200,7 +205,10 @@ def resolve_depmap_id(raw):
     proxy = resolve_depmap_proxy(raw)
     if proxy is None:
         return None
-    return CELL_LINE_TO_DEPMAP.get(proxy)
+    if proxy in CELL_LINE_TO_DEPMAP:
+        return CELL_LINE_TO_DEPMAP[proxy]
+    known = DEPMAP_MODELS.get(_norm_cell_line_key(proxy))
+    return known[1] if known else None
 
 
 def standardize_cell_line_name(raw: str) -> str:
@@ -263,6 +271,24 @@ CELL_LINE_TO_DEPMAP = {
     "U-251 MG": "ACH-000232",
     "VCaP": "ACH-000115",
 }
+
+def _load_depmap_models():
+    """Every cell line DepMap publishes, as normalised name -> (canonical name, ACH id).
+
+    Generated from a DepMap release's `Model.csv` by `tauso refresh-depmap-names`, and shipped
+    so a name resolves the same way whether or not the release has been downloaded.
+    """
+    out = {}
+    with resources.files(__package__).joinpath("cell_lines", "depmap_models.csv").open() as handle:
+        for row in csv.DictReader(handle):
+            key = _norm_cell_line_key(row["cell_line"])
+            if key:
+                out[key] = (row["cell_line"], row["depmap_id"])
+    return out
+
+
+DEPMAP_MODELS = _load_depmap_models()
+"""Normalised cell-line name -> (canonical DepMap spelling, ACH id), for every DepMap model."""
 
 _DEPMAP_NAME_NORM = {_norm_cell_line_key(name): name for name in CELL_LINE_TO_DEPMAP}
 
