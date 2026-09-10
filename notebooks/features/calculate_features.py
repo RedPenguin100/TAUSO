@@ -68,7 +68,6 @@ DATASETS = {
             'calculate_regional_composition',
             'calculate_aso_rna',
             'calculate_interaction',
-            'calculate_ribo_seq',
             'calculate_off_target_general',
             'calculate_off_target_single',
             'calculate_off_target_specific',
