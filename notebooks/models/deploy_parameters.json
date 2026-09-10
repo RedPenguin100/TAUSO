@@ -1,5 +1,5 @@
 {
-  "low": {
+  "clean_exp_low": {
     "variant": "clean_exp",
     "num_boost_round": 7788,
     "params": {
@@ -32,22 +32,10 @@
       "auprc": 0.5997,
       "auroc": 0.8296
     },
-    "study": {
-      "name": "LOW / rmse",
-      "trial": 217,
-      "trials_total": 326,
-      "finished": true,
-      "objective_tuned_on": "cv_rmse"
-    },
-    "inputs": {
-      "n_features": 670
-    },
-    "unconfirmed": [
-      "Tuned on a 670-feature matrix; the deploy trains the 710 features the shard directory holds. colsample_bytree draws ~134 columns per tree there against ~142 here.",
-      "The matrix file and feature list behind the 670 are not recorded."
-    ]
+    "study": {"name": "clean_exp / LOW", "trial": 217, "trials_total": 326, "objective_tuned_on": "cv_rmse"},
+    "inputs": {"n_features": 670}
   },
-  "med": {
+  "clean_exp_med": {
     "variant": "clean_exp",
     "num_boost_round": 9829,
     "params": {
@@ -62,22 +50,48 @@
       "reg_lambda": 270.21558699809094,
       "reg_alpha": 15.635781850379963
     },
-    "study": {
-      "name": "MED / rmse",
-      "trial": 136,
-      "trials_total": 300,
-      "trials_done": 163,
-      "finished": false,
-      "objective_tuned_on": "cv_rmse"
+    "study": {"name": "clean_exp / MED", "trial": 136, "objective_tuned_on": "cv_rmse",
+              "note": "best of the four searches"},
+    "inputs": {"n_features": 670}
+  },
+  "regression_low": {
+    "variant": "reg",
+    "num_boost_round": 6629,
+    "params": {
+      "tree_method": "hist",
+      "device": "cuda",
+      "max_depth": 8,
+      "learning_rate": 0.008352302120504177,
+      "min_child_weight": 30,
+      "subsample": 0.6981278983754269,
+      "colsample_bytree": 0.1626396551878061,
+      "gamma": 3.30182197540445,
+      "reg_lambda": 44.87792317378696,
+      "reg_alpha": 3.6545710350762244
     },
-    "inputs": {
-      "n_features": 670
+    "study": {"name": "regression / LOW", "trial": 200, "objective_tuned_on": "cv_rmse"},
+    "inputs": {"n_features": 670}
+  },
+  "regression_med": {
+    "variant": "reg",
+    "num_boost_round": 8549,
+    "params": {
+      "tree_method": "hist",
+      "device": "cuda",
+      "max_depth": 18,
+      "learning_rate": 0.010981624828527032,
+      "min_child_weight": 55,
+      "subsample": 0.6321481686971862,
+      "colsample_bytree": 0.1523205523955937,
+      "gamma": 37.14831263999646,
+      "reg_lambda": 396.81321273582074,
+      "reg_alpha": 37.491664748951926
     },
-    "unconfirmed": [
-      "The search is still running at 163 of 300 trials, so trial 136 is the best so far rather than the best.",
-      "No CV or test metrics were recorded with these parameters.",
-      "Tuned on a 670-feature matrix; the deploy trains the 710 features the shard directory holds.",
-      "The matrix file and feature list behind the 670 are not recorded."
-    ]
-  }
+    "study": {"name": "regression / MED", "trial": 101, "objective_tuned_on": "cv_rmse"},
+    "inputs": {"n_features": 670}
+  },
+  "_unconfirmed": [
+    "All four were tuned on a 670-feature matrix; the matrix file and feature list behind it are not recorded.",
+    "CV and test metrics were recorded only for clean_exp_low."
+  ]
 }
