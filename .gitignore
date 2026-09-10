@@ -40,4 +40,7 @@ notebooks/saved_features_oligo/
 notebooks/competitors/OligoAI/*.csv
 
 # DIAPH3 pre-mRNA tilings: 498k candidates, ~1.2 GB per backbone. Deposited, not committed.
-notebooks/prediction/output/DIAPH3_*/
+# Ignore the artifacts by name rather than the directory, so the small shortlist tables beside
+# them stay committable -- git does not descend into an ignored directory to un-ignore a file.
+notebooks/prediction/output/DIAPH3_*/*_features.parquet
+notebooks/prediction/output/DIAPH3_*/*_ranked.csv
