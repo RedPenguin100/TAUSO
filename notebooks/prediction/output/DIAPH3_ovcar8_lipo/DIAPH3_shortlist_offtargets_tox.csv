@@ -1,0 +1,7 @@
+sequence,start,rank_full,rank_ps5,rank_ps6,genome_0mm,genome_1mm,genome_2mm,tox_cpg_count,tox_cpg_ps_count,tox_tlr9_gtcgtt,tox_g4hunter_max,tox_gggg_motif_count,tox_3prime_g_fraction,off_target_score_general_BOLTZ_n100_c1000,off_target_single_RNASEH1_c1000,off_target_single_rRNA_total_c1000,offtarget_genomewide,offtarget_rrna,liabilities
+AGCCACTATTATGTACCTTG,70661,2.0,4.0,4.0,0,0,11,0.0,0.0,0.0,0.0,0.0,0.25,0.0,0.0,0.0,0.0,0.0,none flagged
+GCCAACTTTAACAGGACTCA,2937,1.0,,,0,0,7,0.0,0.0,0.0,0.3,0.0,0.0,0.0,0.0,0.0,0.0,0.0,none flagged
+TGCAGCATTATGGATCTCAC,11743,4.0,,,0,0,7,0.0,0.0,0.0,0.4,0.0,0.0,0.0,0.0,0.0,0.0,0.0,none flagged
+GCACAGGTTTTTCTCTCAGT,390571,3.0,1.0,1.0,0,1,31,0.0,0.0,0.0,0.3,0.0,0.25,0.0,0.0,0.0,0.0,0.0,none flagged
+GGCAAATATTTCCATAGAGG,9669,,3.0,3.0,0,1,20,0.0,0.0,0.0,0.3,0.0,0.75,0.0,0.0,0.0,0.0,0.0,none flagged
+GGCACAGGTTTTTCTCTCAG,390572,,2.0,2.0,0,1,27,0.0,0.0,0.0,0.6,0.0,0.25,0.0,0.0,0.0,0.0,0.0,none flagged
