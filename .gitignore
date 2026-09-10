@@ -38,3 +38,6 @@ notebooks/saved_features_oligo/
 
 # Competitor scored data (regenerable by running the competitor model on the dataset)
 notebooks/competitors/OligoAI/*.csv
+
+# DIAPH3 pre-mRNA tilings: 498k candidates, ~1.2 GB per backbone. Deposited, not committed.
+notebooks/prediction/output/DIAPH3_*/
