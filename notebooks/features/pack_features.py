@@ -13,7 +13,7 @@ Release/dev tool, not part of the importable library -- it lives under notebooks
 the per-feature dtype map from feature_extraction so the packed Parquet matches the shards.
 
 Usage:
-    python -m notebooks.features.pack_features --run oligo
+    python -m notebooks.features.pack_features --run oligo --name atlas_v1.parquet
     python -m notebooks.features.pack_features --source <dir> --run oligo --out build/
 """
 
@@ -29,9 +29,13 @@ from tauso.cli_utils import md5_file
 from tauso.populate.feature_cache import loose_shard_dir
 
 
-def pack_features(source_dir: Path, out_dir: Path, run: str, workers: int, row_group_size: int = 20000) -> Path:
-    """Outer-join every feature shard in ``source_dir`` into one wide ``<run>_features.parquet``.
+def pack_features(
+    source_dir: Path, out_dir: Path, run: str, workers: int, row_group_size: int = 20000, name: str = None
+) -> Path:
+    """Outer-join every feature shard in ``source_dir`` into one wide parquet named ``name``.
 
+    ``name`` is the filename the pack is distributed under, which is what
+    ``FEATURE_CACHE_FILES[run]["filename"]`` has to say; it defaults to ``<run>_features.parquet``.
     ``row_group_size`` controls the parquet row-group granularity: smaller groups let
     ``iter_all_features`` stream the cache with peak memory ~= one row group.
     """
@@ -69,7 +73,7 @@ def pack_features(source_dir: Path, out_dir: Path, run: str, workers: int, row_g
     wide = pd.concat(frames, axis=1, join="outer", copy=False).reset_index()
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{run}_features.parquet"
+    out_path = out_dir / (name or f"{run}_features.parquet")
     logging.info("Writing %d columns x %d rows -> %s", wide.shape[1] - 1, len(wide), out_path.name)
     wide.to_parquet(out_path, compression="zstd", index=False, row_group_size=row_group_size)
     return out_path
@@ -93,6 +97,9 @@ def main():
     )
     parser.add_argument("--workers", type=int, default=8, help="Parallel shard readers (default: 8).")
     parser.add_argument(
+        "--name", default=None, help="Filename to distribute the pack under (default: <run>_features.parquet)."
+    )
+    parser.add_argument(
         "--row-group-size", type=int, default=20000, help="Parquet row-group size in rows (default: 20000)."
     )
     args = parser.parse_args()
@@ -108,7 +115,7 @@ def main():
     if not source_dir.is_dir():
         parser.error(f"Source dir does not exist: {source_dir}")
 
-    out_path = pack_features(source_dir, args.out, args.run, args.workers, args.row_group_size)
+    out_path = pack_features(source_dir, args.out, args.run, args.workers, args.row_group_size, args.name)
 
     source_bytes = _dir_size(source_dir)
     parquet_bytes = out_path.stat().st_size
