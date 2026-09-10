@@ -3,63 +3,128 @@
 Trains the config in deploy_parameters.json on train+val and writes the booster, the feature
 list the package scores with, and the list of those features that are never missing.
 
-  python notebooks/models/deploy.py                 # train on train+val, seed 1  (the final model)
-  python notebooks/models/deploy.py --data all      # train on all data (train+val+test)
+One of --use-calculated / --use-downloaded says where the features come from. They are
+different feature sets whenever the pipeline has moved on since the cache was published, so
+the choice is the caller's rather than whichever happens to be on disk.
+
+--clean-exp / --regression pick what the model fits: the deviation from each experiment's mean,
+or raw inhibition. --low / --med pick which search's box the parameters came from. The four
+combinations are the four entries in deploy_parameters.json.
+
+  python notebooks/models/deploy.py --use-calculated                     # what `calculate_features` wrote
+  python notebooks/models/deploy.py --use-downloaded                     # the published cache, fetched if absent
+  python notebooks/models/deploy.py --use-calculated --med               # the MED box, still clean_exp
+  python notebooks/models/deploy.py --use-calculated --regression --med  # raw inhibition, MED box
+  python notebooks/models/deploy.py --use-calculated --data all
 
 The booster is ~100 MB and stays out of git; copy it to <data_dir>/models/ to score with it.
 """
+
 import argparse
 import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # repo root, for the notebooks.* imports
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root, for the notebooks.* imports
 from notebooks.models import common
-from tauso.inference.predict import DEFAULT_VERSION, MODEL_DIR, MODEL_FILES
+
+from tauso.inference.predict import DEFAULT_VERSION, MODEL_DIR
 
 CONFIGS = json.loads((Path(__file__).parent / "deploy_parameters.json").read_text())
 
 
-def current_pipeline_features():
-    """Names the feature pipeline writes a shard for, i.e. what it still computes."""
+def shard_dir():
+    """Where the feature pipeline writes its per-feature shards."""
     from notebooks.features.feature_extraction import _get_saved_features_dir
+
     from tauso.populate.feature_cache import loose_shard_dir
 
-    shard_dir = Path(loose_shard_dir(_get_saved_features_dir("oligo")))
-    return {p.stem for p in shard_dir.iterdir() if p.suffix in (".parquet", ".csv")}
+    return Path(loose_shard_dir(_get_saved_features_dir("oligo")))
+
+
+def current_pipeline_features():
+    """Names the feature pipeline writes a shard for, i.e. what it still computes."""
+    directory = shard_dir()
+    if not directory.is_dir():
+        return set()
+    return {p.stem for p in directory.iterdir() if p.suffix in (".parquet", ".csv")}
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", choices=["trainval", "all"], default="trainval",
-                    help="train on train+val (default, the shipped model) or all data")
+    ap.add_argument(
+        "--data",
+        choices=["trainval", "all"],
+        default="trainval",
+        help="train on train+val (default, the shipped model) or all data",
+    )
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--version", default=DEFAULT_VERSION, help="model version to write")
+    box = ap.add_mutually_exclusive_group()
+    box.add_argument("--low", action="store_true", help="the LOW search's parameters (default)")
+    box.add_argument("--med", action="store_true", help="the MED search's parameters")
+    objective = ap.add_mutually_exclusive_group()
+    objective.add_argument(
+        "--clean-exp", action="store_true", help="fit the deviation from each experiment's mean (default)"
+    )
+    objective.add_argument("--regression", action="store_true", help="fit raw inhibition")
+    source = ap.add_mutually_exclusive_group(required=True)
+    source.add_argument("--use-calculated", action="store_true", help="train on the features this machine computed")
+    source.add_argument(
+        "--use-downloaded", action="store_true", help="train on the published cache, fetching it if absent"
+    )
     args = ap.parse_args()
 
-    spec = CONFIGS[args.version]
-    df, features = common.load_dataset()
+    config_name = f"{'regression' if args.regression else 'clean_exp'}_{'med' if args.med else 'low'}"
+    spec = CONFIGS[config_name]
 
-    # The loader fills what the per-feature shards do not cover from the wide parquet cache, which
-    # still holds columns the pipeline has stopped producing. A model trained on one of those cannot
-    # be scored by a feature run, so the shards are what defines the feature set.
-    produced = current_pipeline_features()
-    stale = sorted(set(features) - produced)
-    features = [f for f in features if f in produced]
-    if stale:
-        print(f"{len(stale)} features come only from the wide cache and are dropped: {stale}", flush=True)
+    if args.use_calculated and not current_pipeline_features():
+        sys.exit(
+            f"No calculated features in {shard_dir()}.\n"
+            "Compute them first:\n"
+            "  python -m notebooks.features.calculate_features --dataset oligo --cpus $(nproc)\n"
+            "or train on the published set with --use-downloaded."
+        )
 
-    features = [f for f in features if df[f].nunique(dropna=True) > 1]   # a constant column carries no split
+    df, features = common.load_dataset(use_cache=args.use_downloaded)
+    print(f"features from the {'published cache' if args.use_downloaded else 'feature pipeline'}", flush=True)
+
+    if args.use_calculated:
+        # Nothing may come from the cache: it still holds columns the pipeline has stopped
+        # producing, and a model trained on one of those cannot be scored by a feature run.
+        produced = current_pipeline_features()
+        strays = sorted(set(features) - produced)
+        if strays:
+            sys.exit(f"{len(strays)} features are not among the calculated shards: {strays}")
+
+    # A column with one value carries no split. All-NaN is the degenerate case, and it means
+    # the data behind the feature was never built rather than the feature being uninformative.
+    constant = [f for f in features if df[f].nunique(dropna=True) <= 1]
+    empty = [f for f in constant if df[f].isna().all()]
+    if empty:
+        print(f"\n!! dropping {len(empty)} features that are NaN for every row: {empty}")
+        print("!! the data they are built from is missing; they will be absent from the model\n", flush=True)
+    if len(constant) > len(empty):
+        print(
+            f"dropping {len(constant) - len(empty)} constant features: {[f for f in constant if f not in set(empty)]}",
+            flush=True,
+        )
+    features = [f for f in features if f not in set(constant)]
     trv, test = common.split(df)
     train_df = trv if args.data == "trainval" else df
 
     params, rounds, variant = spec["params"], spec["num_boost_round"], spec["variant"]
-    print(f"deploy {args.version} ({variant}): train on {args.data} ({len(train_df)} rows), "
-          f"seed {args.seed}, {rounds} rounds, {len(features)} feats", flush=True)
+    print(
+        f"deploy {args.version} ({variant}, {config_name}): train on {args.data} ({len(train_df)} rows), "
+        f"seed {args.seed}, {rounds} rounds, {len(features)} feats",
+        flush=True,
+    )
 
     model = common.train(train_df, features, variant, params, rounds, seed=args.seed)
 
-    booster = common.RESULTS_DIR / MODEL_FILES[args.version]["filename"]
+    booster = common.RESULTS_DIR / f"tauso_score_{args.version}_{config_name}.json"
     booster.parent.mkdir(parents=True, exist_ok=True)
     model.save_model(str(booster))
 
@@ -69,14 +134,24 @@ def main():
     (MODEL_DIR / f"tauso_score_{args.version}.finite.txt").write_text("\n".join(finite) + "\n")
 
     if args.data == "trainval":
-        scores = common.metrics_on(model, test, features)
+        # Keep the test predictions: the model-comparison figures read one file per model, and
+        # rescoring later would need the exact feature set this run trained on.
+        predictions = common.predict(model, test, features)
+        prediction_path = booster.with_suffix(".test_pred.parquet")
+        pd.DataFrame({"index_oligo": test["index_oligo"].to_numpy(), "tauso": predictions}).to_parquet(
+            prediction_path, index=False
+        )
+        scores = common.metrics_from(predictions, test)
+        print(f"  -> {prediction_path}  ({len(test)} test predictions)")
         print(f"\nTEST (held out, n={len(test)})")
         for metric in common.METRICS:
             print(f"  {metric:>8}: {scores[metric]:.4f}")
 
-    print(f"\n  -> {booster}  ({len(features)} features, {len(finite)} never missing)"
-          f"\n  -> {MODEL_DIR / f'tauso_score_{args.version}.features.txt'}"
-          f"\n  -> {MODEL_DIR / f'tauso_score_{args.version}.finite.txt'}")
+    print(
+        f"\n  -> {booster}  ({len(features)} features, {len(finite)} never missing)"
+        f"\n  -> {MODEL_DIR / f'tauso_score_{args.version}.features.txt'}"
+        f"\n  -> {MODEL_DIR / f'tauso_score_{args.version}.finite.txt'}"
+    )
 
 
 if __name__ == "__main__":

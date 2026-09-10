@@ -25,6 +25,25 @@ def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
     return transcriptomes
 
 
+def _require_transcript_expression(expression_dir):
+    """Fail when the transcript expression has never been built.
+
+    Every cell line missing means the setup step was skipped, not that the data has a gap.
+    The features built on it would otherwise come out NaN for every row and be dropped as
+    constant, costing two model features with nothing said.
+    """
+    if os.path.isdir(expression_dir) and any(
+        f.endswith("_transcript_expression.csv") for f in os.listdir(expression_dir)
+    ):
+        return
+    raise FileNotFoundError(
+        f"No transcript expression in {expression_dir}.\n"
+        "Build it before calculating features:\n"
+        "  tauso setup-depmap-transcripts\n"
+        "  tauso build-cohort-transcript-expression"
+    )
+
+
 def load_cell_line_transcript_expression(depmap_ids, valid_transcript_names, expression_dir):
     """Per-cell-line transcript expression, the transcript twin of
     load_cell_line_gene_expression.
@@ -33,6 +52,8 @@ def load_cell_line_transcript_expression(depmap_ids, valid_transcript_names, exp
     transcript names asked for (RNASEH1-201 and the like), which say which gene and which
     isoform without a lookup.
     """
+    _require_transcript_expression(expression_dir)
+
     wanted = set(valid_transcript_names)
     transcriptomes = {}
 
@@ -59,6 +80,8 @@ def load_cell_line_gene_transcripts(depmap_ids, valid_genes, expression_dir):
     feature about the target gene needs: the target differs from row to row, so the isoforms
     cannot be named ahead of time.
     """
+    _require_transcript_expression(expression_dir)
+
     wanted = set(valid_genes)
     transcriptomes = {}
 

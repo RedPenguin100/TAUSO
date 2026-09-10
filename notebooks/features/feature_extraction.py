@@ -72,8 +72,6 @@ def get_dtype_for_feature(filename, index_col_name):
         feat_type = "float64"
     elif name.startswith("seq_"):
         feat_type = "float64"
-    elif name.startswith("ribo_"):
-        feat_type = "float64"
     elif name.startswith("expr_"):
         feat_type = "float64"
     elif name in {
@@ -147,9 +145,14 @@ def _index_col(version):
     return f"index_{version}"
 
 
-def _maybe_fetch_cache(version, feature_dir):
-    """If `version` is a registered run, ensure the wide cache is in `feature_dir`; return its path."""
-    if version not in FEATURE_CACHE_FILES:
+def _maybe_fetch_cache(version, feature_dir, use_cache=True):
+    """The wide cache's path, downloading it if absent; None when it is not to be read.
+
+    `use_cache=False` ignores the cache even when it is already on disk, so a run reads only
+    what the feature pipeline wrote. The two hold different feature sets whenever the pipeline
+    has moved on, and a run has to be one or the other.
+    """
+    if not use_cache or version not in FEATURE_CACHE_FILES:
         return None
     cache_file = os.path.join(feature_dir, FEATURE_CACHE_FILES[version]["filename"])
     if not os.path.exists(cache_file):
@@ -220,7 +223,12 @@ def _list_loose_files(feature_dir, cache_file):
         logger.warning(
             "Found %d legacy loose shard(s) in %s. New writes go to %s/. "
             "To migrate: mkdir -p %s && mv %s/*.parquet %s/",
-            len(legacy), feature_dir, LOOSE_SHARD_SUBDIR, patches_dir, feature_dir, patches_dir,
+            len(legacy),
+            feature_dir,
+            LOOSE_SHARD_SUBDIR,
+            patches_dir,
+            feature_dir,
+            patches_dir,
         )
     out.extend(legacy)
 
@@ -231,7 +239,9 @@ def _list_loose_files(feature_dir, cache_file):
             "These look like leftover caches from previous FEATURE_CACHE_FILES versions; "
             "loading them alongside the current cache would silently override its values "
             "for any shared column. Delete or move them aside to silence this warning.",
-            len(stale_caches), feature_dir, details,
+            len(stale_caches),
+            feature_dir,
+            details,
         )
     return out
 
@@ -257,9 +267,11 @@ def _read_cache(cache_file, index_col, excluded_cols, keep_name):
     return pd.read_parquet(cache_file, columns=[index_col] + cols).set_index(index_col)
 
 
-def load_all_features(filenames=None, light=True, verbose=False, version="oligo", load_competition=False):
+def load_all_features(
+    filenames=None, light=True, verbose=False, version="oligo", load_competition=False, use_cache=True
+):
     feature_dir = _get_saved_features_dir(version)
-    cache_file = _maybe_fetch_cache(version, feature_dir)
+    cache_file = _maybe_fetch_cache(version, feature_dir, use_cache)
     _maybe_fetch_competition(version, load_competition)
 
     keep = _keep_filter(light=light, load_competition=load_competition, wanted=filenames)

@@ -1,39 +1,97 @@
 {
-  "v1": {
+  "clean_exp_low": {
     "variant": "clean_exp",
-    "num_boost_round": 7748,
+    "num_boost_round": 7788,
     "params": {
       "tree_method": "hist",
       "device": "cuda",
       "max_depth": 8,
-      "learning_rate": 0.007760092819921261,
-      "min_child_weight": 37,
-      "subsample": 0.9531374040552855,
-      "colsample_bytree": 0.1889707296233502,
-      "gamma": 4.331813981768269,
-      "reg_lambda": 44.80621535079953,
-      "reg_alpha": 0.5466974136046752
+      "learning_rate": 0.006912061632419188,
+      "min_child_weight": 2,
+      "subsample": 0.8034292995052084,
+      "colsample_bytree": 0.20026774082727444,
+      "gamma": 8.341196373463527,
+      "reg_lambda": 58.48392234407994,
+      "reg_alpha": 4.415534474151517
     },
-    "cv_rmse": 19.37329349509481,
-    "study": {
-      "name": "LOW / rmse",
-      "trial": 154,
-      "trials_total": 223,
-      "objective_tuned_on": "cv_rmse"
+    "cv": {
+      "rmse": 19.1374,
+      "mae": 15.1158,
+      "exp_med": 0.5811,
+      "exp_mean": 0.5339,
+      "gxc_med": 0.4356,
+      "gxc_mean": 0.4243
     },
-    "inputs": {
-      "cluster_dir": "/tamir2/kovaliov/mk_hpo",
-      "matrix": "matrix_hlome_r485.parquet",
-      "matrix_rows": 143253,
-      "feature_list": "feats_r485hlome_add.json",
-      "n_features": 532,
-      "arm": "r485hlome_add",
-      "self_aso_block": "selfaso_new.parquet"
+    "test": {
+      "rmse": 19.7812,
+      "exp_med": 0.6114,
+      "gxc_med": 0.5448,
+      "top5": 74.67,
+      "p5": 0.7182,
+      "p10": 0.6541,
+      "auprc": 0.5997,
+      "auroc": 0.8296
     },
-    "unconfirmed": [
-      "inputs: these are the main arm's files (ARM=r485hlome_add, CONFIG=low7, trial 163 in best_m7c163.json). Whether trial 154 of the hl-LOW/rmse study was tuned on this same matrix and feature list is not confirmed.",
-      "selfaso_new.parquet differs in size between the cluster (5386646 B) and the local scratchpad copy (5465584 B); which one fed matrix_hlome_r485.parquet is unknown. The local copy's 15 selfaso_* columns do match the repo's current self-ASO family exactly, so that block is post-#298 rather than the retired self-structure features.",
-      "Whether the 532 features still include the 17 the shipped model retired (10 fold_access_*, expr_msr1, expr_rnase, and the 5 self-structure) is unknown: feats_r485hlome_add.json is cluster-only. The self-ASO block says the 5 self-structure ones are gone; the other 12 are open."
-    ]
-  }
+    "study": {"name": "clean_exp / LOW", "trial": 217, "trials_total": 326, "objective_tuned_on": "cv_rmse"},
+    "inputs": {"n_features": 670}
+  },
+  "clean_exp_med": {
+    "variant": "clean_exp",
+    "num_boost_round": 9829,
+    "params": {
+      "tree_method": "hist",
+      "device": "cuda",
+      "max_depth": 10,
+      "learning_rate": 0.0079389405749025,
+      "min_child_weight": 53,
+      "subsample": 0.9617566200447412,
+      "colsample_bytree": 0.17189541305001252,
+      "gamma": 18.82551367376062,
+      "reg_lambda": 270.21558699809094,
+      "reg_alpha": 15.635781850379963
+    },
+    "study": {"name": "clean_exp / MED", "trial": 136, "objective_tuned_on": "cv_rmse",
+              "note": "best of the four searches"},
+    "inputs": {"n_features": 670}
+  },
+  "regression_low": {
+    "variant": "reg",
+    "num_boost_round": 6629,
+    "params": {
+      "tree_method": "hist",
+      "device": "cuda",
+      "max_depth": 8,
+      "learning_rate": 0.008352302120504177,
+      "min_child_weight": 30,
+      "subsample": 0.6981278983754269,
+      "colsample_bytree": 0.1626396551878061,
+      "gamma": 3.30182197540445,
+      "reg_lambda": 44.87792317378696,
+      "reg_alpha": 3.6545710350762244
+    },
+    "study": {"name": "regression / LOW", "trial": 200, "objective_tuned_on": "cv_rmse"},
+    "inputs": {"n_features": 670}
+  },
+  "regression_med": {
+    "variant": "reg",
+    "num_boost_round": 8549,
+    "params": {
+      "tree_method": "hist",
+      "device": "cuda",
+      "max_depth": 18,
+      "learning_rate": 0.010981624828527032,
+      "min_child_weight": 55,
+      "subsample": 0.6321481686971862,
+      "colsample_bytree": 0.1523205523955937,
+      "gamma": 37.14831263999646,
+      "reg_lambda": 396.81321273582074,
+      "reg_alpha": 37.491664748951926
+    },
+    "study": {"name": "regression / MED", "trial": 101, "objective_tuned_on": "cv_rmse"},
+    "inputs": {"n_features": 670}
+  },
+  "_unconfirmed": [
+    "All four were tuned on a 670-feature matrix; the matrix file and feature list behind it are not recorded.",
+    "CV and test metrics were recorded only for clean_exp_low."
+  ]
 }

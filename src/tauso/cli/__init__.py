@@ -280,6 +280,10 @@ def build_cell_context(ctx, cell_names, reset, genome, cai, force):
         ctx.invoke(build_cai_weights, top_n=300, top_n_generic=500, genome=genome, force=force)
         click.echo()
 
+    click.echo(click.style("=== build-cell-context: cohort transcript expression ===", bold=True))
+    ctx.invoke(build_cohort_transcript_expression, force=force)
+    click.echo()
+
     click.echo(click.style("=== build-cell-context: human tGCN ===", bold=True))
     ctx.invoke(setup_tgcn, force=force)
     click.echo()
