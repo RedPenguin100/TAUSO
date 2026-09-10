@@ -30,7 +30,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root, for the notebooks.* imports
 from notebooks.models import common
 
-from tauso.inference.predict import DEFAULT_VERSION, MODEL_DIR, MODEL_FILES
+from tauso.inference.predict import DEFAULT_VERSION, MODEL_DIR
 
 CONFIGS = json.loads((Path(__file__).parent / "deploy_parameters.json").read_text())
 
@@ -124,7 +124,7 @@ def main():
 
     model = common.train(train_df, features, variant, params, rounds, seed=args.seed)
 
-    booster = common.RESULTS_DIR / f"{Path(MODEL_FILES[args.version]['filename']).stem}_{config_name}.json"
+    booster = common.RESULTS_DIR / f"tauso_score_{args.version}_{config_name}.json"
     booster.parent.mkdir(parents=True, exist_ok=True)
     model.save_model(str(booster))
 
