@@ -1,74 +1,83 @@
 {
   "low": {
     "variant": "clean_exp",
-    "num_boost_round": 7748,
+    "num_boost_round": 7788,
     "params": {
       "tree_method": "hist",
       "device": "cuda",
       "max_depth": 8,
-      "learning_rate": 0.007760092819921261,
-      "min_child_weight": 37,
-      "subsample": 0.9531374040552855,
-      "colsample_bytree": 0.1889707296233502,
-      "gamma": 4.331813981768269,
-      "reg_lambda": 44.80621535079953,
-      "reg_alpha": 0.5466974136046752
+      "learning_rate": 0.006912061632419188,
+      "min_child_weight": 2,
+      "subsample": 0.8034292995052084,
+      "colsample_bytree": 0.20026774082727444,
+      "gamma": 8.341196373463527,
+      "reg_lambda": 58.48392234407994,
+      "reg_alpha": 4.415534474151517
     },
-    "cv_rmse": 19.37329349509481,
+    "cv": {
+      "rmse": 19.1374,
+      "mae": 15.1158,
+      "exp_med": 0.5811,
+      "exp_mean": 0.5339,
+      "gxc_med": 0.4356,
+      "gxc_mean": 0.4243
+    },
+    "test": {
+      "rmse": 19.7812,
+      "exp_med": 0.6114,
+      "gxc_med": 0.5448,
+      "top5": 74.67,
+      "p5": 0.7182,
+      "p10": 0.6541,
+      "auprc": 0.5997,
+      "auroc": 0.8296
+    },
     "study": {
       "name": "LOW / rmse",
-      "trial": 154,
-      "trials_total": 223,
+      "trial": 217,
+      "trials_total": 326,
+      "finished": true,
       "objective_tuned_on": "cv_rmse"
     },
     "inputs": {
-      "cluster_dir": "/tamir2/kovaliov/mk_hpo",
-      "matrix": "matrix_hlome_r485.parquet",
-      "matrix_rows": 143253,
-      "feature_list": "feats_r485hlome_add.json",
-      "n_features": 532,
-      "arm": "r485hlome_add",
-      "self_aso_block": "selfaso_new.parquet"
+      "n_features": 670
     },
     "unconfirmed": [
-      "inputs: these are the main arm's files (ARM=r485hlome_add, CONFIG=low7, trial 163 in best_m7c163.json). Whether trial 154 of the hl-LOW/rmse study was tuned on this same matrix and feature list is not confirmed.",
-      "selfaso_new.parquet differs in size between the cluster (5386646 B) and the local scratchpad copy (5465584 B); which one fed matrix_hlome_r485.parquet is unknown. The local copy's 15 selfaso_* columns do match the repo's current self-ASO family exactly, so that block is post-#298 rather than the retired self-structure features.",
-      "Whether the 532 features still include the 17 the shipped model retired (10 fold_access_*, expr_msr1, expr_rnase, and the 5 self-structure) is unknown: feats_r485hlome_add.json is cluster-only. The self-ASO block says the 5 self-structure ones are gone; the other 12 are open."
+      "Tuned on a 670-feature matrix; the deploy trains the 710 features the shard directory holds. colsample_bytree draws ~134 columns per tree there against ~142 here.",
+      "The matrix file and feature list behind the 670 are not recorded."
     ]
   },
   "med": {
     "variant": "clean_exp",
-    "num_boost_round": 13375,
+    "num_boost_round": 9829,
     "params": {
       "tree_method": "hist",
       "device": "cuda",
-      "max_depth": 15,
-      "learning_rate": 0.0059470080438376385,
-      "min_child_weight": 348,
-      "subsample": 0.953798749262374,
-      "colsample_bytree": 0.17648452125667902,
-      "gamma": 33.276835643730486,
-      "reg_lambda": 386.4935782537077,
-      "reg_alpha": 30.099046456436632
+      "max_depth": 10,
+      "learning_rate": 0.0079389405749025,
+      "min_child_weight": 53,
+      "subsample": 0.9617566200447412,
+      "colsample_bytree": 0.17189541305001252,
+      "gamma": 18.82551367376062,
+      "reg_lambda": 270.21558699809094,
+      "reg_alpha": 15.635781850379963
     },
     "study": {
       "name": "MED / rmse",
+      "trial": 136,
+      "trials_total": 300,
+      "trials_done": 163,
+      "finished": false,
       "objective_tuned_on": "cv_rmse"
     },
     "inputs": {
-      "cluster_dir": "/tamir2/kovaliov/mk_hpo",
-      "matrix": "matrix_hlome_r485.parquet",
-      "matrix_rows": 143253,
-      "feature_list": "feats_r485hlome_add.json",
-      "n_features": 532,
-      "arm": "r485hlome_add",
-      "self_aso_block": "selfaso_new.parquet"
+      "n_features": 670
     },
     "unconfirmed": [
-      "cv_rmse and the trial it came from were not recorded with these parameters.",
-      "inputs: these are the main arm's files (ARM=r485hlome_add, CONFIG=low7, trial 163 in best_m7c163.json). Whether trial 154 of the hl-LOW/rmse study was tuned on this same matrix and feature list is not confirmed.",
-      "selfaso_new.parquet differs in size between the cluster (5386646 B) and the local scratchpad copy (5465584 B); which one fed matrix_hlome_r485.parquet is unknown. The local copy's 15 selfaso_* columns do match the repo's current self-ASO family exactly, so that block is post-#298 rather than the retired self-structure features.",
-      "Whether the 532 features still include the 17 the shipped model retired (10 fold_access_*, expr_msr1, expr_rnase, and the 5 self-structure) is unknown: feats_r485hlome_add.json is cluster-only. The self-ASO block says the 5 self-structure ones are gone; the other 12 are open."
+      "The search is still running at 163 of 300 trials, so trial 136 is the best so far rather than the best.",
+      "No CV or test metrics were recorded with these parameters.",
+      "Tuned on a 670-feature matrix; the deploy trains the 710 features the shard directory holds.",
+      "The matrix file and feature list behind the 670 are not recorded."
     ]
   }
 }
