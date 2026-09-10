@@ -152,9 +152,8 @@ def setup_depmap(force):
 def setup_omics(ctx, force):
     """
     Set up all omics datasets: DepMap (cell-line metadata, profiles, expression),
-    mRNA half-life data, human tGCN (tAI), ATtRACT RBP motifs, and the ribo-seq
-    bigWig. Use 'build-cohort-expression' afterwards to derive per-cohort
-    expression files.
+    mRNA half-life data, human tGCN (tAI), and ATtRACT RBP motifs. Use
+    'build-cohort-expression' afterwards to derive per-cohort expression files.
     """
     click.echo(click.style("=== setup-omics: DepMap ===", bold=True))
     ctx.invoke(setup_depmap, force=force)
@@ -167,9 +166,6 @@ def setup_omics(ctx, force):
     click.echo()
     click.echo(click.style("=== setup-omics: ATtRACT RBP ===", bold=True))
     ctx.invoke(setup_attract, force=force)
-    click.echo()
-    click.echo(click.style("=== setup-omics: ribo-seq ===", bold=True))
-    ctx.invoke(setup_riboseq, force=force)
     click.echo()
     echo_ok("Omics setup complete.")
 
@@ -797,34 +793,6 @@ def setup_attract(force):
     for name, expected_md5 in FILES.items():
         destination = os.path.join(dest_dir, name)
         _ensure_zenodo_content_file(ZENODO_RECORD, name, destination, expected_md5, "md5", force)
-
-
-_RIBOSEQ_ZENODO_RECORD = "20435808"
-_RIBOSEQ_TRACKS = (
-    # (filename, expected_md5)
-    ("human_unselected_40S.RiboProElong.bw", "c1a06bf87fbee3d66f8422922dddd709"),
-    ("human_unselected_80S.RiboCov.bw", "ca2ef00c545254bc0c3eceecc58fd2a2"),
-)
-
-
-@main.command(name="setup-riboseq")
-@click.option("--force", is_flag=True, help="Force redownload if file exists.")
-def setup_riboseq(force):
-    """Downloads the Wagner 2020 ribo-seq bigWigs into TAUSO_DATA_DIR.
-
-    40S unselected scanning (~7 MB) + 80S unselected elongation (~13 MB), both
-    from HEK293T Sel-TCP-seq (GEO GSE139131) and mirrored at Zenodo record
-    10.5281/zenodo.20435808. The features built from these are gene-level
-    translation proxies, not cell-context: the same value applies to every
-    TAUSO row regardless of cell line.
-    """
-    data_dir = get_data_dir()
-    os.makedirs(data_dir, exist_ok=True)
-
-    for filename, expected_md5 in _RIBOSEQ_TRACKS:
-        destination = os.path.join(data_dir, filename)
-        click.echo(f"Target path: {destination}")
-        _ensure_zenodo_content_file(_RIBOSEQ_ZENODO_RECORD, filename, destination, expected_md5, "md5", force)
 
 
 @main.command(name="setup-features")
