@@ -4,8 +4,7 @@ from Bio import SeqIO
 
 from tauso.features.hybridization.fast_hybridization import (
     Interaction,
-    get_mfe_scores,
-    get_trigger_mfe_scores_by_risearch,
+    risearch_hits_dataframe,
 )
 from tauso.util import get_antisense
 
@@ -52,6 +51,39 @@ def get_gfp_second_exp():
     return gfp_ext
 
 
+def run_risearch(sample_seq, name_to_seq, *, transpose):
+    """The hits for one trigger against one target, as plain rows."""
+    frame = risearch_hits_dataframe(
+        [("trigger", sample_seq)],
+        name_to_seq,
+        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
+        minimum_score=900,
+        neighborhood=30,
+        transpose=transpose,
+    )
+    return [
+        {
+            "trigger": str(row.trigger),
+            "trigger_start": int(row.trigger_start),
+            "trigger_end": int(row.trigger_end),
+            "target": str(row.target),
+            "target_start": int(row.target_start),
+            "target_end": int(row.target_end),
+            "score": int(row.score),
+            "energy": float(row.energy),
+        }
+        for row in frame.itertuples()
+    ]
+
+
+def mfe_scores(hits):
+    """The energies of each target, in the order its hits came out."""
+    by_target = {}
+    for hit in hits:
+        by_target.setdefault(hit["target"], []).append(hit["energy"])
+    return list(by_target.values())
+
+
 def test_risearch_gfp_modified_transpose(data_regression):
     # --- 2. Data Preparation ---
     gfp_seq = get_gfp_first_exp(gap=0)
@@ -69,22 +101,12 @@ def test_risearch_gfp_modified_transpose(data_regression):
     }
 
     # --- 3. Test "Good" Sample ---
-    result_good = get_trigger_mfe_scores_by_risearch(
-        sample_seq,
-        name_to_seq,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-        minimum_score=900,
-        neighborhood=30,
-        parsing_type="2",
-        transpose=True,
-    )
-    mfe_scores_good = get_mfe_scores(result_good, "2")
-
-    print(mfe_scores_good)
+    hits_good = run_risearch(sample_seq, name_to_seq, transpose=True)
+    mfe_scores_good = mfe_scores(hits_good)
 
     # Add results to our data snapshot
     regression_data["good_sample_run"] = {
-        "risearch_result": result_good,
+        "hits": hits_good,
         "mfe_scores": mfe_scores_good,
     }
 
@@ -94,22 +116,14 @@ def test_risearch_gfp_modified_transpose(data_regression):
     regression_data["bad_sample_runs"] = []
 
     for bad_sample in bad_samples:
-        result_bad = get_trigger_mfe_scores_by_risearch(
-            bad_sample,
-            name_to_seq,
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            minimum_score=900,
-            neighborhood=30,
-            parsing_type="2",
-            transpose=True,
-        )
-        mfe_scores_bad = get_mfe_scores(result_bad, "2")
+        hits_bad = run_risearch(bad_sample, name_to_seq, transpose=True)
+        mfe_scores_bad = mfe_scores(hits_bad)
 
         # Append each iteration's result to the list
         regression_data["bad_sample_runs"].append(
             {
                 "input_sequence": bad_sample,
-                "risearch_result": result_bad,
+                "hits": hits_bad,
                 "mfe_scores": mfe_scores_bad,
             }
         )
@@ -135,22 +149,12 @@ def test_risearch_gfp_modified_original(data_regression):
     }
 
     # --- 3. Test "Good" Sample ---
-    result_good = get_trigger_mfe_scores_by_risearch(
-        sample_seq,
-        name_to_seq,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-        minimum_score=900,
-        neighborhood=30,
-        parsing_type="2",
-        transpose=False,
-    )
-    mfe_scores_good = get_mfe_scores(result_good, "2")
-
-    print(mfe_scores_good)
+    hits_good = run_risearch(sample_seq, name_to_seq, transpose=False)
+    mfe_scores_good = mfe_scores(hits_good)
 
     # Add results to our data snapshot
     regression_data["good_sample_run"] = {
-        "risearch_result": result_good,
+        "hits": hits_good,
         "mfe_scores": mfe_scores_good,
     }
 
@@ -160,22 +164,14 @@ def test_risearch_gfp_modified_original(data_regression):
     regression_data["bad_sample_runs"] = []
 
     for bad_sample in bad_samples:
-        result_bad = get_trigger_mfe_scores_by_risearch(
-            bad_sample,
-            name_to_seq,
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            minimum_score=900,
-            neighborhood=30,
-            parsing_type="2",
-            transpose=False,
-        )
-        mfe_scores_bad = get_mfe_scores(result_bad, "2")
+        hits_bad = run_risearch(bad_sample, name_to_seq, transpose=False)
+        mfe_scores_bad = mfe_scores(hits_bad)
 
         # Append each iteration's result to the list
         regression_data["bad_sample_runs"].append(
             {
                 "input_sequence": bad_sample,
-                "risearch_result": result_bad,
+                "hits": hits_bad,
                 "mfe_scores": mfe_scores_bad,
             }
         )
