@@ -114,9 +114,7 @@ def _library_reduction(aggregation: "RisearchAggregation"):
     """
     return pyrisearch_tauso.Reduction(
         columns=[_LIBRARY_COLUMN[column] for column in aggregation.columns],
-        combine=lambda batch: aggregation.combine(
-            _under_tauso_names(batch, aggregation.columns)
-        ),
+        combine=lambda batch: aggregation.combine(_under_tauso_names(batch, aggregation.columns)),
         finalize=aggregation.finalize,
         empty={},
     )
@@ -156,12 +154,18 @@ def get_trigger_mfe_scores_by_risearch(
             raise ValueError(f"{name} file is empty at {p}. Disk might be full.")
 
     args = [
-        "-q", str(query_path),
-        "-t", str(target_path),
-        "-s", str(minimum_score),
-        "-d", str(EXTENSION_PENALTY),
-        "-m", _interaction_mode(interaction_type),
-        "-n", str(neighborhood),
+        "-q",
+        str(query_path),
+        "-t",
+        str(target_path),
+        "-s",
+        str(minimum_score),
+        "-d",
+        str(EXTENSION_PENALTY),
+        "-m",
+        _interaction_mode(interaction_type),
+        "-n",
+        str(neighborhood),
     ]
     if transpose:
         args.append("-R")
