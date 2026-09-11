@@ -1,14 +1,12 @@
 import os
 import platform
 import re
-import subprocess
 import tempfile
 import uuid
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Dict, List, NamedTuple, Tuple
 
-import risearch_tauso
+import pyrisearch_tauso
 
 from ...util import get_antisense_rna
 from .interaction import Interaction
@@ -28,10 +26,6 @@ def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
     return tmp_path
 
 
-def get_risearch_path() -> str:
-    return risearch_tauso.executable_path()
-
-
 def _interaction_mode(interaction_type: Interaction) -> str:
     if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
         return "su95_noGU"
@@ -40,48 +34,9 @@ def _interaction_mode(interaction_type: Interaction) -> str:
     raise ValueError(f"Unsupported interaction type: {interaction_type}")
 
 
-def _build_risearch_args(
-    query_path: Path,
-    target_path: Path,
-    min_score: int,
-    mode: str,
-    neighborhood: int,
-    transpose: bool,
-    parsing_type,
-) -> List[str]:
-    args = [
-        get_risearch_path(),
-        "-q",
-        str(query_path),
-        "-t",
-        str(target_path),
-        "-s",
-        str(min_score),
-        "-d",
-        "30",
-        "-m",
-        mode,
-        "-n",
-        str(neighborhood),
-    ]
-    if transpose:
-        args.append("-R")
-    if parsing_type is not None:
-        args.append(f"-p{parsing_type}")
-    return args
-
-
-def _run_risearch(args: List[str]) -> str:
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    return subprocess.check_output(
-        args,
-        universal_newlines=True,
-        text=True,
-        cwd=str(TMP_PATH),
-        stderr=subprocess.STDOUT,
-        stdin=subprocess.DEVNULL,
-    )
-
+# Per-nucleotide extension penalty, in dacal/mol. RIsearch leaves this at 0;
+# hybridization here is calibrated with it set.
+EXTENSION_PENALTY = 30
 
 # The fixed 8-column parsing_type="2" TSV that RIsearch emits.
 RISEARCH_COLUMNS = (
@@ -96,81 +51,73 @@ RISEARCH_COLUMNS = (
 )
 
 
-@contextmanager
-def _risearch_stdout(
-    trigger_id_seq_pairs: List[Tuple[str, str]],
-    target_file_path,
-    *,
-    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
-    minimum_score: int = 900,
-    neighborhood: int = 0,
-    parsing_type="2",
-    transpose=False,
-    batch_id=None,
-):
-    """The RIsearch invocation. Writes the batched query FASTA, builds the args,
-    spawns the subprocess, and yields its live stdout for the caller to consume. On exit
-    it drains stdout, checks the exit code, and removes the query file. Every RIsearch
-    consumer (streaming aggregation, raw-hits collection) goes through here so the
-    process/FASTA/cleanup logic lives in exactly one place.
+# TAUSO names the hit columns for what they mean here; pyrisearch_tauso names
+# them after the query and target sides of the search.
+_LIBRARY_COLUMN = {
+    "trigger": "qname",
+    "trigger_start": "qbeg",
+    "trigger_end": "qend",
+    "target": "tname",
+    "target_start": "tbeg",
+    "target_end": "tend",
+    "score": "score",
+    "energy": "energy",
+}
+
+
+def _query_sequences(trigger_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """The triggers as RIsearch has to see them: a trigger binds its target, so
+    what is searched for is the antisense of it."""
+    return [(query_id, get_antisense_rna(trigger)) for query_id, trigger in trigger_id_seq_pairs]
+
+
+def _under_tauso_names(batch, columns):
+    """A batch of hits under the names the aggregations read.
+
+    pyarrow hands back the columns in the order they were asked for, so the
+    names line up by position.
     """
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    if batch_id is None:
-        batch_id = uuid.uuid4().hex
-
-    query_path = (TMP_PATH / f"query-{batch_id}.fa").resolve()
-    lines: List[str] = []
-    for query_id, trigger in trigger_id_seq_pairs:
-        lines.append(f">{query_id}")
-        lines.append(get_antisense_rna(trigger))
-    query_path.write_text("\n".join(lines) + "\n")
-
-    mode = _interaction_mode(interaction_type)
-    args = _build_risearch_args(
-        query_path, target_file_path, minimum_score, mode, neighborhood, transpose, parsing_type
-    )
-
-    try:
-        with subprocess.Popen(
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            cwd=str(TMP_PATH),
-            bufsize=-1,
-        ) as proc:
-            try:
-                yield proc.stdout
-            finally:
-                # Drain any unread stdout so the child can exit cleanly.
-                if proc.stdout is not None and not proc.stdout.closed:
-                    try:
-                        proc.stdout.read()
-                    except Exception:
-                        pass
-            rc = proc.wait()
-            if rc != 0:
-                raise subprocess.CalledProcessError(rc, args)
-    finally:
-        if query_path.exists():
-            query_path.unlink()
-
-
-def _pa_column_types():
-    """pyarrow column types for the RISEARCH_COLUMNS TSV (built lazily — pyarrow is a
-    heavy import kept out of module import time)."""
     import pyarrow as pa
 
-    return {
-        "trigger": pa.string(),
-        "trigger_start": pa.int64(),
-        "trigger_end": pa.int64(),
-        "target": pa.string(),
-        "target_start": pa.int64(),
-        "target_end": pa.int64(),
-        "score": pa.int64(),
-        "energy": pa.float64(),
-    }
+    return pa.RecordBatch.from_arrays(list(batch.columns), names=list(columns))
+
+
+def _search_options(
+    trigger_id_seq_pairs,
+    target_file_path,
+    *,
+    interaction_type,
+    minimum_score,
+    neighborhood,
+    transpose,
+    block_size,
+):
+    """What a RIsearch search takes, under the options TAUSO runs it with."""
+    return dict(
+        queries=_query_sequences(trigger_id_seq_pairs),
+        targets=target_file_path,
+        min_score=minimum_score,
+        matrix=_interaction_mode(interaction_type),
+        extension_penalty=EXTENSION_PENALTY,
+        neighborhood=neighborhood,
+        transpose=transpose,
+        block_size=block_size,
+    )
+
+
+def _library_reduction(aggregation: "RisearchAggregation"):
+    """The aggregation as pyrisearch_tauso reads it.
+
+    The library names the hit columns after the query and target sides of the
+    search, so each batch is renamed before an aggregation written against
+    TAUSO's names sees it.
+    """
+    return pyrisearch_tauso.Reduction(
+        columns=[_LIBRARY_COLUMN[column] for column in aggregation.columns],
+        combine=lambda batch: aggregation.combine(_under_tauso_names(batch, aggregation.columns)),
+        finalize=aggregation.finalize,
+        empty={},
+    )
 
 
 def get_trigger_mfe_scores_by_risearch(
@@ -206,11 +153,27 @@ def get_trigger_mfe_scores_by_risearch(
         if p.stat().st_size == 0:
             raise ValueError(f"{name} file is empty at {p}. Disk might be full.")
 
-    mode = _interaction_mode(interaction_type)
-    args = _build_risearch_args(query_path, target_path, minimum_score, mode, neighborhood, transpose, parsing_type)
+    args = [
+        "-q",
+        str(query_path),
+        "-t",
+        str(target_path),
+        "-s",
+        str(minimum_score),
+        "-d",
+        str(EXTENSION_PENALTY),
+        "-m",
+        _interaction_mode(interaction_type),
+        "-n",
+        str(neighborhood),
+    ]
+    if transpose:
+        args.append("-R")
+    if parsing_type is not None:
+        args.append(f"-p{parsing_type}")
 
     try:
-        return _run_risearch(args)
+        return pyrisearch_tauso.run(args, cwd=TMP_PATH).stdout
     finally:
         if target_file_cache is None and target_path.exists():
             os.remove(target_path)
@@ -266,44 +229,18 @@ def parse_risearch_hits_pyarrow(
     if not trigger_id_seq_pairs:
         return {}
 
-    import pyarrow as pa
-    import pyarrow.csv as pacsv
-
-    type_map = _pa_column_types()
-    read_opts = pacsv.ReadOptions(column_names=list(RISEARCH_COLUMNS), use_threads=False, block_size=block_size)
-    parse_opts = pacsv.ParseOptions(delimiter="\t")
-    convert_opts = pacsv.ConvertOptions(
-        include_columns=list(aggregation.columns),
-        column_types={col: type_map[col] for col in aggregation.columns},
+    return pyrisearch_tauso.search_reduced(
+        reduction=_library_reduction(aggregation),
+        **_search_options(
+            trigger_id_seq_pairs,
+            target_file_path,
+            interaction_type=interaction_type,
+            minimum_score=minimum_score,
+            neighborhood=neighborhood,
+            transpose=transpose,
+            block_size=block_size,
+        ),
     )
-
-    parts = []
-    with _risearch_stdout(
-        trigger_id_seq_pairs,
-        target_file_path,
-        interaction_type=interaction_type,
-        minimum_score=minimum_score,
-        neighborhood=neighborhood,
-        parsing_type=parsing_type,
-        transpose=transpose,
-        batch_id=batch_id,
-    ) as stdout:
-        try:
-            reader = pacsv.open_csv(
-                stdout, read_options=read_opts, parse_options=parse_opts, convert_options=convert_opts
-            )
-            for batch in reader:
-                if batch.num_rows == 0:
-                    continue
-                parts.append(aggregation.combine(batch))
-        except pa.ArrowInvalid:
-            # No hits — RIsearch produced empty stdout.
-            pass
-
-    if not parts:
-        return {}
-
-    return aggregation.finalize(pa.concat_tables(parts))
 
 
 def risearch_hits_dataframe(
@@ -327,39 +264,23 @@ def risearch_hits_dataframe(
     + parse_risearch_output pair.
     """
     import pandas as pd
-    import pyarrow as pa
-    import pyarrow.csv as pacsv
 
-    empty = pd.DataFrame(columns=list(RISEARCH_COLUMNS))
     if not trigger_id_seq_pairs:
-        return empty
+        return pd.DataFrame(columns=list(RISEARCH_COLUMNS))
 
-    read_opts = pacsv.ReadOptions(column_names=list(RISEARCH_COLUMNS), use_threads=False, block_size=block_size)
-    parse_opts = pacsv.ParseOptions(delimiter="\t")
-    convert_opts = pacsv.ConvertOptions(column_types=_pa_column_types())
-
-    tables = []
-    with _risearch_stdout(
-        trigger_id_seq_pairs,
-        target_file_path,
-        interaction_type=interaction_type,
-        minimum_score=minimum_score,
-        neighborhood=neighborhood,
-        parsing_type=parsing_type,
-        transpose=transpose,
-        batch_id=batch_id,
-    ) as stdout:
-        try:
-            reader = pacsv.open_csv(
-                stdout, read_options=read_opts, parse_options=parse_opts, convert_options=convert_opts
-            )
-            for batch in reader:
-                if batch.num_rows:
-                    tables.append(pa.Table.from_batches([batch]))
-        except pa.ArrowInvalid:
-            pass
-
-    return pa.concat_tables(tables).to_pandas() if tables else empty
+    table = pyrisearch_tauso.hits_table(
+        columns=[_LIBRARY_COLUMN[column] for column in RISEARCH_COLUMNS],
+        **_search_options(
+            trigger_id_seq_pairs,
+            target_file_path,
+            interaction_type=interaction_type,
+            minimum_score=minimum_score,
+            neighborhood=neighborhood,
+            transpose=transpose,
+            block_size=block_size,
+        ),
+    )
+    return table.rename_columns(list(RISEARCH_COLUMNS)).to_pandas()
 
 
 # ---------------------------------------------------------------------------
