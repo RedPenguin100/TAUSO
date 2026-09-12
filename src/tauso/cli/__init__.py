@@ -10,7 +10,11 @@ from pathlib import Path
 
 import click
 import gffutils
+import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.csv as pacsv
+import pyarrow.parquet as pq
 from gffutils.iterators import DataIterator
 from pyfaidx import Fasta
 
@@ -39,6 +43,7 @@ from ._download import (
     DEPMAP_FILES_SHA1,
     RRNA_SHA1,
     TRANSCRIPT_EXPRESSION_CSV,
+    TRANSCRIPT_EXPRESSION_PARQUET,
     TRANSCRIPT_EXPRESSION_SHA1,
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
@@ -195,6 +200,16 @@ def setup_all(ctx, genome, force, threads, mem_per_thread):
     click.echo()
     echo_ok("setup-all complete.")
 
+
+TRANSCRIPT_CSV_BLOCK_BYTES = 1 << 28
+"""Text read at once while converting the transcript table to Parquet."""
+
+TRANSCRIPT_ROWS_PER_GROUP = 600
+"""Cell lines per Parquet row group. Every group repeats the 237,000-column footer,
+so a few large groups cost far less than many small ones."""
+
+TRANSCRIPT_COLUMN_BATCH = 5000
+"""Transcript columns read at once when pulling a cohort out of the Parquet."""
 
 DEFAULT_COHORT_CELLS = (
     "HEPG2",
@@ -360,6 +375,101 @@ def add_cell(cell_names, reset):
     click.echo(f"Cohort saved to {manifest_path} ({len(cohort)} cell lines).")
 
 
+def _ensure_transcript_parquet(data_dir):
+    """The transcript table as Parquet, converting the CSV on first use and dropping it after.
+
+    The CSV is 237,000 columns wide and pandas spends about 26 GB parsing it whole, so the
+    conversion streams it a block of text at a time and everything downstream reads Parquet.
+    """
+    parquet_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
+    if os.path.exists(parquet_path):
+        return parquet_path
+
+    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
+    # A truncated download keeps the full header and reads cleanly, so check the hash, not the name.
+    if os.path.exists(csv_path) and not file_matches_hash(csv_path, TRANSCRIPT_EXPRESSION_SHA1):
+        echo_warn(f"{TRANSCRIPT_EXPRESSION_CSV} does not match its expected SHA1 — re-downloading.")
+        os.remove(csv_path)
+    if not os.path.exists(csv_path):
+        _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
+
+    click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet (one time)...")
+    # Pinning the expression columns to float keeps a block of all-blank values from being
+    # typed as text and breaking the schema the first block established.
+    header = pd.read_csv(csv_path, nrows=0).columns
+    column_types = {c: pa.float64() for c in header if c.startswith("ENST")}
+    reader = pacsv.open_csv(
+        csv_path,
+        read_options=pacsv.ReadOptions(block_size=TRANSCRIPT_CSV_BLOCK_BYTES),
+        convert_options=pacsv.ConvertOptions(column_types=column_types),
+    )
+    partial_path = parquet_path + ".partial"
+    writer = None
+    pending, pending_rows = [], 0
+
+    def flush():
+        nonlocal writer, pending, pending_rows
+        if not pending:
+            return
+        table = pa.Table.from_batches(pending)
+        if writer is None:
+            writer = pq.ParquetWriter(partial_path, table.schema)
+        writer.write_table(table)
+        pending, pending_rows = [], 0
+
+    try:
+        for batch in reader:
+            pending.append(batch)
+            pending_rows += batch.num_rows
+            if pending_rows >= TRANSCRIPT_ROWS_PER_GROUP:
+                flush()
+        flush()
+        if writer is None:
+            echo_err(f"{TRANSCRIPT_EXPRESSION_CSV} holds no rows.")
+            sys.exit(1)
+    finally:
+        if writer is not None:
+            writer.close()
+        if os.path.exists(partial_path) and writer is None:
+            os.remove(partial_path)
+    os.replace(partial_path, parquet_path)
+    echo_ok(f"Converted to Parquet: {parquet_path}")
+    os.remove(csv_path)
+    echo_ok(f"Removed {TRANSCRIPT_EXPRESSION_CSV} (Parquet supersedes it).")
+    return parquet_path
+
+
+def _read_transcript_cohort(parquet_path, target_ids):
+    """The wanted cell lines' expression, as (model ids, transcript columns, values).
+
+    One cell line is one row of a 237,000-column table, so the columns are taken a batch at a
+    time and only the wanted rows are kept: what stays resident is the cohort, not the table.
+    """
+    handle = pq.ParquetFile(parquet_path)
+    names = handle.schema.names
+    meta = handle.read(columns=[c for c in names if not c.startswith("ENST")]).to_pandas()
+    model_col = "ModelID" if "ModelID" in meta.columns else meta.columns[0]
+    wanted = meta[model_col].isin(target_ids)
+    # A model can carry several sequencing profiles; DepMap flags the one to use with the
+    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
+    if "IsDefaultEntryForModel" in meta.columns:
+        wanted &= meta["IsDefaultEntryForModel"] == "Yes"
+    rows = np.flatnonzero(wanted.to_numpy())
+    # A model that still has two profiles after that filter yields one file, from its first row.
+    _, first = np.unique(meta[model_col].to_numpy()[rows], return_index=True)
+    rows = rows[np.sort(first)]
+
+    transcript_cols = [c for c in names if c.startswith("ENST")]
+    values = np.empty((len(rows), len(transcript_cols)))
+    for start in range(0, len(transcript_cols), TRANSCRIPT_COLUMN_BATCH):
+        batch = transcript_cols[start : start + TRANSCRIPT_COLUMN_BATCH]
+        block = handle.read(columns=batch)
+        for offset, column in enumerate(block.columns):
+            values[:, start + offset] = column.to_numpy(zero_copy_only=False)[rows]
+    values[np.isnan(values)] = 0.0
+    return meta[model_col].to_numpy()[rows], transcript_cols, values
+
+
 @main.command()
 @click.option("--force", is_flag=True, help="Rebuild even if every cohort cell line already has a file.")
 def build_cohort_transcript_expression(force):
@@ -392,30 +502,11 @@ def build_cohort_transcript_expression(force):
             echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
             return
 
-    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    # A truncated download keeps the full header and reads cleanly, so check the hash, not the name.
-    if os.path.exists(csv_path) and not file_matches_hash(csv_path, TRANSCRIPT_EXPRESSION_SHA1):
-        echo_warn(f"{TRANSCRIPT_EXPRESSION_CSV} does not match its expected SHA1 — re-downloading.")
-        os.remove(csv_path)
-    if not os.path.exists(csv_path):
-        _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
+    parquet_path = _ensure_transcript_parquet(data_dir)
 
-    # 237,000 columns wide, and per-column overhead dwarfs the data: reading it whole peaks at
-    # 26.6 GB in pandas, 20 in pyarrow, 28 in polars. Finding the wanted rows first and skipping
-    # the rest before any fields are converted keeps it under 2 GB.
-    click.echo(f"Reading {TRANSCRIPT_EXPRESSION_CSV} for {len(target_ids)} cohort cell lines...")
-    model_ids = pd.read_csv(csv_path, usecols=["ModelID"])["ModelID"]
-    wanted_rows = set(model_ids.index[model_ids.isin(target_ids)])
-    # skiprows counts the header as row 0.
-    exp_df = pd.read_csv(csv_path, skiprows=lambda i: i > 0 and (i - 1) not in wanted_rows)
-
-    model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
-    # A model can carry several sequencing profiles; DepMap flags the one to use with the
-    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
-    if "IsDefaultEntryForModel" in exp_df.columns:
-        exp_df = exp_df[exp_df["IsDefaultEntryForModel"] == "Yes"]
-    transcript_cols = [c for c in exp_df.columns if c.startswith("ENST")]
-    clean_transcript_map = {c: c.split(".", 1)[0] for c in transcript_cols}
+    click.echo(f"Reading {TRANSCRIPT_EXPRESSION_PARQUET} for {len(target_ids)} cohort cell lines...")
+    found_ids, transcript_cols, values = _read_transcript_cohort(parquet_path, target_ids)
+    clean_transcripts = [c.split(".", 1)[0] for c in transcript_cols]
 
     # Carry the gene each transcript belongs to, so the files can be filtered by gene the way
     # the gene-level ones are. Transcripts the annotation does not know get an empty Gene.
@@ -440,17 +531,9 @@ def build_cohort_transcript_expression(force):
     os.makedirs(output_dir, exist_ok=True)
 
     found_count = 0
-    for curr_id in target_ids:
-        cell_rows = exp_df[exp_df[model_col] == curr_id]
-        if cell_rows.empty:
-            continue
-
+    for position, curr_id in enumerate(found_ids):
         click.echo(f"  Extracting {curr_id}...")
-        row = cell_rows.iloc[0]
-        vals = pd.to_numeric(row[transcript_cols], errors="coerce").fillna(0.0).values
-        clean_transcripts = [clean_transcript_map[c] for c in transcript_cols]
-
-        out_df = pd.DataFrame({"Transcript": clean_transcripts, "expression_norm": vals})
+        out_df = pd.DataFrame({"Transcript": clean_transcripts, "expression_norm": values[position]})
         out_df["Gene"] = out_df["Transcript"].map(transcript_to_gene)
         out_df["TranscriptName"] = out_df["Transcript"].map(transcript_to_name)
         out_df["expression_TPM"] = (2 ** out_df["expression_norm"]) - 1
@@ -460,7 +543,7 @@ def build_cohort_transcript_expression(force):
         found_count += 1
 
     if not found_count:
-        echo_err(f"No cohort cell line found in {TRANSCRIPT_EXPRESSION_CSV}; wrote nothing.")
+        echo_err(f"No cohort cell line found in {TRANSCRIPT_EXPRESSION_PARQUET}; wrote nothing.")
         return
     with open(sentinel, "w") as f:
         json.dump(sorted(target_ids), f)
