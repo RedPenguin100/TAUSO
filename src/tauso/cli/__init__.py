@@ -799,6 +799,28 @@ def setup_attract(force):
         _ensure_zenodo_content_file(ZENODO_RECORD, name, destination, expected_md5, "md5", force)
 
 
+@main.command(name="refresh-depmap-names")
+def refresh_depmap_names():
+    """Rebuilds the shipped cell-line name table from a downloaded DepMap release.
+
+    Run after 'setup-depmap' when DepMap publishes a new release. The table is committed so a
+    cell-line name resolves the same way whether or not the release has been downloaded.
+    """
+    from tauso.data import consts
+
+    source = os.path.join(get_data_dir(), "Model.csv")
+    if not os.path.exists(source):
+        echo_err(f"{source} not found. Run 'tauso setup-depmap' first.")
+        sys.exit(1)
+
+    destination = Path(consts.__file__).resolve().parent / "cell_lines" / "depmap_models.csv"
+    models = pd.read_csv(source, usecols=["StrippedCellLineName", "ModelID"], low_memory=False)
+    models = models.dropna().rename(columns={"StrippedCellLineName": "cell_line", "ModelID": "depmap_id"})
+    models = models.sort_values("cell_line")
+    models.to_csv(destination, index=False)
+    click.echo(f"Wrote {len(models)} cell lines to {destination}")
+
+
 @main.command(name="setup-features")
 @click.option("--run", default="oligo", show_default=True, help="Feature-set run to download.")
 @click.option("--force", is_flag=True, help="Force redownload even if present.")
