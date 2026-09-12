@@ -9,18 +9,19 @@ the individual entry points run their own scan and back the regression tests.
 """
 
 import numpy as np
+from pyrisearch_tauso import EnergyStats
 
 from ....data.consts import CANONICAL_GENE_NAME
-from ..fast_hybridization import RT_KCAL_MOL
-from .gene_chunk_scoring import SiteStats, emit_site_columns, scan_gene_sites
+from . import RT_KCAL_MOL
+from .gene_chunk_scoring import emit_site_columns, scan_gene_sites
 
 
-def total_hybridization_from_stats(stats: SiteStats) -> float:
+def total_hybridization_from_stats(stats: EnergyStats) -> float:
     """Total hybridization = the Boltzmann occupancy sum over the ASO's sites."""
     return stats.sum_exp
 
 
-def log_number_of_sites_from_stats(stats: SiteStats):
+def log_number_of_sites_from_stats(stats: EnergyStats):
     """Log effective number of sites (target multiplicity): 0 for a single dominant site, growing
     when several comparable sites share the binding. None when the ASO has no occupancy."""
     if stats.sum_exp <= 0:
@@ -35,7 +36,7 @@ def _scan_own_gene(aso_df, gene_to_data, cutoffs, n_jobs):
         aso_df=aso_df,
         gene_to_data=gene_to_data,
         target_genes=aso_df[CANONICAL_GENE_NAME].dropna().unique(),
-        get_gene_fn=lambda row: row[CANONICAL_GENE_NAME],
+        row_genes=aso_df[CANONICAL_GENE_NAME],
         cutoffs=cutoffs,
         n_jobs=n_jobs,
     )
@@ -76,7 +77,7 @@ def off_target_single_gene_hybridization(aso_df, gene_name, gene_to_data, cutoff
         aso_df=aso_df,
         gene_to_data=gene_to_data,
         target_genes=[gene_name],
-        get_gene_fn=lambda row: gene_name,
+        row_genes=[gene_name] * len(aso_df),
         cutoffs=cutoffs,
         n_jobs=n_jobs,
     )

@@ -6,16 +6,11 @@ not change any query's results).
 Uses a small GFP sequence bundled next to this test — no genome loading required.
 """
 
-import os
 from pathlib import Path
 
 import pytest
 from Bio import SeqIO
-
-from tauso.features.hybridization.fast_hybridization import (
-    TMP_PATH,
-    dump_target_file,
-)
+from pyrisearch_tauso import fasta_targets
 
 from .hits import risearch_hits_dataframe
 
@@ -52,16 +47,10 @@ def _hits(pairs, target_path):
 
 def test_batch_hits_equal_single_query_hits(gfp_name_to_seq):
     """Batching N queries in one call must give each query the same hits as a solo call."""
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-    target_path = dump_target_file("gfp-test-target.fa", gfp_name_to_seq)
-    try:
+    with fasta_targets(gfp_name_to_seq) as target_path:
         pairs = [(str(i), seq) for i, seq in enumerate(QUERY_SEQS)]
         batch = _hits(pairs, target_path)
         singles = {str(i): _hits([(str(i), seq)], target_path) for i, seq in enumerate(QUERY_SEQS)}
-    finally:
-        if os.path.exists(target_path):
-            os.remove(target_path)
-
     for i in range(len(QUERY_SEQS)):
         tid = str(i)
         batch_energies = sorted(batch[batch["query"] == tid]["energy"].tolist())

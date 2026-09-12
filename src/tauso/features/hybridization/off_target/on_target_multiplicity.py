@@ -21,7 +21,7 @@ def on_target_log_number_of_sites(aso_df, gene_to_data, cutoffs, n_jobs=1):
         aso_df=aso_df,
         gene_to_data=gene_to_data,
         target_genes=aso_df[CANONICAL_GENE_NAME].dropna().unique(),
-        get_gene_fn=lambda row: row[CANONICAL_GENE_NAME],
+        row_genes=aso_df[CANONICAL_GENE_NAME],
         cutoffs=cutoffs,
         n_jobs=n_jobs,
     )

@@ -1,12 +1,11 @@
 import logging
-import os
-import uuid
+from contextlib import ExitStack
 
 import numpy as np
 import pandas as pd
+import pyrisearch_tauso
 
 from ..data.consts import CELL_LINE_DEPMAP
-from ..features.hybridization.fast_hybridization import TMP_PATH, dump_target_file
 from ..features.hybridization.off_target.add_off_target_feat import compute_group_batch_multi_cutoff_multi_topn
 from ..features.hybridization.off_target.parallel import run_tasks_parallel
 
@@ -26,14 +25,6 @@ def _chunk_df(df, chunk_size):
     return [df.iloc[i : i + chunk_size] for i in range(0, len(df), chunk_size)]
 
 
-def _score_chunk_multi_cutoff_multi_topn(chunk_df, top_n_to_data, cutoffs, method, target_path):
-    """Scores a chunk against a max(top_n) target, deriving per-top_n
-    results by filtering to each top_n's gene_set. Returns {(top_n, cutoff): Series}."""
-    return compute_group_batch_multi_cutoff_multi_topn(
-        chunk_df, top_n_to_data, cutoffs, method, prebuilt_target_path=target_path
-    )
-
-
 def _build_top_n_to_data(expression_df, top_n_list, gene_to_data, *, require_seq=True):
     """For each top_n, return (exp_map, gene_set) for head(top_n) of expression_df.
 
@@ -44,9 +35,6 @@ def _build_top_n_to_data(expression_df, top_n_list, gene_to_data, *, require_seq
     """
     top_n_to_data: dict = {}
     seq_map: dict = {}
-    max_top_n = max(top_n_list) if top_n_list else 0
-    union_df = expression_df.head(max_top_n)
-    norm_col = next((c for c in union_df.columns if "expression_norm" in c), "expression_norm")
     for top_n in sorted(set(top_n_list)):
         sub = expression_df.head(top_n)
         exp_map: dict = {}
@@ -57,10 +45,7 @@ def _build_top_n_to_data(expression_df, top_n_list, gene_to_data, *, require_seq
                 if require_seq:
                     raise KeyError(f"CRITICAL: Gene '{gene}' not found in gene_to_data mapping.")
                 continue
-            exp_map[gene] = (
-                row.get("expression_TPM", 0),
-                row.get(norm_col, row.get("expression_norm", 0)),
-            )
+            exp_map[gene] = row.get("expression_TPM", 0)
             gene_set.add(gene)
         top_n_to_data[top_n] = (exp_map, gene_set)
     # Build seq_map for the union (all genes in any gene_set).
@@ -129,11 +114,9 @@ def populate_off_target_specific(
         n_jobs,
     )
 
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
     # cell_info[cell_line] = {is_known, top_n_to_data, target_path, chunks}
     cell_info: dict = {}
-    created_paths: list = []
-    try:
+    with ExitStack() as targets:
         for cell_line, group_df in groups:
             chunks = _chunk_df(group_df, chunk_size)
             if cell_line not in cell_line2data:
@@ -146,8 +129,7 @@ def populate_off_target_specific(
 
             target_path = None
             if seq_map:
-                target_path = dump_target_file(f"target-spec-{cell_line}-{uuid.uuid4().hex}.fa", seq_map)
-                created_paths.append(target_path)
+                target_path = targets.enter_context(pyrisearch_tauso.fasta_targets(seq_map))
             cell_info[cell_line] = {
                 "is_known": True,
                 "top_n_to_data": top_n_to_data,
@@ -156,12 +138,12 @@ def populate_off_target_specific(
             }
 
         tasks = [
-            ((cell_line, chunk_idx), chunk_df, info["top_n_to_data"], cutoff_list, method, info["target_path"])
+            ((cell_line, chunk_idx), chunk_df, info["top_n_to_data"], cutoff_list, info["target_path"])
             for cell_line, info in cell_info.items()
             if info["is_known"] and info["target_path"] is not None
             for chunk_idx, chunk_df in enumerate(info["chunks"])
         ]
-        results = run_tasks_parallel(tasks, _score_chunk_multi_cutoff_multi_topn, n_jobs)
+        results = run_tasks_parallel(tasks, compute_group_batch_multi_cutoff_multi_topn, n_jobs)
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:
@@ -176,11 +158,6 @@ def populate_off_target_specific(
                         series_list += [results[(cell_line, i)][(top_n, cutoff)] for i in range(len(info["chunks"]))]
                 ASO_df[col] = pd.concat(series_list).reindex(ASO_df.index)
                 feature_names.append(col)
-
-    finally:
-        for path in created_paths:
-            if os.path.exists(path):
-                os.remove(path)
 
     return ASO_df, feature_names
 
@@ -224,17 +201,14 @@ def populate_off_target_general(
         n_jobs,
     )
 
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
     top_n_to_data, seq_map = _build_top_n_to_data(general_df_all, top_n_list, gene_to_data, require_seq=True)
-    target_path = dump_target_file(f"target-general-{uuid.uuid4().hex}.fa", seq_map)
-
-    try:
+    with pyrisearch_tauso.fasta_targets(seq_map) as target_path:
         tasks = [
-            ((chunk_idx,), chunk_df, top_n_to_data, cutoff_list, method, target_path)
+            ((chunk_idx,), chunk_df, top_n_to_data, cutoff_list, target_path)
             for chunk_idx, chunk_df in enumerate(aso_chunks)
         ]
         # results[(chunk_idx,)] = {(top_n, cutoff): Series}
-        results = run_tasks_parallel(tasks, _score_chunk_multi_cutoff_multi_topn, n_jobs)
+        results = run_tasks_parallel(tasks, compute_group_batch_multi_cutoff_multi_topn, n_jobs)
 
         for top_n in top_n_list:
             for cutoff in cutoff_list:
@@ -242,9 +216,5 @@ def populate_off_target_general(
                 full_series = pd.concat([results[(i,)][(top_n, cutoff)] for i in range(len(aso_chunks))])
                 ASO_df[col] = full_series.reindex(ASO_df.index)
                 feature_names.append(col)
-
-    finally:
-        if os.path.exists(target_path):
-            os.remove(target_path)
 
     return ASO_df, feature_names

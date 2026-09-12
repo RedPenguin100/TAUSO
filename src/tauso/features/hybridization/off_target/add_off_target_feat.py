@@ -12,11 +12,7 @@ import pandas as pd
 import pyrisearch_tauso
 
 from ....data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
-from ..fast_hybridization import (
-    ASO_TARGET_MATRIX,
-    EXTENSION_PENALTY,
-    aggregate_by_pair_multi_cutoff,
-)
+from . import ASO_TARGET_MATRIX, EXTENSION_PENALTY, RT_KCAL_MOL
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +21,11 @@ class AggregationMethod:
     BOLTZMANN_SUM = "BOLTZ"
 
 
-def aggregate_per_gene_tpm_weighted(occupancy_score_by_gene, expression_map, method):
+def aggregate_per_gene_tpm_weighted(occupancy_score_by_gene, expression_map):
     """Combine per-gene off-target occupancy scores into one expression-weighted score.
 
     occupancy_score_by_gene: {gene: Z_g}, the per-(query, gene) Boltzmann sum Σ_sites exp(-energy/RT).
-    expression_map: {gene: (TPM, normalised)}. method is unused (kept for the shared signature).
+    expression_map: {gene: TPM}.
 
     Returns Σ_g log1p(TPM_g) · log(Z_g): log(Z_g) tracks -ΔG_binding/RT for total capture on gene
     g, log1p(TPM_g) is a log-abundance weight; both stay small so no single gene dominates.
@@ -39,7 +35,7 @@ def aggregate_per_gene_tpm_weighted(occupancy_score_by_gene, expression_map, met
 
     valid_targets = []
     for gene, occupancy_score in occupancy_score_by_gene.items():
-        expression_tpm = expression_map[gene][0]
+        expression_tpm = expression_map[gene]
         if expression_tpm > 0:
             valid_targets.append((gene, occupancy_score, expression_tpm))
 
@@ -52,55 +48,54 @@ def aggregate_per_gene_tpm_weighted(occupancy_score_by_gene, expression_map, met
     return score
 
 
-def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs, minimum_score):
+def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs):
     """Run RIsearch once and reduce the hits to a per-(query, target) Boltzmann occupancy score.
 
-    query_pairs: [(query_id, query_seq)]; target_path: a prebuilt target FASTA. minimum_score
-    is the RIsearch -s threshold (the loosest cutoff, so every cutoff in `cutoffs` is derivable —
-    a hit counts toward a cutoff when its score exceeds it).
+    query_pairs: [(query_id, query_seq)]; target_path: a prebuilt target FASTA.
+    The loosest cutoff is the search threshold; each cutoff uses score > cutoff.
 
-    Returns {cutoff: {(query, target): Z}}, Z = Σ_sites exp(-energy/RT) (no self-filter).
+    Returns {cutoff: {(query, target): EnergyStats}} (no self-filter).
     """
     if not query_pairs:
         return {int(cutoff): {} for cutoff in cutoffs}
     return pyrisearch_tauso.search_reduced(
         queries=query_pairs,
         targets=target_path,
-        reduction=aggregate_by_pair_multi_cutoff(cutoffs),
-        min_score=minimum_score,
+        reduction=pyrisearch_tauso.energy_stats(cutoffs, rt=RT_KCAL_MOL),
+        min_score=min(cutoffs),
         matrix=ASO_TARGET_MATRIX,
         extension_penalty=EXTENSION_PENALTY,
         transpose=True,
     )
 
 
-def offtarget_score_per_cutoff(per_cutoff, aso_indices, gene_by_query, expression_map, method, cutoffs):
+def offtarget_score_per_cutoff(per_cutoff, aso_indices, gene_by_query, expression_map, cutoffs):
     """Turn per-cutoff off-target occupancy scores into a score Series per cutoff.
 
-    per_cutoff: {cutoff: {(query, target): Z}} from risearch_occupancy_score_per_cutoff.
+    per_cutoff: {cutoff: {(query, target): EnergyStats}} from risearch_occupancy_score_per_cutoff.
     gene_by_query: {query_id: own canonical gene} — hits to a query's own gene are dropped.
-    expression_map: {gene: (TPM, normalised)}; method is passed through unused.
+    expression_map: {gene: TPM}.
 
     Returns {cutoff: Series of scores indexed by `aso_indices`}.
     """
     scores_by_cutoff = {}
     for cutoff in cutoffs:
         per_query: dict = {}
-        for (query, target), occupancy_score in per_cutoff.get(int(cutoff), {}).items():
+        for (query, target), stats in per_cutoff.get(int(cutoff), {}).items():
             if target == gene_by_query.get(query):
                 continue
-            per_query.setdefault(query, {})[target] = occupancy_score
+            per_query.setdefault(query, {})[target] = stats.sum_exp
 
         scores = pd.Series(0.0, index=aso_indices, dtype=float)
         for aso_index in aso_indices:
             occupancy_scores = per_query.get(str(aso_index))
             if occupancy_scores:
-                scores[aso_index] = aggregate_per_gene_tpm_weighted(occupancy_scores, expression_map, method)
+                scores[aso_index] = aggregate_per_gene_tpm_weighted(occupancy_scores, expression_map)
         scores_by_cutoff[cutoff] = scores
     return scores_by_cutoff
 
 
-def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs, method, prebuilt_target_path):
+def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs, prebuilt_target_path):
     """Score one ASO group for several top_n levels from a single RIsearch pass.
 
     top_n_to_data: {top_n: (expression_map, gene_set)}; each gene_set is head(top_n) of the
@@ -117,7 +112,7 @@ def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs
     query_pairs = [(str(aso_index), sequence) for aso_index, sequence in zip(aso_indices, group_df[ASO_SEQUENCE])]
     gene_by_query = {str(aso_index): gene for aso_index, gene in zip(aso_indices, group_df[CANONICAL_GENE_NAME])}
 
-    per_cutoff = risearch_occupancy_score_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
+    per_cutoff = risearch_occupancy_score_per_cutoff(query_pairs, prebuilt_target_path, cutoffs)
 
     scores_by_top_n_cutoff: dict = {}
     for top_n, (expression_map, gene_set) in top_n_to_data.items():
@@ -130,7 +125,7 @@ def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs
             for cutoff, pairs in per_cutoff.items()
         }
         for cutoff, series in offtarget_score_per_cutoff(
-            occupancy_score_in_top_n, aso_indices, gene_by_query, expression_map, method, cutoffs
+            occupancy_score_in_top_n, aso_indices, gene_by_query, expression_map, cutoffs
         ).items():
             scores_by_top_n_cutoff[(top_n, cutoff)] = series
     return scores_by_top_n_cutoff
