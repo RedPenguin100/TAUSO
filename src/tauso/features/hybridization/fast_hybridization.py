@@ -34,7 +34,7 @@ EXTENSION_PENALTY = 30
 RISEARCH_COLUMNS = pyrisearch_tauso.HIT_COLUMNS
 
 
-def _antisense_of(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+def antisense_of(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
     """A pair carries the site an ASO is aimed at; what binds it is the antisense."""
     return [(query_id, get_antisense_rna(query)) for query_id, query in query_id_seq_pairs]
 
@@ -42,81 +42,6 @@ def _antisense_of(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, 
 # A reduction over RIsearch hits: which columns to read, how to reduce a batch
 # to a partial, and how to reduce the partials. `empty` is what no hits means.
 RisearchAggregation = pyrisearch_tauso.Reduction
-
-
-def parse_risearch_hits_pyarrow(
-    query_id_seq_pairs: List[Tuple[str, str]],
-    target_file_path,
-    *,
-    aggregation: RisearchAggregation,
-    matrix: str = ASO_TARGET_MATRIX,
-    minimum_score: int = 900,
-    neighborhood: int = 0,
-    transpose=False,
-    block_size: int = 64 << 20,
-):
-    """Run RIsearch and stream its stdout through pyarrow, block by block.
-
-    Pure mechanism — no energy biology lives here. It owns the subprocess, the
-    pyarrow CSV reader, the per-block loop, the concatenation of partials and the
-    temp-file cleanup. pyarrow's CSV reader runs in C++ and releases the GIL, so
-    callers scale under a ThreadPoolExecutor. Memory is bounded by `block_size` plus the small
-    partials `aggregation` returns.
-
-    What to compute is supplied by `aggregation` (a RisearchAggregation): it
-    declares which columns to parse, reduces each parsed block to a partial table
-    (`combine`), and reduces the concatenated partials to the result dict
-    (`finalize`). The hits come back in RISEARCH_COLUMNS.
-    """
-    if not query_id_seq_pairs:
-        return {}
-
-    return pyrisearch_tauso.search_reduced(
-        queries=_antisense_of(query_id_seq_pairs),
-        targets=target_file_path,
-        reduction=aggregation,
-        min_score=minimum_score,
-        matrix=matrix,
-        extension_penalty=EXTENSION_PENALTY,
-        neighborhood=neighborhood,
-        transpose=transpose,
-        block_size=block_size,
-    )
-
-
-def risearch_hits_dataframe(
-    query_id_seq_pairs: List[Tuple[str, str]],
-    target_file_path,
-    *,
-    matrix: str = ASO_TARGET_MATRIX,
-    minimum_score: int = 900,
-    neighborhood: int = 0,
-    transpose=False,
-    block_size: int = 64 << 20,
-):
-    """Run a batched RIsearch and return ALL hits as a DataFrame (the 8 RISEARCH_COLUMNS).
-
-    Same batched invocation as parse_risearch_hits_pyarrow and streamed through
-    pyarrow, but materialises the full table instead of reducing it — intended for tests
-    and debugging, not the hot path (production uses parse_risearch_hits_pyarrow with an
-    aggregation so memory stays bounded).
-    """
-    import pandas as pd
-
-    if not query_id_seq_pairs:
-        return pd.DataFrame(columns=list(RISEARCH_COLUMNS))
-
-    table = pyrisearch_tauso.hits_table(
-        queries=_antisense_of(query_id_seq_pairs),
-        targets=target_file_path,
-        min_score=minimum_score,
-        matrix=matrix,
-        extension_penalty=EXTENSION_PENALTY,
-        neighborhood=neighborhood,
-        transpose=transpose,
-        block_size=block_size,
-    )
-    return table.to_pandas()
 
 
 # ---------------------------------------------------------------------------

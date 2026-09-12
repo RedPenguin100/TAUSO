@@ -9,12 +9,15 @@ import logging
 import math
 
 import pandas as pd
+import pyrisearch_tauso
 
 from ....data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 from ....util import get_antisense
 from ..fast_hybridization import (
+    ASO_TARGET_MATRIX,
+    EXTENSION_PENALTY,
     aggregate_by_pair_multi_cutoff,
-    parse_risearch_hits_pyarrow,
+    antisense_of,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,11 +65,13 @@ def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs, minim
     """
     if not query_pairs:
         return {int(cutoff): {} for cutoff in cutoffs}
-    return parse_risearch_hits_pyarrow(
-        query_id_seq_pairs=query_pairs,
-        target_file_path=target_path,
-        aggregation=aggregate_by_pair_multi_cutoff(cutoffs),
-        minimum_score=minimum_score,
+    return pyrisearch_tauso.search_reduced(
+        queries=antisense_of(query_pairs),
+        targets=target_path,
+        reduction=aggregate_by_pair_multi_cutoff(cutoffs),
+        min_score=minimum_score,
+        matrix=ASO_TARGET_MATRIX,
+        extension_penalty=EXTENSION_PENALTY,
         transpose=True,
     )
 

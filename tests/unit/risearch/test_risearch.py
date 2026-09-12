@@ -2,10 +2,9 @@ from pathlib import Path
 
 from Bio import SeqIO
 
-from tauso.features.hybridization.fast_hybridization import (
-    risearch_hits_dataframe,
-)
 from tauso.util import get_antisense
+
+from .hits import risearch_hits_dataframe
 
 _DATA = Path(__file__).parent / "data"
 

@@ -17,10 +17,11 @@ import pytest
 
 from tauso.features.hybridization.fast_hybridization import (
     dump_target_file,
-    risearch_hits_dataframe,
 )
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.util import get_antisense
+
+from .hits import risearch_hits_dataframe
 
 LOOSE, STRICT = 800, 1200
 COLS = ["query", "target", "query_start", "target_start", "score", "energy"]
