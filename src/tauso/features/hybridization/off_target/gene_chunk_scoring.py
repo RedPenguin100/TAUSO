@@ -34,7 +34,6 @@ def _scan_one_gene_task(row_queries, target_path, cutoffs):
     row_queries: [(aso_index, query_seq)] for ASOs targeting this gene.
     Returns ``{cutoff: {query_id: EnergyStats}}``.
     """
-    cutoffs = [int(c) for c in cutoffs]
     if not row_queries:
         return {c: {} for c in cutoffs}
     return pyrisearch_tauso.search_reduced(
@@ -52,7 +51,7 @@ def build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs):
     """Split each gene's ASOs into sub-batches so all n_jobs workers are used.
 
     When there are fewer genes than workers, each gene's rows are divided into
-    ceil(n_jobs / n_genes) sub-batches. Returns [(gene, sub_queries, target_path)].
+    ceil(n_jobs / n_genes) sub-batches. Returns [(sub_queries, target_path)].
     """
     n_genes = max(1, len(gene_to_row_queries))
     tasks_per_gene = max(1, (n_jobs + n_genes - 1) // n_genes)
@@ -61,7 +60,7 @@ def build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs):
         sub_size = max(1, (len(row_queries) + tasks_per_gene - 1) // tasks_per_gene)
         target_path = gene_to_target_path[gene]
         for i in range(0, len(row_queries), sub_size):
-            tasks.append((gene, row_queries[i : i + sub_size], target_path))
+            tasks.append((row_queries[i : i + sub_size], target_path))
     return tasks
 
 
@@ -95,16 +94,16 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, row_genes, cutoffs, n_jo
             len(cutoffs),
         )
 
-        tasks = [((gene, i), queries, path, cutoffs) for i, (gene, queries, path) in enumerate(chunk_tasks)]
+        tasks = [(i, queries, path, cutoffs) for i, (queries, path) in enumerate(chunk_tasks)]
         chunk_stats = run_tasks_parallel(tasks, _scan_one_gene_task, n_jobs)
 
+        # A query is named for the row it came from; this reads the name back.
+        row_of = {str(idx): idx for idx in aso_df.index}
         scan = {c: {} for c in cutoffs}
-        for (_gene, i), per_cutoff in chunk_stats.items():
-            for idx, _ in chunk_tasks[i][1]:
-                for c in cutoffs:
-                    stat = per_cutoff.get(c, {}).get(str(idx))
-                    if stat is not None:
-                        scan[c][idx] = stat
+        for per_cutoff in chunk_stats.values():
+            for cutoff, by_query in per_cutoff.items():
+                for query_id, stats in by_query.items():
+                    scan[cutoff][row_of[query_id]] = stats
 
     return scan
 
@@ -112,17 +111,17 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, row_genes, cutoffs, n_jo
 def emit_site_columns(aso_df, scan, cutoffs, derivations):
     """Write one column per (derivation, cutoff) from a scan_gene_sites result.
 
-    derivations: [(name_fn, derive_fn)]. For each cutoff, name_fn(cutoff) names the column and
-    derive_fn(EnergyStats) -> value; rows with no scored hit (or a None derivation) default to 0.0.
+    derivations: [(name, derive_fn)], where `name` is formatted with the cutoff --
+    "on_target_total_hybridization_{cutoff}" -- and derive_fn(EnergyStats) gives the
+    value. A row with no scored hit, or one the derivation returns None for, is 0.0.
     Returns (aso_df, [feature_names]).
     """
-    cutoffs = [int(c) for c in cutoffs]
     columns = {}
-    for cutoff in cutoffs:
+    for cutoff in (int(c) for c in cutoffs):
         per_row = scan.get(cutoff, {})
-        for name_fn, derive_fn in derivations:
+        for name, derive_fn in derivations:
             derived = {idx: value for idx, stats in per_row.items() if (value := derive_fn(stats)) is not None}
             mapped = pd.Series(aso_df.index.map(derived.get), index=aso_df.index, dtype=float)
-            columns[name_fn(cutoff)] = mapped.fillna(0.0)
+            columns[name.format(cutoff=cutoff)] = mapped.fillna(0.0)
 
     return add_columns(aso_df, columns), list(columns)

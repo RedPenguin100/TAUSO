@@ -29,5 +29,5 @@ def on_target_log_number_of_sites(aso_df, gene_to_data, cutoffs, n_jobs=1):
         aso_df,
         scan,
         cutoffs,
-        derivations=[(lambda c: f"on_target_log_number_of_sites_{c}", log_number_of_sites_from_stats)],
+        derivations=[("on_target_log_number_of_sites_{cutoff}", log_number_of_sites_from_stats)],
     )

@@ -54,8 +54,8 @@ def add_on_target_site_features(aso_df, gene_to_data, cutoffs, n_jobs=1):
         scan,
         cutoffs,
         derivations=[
-            (lambda c: f"on_target_total_hybridization_{c}", total_hybridization_from_stats),
-            (lambda c: f"on_target_log_number_of_sites_{c}", log_number_of_sites_from_stats),
+            ("on_target_total_hybridization_{cutoff}", total_hybridization_from_stats),
+            ("on_target_log_number_of_sites_{cutoff}", log_number_of_sites_from_stats),
         ],
     )
 
@@ -67,7 +67,7 @@ def on_target_total_hybridization(aso_df, gene_to_data, cutoffs, n_jobs=1):
         aso_df,
         scan,
         cutoffs,
-        derivations=[(lambda c: f"on_target_total_hybridization_{c}", total_hybridization_from_stats)],
+        derivations=[("on_target_total_hybridization_{cutoff}", total_hybridization_from_stats)],
     )
 
 
@@ -85,5 +85,5 @@ def off_target_single_gene_hybridization(aso_df, gene_name, gene_to_data, cutoff
         aso_df,
         scan,
         cutoffs,
-        derivations=[(lambda c: f"off_target_single_{gene_name}_c{c}", total_hybridization_from_stats)],
+        derivations=[(f"off_target_single_{gene_name}_c{{cutoff}}", total_hybridization_from_stats)],
     )
