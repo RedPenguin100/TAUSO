@@ -205,8 +205,8 @@ TRANSCRIPT_CSV_BLOCK_BYTES = 1 << 28
 """Text read at once while converting the transcript table to Parquet."""
 
 TRANSCRIPT_ROWS_PER_GROUP = 600
-"""Cell lines per Parquet row group. Every group repeats the 237,000-column footer,
-so a few large groups cost far less than many small ones."""
+"""Cell lines per Parquet row group. Every group repeats the 237,000-column footer, so they are
+kept few and large."""
 
 TRANSCRIPT_COLUMN_BATCH = 5000
 """Transcript columns read at once when pulling a cohort out of the Parquet."""
@@ -378,8 +378,8 @@ def add_cell(cell_names, reset):
 def _ensure_transcript_parquet(data_dir):
     """The transcript table as Parquet, converting the CSV on first use and dropping it after.
 
-    The CSV is 237,000 columns wide and pandas spends about 26 GB parsing it whole, so the
-    conversion streams it a block of text at a time and everything downstream reads Parquet.
+    The CSV is 237,000 columns wide and reading it whole costs about 26 GB, so the conversion
+    streams it a block of text at a time.
     """
     parquet_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
     if os.path.exists(parquet_path):
@@ -394,48 +394,29 @@ def _ensure_transcript_parquet(data_dir):
         _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
 
     click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet (one time)...")
-    # Pinning the expression columns to float keeps a block of all-blank values from being
-    # typed as text and breaking the schema the first block established.
-    header = pd.read_csv(csv_path, nrows=0).columns
-    column_types = {c: pa.float64() for c in header if c.startswith("ENST")}
+    with open(csv_path) as handle:
+        header = handle.readline().rstrip("\n").split(",")
+    # Typing the expression columns up front stops a block of blanks being read as text,
+    # which would clash with the float blocks either side of it.
     reader = pacsv.open_csv(
         csv_path,
         read_options=pacsv.ReadOptions(block_size=TRANSCRIPT_CSV_BLOCK_BYTES),
-        convert_options=pacsv.ConvertOptions(column_types=column_types),
+        convert_options=pacsv.ConvertOptions(column_types={c: pa.float64() for c in header if c.startswith("ENST")}),
     )
     partial_path = parquet_path + ".partial"
-    writer = None
-    pending, pending_rows = [], 0
-
-    def flush():
-        nonlocal writer, pending, pending_rows
-        if not pending:
-            return
-        table = pa.Table.from_batches(pending)
-        if writer is None:
-            writer = pq.ParquetWriter(partial_path, table.schema)
-        writer.write_table(table)
-        pending, pending_rows = [], 0
-
-    try:
+    pending = []
+    with pq.ParquetWriter(partial_path, reader.schema) as writer:
         for batch in reader:
             pending.append(batch)
-            pending_rows += batch.num_rows
-            if pending_rows >= TRANSCRIPT_ROWS_PER_GROUP:
-                flush()
-        flush()
-        if writer is None:
-            echo_err(f"{TRANSCRIPT_EXPRESSION_CSV} holds no rows.")
-            sys.exit(1)
-    finally:
-        if writer is not None:
-            writer.close()
-        if os.path.exists(partial_path) and writer is None:
-            os.remove(partial_path)
+            if sum(b.num_rows for b in pending) >= TRANSCRIPT_ROWS_PER_GROUP:
+                writer.write_table(pa.Table.from_batches(pending))
+                pending = []
+        if pending:
+            writer.write_table(pa.Table.from_batches(pending))
+    # Named only once it is whole, so a killed conversion is not mistaken for a finished one.
     os.replace(partial_path, parquet_path)
-    echo_ok(f"Converted to Parquet: {parquet_path}")
     os.remove(csv_path)
-    echo_ok(f"Removed {TRANSCRIPT_EXPRESSION_CSV} (Parquet supersedes it).")
+    echo_ok(f"Converted to Parquet: {parquet_path} ({TRANSCRIPT_EXPRESSION_CSV} removed)")
     return parquet_path
 
 
