@@ -25,7 +25,7 @@ from tauso.util import get_antisense
 
 LOOSE, STRICT = 800, 1200
 COLS = ["query", "target", "query_start", "target_start", "score", "energy"]
-_RISEARCH = dict(parsing_type="2", interaction_type=Interaction.RNA_DNA_NO_WOBBLE, transpose=True)
+_RISEARCH = dict(interaction_type=Interaction.RNA_DNA_NO_WOBBLE, transpose=True)
 
 
 @pytest.fixture(scope="module")

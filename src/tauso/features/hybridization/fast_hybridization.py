@@ -2,7 +2,7 @@ import os
 import platform
 import tempfile
 from pathlib import Path
-from typing import Callable, Dict, List, NamedTuple, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import pyrisearch_tauso
 
@@ -36,31 +36,8 @@ def _interaction_mode(interaction_type: Interaction) -> str:
 # hybridization here is calibrated with it set.
 EXTENSION_PENALTY = 30
 
-# The fixed 8-column parsing_type="2" TSV that RIsearch emits.
-RISEARCH_COLUMNS = (
-    "query",
-    "query_start",
-    "query_end",
-    "target",
-    "target_start",
-    "target_end",
-    "score",
-    "energy",
-)
-
-
-# TAUSO names the hit columns for what they mean here; pyrisearch_tauso names
-# them after the query and target sides of the search.
-_LIBRARY_COLUMN = {
-    "query": "qname",
-    "query_start": "qbeg",
-    "query_end": "qend",
-    "target": "tname",
-    "target_start": "tbeg",
-    "target_end": "tend",
-    "score": "score",
-    "energy": "energy",
-}
+# The columns RIsearch's hits come back in.
+RISEARCH_COLUMNS = pyrisearch_tauso.HIT_COLUMNS
 
 
 def _query_sequences(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
@@ -69,17 +46,6 @@ def _query_sequences(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[st
     A pair carries the site an ASO is aimed at; what binds that site, and so
     what is searched for, is its antisense."""
     return [(query_id, get_antisense_rna(query)) for query_id, query in query_id_seq_pairs]
-
-
-def _under_tauso_names(batch, columns):
-    """A batch of hits under the names the aggregations read.
-
-    pyarrow hands back the columns in the order they were asked for, so the
-    names line up by position.
-    """
-    import pyarrow as pa
-
-    return pa.RecordBatch.from_arrays(list(batch.columns), names=list(columns))
 
 
 def _search_options(
@@ -105,36 +71,9 @@ def _search_options(
     )
 
 
-def _library_reduction(aggregation: "RisearchAggregation"):
-    """The aggregation as pyrisearch_tauso reads it.
-
-    The library names the hit columns after the query and target sides of the
-    search, so each batch is renamed before an aggregation written against
-    TAUSO's names sees it.
-    """
-    return pyrisearch_tauso.Reduction(
-        columns=[_LIBRARY_COLUMN[column] for column in aggregation.columns],
-        combine=lambda batch: aggregation.combine(_under_tauso_names(batch, aggregation.columns)),
-        finalize=aggregation.finalize,
-        empty={},
-    )
-
-
-class RisearchAggregation(NamedTuple):
-    """How to reduce streamed RIsearch hits into a {key: value} dict.
-
-    columns  — which of the 8 RIsearch TSV columns to parse (a subset of
-               query/target/energy).
-    combine  — (pyarrow.RecordBatch) -> partial pyarrow.Table, applied per parsed
-               block so millions of hits never materialize at once.
-    finalize — (concatenated partial Table) -> the result dict.
-
-    See aggregate_by_pair_multi_cutoff and stats_by_query_multi_cutoff.
-    """
-
-    columns: Tuple[str, ...]
-    combine: Callable
-    finalize: Callable
+# A reduction over RIsearch hits: which columns to read, how to reduce a batch
+# to a partial, and how to reduce the partials. `empty` is what no hits means.
+RisearchAggregation = pyrisearch_tauso.Reduction
 
 
 def parse_risearch_hits_pyarrow(
@@ -145,9 +84,7 @@ def parse_risearch_hits_pyarrow(
     interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
     minimum_score: int = 900,
     neighborhood: int = 0,
-    parsing_type="2",
     transpose=False,
-    batch_id=None,
     block_size: int = 64 << 20,
 ):
     """Run RIsearch and stream its stdout through pyarrow, block by block.
@@ -162,14 +99,14 @@ def parse_risearch_hits_pyarrow(
     What to compute is supplied by `aggregation` (a RisearchAggregation): it
     declares which columns to parse, reduces each parsed block to a partial table
     (`combine`), and reduces the concatenated partials to the result dict
-    (`finalize`). The RIsearch output is always the 8-column parsing_type="2" TSV:
+    (`finalize`). The hits come back as:
     query, t_start, t_end, target, ta_start, ta_end, score, energy.
     """
     if not query_id_seq_pairs:
         return {}
 
     return pyrisearch_tauso.search_reduced(
-        reduction=_library_reduction(aggregation),
+        reduction=aggregation,
         **_search_options(
             query_id_seq_pairs,
             target_file_path,
@@ -189,9 +126,7 @@ def risearch_hits_dataframe(
     interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
     minimum_score: int = 900,
     neighborhood: int = 0,
-    parsing_type="2",
     transpose=False,
-    batch_id=None,
     block_size: int = 64 << 20,
 ):
     """Run a batched RIsearch and return ALL hits as a DataFrame (the 8 RISEARCH_COLUMNS).
@@ -207,7 +142,6 @@ def risearch_hits_dataframe(
         return pd.DataFrame(columns=list(RISEARCH_COLUMNS))
 
     table = pyrisearch_tauso.hits_table(
-        columns=[_LIBRARY_COLUMN[column] for column in RISEARCH_COLUMNS],
         **_search_options(
             query_id_seq_pairs,
             target_file_path,
@@ -218,7 +152,7 @@ def risearch_hits_dataframe(
             block_size=block_size,
         ),
     )
-    return table.rename_columns(list(RISEARCH_COLUMNS)).to_pandas()
+    return table.to_pandas()
 
 
 # ---------------------------------------------------------------------------
@@ -315,7 +249,7 @@ def _by_key_multi_cutoff(
             result[c][key] = pack({name: value_cols[name][i] for name in names})
         return result
 
-    return RisearchAggregation(columns=(*keys, "score", "energy"), combine=combine, finalize=finalize)
+    return RisearchAggregation(columns=(*keys, "score", "energy"), combine=combine, finalize=finalize, empty={})
 
 
 def aggregate_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
