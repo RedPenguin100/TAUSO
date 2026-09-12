@@ -1,11 +1,11 @@
 import logging
-from contextlib import ExitStack
 
 import numpy as np
 import pandas as pd
 import pyrisearch_tauso
 
 from ..data.consts import CELL_LINE_DEPMAP
+from ..features.hybridization.off_target import fasta_targets_each
 from ..features.hybridization.off_target.add_off_target_feat import compute_group_batch_multi_cutoff_multi_topn
 from ..features.hybridization.off_target.parallel import run_tasks_parallel
 
@@ -115,25 +115,24 @@ def populate_off_target_specific(
     )
 
     # cell_info[cell_line] = {is_known, top_n_to_data, target_path, chunks}
+    known = {
+        cell_line: _build_top_n_to_data(cell_line2data[cell_line], top_n_list, gene_to_data, require_seq=False)
+        for cell_line, _ in groups
+        if cell_line in cell_line2data
+    }
+
     cell_info: dict = {}
-    with ExitStack() as targets:
+    with fasta_targets_each({c: seq_map for c, (_, seq_map) in known.items() if seq_map}) as target_paths:
         for cell_line, group_df in groups:
             chunks = _chunk_df(group_df, chunk_size)
-            if cell_line not in cell_line2data:
+            if cell_line not in known:
                 cell_info[cell_line] = {"is_known": False, "target_path": None, "chunks": chunks}
                 continue
 
-            top_n_to_data, seq_map = _build_top_n_to_data(
-                cell_line2data[cell_line], top_n_list, gene_to_data, require_seq=False
-            )
-
-            target_path = None
-            if seq_map:
-                target_path = targets.enter_context(pyrisearch_tauso.fasta_targets(seq_map))
             cell_info[cell_line] = {
                 "is_known": True,
-                "top_n_to_data": top_n_to_data,
-                "target_path": target_path,
+                "top_n_to_data": known[cell_line][0],
+                "target_path": target_paths.get(cell_line),
                 "chunks": chunks,
             }
 

@@ -11,15 +11,13 @@ import logging
 from collections import defaultdict
 from functools import partial
 from math import ceil
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pandas as pd
 import pyrisearch_tauso
 from pyrisearch_tauso import EnergyStats
 
 from ....data.consts import ASO_SEQUENCE
-from . import ASO_TARGET_MATRIX, EXTENSION_PENALTY, RT_KCAL_MOL
+from . import ASO_TARGET_MATRIX, EXTENSION_PENALTY, RT_KCAL_MOL, fasta_targets_each
 from .parallel import run_tasks_parallel
 
 logger = logging.getLogger(__name__)
@@ -59,13 +57,7 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, row_genes, cutoffs, n_jo
     cutoffs = [int(c) for c in cutoffs]
     _validate_genes_found(target_genes, gene_to_data)
 
-    with TemporaryDirectory() as work:
-        target_path = {}
-        for i, gene in enumerate(target_genes):
-            path = Path(work) / f"{i}.fa"
-            path.write_text(f">{gene}\n{gene_to_data[gene].full_mrna}\n")
-            target_path[gene] = str(path)
-
+    with fasta_targets_each({g: {g: gene_to_data[g].full_mrna} for g in target_genes}) as target_path:
         gene_to_row_queries = defaultdict(list)
         for idx, seq, gene in zip(aso_df.index, aso_df[ASO_SEQUENCE], row_genes):
             if pd.notna(gene) and gene in target_path:

@@ -4,6 +4,9 @@ Single source of truth for the (top_n, cutoff) grid the calculator computes thes
 features on.
 """
 
+from contextlib import ExitStack, contextmanager
+
+import pyrisearch_tauso
 from pyrisearch_tauso import Matrix
 
 # RIsearch score cutoffs (a hit counts toward cutoff c when its score > c). Shared by
@@ -18,3 +21,19 @@ OFF_TARGET_TOP_NS = (50, 100, 200)
 ASO_TARGET_MATRIX = Matrix.SU95_NO_GU
 EXTENSION_PENALTY = 30  # dacal/mol per nucleotide
 RT_KCAL_MOL = 0.616
+
+
+@contextmanager
+def fasta_targets_each(sequences_by_key):
+    """A target FASTA per key, written together and removed together.
+
+    pyrisearch_tauso.fasta_targets keeps one file alive for as long as its
+    context is open. Several searches over different targets need several of
+    those at once, and how many is only known at run time, which is what an
+    ExitStack is for.
+    """
+    with ExitStack() as stack:
+        yield {
+            key: stack.enter_context(pyrisearch_tauso.fasta_targets(sequences))
+            for key, sequences in sequences_by_key.items()
+        }
