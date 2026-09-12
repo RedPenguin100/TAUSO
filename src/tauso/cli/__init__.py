@@ -201,6 +201,11 @@ def setup_all(ctx, genome, force, threads, mem_per_thread):
     echo_ok("setup-all complete.")
 
 
+DEPMAP_PROFILE_COLUMNS = frozenset(
+    {"Unnamed: 0", "", "SequencingID", "ModelID", "IsDefaultEntryForModel", "ModelConditionID", "IsDefaultEntryForMC"}
+)
+"""The columns of a DepMap expression table that describe the sequencing run, not a measurement."""
+
 TRANSCRIPT_CSV_BLOCK_BYTES = 1 << 28
 """Text read at once while converting the transcript table to Parquet."""
 
@@ -560,8 +565,14 @@ def build_cohort_expression(genome):
     exp_df = pd.read_parquet(exp_path)
 
     model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
-    gene_cols = [c for c in exp_df.columns if c != model_col]
+    # A model can carry several sequencing profiles; DepMap flags the one to use with the
+    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
+    if "IsDefaultEntryForModel" in exp_df.columns:
+        exp_df = exp_df[exp_df["IsDefaultEntryForModel"] == "Yes"]
 
+    gene_cols = [c for c in exp_df.columns if c not in DEPMAP_PROFILE_COLUMNS]
+
+    # Most genes are named "SYMBOL (1234)"; the ones with no symbol keep their Ensembl id.
     gene_regex = re.compile(r"^(.+?) \(\d+\)$")
     clean_gene_map = {c: (m.group(1) if (m := gene_regex.match(c)) else c) for c in gene_cols}
 
