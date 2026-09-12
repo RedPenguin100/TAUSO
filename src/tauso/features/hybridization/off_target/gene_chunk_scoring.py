@@ -9,6 +9,7 @@ per-gene hybridization feature, each of which reads the columns it needs
 
 import logging
 from collections import defaultdict
+from functools import partial
 from math import ceil
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -30,38 +31,20 @@ def _validate_genes_found(target_genes, gene_to_data):
         raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
 
 
-def _scan_one_gene_task(row_queries, target_path, cutoffs):
-    """Site-resolved stats for one gene's ASOs against its target, per cutoff.
-
-    row_queries: [(aso_index, query_seq)] for ASOs targeting this gene.
-    Returns ``{cutoff: {query_id: EnergyStats}}``.
-    """
-    if not row_queries:
-        return {c: {} for c in cutoffs}
-    return pyrisearch_tauso.search_reduced(
-        queries=[(str(idx), seq) for idx, seq in row_queries],
-        targets=target_path,
-        reduction=pyrisearch_tauso.energy_stats(cutoffs, group_by=("query",), rt=RT_KCAL_MOL),
-        min_score=min(cutoffs),
-        matrix=ASO_TARGET_MATRIX,
-        extension_penalty=EXTENSION_PENALTY,
-        transpose=True,
-    )
-
-
 def build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs):
     """One search per gene, split further so that every worker has something to do.
 
     A gene is one search, so a run over few genes would leave most workers idle;
-    each gene's ASOs are divided into enough batches to go round. Returns
-    [(queries, target_path)].
+    each gene's ASOs are divided into enough batches to go round. A query is named
+    for the row it came from. Returns [(queries, target_path)].
     """
     batches_per_gene = ceil(n_jobs / max(1, len(gene_to_row_queries)))
     tasks = []
     for gene, row_queries in gene_to_row_queries.items():
         batch = max(1, ceil(len(row_queries) / batches_per_gene))
         for start in range(0, len(row_queries), batch):
-            tasks.append((row_queries[start : start + batch], gene_to_target_path[gene]))
+            queries = [(str(idx), seq) for idx, seq in row_queries[start : start + batch]]
+            tasks.append((queries, gene_to_target_path[gene]))
     return tasks
 
 
@@ -96,11 +79,15 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, row_genes, cutoffs, n_jo
             len(tasks),
             len(cutoffs),
         )
-        results = run_tasks_parallel(
-            [(i, queries, path, cutoffs) for i, (queries, path) in enumerate(tasks)],
-            _scan_one_gene_task,
-            n_jobs,
+        search = partial(
+            pyrisearch_tauso.search_reduced,
+            reduction=pyrisearch_tauso.energy_stats(cutoffs, group_by=("query",), rt=RT_KCAL_MOL),
+            min_score=min(cutoffs),
+            matrix=ASO_TARGET_MATRIX,
+            extension_penalty=EXTENSION_PENALTY,
+            transpose=True,
         )
+        results = run_tasks_parallel([(i, queries, path) for i, (queries, path) in enumerate(tasks)], search, n_jobs)
 
     # A query is named for the row it came from; this reads the name back.
     row_of = {str(idx): idx for idx in aso_df.index}
