@@ -11,13 +11,9 @@ from a single loose RIsearch run instead of one run each:
 Real genes, the real RIsearch binary, no mocks.
 """
 
-import os
-
 import pytest
+from pyrisearch_tauso import fasta_targets
 
-from tauso.features.hybridization.fast_hybridization import (
-    dump_target_file,
-)
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 
 from .hits import risearch_hits_dataframe
@@ -54,12 +50,9 @@ def _hits(df):
 
 def test_cutoff_filter_uses_score_and_is_exclusive(target_and_queries):
     _, seq_map, queries = target_and_queries
-    target = dump_target_file("ot-cutoff.fa", seq_map)
-    try:
+    with fasta_targets(seq_map) as target:
         loose = risearch_hits_dataframe(queries, target, minimum_score=LOOSE, **_RISEARCH)
         strict = risearch_hits_dataframe(queries, target, minimum_score=STRICT, **_RISEARCH)
-    finally:
-        os.remove(target)
 
     strict_hits = _hits(strict)
     assert strict_hits, "strict run produced no hits"
@@ -70,14 +63,9 @@ def test_cutoff_filter_uses_score_and_is_exclusive(target_and_queries):
 def test_gene_subset_filter_matches_subset_target(target_and_queries):
     genes, seq_map, queries = target_and_queries
     subset = set(genes[:2])
-    full_target = dump_target_file("ot-full.fa", seq_map)
-    sub_target = dump_target_file("ot-sub.fa", {g: seq_map[g] for g in subset})
-    try:
+    with fasta_targets(seq_map) as full_target, fasta_targets({g: seq_map[g] for g in subset}) as sub_target:
         full = risearch_hits_dataframe(queries, full_target, minimum_score=LOOSE, **_RISEARCH)
         sub = risearch_hits_dataframe(queries, sub_target, minimum_score=LOOSE, **_RISEARCH)
-    finally:
-        os.remove(full_target)
-        os.remove(sub_target)
 
     sub_hits = _hits(sub)
     assert sub_hits, "subset run produced no hits"
@@ -87,14 +75,9 @@ def test_gene_subset_filter_matches_subset_target(target_and_queries):
 def test_cutoff_and_subset_filters_combine(target_and_queries):
     genes, seq_map, queries = target_and_queries
     subset = set(genes[:2])
-    loose_full = dump_target_file("ot-comb-full.fa", seq_map)
-    strict_sub = dump_target_file("ot-comb-sub.fa", {g: seq_map[g] for g in subset})
-    try:
+    with fasta_targets(seq_map) as loose_full, fasta_targets({g: seq_map[g] for g in subset}) as strict_sub:
         loose = risearch_hits_dataframe(queries, loose_full, minimum_score=LOOSE, **_RISEARCH)
         direct = risearch_hits_dataframe(queries, strict_sub, minimum_score=STRICT, **_RISEARCH)
-    finally:
-        os.remove(loose_full)
-        os.remove(strict_sub)
 
     direct_hits = _hits(direct)
     assert direct_hits, "direct run produced no hits"

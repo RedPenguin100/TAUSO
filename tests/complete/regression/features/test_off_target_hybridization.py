@@ -32,7 +32,7 @@ def test_on_target_hybridization_regression(mini_structure_data, gene_to_data, d
 @pytest.mark.parametrize("mini_structure_data", [1000], indirect=True)
 def test_on_target_multiplicity_regression(mini_structure_data, gene_to_data, dataframe_regression):
     """Site-resolved on-target multiplicity: log effective number of on-target sites per cutoff
-    (the on_target_log_number_of_sites feature, backed by stats_by_query_multi_cutoff)."""
+    (the on_target_log_number_of_sites feature, backed by pyrisearch_tauso.energy_stats)."""
     data = mini_structure_data.copy()
     data, feature_names = on_target_log_number_of_sites(data, gene_to_data, cutoffs=CUTOFFS, n_jobs=get_n_jobs())
     # log_eff derives from sum(exp(-energy/RT)); float-order dependent under threads (~1e-5)

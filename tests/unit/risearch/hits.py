@@ -7,10 +7,9 @@ want them all, so this is here rather than beside the code under test.
 import pandas as pd
 import pyrisearch_tauso
 
-from tauso.features.hybridization.fast_hybridization import (
+from tauso.features.hybridization.off_target import (
     ASO_TARGET_MATRIX,
     EXTENSION_PENALTY,
-    RISEARCH_COLUMNS,
 )
 
 
@@ -24,7 +23,7 @@ def risearch_hits_dataframe(
     transpose=False,
 ):
     if not query_id_seq_pairs:
-        return pd.DataFrame(columns=list(RISEARCH_COLUMNS))
+        return pd.DataFrame(columns=list(pyrisearch_tauso.HIT_COLUMNS))
 
     return pyrisearch_tauso.hits_table(
         queries=query_id_seq_pairs,
