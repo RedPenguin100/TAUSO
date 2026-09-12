@@ -2,13 +2,14 @@
 
 A thin entry point over the per-gene scan (each ASO vs its own canonical gene), deriving the log
 effective site count from the site-resolved stats (see
-off_target_specific_gene.log_number_of_sites_from_stats). The pipeline emits this column via
+off_target_specific_gene.log_number_of_sites). The pipeline emits this column via
 ``add_on_target_site_features``; this entry point runs its own scan and backs the regression test.
 """
 
 from ....data.consts import CANONICAL_GENE_NAME
-from .gene_chunk_scoring import emit_site_columns, scan_gene_sites
-from .off_target_specific_gene import log_number_of_sites_from_stats
+from ....pandas_utils import add_columns
+from .gene_chunk_scoring import scan_gene_sites
+from .off_target_specific_gene import log_number_of_sites
 
 
 def on_target_log_number_of_sites(aso_df, gene_to_data, cutoffs, n_jobs=1):
@@ -17,7 +18,7 @@ def on_target_log_number_of_sites(aso_df, gene_to_data, cutoffs, n_jobs=1):
     Each oligo is scored against its own canonical gene. Returns (aso_df, [feature_names]) with
     columns ``on_target_log_number_of_sites_{cutoff}``. ASOs with no gene or no qualifying hit get 0.
     """
-    scan = scan_gene_sites(
+    sites = scan_gene_sites(
         aso_df=aso_df,
         gene_to_data=gene_to_data,
         target_genes=aso_df[CANONICAL_GENE_NAME].dropna().unique(),
@@ -25,9 +26,5 @@ def on_target_log_number_of_sites(aso_df, gene_to_data, cutoffs, n_jobs=1):
         cutoffs=cutoffs,
         n_jobs=n_jobs,
     )
-    return emit_site_columns(
-        aso_df,
-        scan,
-        cutoffs,
-        derivations=[("on_target_log_number_of_sites_{cutoff}", log_number_of_sites_from_stats)],
-    )
+    columns = {f"on_target_log_number_of_sites_{c}": log_number_of_sites(sites, c) for c in map(int, cutoffs)}
+    return add_columns(aso_df, columns), list(columns)
