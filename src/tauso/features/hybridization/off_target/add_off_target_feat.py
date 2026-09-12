@@ -1,7 +1,7 @@
 """Off-target feature scores.
 
 Runs RIsearch for a group of ASOs against a prebuilt target FASTA, reduces the hits to a
-per-(trigger, target) Boltzmann occupancy score per cutoff, and turns those into an
+per-(query, target) Boltzmann occupancy score per cutoff, and turns those into an
 expression-weighted off-target score.
 """
 
@@ -30,7 +30,7 @@ class AggregationMethod:
 def aggregate_per_gene_tpm_weighted(occupancy_score_by_gene, expression_map, method):
     """Combine per-gene off-target occupancy scores into one expression-weighted score.
 
-    occupancy_score_by_gene: {gene: Z_g}, the per-(trigger, gene) Boltzmann sum Σ_sites exp(-energy/RT).
+    occupancy_score_by_gene: {gene: Z_g}, the per-(query, gene) Boltzmann sum Σ_sites exp(-energy/RT).
     expression_map: {gene: (TPM, normalised)}. method is unused (kept for the shared signature).
 
     Returns Σ_g log1p(TPM_g) · log(Z_g): log(Z_g) tracks -ΔG_binding/RT for total capture on gene
@@ -55,18 +55,18 @@ def aggregate_per_gene_tpm_weighted(occupancy_score_by_gene, expression_map, met
 
 
 def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs, minimum_score):
-    """Run RIsearch once and reduce the hits to a per-(trigger, target) Boltzmann occupancy score.
+    """Run RIsearch once and reduce the hits to a per-(query, target) Boltzmann occupancy score.
 
-    query_pairs: [(trigger_id, trigger_seq)]; target_path: a prebuilt target FASTA. minimum_score
+    query_pairs: [(query_id, query_seq)]; target_path: a prebuilt target FASTA. minimum_score
     is the RIsearch -s threshold (the loosest cutoff, so every cutoff in `cutoffs` is derivable —
     a hit counts toward a cutoff when its score exceeds it).
 
-    Returns {cutoff: {(trigger, target): Z}}, Z = Σ_sites exp(-energy/RT) (no self-filter).
+    Returns {cutoff: {(query, target): Z}}, Z = Σ_sites exp(-energy/RT) (no self-filter).
     """
     if not query_pairs:
         return {int(cutoff): {} for cutoff in cutoffs}
     return parse_risearch_hits_pyarrow(
-        trigger_id_seq_pairs=query_pairs,
+        query_id_seq_pairs=query_pairs,
         target_file_path=target_path,
         aggregation=aggregate_by_pair_multi_cutoff(cutoffs),
         minimum_score=minimum_score,
@@ -77,26 +77,26 @@ def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs, minim
     )
 
 
-def offtarget_score_per_cutoff(per_cutoff, aso_indices, gene_by_trigger, expression_map, method, cutoffs):
+def offtarget_score_per_cutoff(per_cutoff, aso_indices, gene_by_query, expression_map, method, cutoffs):
     """Turn per-cutoff off-target occupancy scores into a score Series per cutoff.
 
-    per_cutoff: {cutoff: {(trigger, target): Z}} from risearch_occupancy_score_per_cutoff.
-    gene_by_trigger: {trigger_id: own canonical gene} — hits to a trigger's own gene are dropped.
+    per_cutoff: {cutoff: {(query, target): Z}} from risearch_occupancy_score_per_cutoff.
+    gene_by_query: {query_id: own canonical gene} — hits to a query's own gene are dropped.
     expression_map: {gene: (TPM, normalised)}; method is passed through unused.
 
     Returns {cutoff: Series of scores indexed by `aso_indices`}.
     """
     scores_by_cutoff = {}
     for cutoff in cutoffs:
-        per_trigger: dict = {}
-        for (trigger, target), occupancy_score in per_cutoff.get(int(cutoff), {}).items():
-            if target == gene_by_trigger.get(trigger):
+        per_query: dict = {}
+        for (query, target), occupancy_score in per_cutoff.get(int(cutoff), {}).items():
+            if target == gene_by_query.get(query):
                 continue
-            per_trigger.setdefault(trigger, {})[target] = occupancy_score
+            per_query.setdefault(query, {})[target] = occupancy_score
 
         scores = pd.Series(0.0, index=aso_indices, dtype=float)
         for aso_index in aso_indices:
-            occupancy_scores = per_trigger.get(str(aso_index))
+            occupancy_scores = per_query.get(str(aso_index))
             if occupancy_scores:
                 scores[aso_index] = aggregate_per_gene_tpm_weighted(occupancy_scores, expression_map, method)
         scores_by_cutoff[cutoff] = scores
@@ -120,7 +120,7 @@ def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs
     query_pairs = [
         (str(aso_index), get_antisense(sequence)) for aso_index, sequence in zip(aso_indices, group_df[ASO_SEQUENCE])
     ]
-    gene_by_trigger = {str(aso_index): gene for aso_index, gene in zip(aso_indices, group_df[CANONICAL_GENE_NAME])}
+    gene_by_query = {str(aso_index): gene for aso_index, gene in zip(aso_indices, group_df[CANONICAL_GENE_NAME])}
 
     per_cutoff = risearch_occupancy_score_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))
 
@@ -128,14 +128,14 @@ def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs
     for top_n, (expression_map, gene_set) in top_n_to_data.items():
         occupancy_score_in_top_n = {
             cutoff: {
-                (trigger, target): occupancy_score
-                for (trigger, target), occupancy_score in pairs.items()
+                (query, target): occupancy_score
+                for (query, target), occupancy_score in pairs.items()
                 if target in gene_set
             }
             for cutoff, pairs in per_cutoff.items()
         }
         for cutoff, series in offtarget_score_per_cutoff(
-            occupancy_score_in_top_n, aso_indices, gene_by_trigger, expression_map, method, cutoffs
+            occupancy_score_in_top_n, aso_indices, gene_by_query, expression_map, method, cutoffs
         ).items():
             scores_by_top_n_cutoff[(top_n, cutoff)] = series
     return scores_by_top_n_cutoff

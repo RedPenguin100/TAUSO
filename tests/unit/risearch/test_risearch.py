@@ -52,9 +52,9 @@ def get_gfp_second_exp():
 
 
 def run_risearch(sample_seq, name_to_seq, *, transpose):
-    """The hits for one trigger against one target, as plain rows."""
+    """The hits for one query against one target, as plain rows."""
     frame = risearch_hits_dataframe(
-        [("trigger", sample_seq)],
+        [("query", sample_seq)],
         name_to_seq,
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         minimum_score=900,
@@ -63,9 +63,9 @@ def run_risearch(sample_seq, name_to_seq, *, transpose):
     )
     return [
         {
-            "trigger": str(row.trigger),
-            "trigger_start": int(row.trigger_start),
-            "trigger_end": int(row.trigger_end),
+            "query": str(row.query),
+            "query_start": int(row.query_start),
+            "query_end": int(row.query_end),
             "target": str(row.target),
             "target_start": int(row.target_start),
             "target_end": int(row.target_end),

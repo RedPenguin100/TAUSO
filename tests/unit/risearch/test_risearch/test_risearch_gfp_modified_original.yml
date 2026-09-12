@@ -1,84 +1,84 @@
 bad_sample_runs:
 - hits:
   - energy: -25.15
+    query: query
+    query_end: 17
+    query_start: 1
     score: 1744
     target: gfp_seq
     target_end: 20
     target_start: 4
-    trigger: trigger
-    trigger_end: 17
-    trigger_start: 1
   - energy: -15.57
+    query: query
+    query_end: 13
+    query_start: 2
     score: 1086
     target: gfp_seq
     target_end: 106
     target_start: 95
-    trigger: trigger
-    trigger_end: 13
-    trigger_start: 2
   input_sequence: AAAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -25.15
     - -15.57
 - hits:
   - energy: -25.15
+    query: query
+    query_end: 17
+    query_start: 1
     score: 1744
     target: gfp_seq
     target_end: 20
     target_start: 4
-    trigger: trigger
-    trigger_end: 17
-    trigger_start: 1
   - energy: -15.57
+    query: query
+    query_end: 13
+    query_start: 2
     score: 1086
     target: gfp_seq
     target_end: 106
     target_start: 95
-    trigger: trigger
-    trigger_end: 13
-    trigger_start: 2
   input_sequence: ATAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -25.15
     - -15.57
 - hits:
   - energy: -25.15
+    query: query
+    query_end: 17
+    query_start: 1
     score: 1744
     target: gfp_seq
     target_end: 20
     target_start: 4
-    trigger: trigger
-    trigger_end: 17
-    trigger_start: 1
   - energy: -15.57
+    query: query
+    query_end: 13
+    query_start: 2
     score: 1086
     target: gfp_seq
     target_end: 106
     target_start: 95
-    trigger: trigger
-    trigger_end: 13
-    trigger_start: 2
   input_sequence: AGAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -25.15
     - -15.57
 - hits:
   - energy: -27.25
+    query: query
+    query_end: 18
+    query_start: 1
     score: 1894
     target: gfp_seq
     target_end: 20
     target_start: 3
-    trigger: trigger
-    trigger_end: 18
-    trigger_start: 1
   - energy: -15.57
+    query: query
+    query_end: 13
+    query_start: 2
     score: 1086
     target: gfp_seq
     target_end: 106
     target_start: 95
-    trigger: trigger
-    trigger_end: 13
-    trigger_start: 2
   input_sequence: ACGGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -27.25
@@ -86,21 +86,21 @@ bad_sample_runs:
 good_sample_run:
   hits:
   - energy: -28.8
+    query: query
+    query_end: 20
+    query_start: 1
     score: 1929
     target: gfp_seq
     target_end: 20
     target_start: 1
-    trigger: trigger
-    trigger_end: 20
-    trigger_start: 1
   - energy: -15.57
+    query: query
+    query_end: 13
+    query_start: 2
     score: 1086
     target: gfp_seq
     target_end: 106
     target_start: 95
-    trigger: trigger
-    trigger_end: 13
-    trigger_start: 2
   mfe_scores:
   - - -28.8
     - -15.57
