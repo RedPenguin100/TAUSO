@@ -24,9 +24,6 @@ COHORT = {"CellA": "ACH-000004", "CellB": "ACH-000008", "Absent": "ACH-000000"}
 @pytest.fixture(scope="module")
 def built(tmp_path_factory):
     source = os.path.join(get_data_dir(), cli.TRANSCRIPT_EXPRESSION_PARQUET)
-    if not os.path.exists(source):
-        pytest.skip(f"{cli.TRANSCRIPT_EXPRESSION_PARQUET} not built")
-
     data_dir = tmp_path_factory.mktemp("transcript_build")
     os.symlink(source, data_dir / cli.TRANSCRIPT_EXPRESSION_PARQUET)
     (data_dir / "cell_cohort.json").write_text(json.dumps(COHORT))
@@ -44,8 +41,6 @@ def built(tmp_path_factory):
 def source_rows():
     """The same two cell lines read straight from the table, as the answer to check against."""
     source = os.path.join(get_data_dir(), cli.TRANSCRIPT_EXPRESSION_CSV)
-    if not os.path.exists(source):
-        pytest.skip(f"{cli.TRANSCRIPT_EXPRESSION_CSV} not downloaded")
     ids = pd.read_csv(source, usecols=["ModelID"])["ModelID"]
     wanted = set(ids.index[ids.isin(COHORT.values())])
     d = pd.read_csv(source, skiprows=lambda i: i > 0 and (i - 1) not in wanted)
