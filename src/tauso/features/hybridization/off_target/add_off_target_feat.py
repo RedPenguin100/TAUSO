@@ -12,12 +12,10 @@ import pandas as pd
 import pyrisearch_tauso
 
 from ....data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
-from ....util import get_antisense
 from ..fast_hybridization import (
     ASO_TARGET_MATRIX,
     EXTENSION_PENALTY,
     aggregate_by_pair_multi_cutoff,
-    antisense_of,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,7 +64,7 @@ def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs, minim
     if not query_pairs:
         return {int(cutoff): {} for cutoff in cutoffs}
     return pyrisearch_tauso.search_reduced(
-        queries=antisense_of(query_pairs),
+        queries=query_pairs,
         targets=target_path,
         reduction=aggregate_by_pair_multi_cutoff(cutoffs),
         min_score=minimum_score,
@@ -116,9 +114,7 @@ def compute_group_batch_multi_cutoff_multi_topn(group_df, top_n_to_data, cutoffs
     if group_df.empty:
         return {(top_n, cutoff): pd.Series(dtype=float) for top_n in top_n_to_data for cutoff in cutoffs}
 
-    query_pairs = [
-        (str(aso_index), get_antisense(sequence)) for aso_index, sequence in zip(aso_indices, group_df[ASO_SEQUENCE])
-    ]
+    query_pairs = [(str(aso_index), sequence) for aso_index, sequence in zip(aso_indices, group_df[ASO_SEQUENCE])]
     gene_by_query = {str(aso_index): gene for aso_index, gene in zip(aso_indices, group_df[CANONICAL_GENE_NAME])}
 
     per_cutoff = risearch_occupancy_score_per_cutoff(query_pairs, prebuilt_target_path, cutoffs, min(cutoffs))

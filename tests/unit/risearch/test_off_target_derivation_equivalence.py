@@ -19,7 +19,6 @@ from tauso.features.hybridization.fast_hybridization import (
     dump_target_file,
 )
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.util import get_antisense
 
 from .hits import risearch_hits_dataframe
 
@@ -45,7 +44,7 @@ def target_and_queries(gene_to_data_full):
         key=lambda g: len(gene_to_data_full[g].full_mrna),
     )[:3]
     seq_map = {g: gene_to_data_full[g].full_mrna for g in genes}
-    queries = [(str(i), get_antisense(seq_map[g][500:620])) for i, g in enumerate(genes)]
+    queries = [(str(i), seq_map[g][500:620]) for i, g in enumerate(genes)]
     return genes, seq_map, queries
 
 

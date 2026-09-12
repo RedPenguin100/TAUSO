@@ -2,11 +2,9 @@ import os
 import platform
 import tempfile
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, Tuple
 
 import pyrisearch_tauso
-
-from ...util import get_antisense_rna
 
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
@@ -32,11 +30,6 @@ EXTENSION_PENALTY = 30
 
 # The columns RIsearch's hits come back in.
 RISEARCH_COLUMNS = pyrisearch_tauso.HIT_COLUMNS
-
-
-def antisense_of(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
-    """A pair carries the site an ASO is aimed at; what binds it is the antisense."""
-    return [(query_id, get_antisense_rna(query)) for query_id, query in query_id_seq_pairs]
 
 
 # A reduction over RIsearch hits: which columns to read, how to reduce a batch

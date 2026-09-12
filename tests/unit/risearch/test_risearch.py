@@ -2,7 +2,7 @@ from pathlib import Path
 
 from Bio import SeqIO
 
-from tauso.util import get_antisense
+from tauso.util import get_antisense, get_antisense_rna
 
 from .hits import risearch_hits_dataframe
 
@@ -52,7 +52,7 @@ def get_gfp_second_exp():
 def run_risearch(sample_seq, name_to_seq, *, transpose):
     """The hits for one query against one target, as plain rows."""
     frame = risearch_hits_dataframe(
-        [("query", sample_seq)],
+        [("query", get_antisense_rna(sample_seq))],
         name_to_seq,
         minimum_score=900,
         neighborhood=30,

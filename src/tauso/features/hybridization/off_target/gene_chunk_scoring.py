@@ -18,12 +18,10 @@ import pyrisearch_tauso
 
 from ....data.consts import ASO_SEQUENCE
 from ....pandas_utils import add_columns
-from ....util import get_antisense
 from ..fast_hybridization import (
     ASO_TARGET_MATRIX,
     EXTENSION_PENALTY,
     TMP_PATH,
-    antisense_of,
     dump_target_file,
     stats_by_query_multi_cutoff,
 )
@@ -56,7 +54,7 @@ def _scan_one_gene_task(row_queries, target_path, cutoffs):
     if not row_queries:
         return {c: {} for c in cutoffs}
     return pyrisearch_tauso.search_reduced(
-        queries=antisense_of([(str(idx), seq) for idx, seq in row_queries]),
+        queries=[(str(idx), seq) for idx, seq in row_queries],
         targets=target_path,
         reduction=stats_by_query_multi_cutoff(cutoffs),
         min_score=min(cutoffs),
@@ -104,7 +102,7 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, get_gene_fn, cutoffs, n_
         gene_to_row_queries = defaultdict(list)
         for idx, seq, gene in zip(aso_df.index, aso_df[ASO_SEQUENCE], aso_df.apply(get_gene_fn, axis=1)):
             if pd.notna(gene) and gene in gene_to_target_path:
-                gene_to_row_queries[gene].append((idx, get_antisense(seq)))
+                gene_to_row_queries[gene].append((idx, seq))
 
         chunk_tasks = build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs)
         logger.info(

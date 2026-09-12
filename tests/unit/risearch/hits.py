@@ -11,7 +11,6 @@ from tauso.features.hybridization.fast_hybridization import (
     ASO_TARGET_MATRIX,
     EXTENSION_PENALTY,
     RISEARCH_COLUMNS,
-    antisense_of,
 )
 
 
@@ -28,7 +27,7 @@ def risearch_hits_dataframe(
         return pd.DataFrame(columns=list(RISEARCH_COLUMNS))
 
     return pyrisearch_tauso.hits_table(
-        queries=antisense_of(query_id_seq_pairs),
+        queries=query_id_seq_pairs,
         targets=target_file_path,
         min_score=minimum_score,
         matrix=matrix,
