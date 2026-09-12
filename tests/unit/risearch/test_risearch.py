@@ -3,7 +3,6 @@ from pathlib import Path
 from Bio import SeqIO
 
 from tauso.features.hybridization.fast_hybridization import (
-    Interaction,
     risearch_hits_dataframe,
 )
 from tauso.util import get_antisense
@@ -56,7 +55,6 @@ def run_risearch(sample_seq, name_to_seq, *, transpose):
     frame = risearch_hits_dataframe(
         [("query", sample_seq)],
         name_to_seq,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         minimum_score=900,
         neighborhood=30,
         transpose=transpose,

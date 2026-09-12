@@ -13,7 +13,6 @@ import pandas as pd
 from ....data.consts import ASO_SEQUENCE, CANONICAL_GENE_NAME
 from ....util import get_antisense
 from ..fast_hybridization import (
-    Interaction,
     aggregate_by_pair_multi_cutoff,
     parse_risearch_hits_pyarrow,
 )
@@ -68,7 +67,6 @@ def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs, minim
         target_file_path=target_path,
         aggregation=aggregate_by_pair_multi_cutoff(cutoffs),
         minimum_score=minimum_score,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         transpose=True,
     )
 

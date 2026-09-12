@@ -14,7 +14,6 @@ from Bio import SeqIO
 
 from tauso.features.hybridization.fast_hybridization import (
     TMP_PATH,
-    Interaction,
     dump_target_file,
     risearch_hits_dataframe,
 )
@@ -47,7 +46,6 @@ def _hits(pairs, target_path):
         pairs,
         target_path,
         minimum_score=CUTOFF,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         transpose=True,
     )
 

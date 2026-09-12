@@ -16,7 +16,6 @@ import os
 import pytest
 
 from tauso.features.hybridization.fast_hybridization import (
-    Interaction,
     dump_target_file,
     risearch_hits_dataframe,
 )
@@ -25,7 +24,7 @@ from tauso.util import get_antisense
 
 LOOSE, STRICT = 800, 1200
 COLS = ["query", "target", "query_start", "target_start", "score", "energy"]
-_RISEARCH = dict(interaction_type=Interaction.RNA_DNA_NO_WOBBLE, transpose=True)
+_RISEARCH = dict(transpose=True)
 
 
 @pytest.fixture(scope="module")

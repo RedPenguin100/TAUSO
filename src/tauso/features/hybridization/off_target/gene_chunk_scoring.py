@@ -20,7 +20,6 @@ from ....pandas_utils import add_columns
 from ....util import get_antisense
 from ..fast_hybridization import (
     TMP_PATH,
-    Interaction,
     dump_target_file,
     parse_risearch_hits_pyarrow,
     stats_by_query_multi_cutoff,
@@ -61,7 +60,6 @@ def _scan_one_gene_chunk(row_queries, target_path, cutoffs, chunk_size=112):
             target_file_path=target_path,
             aggregation=stats_by_query_multi_cutoff(cutoffs),
             minimum_score=minimum_score,
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
             transpose=True,
         )
         for c in cutoffs:

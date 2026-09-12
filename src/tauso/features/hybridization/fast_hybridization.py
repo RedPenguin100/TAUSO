@@ -7,7 +7,6 @@ from typing import Callable, Dict, List, Tuple
 import pyrisearch_tauso
 
 from ...util import get_antisense_rna
-from .interaction import Interaction
 
 if platform.system() == "Linux" and os.path.exists("/dev/shm"):
     TMP_PATH = Path("/dev/shm/tauso_risearch_tmp")
@@ -24,13 +23,8 @@ def dump_target_file(target_filename: str, name_to_sequence: Dict[str, str]):
     return tmp_path
 
 
-def _interaction_mode(interaction_type: Interaction) -> str:
-    if interaction_type == Interaction.RNA_DNA_NO_WOBBLE:
-        return "su95_noGU"
-    if interaction_type == Interaction.RNA_RNA:
-        return "t04"
-    raise ValueError(f"Unsupported interaction type: {interaction_type}")
-
+# What an ASO forms with its target: an RNA:DNA duplex, wobble pairs left out.
+ASO_TARGET_MATRIX = pyrisearch_tauso.Matrix.SU95_NO_GU
 
 # Per-nucleotide extension penalty, in dacal/mol. RIsearch leaves this at 0;
 # hybridization here is calibrated with it set.
@@ -40,35 +34,9 @@ EXTENSION_PENALTY = 30
 RISEARCH_COLUMNS = pyrisearch_tauso.HIT_COLUMNS
 
 
-def _query_sequences(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
-    """The sequences RIsearch searches with.
-
-    A pair carries the site an ASO is aimed at; what binds that site, and so
-    what is searched for, is its antisense."""
+def _antisense_of(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """A pair carries the site an ASO is aimed at; what binds it is the antisense."""
     return [(query_id, get_antisense_rna(query)) for query_id, query in query_id_seq_pairs]
-
-
-def _search_options(
-    query_id_seq_pairs,
-    target_file_path,
-    *,
-    interaction_type,
-    minimum_score,
-    neighborhood,
-    transpose,
-    block_size,
-):
-    """What a RIsearch search takes, under the options TAUSO runs it with."""
-    return dict(
-        queries=_query_sequences(query_id_seq_pairs),
-        targets=target_file_path,
-        min_score=minimum_score,
-        matrix=_interaction_mode(interaction_type),
-        extension_penalty=EXTENSION_PENALTY,
-        neighborhood=neighborhood,
-        transpose=transpose,
-        block_size=block_size,
-    )
 
 
 # A reduction over RIsearch hits: which columns to read, how to reduce a batch
@@ -81,7 +49,7 @@ def parse_risearch_hits_pyarrow(
     target_file_path,
     *,
     aggregation: RisearchAggregation,
-    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
+    matrix: str = ASO_TARGET_MATRIX,
     minimum_score: int = 900,
     neighborhood: int = 0,
     transpose=False,
@@ -92,30 +60,27 @@ def parse_risearch_hits_pyarrow(
     Pure mechanism — no energy biology lives here. It owns the subprocess, the
     pyarrow CSV reader, the per-block loop, the concatenation of partials and the
     temp-file cleanup. pyarrow's CSV reader runs in C++ and releases the GIL, so
-    callers scale under a ThreadPoolExecutor (the old pandas parse held the GIL
-    and plateaued at ~1.7x). Memory is bounded by `block_size` plus the small
+    callers scale under a ThreadPoolExecutor. Memory is bounded by `block_size` plus the small
     partials `aggregation` returns.
 
     What to compute is supplied by `aggregation` (a RisearchAggregation): it
     declares which columns to parse, reduces each parsed block to a partial table
     (`combine`), and reduces the concatenated partials to the result dict
-    (`finalize`). The hits come back as:
-    query, t_start, t_end, target, ta_start, ta_end, score, energy.
+    (`finalize`). The hits come back in RISEARCH_COLUMNS.
     """
     if not query_id_seq_pairs:
         return {}
 
     return pyrisearch_tauso.search_reduced(
+        queries=_antisense_of(query_id_seq_pairs),
+        targets=target_file_path,
         reduction=aggregation,
-        **_search_options(
-            query_id_seq_pairs,
-            target_file_path,
-            interaction_type=interaction_type,
-            minimum_score=minimum_score,
-            neighborhood=neighborhood,
-            transpose=transpose,
-            block_size=block_size,
-        ),
+        min_score=minimum_score,
+        matrix=matrix,
+        extension_penalty=EXTENSION_PENALTY,
+        neighborhood=neighborhood,
+        transpose=transpose,
+        block_size=block_size,
     )
 
 
@@ -123,7 +88,7 @@ def risearch_hits_dataframe(
     query_id_seq_pairs: List[Tuple[str, str]],
     target_file_path,
     *,
-    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
+    matrix: str = ASO_TARGET_MATRIX,
     minimum_score: int = 900,
     neighborhood: int = 0,
     transpose=False,
@@ -142,15 +107,14 @@ def risearch_hits_dataframe(
         return pd.DataFrame(columns=list(RISEARCH_COLUMNS))
 
     table = pyrisearch_tauso.hits_table(
-        **_search_options(
-            query_id_seq_pairs,
-            target_file_path,
-            interaction_type=interaction_type,
-            minimum_score=minimum_score,
-            neighborhood=neighborhood,
-            transpose=transpose,
-            block_size=block_size,
-        ),
+        queries=_antisense_of(query_id_seq_pairs),
+        targets=target_file_path,
+        min_score=minimum_score,
+        matrix=matrix,
+        extension_penalty=EXTENSION_PENALTY,
+        neighborhood=neighborhood,
+        transpose=transpose,
+        block_size=block_size,
     )
     return table.to_pandas()
 
