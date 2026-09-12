@@ -36,12 +36,7 @@ def _require_transcript_expression(expression_dir):
         f.endswith("_transcript_expression.csv") for f in os.listdir(expression_dir)
     ):
         return
-    raise FileNotFoundError(
-        f"No transcript expression in {expression_dir}.\n"
-        "Build it before calculating features:\n"
-        "  tauso setup-depmap-transcripts\n"
-        "  tauso build-cohort-transcript-expression"
-    )
+    raise FileNotFoundError(f"No transcript expression in {expression_dir}.")
 
 
 def load_cell_line_transcript_expression(depmap_ids, valid_transcript_names, expression_dir):
