@@ -164,6 +164,7 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False, threads=1, mem_p
 def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
     """
     Runs Bowtie 1 alignment.
+    Raises RuntimeError on alignment failure, including Bowtie's diagnostics.
     Returns:
         hits_list: List of all hit dictionaries (for annotation)
         counts_dict: Dictionary of counts {'mismatches0': X, 'mismatches1': Y...}
@@ -186,8 +187,7 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
     try:
         process = subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
-        logger.error(f"Bowtie search failed: {e.stderr}")
-        return [], {f"mismatches{i}": 0 for i in range(max_mismatches + 1)}
+        raise RuntimeError(f"Bowtie search failed: {e}\n{e.stderr or ''}") from e
 
     hits = []
 
@@ -259,6 +259,7 @@ def _annotation_index(genome):
 def annotate_hits(hits_list, genome="GRCh38"):
     """Annotate each hit with its gene and region, counting a gene only when the ASO is antisense to
     it (hit strand opposite the gene's). Same-strand overlaps are ignored, so the hit is Intergenic.
+    Annotation loading and interval query errors propagate to the caller.
 
     Every hit is resolved in one pass over an in-memory interval index. Querying the annotation
     per hit instead costs a full chromosome scan each time, because the overlap test cannot use
@@ -335,6 +336,7 @@ def find_all_gene_off_targets(sequence, genome="GRCh38", max_mismatches=3):
 def run_bowtie_search_bulk(fasta_path, genome="GRCh38", max_mismatches=0, threads=16):
     """
     Runs Bowtie 1 alignment on a whole FASTA file.
+    Raises RuntimeError on alignment failure, including Bowtie's diagnostics.
     """
     index_base = get_bowtie_index_base(genome=genome)
     sam_output = fasta_path.replace(".fasta", ".sam")
@@ -358,8 +360,7 @@ def run_bowtie_search_bulk(fasta_path, genome="GRCh38", max_mismatches=0, thread
     try:
         subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
-        logger.error(f"Bowtie bulk search failed: {e.stderr}")
-        return []
+        raise RuntimeError(f"Bowtie bulk search failed: {e}\n{e.stderr or ''}") from e
 
     hits = []
 
@@ -502,6 +503,7 @@ def count_offtarget_matches_bulk(sequences, genome="GRCh38", max_mismatches=2, t
     Aligns every sequence to `genome` (both strands, all alignments up to `max_mismatches`) and tallies,
     for each sequence, how many genomic loci it matches at exactly k mismatches (k in 0..max_mismatches).
     Returns ``{sequence: {0: n0, 1: n1, ...}}``.
+    Raises RuntimeError on alignment failure, including Bowtie's diagnostics.
 
     `exclude_regions` is an optional iterable of ``(chrom, start, end)`` genomic intervals (0-based,
     half-open); any hit overlapping one is not counted. Pass the on-target gene's locus so the intended
@@ -544,8 +546,7 @@ def count_offtarget_matches_bulk(sequences, genome="GRCh38", max_mismatches=2, t
         try:
             subprocess.run(cmd, capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as e:
-            logger.error(f"Bowtie bulk count failed: {e.stderr}")
-            return counts
+            raise RuntimeError(f"Bowtie bulk count failed: {e}\n{e.stderr or ''}") from e
 
         with open(sam_path) as sam:
             for line in sam:
