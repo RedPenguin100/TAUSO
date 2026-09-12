@@ -14,15 +14,15 @@ from collections import defaultdict
 from typing import NamedTuple
 
 import pandas as pd
+import pyrisearch_tauso
 
 from ....data.consts import ASO_SEQUENCE
 from ....pandas_utils import add_columns
-from ....util import get_antisense
 from ..fast_hybridization import (
+    ASO_TARGET_MATRIX,
+    EXTENSION_PENALTY,
     TMP_PATH,
-    Interaction,
     dump_target_file,
-    parse_risearch_hits_pyarrow,
     stats_by_query_multi_cutoff,
 )
 from .parallel import run_tasks_parallel
@@ -44,35 +44,24 @@ def _validate_genes_found(target_genes, gene_to_data):
         raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
 
 
-def _scan_one_gene_chunk(row_queries, target_path, cutoffs, chunk_size=112):
-    """Site-resolved stats for one gene's ASOs against its target, in query chunks, per cutoff.
+def _scan_one_gene_task(row_queries, target_path, cutoffs):
+    """Site-resolved stats for one gene's ASOs against its target, per cutoff.
 
     row_queries: [(aso_index, query_seq)] for ASOs targeting this gene.
-    Returns ``{cutoff: {query_id: (sum_exp, min_energy, n_sites)}}``. chunk_size caps the
-    per-call query batch (and thus peak RIsearch output held while parsing).
+    Returns ``{cutoff: {query_id: (sum_exp, min_energy, n_sites)}}``.
     """
     cutoffs = [int(c) for c in cutoffs]
-    minimum_score = min(cutoffs)
-    combined: dict = {c: {} for c in cutoffs}
-    for i in range(0, len(row_queries), chunk_size):
-        chunk = row_queries[i : i + chunk_size]
-        partial = parse_risearch_hits_pyarrow(
-            query_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
-            target_file_path=target_path,
-            aggregation=stats_by_query_multi_cutoff(cutoffs),
-            minimum_score=minimum_score,
-            interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
-            transpose=True,
-        )
-        for c in cutoffs:
-            dst = combined[c]
-            for query, (s, e, n) in partial.get(c, {}).items():
-                if query in dst:
-                    ps, pe, pn = dst[query]
-                    dst[query] = (ps + s, min(pe, e), pn + n)
-                else:
-                    dst[query] = (s, e, n)
-    return combined
+    if not row_queries:
+        return {c: {} for c in cutoffs}
+    return pyrisearch_tauso.search_reduced(
+        queries=[(str(idx), seq) for idx, seq in row_queries],
+        targets=target_path,
+        reduction=stats_by_query_multi_cutoff(cutoffs),
+        min_score=min(cutoffs),
+        matrix=ASO_TARGET_MATRIX,
+        extension_penalty=EXTENSION_PENALTY,
+        transpose=True,
+    )
 
 
 def build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs):
@@ -113,7 +102,7 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, get_gene_fn, cutoffs, n_
         gene_to_row_queries = defaultdict(list)
         for idx, seq, gene in zip(aso_df.index, aso_df[ASO_SEQUENCE], aso_df.apply(get_gene_fn, axis=1)):
             if pd.notna(gene) and gene in gene_to_target_path:
-                gene_to_row_queries[gene].append((idx, get_antisense(seq)))
+                gene_to_row_queries[gene].append((idx, seq))
 
         chunk_tasks = build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs)
         logger.info(
@@ -125,7 +114,7 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, get_gene_fn, cutoffs, n_
         )
 
         tasks = [((gene, i), queries, path, cutoffs) for i, (gene, queries, path) in enumerate(chunk_tasks)]
-        chunk_stats = run_tasks_parallel(tasks, _scan_one_gene_chunk, n_jobs)
+        chunk_stats = run_tasks_parallel(tasks, _scan_one_gene_task, n_jobs)
 
         gene_stats: dict = defaultdict(lambda: {c: {} for c in cutoffs})
         for (gene, _), per_cutoff in chunk_stats.items():

@@ -14,11 +14,10 @@ from Bio import SeqIO
 
 from tauso.features.hybridization.fast_hybridization import (
     TMP_PATH,
-    Interaction,
     dump_target_file,
-    risearch_hits_dataframe,
 )
-from tauso.util import get_antisense
+
+from .hits import risearch_hits_dataframe
 
 _DATA = Path(__file__).parent / "data"
 
@@ -47,7 +46,6 @@ def _hits(pairs, target_path):
         pairs,
         target_path,
         minimum_score=CUTOFF,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         transpose=True,
     )
 
@@ -57,9 +55,9 @@ def test_batch_hits_equal_single_query_hits(gfp_name_to_seq):
     TMP_PATH.mkdir(parents=True, exist_ok=True)
     target_path = dump_target_file("gfp-test-target.fa", gfp_name_to_seq)
     try:
-        pairs = [(str(i), get_antisense(seq)) for i, seq in enumerate(QUERY_SEQS)]
+        pairs = [(str(i), seq) for i, seq in enumerate(QUERY_SEQS)]
         batch = _hits(pairs, target_path)
-        singles = {str(i): _hits([(str(i), get_antisense(seq))], target_path) for i, seq in enumerate(QUERY_SEQS)}
+        singles = {str(i): _hits([(str(i), seq)], target_path) for i, seq in enumerate(QUERY_SEQS)}
     finally:
         if os.path.exists(target_path):
             os.remove(target_path)

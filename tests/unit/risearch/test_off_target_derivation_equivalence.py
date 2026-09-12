@@ -16,16 +16,15 @@ import os
 import pytest
 
 from tauso.features.hybridization.fast_hybridization import (
-    Interaction,
     dump_target_file,
-    risearch_hits_dataframe,
 )
 from tauso.genome.read_human_genome import get_locus_to_data_dict
-from tauso.util import get_antisense
+
+from .hits import risearch_hits_dataframe
 
 LOOSE, STRICT = 800, 1200
 COLS = ["query", "target", "query_start", "target_start", "score", "energy"]
-_RISEARCH = dict(interaction_type=Interaction.RNA_DNA_NO_WOBBLE, transpose=True)
+_RISEARCH = dict(transpose=True)
 
 
 @pytest.fixture(scope="module")
@@ -45,7 +44,7 @@ def target_and_queries(gene_to_data_full):
         key=lambda g: len(gene_to_data_full[g].full_mrna),
     )[:3]
     seq_map = {g: gene_to_data_full[g].full_mrna for g in genes}
-    queries = [(str(i), get_antisense(seq_map[g][500:620])) for i, g in enumerate(genes)]
+    queries = [(str(i), seq_map[g][500:620]) for i, g in enumerate(genes)]
     return genes, seq_map, queries
 
 

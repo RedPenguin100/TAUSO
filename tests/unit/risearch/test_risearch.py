@@ -2,11 +2,9 @@ from pathlib import Path
 
 from Bio import SeqIO
 
-from tauso.features.hybridization.fast_hybridization import (
-    Interaction,
-    risearch_hits_dataframe,
-)
-from tauso.util import get_antisense
+from tauso.util import get_antisense, get_antisense_rna
+
+from .hits import risearch_hits_dataframe
 
 _DATA = Path(__file__).parent / "data"
 
@@ -54,9 +52,8 @@ def get_gfp_second_exp():
 def run_risearch(sample_seq, name_to_seq, *, transpose):
     """The hits for one query against one target, as plain rows."""
     frame = risearch_hits_dataframe(
-        [("query", sample_seq)],
+        [("query", get_antisense_rna(sample_seq))],
         name_to_seq,
-        interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         minimum_score=900,
         neighborhood=30,
         transpose=transpose,
