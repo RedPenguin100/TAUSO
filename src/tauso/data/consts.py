@@ -272,6 +272,7 @@ CELL_LINE_TO_DEPMAP = {
     "VCaP": "ACH-000115",
 }
 
+
 def _load_depmap_models():
     """Every cell line DepMap publishes, as normalised name -> (canonical name, ACH id).
 
