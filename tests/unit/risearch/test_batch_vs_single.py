@@ -67,7 +67,7 @@ def test_batch_hits_equal_single_query_hits(gfp_name_to_seq):
 
     for i in range(len(QUERY_SEQS)):
         tid = str(i)
-        batch_energies = sorted(batch[batch["trigger"] == tid]["energy"].tolist())
+        batch_energies = sorted(batch[batch["query"] == tid]["energy"].tolist())
         single_energies = sorted(singles[tid]["energy"].tolist())
         assert batch_energies == pytest.approx(single_energies, rel=1e-6), (
             f"Energy mismatch for query {i}: batch={batch_energies}, single={single_energies}"

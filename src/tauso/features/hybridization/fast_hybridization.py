@@ -38,9 +38,9 @@ EXTENSION_PENALTY = 30
 
 # The fixed 8-column parsing_type="2" TSV that RIsearch emits.
 RISEARCH_COLUMNS = (
-    "trigger",
-    "trigger_start",
-    "trigger_end",
+    "query",
+    "query_start",
+    "query_end",
     "target",
     "target_start",
     "target_end",
@@ -52,9 +52,9 @@ RISEARCH_COLUMNS = (
 # TAUSO names the hit columns for what they mean here; pyrisearch_tauso names
 # them after the query and target sides of the search.
 _LIBRARY_COLUMN = {
-    "trigger": "qname",
-    "trigger_start": "qbeg",
-    "trigger_end": "qend",
+    "query": "qname",
+    "query_start": "qbeg",
+    "query_end": "qend",
     "target": "tname",
     "target_start": "tbeg",
     "target_end": "tend",
@@ -63,10 +63,12 @@ _LIBRARY_COLUMN = {
 }
 
 
-def _query_sequences(trigger_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
-    """The triggers as RIsearch has to see them: a trigger binds its target, so
-    what is searched for is the antisense of it."""
-    return [(query_id, get_antisense_rna(trigger)) for query_id, trigger in trigger_id_seq_pairs]
+def _query_sequences(query_id_seq_pairs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """The sequences RIsearch searches with.
+
+    A pair carries the site an ASO is aimed at; what binds that site, and so
+    what is searched for, is its antisense."""
+    return [(query_id, get_antisense_rna(query)) for query_id, query in query_id_seq_pairs]
 
 
 def _under_tauso_names(batch, columns):
@@ -81,7 +83,7 @@ def _under_tauso_names(batch, columns):
 
 
 def _search_options(
-    trigger_id_seq_pairs,
+    query_id_seq_pairs,
     target_file_path,
     *,
     interaction_type,
@@ -92,7 +94,7 @@ def _search_options(
 ):
     """What a RIsearch search takes, under the options TAUSO runs it with."""
     return dict(
-        queries=_query_sequences(trigger_id_seq_pairs),
+        queries=_query_sequences(query_id_seq_pairs),
         targets=target_file_path,
         min_score=minimum_score,
         matrix=_interaction_mode(interaction_type),
@@ -122,12 +124,12 @@ class RisearchAggregation(NamedTuple):
     """How to reduce streamed RIsearch hits into a {key: value} dict.
 
     columns  — which of the 8 RIsearch TSV columns to parse (a subset of
-               trigger/target/energy).
+               query/target/energy).
     combine  — (pyarrow.RecordBatch) -> partial pyarrow.Table, applied per parsed
                block so millions of hits never materialize at once.
     finalize — (concatenated partial Table) -> the result dict.
 
-    See aggregate_by_pair_multi_cutoff and stats_by_trigger_multi_cutoff.
+    See aggregate_by_pair_multi_cutoff and stats_by_query_multi_cutoff.
     """
 
     columns: Tuple[str, ...]
@@ -136,7 +138,7 @@ class RisearchAggregation(NamedTuple):
 
 
 def parse_risearch_hits_pyarrow(
-    trigger_id_seq_pairs: List[Tuple[str, str]],
+    query_id_seq_pairs: List[Tuple[str, str]],
     target_file_path,
     *,
     aggregation: RisearchAggregation,
@@ -161,15 +163,15 @@ def parse_risearch_hits_pyarrow(
     declares which columns to parse, reduces each parsed block to a partial table
     (`combine`), and reduces the concatenated partials to the result dict
     (`finalize`). The RIsearch output is always the 8-column parsing_type="2" TSV:
-    trigger, t_start, t_end, target, ta_start, ta_end, score, energy.
+    query, t_start, t_end, target, ta_start, ta_end, score, energy.
     """
-    if not trigger_id_seq_pairs:
+    if not query_id_seq_pairs:
         return {}
 
     return pyrisearch_tauso.search_reduced(
         reduction=_library_reduction(aggregation),
         **_search_options(
-            trigger_id_seq_pairs,
+            query_id_seq_pairs,
             target_file_path,
             interaction_type=interaction_type,
             minimum_score=minimum_score,
@@ -181,7 +183,7 @@ def parse_risearch_hits_pyarrow(
 
 
 def risearch_hits_dataframe(
-    trigger_id_seq_pairs: List[Tuple[str, str]],
+    query_id_seq_pairs: List[Tuple[str, str]],
     target_file_path,
     *,
     interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
@@ -197,18 +199,17 @@ def risearch_hits_dataframe(
     Same batched invocation as parse_risearch_hits_pyarrow and streamed through
     pyarrow, but materialises the full table instead of reducing it — intended for tests
     and debugging, not the hot path (production uses parse_risearch_hits_pyarrow with an
-    aggregation so memory stays bounded). Replaces the old get_triggers_mfe_scores_batch
-    + parse_risearch_output pair.
+    aggregation so memory stays bounded).
     """
     import pandas as pd
 
-    if not trigger_id_seq_pairs:
+    if not query_id_seq_pairs:
         return pd.DataFrame(columns=list(RISEARCH_COLUMNS))
 
     table = pyrisearch_tauso.hits_table(
         columns=[_LIBRARY_COLUMN[column] for column in RISEARCH_COLUMNS],
         **_search_options(
-            trigger_id_seq_pairs,
+            query_id_seq_pairs,
             target_file_path,
             interaction_type=interaction_type,
             minimum_score=minimum_score,
@@ -318,33 +319,33 @@ def _by_key_multi_cutoff(
 
 
 def aggregate_by_pair_multi_cutoff(cutoffs) -> RisearchAggregation:
-    """Per-(trigger, target) Boltzmann reducer for several cutoffs from a loose RIsearch pass.
+    """Per-(query, target) Boltzmann reducer for several cutoffs from a loose RIsearch pass.
 
     Keeps ``sum(exp(-energy/RT_KCAL_MOL))`` per pair (always >= 0).
 
-    Returns ``{cutoff: {(trigger, target): sum_exp}}``.
+    Returns ``{cutoff: {(query, target): sum_exp}}``.
     """
     return _by_key_multi_cutoff(
         cutoffs,
-        keys=("trigger", "target"),
+        keys=("query", "target"),
         value_aggs=(("_exp", "_exp", "sum"),),
         pack=lambda r: float(r["_exp"]),
     )
 
 
-def stats_by_trigger_multi_cutoff(cutoffs) -> RisearchAggregation:
-    """Site-resolved stats per trigger, per cutoff: the Boltzmann sum, the best-site energy
-    and the hit count -- a strict superset of the per-trigger Boltzmann sum alone.
+def stats_by_query_multi_cutoff(cutoffs) -> RisearchAggregation:
+    """Site-resolved stats per query, per cutoff: the Boltzmann sum, the best-site energy
+    and the hit count -- a strict superset of the per-query Boltzmann sum alone.
 
     Callers derive the effective number of sites (target multiplicity)
     ``log_eff = log(sum_exp) - (-min_energy / RT_KCAL_MOL)`` -- 0 for a single dominant site,
     growing when several comparable sites share the binding.
 
-    Returns ``{cutoff: {trigger: (sum_exp, min_energy, n_sites)}}``.
+    Returns ``{cutoff: {query: (sum_exp, min_energy, n_sites)}}``.
     """
     return _by_key_multi_cutoff(
         cutoffs,
-        keys=("trigger",),
+        keys=("query",),
         value_aggs=(("s", "_exp", "sum"), ("e", "energy", "min"), ("n", "energy", "count")),
         pack=lambda r: (float(r["s"]), float(r["e"]), int(r["n"])),
     )

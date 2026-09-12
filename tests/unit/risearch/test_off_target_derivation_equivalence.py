@@ -24,7 +24,7 @@ from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.util import get_antisense
 
 LOOSE, STRICT = 800, 1200
-COLS = ["trigger", "target", "trigger_start", "target_start", "score", "energy"]
+COLS = ["query", "target", "query_start", "target_start", "score", "energy"]
 _RISEARCH = dict(parsing_type="2", interaction_type=Interaction.RNA_DNA_NO_WOBBLE, transpose=True)
 
 

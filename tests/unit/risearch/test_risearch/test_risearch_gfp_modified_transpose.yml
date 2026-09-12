@@ -1,37 +1,37 @@
 bad_sample_runs:
 - hits:
   - energy: -29.65
+    query: query
+    query_end: 17
+    query_start: 1
     score: 2194
     target: gfp_seq
     target_end: 20
     target_start: 4
-    trigger: trigger
-    trigger_end: 17
-    trigger_start: 1
   - energy: -17.25
+    query: query
+    query_end: 10
+    query_start: 2
     score: 1434
     target: gfp_seq
     target_end: 106
     target_start: 98
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 2
   - energy: -12.8
+    query: query
+    query_end: 10
+    query_start: 4
     score: 1109
     target: gfp_seq
     target_end: 353
     target_start: 347
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 4
   - energy: -10.25
+    query: query
+    query_end: 6
+    query_start: 1
     score: 914
     target: gfp_seq
     target_end: 521
     target_start: 516
-    trigger: trigger
-    trigger_end: 6
-    trigger_start: 1
   input_sequence: AAAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -29.65
@@ -40,37 +40,37 @@ bad_sample_runs:
     - -10.25
 - hits:
   - energy: -29.65
+    query: query
+    query_end: 17
+    query_start: 1
     score: 2194
     target: gfp_seq
     target_end: 20
     target_start: 4
-    trigger: trigger
-    trigger_end: 17
-    trigger_start: 1
   - energy: -17.25
+    query: query
+    query_end: 10
+    query_start: 2
     score: 1434
     target: gfp_seq
     target_end: 106
     target_start: 98
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 2
   - energy: -12.8
+    query: query
+    query_end: 10
+    query_start: 4
     score: 1109
     target: gfp_seq
     target_end: 353
     target_start: 347
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 4
   - energy: -10.25
+    query: query
+    query_end: 6
+    query_start: 1
     score: 914
     target: gfp_seq
     target_end: 521
     target_start: 516
-    trigger: trigger
-    trigger_end: 6
-    trigger_start: 1
   input_sequence: ATAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -29.65
@@ -79,37 +79,37 @@ bad_sample_runs:
     - -10.25
 - hits:
   - energy: -29.65
+    query: query
+    query_end: 17
+    query_start: 1
     score: 2194
     target: gfp_seq
     target_end: 20
     target_start: 4
-    trigger: trigger
-    trigger_end: 17
-    trigger_start: 1
   - energy: -17.25
+    query: query
+    query_end: 10
+    query_start: 2
     score: 1434
     target: gfp_seq
     target_end: 106
     target_start: 98
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 2
   - energy: -12.8
+    query: query
+    query_end: 10
+    query_start: 4
     score: 1109
     target: gfp_seq
     target_end: 353
     target_start: 347
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 4
   - energy: -10.25
+    query: query
+    query_end: 6
+    query_start: 1
     score: 914
     target: gfp_seq
     target_end: 521
     target_start: 516
-    trigger: trigger
-    trigger_end: 6
-    trigger_start: 1
   input_sequence: AGAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -29.65
@@ -118,37 +118,37 @@ bad_sample_runs:
     - -10.25
 - hits:
   - energy: -32.55
+    query: query
+    query_end: 18
+    query_start: 1
     score: 2424
     target: gfp_seq
     target_end: 20
     target_start: 3
-    trigger: trigger
-    trigger_end: 18
-    trigger_start: 1
   - energy: -17.25
+    query: query
+    query_end: 10
+    query_start: 2
     score: 1434
     target: gfp_seq
     target_end: 106
     target_start: 98
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 2
   - energy: -12.8
+    query: query
+    query_end: 10
+    query_start: 4
     score: 1109
     target: gfp_seq
     target_end: 353
     target_start: 347
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 4
   - energy: -10.25
+    query: query
+    query_end: 6
+    query_start: 1
     score: 914
     target: gfp_seq
     target_end: 521
     target_start: 516
-    trigger: trigger
-    trigger_end: 6
-    trigger_start: 1
   input_sequence: ACGGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -32.55
@@ -158,37 +158,37 @@ bad_sample_runs:
 good_sample_run:
   hits:
   - energy: -33.4
+    query: query
+    query_end: 19
+    query_start: 1
     score: 2449
     target: gfp_seq
     target_end: 20
     target_start: 2
-    trigger: trigger
-    trigger_end: 19
-    trigger_start: 1
   - energy: -17.25
+    query: query
+    query_end: 10
+    query_start: 2
     score: 1434
     target: gfp_seq
     target_end: 106
     target_start: 98
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 2
   - energy: -12.8
+    query: query
+    query_end: 10
+    query_start: 4
     score: 1109
     target: gfp_seq
     target_end: 353
     target_start: 347
-    trigger: trigger
-    trigger_end: 10
-    trigger_start: 4
   - energy: -10.25
+    query: query
+    query_end: 6
+    query_start: 1
     score: 914
     target: gfp_seq
     target_end: 521
     target_start: 516
-    trigger: trigger
-    trigger_end: 6
-    trigger_start: 1
   mfe_scores:
   - - -33.4
     - -17.25

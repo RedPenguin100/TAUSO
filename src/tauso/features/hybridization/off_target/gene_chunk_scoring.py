@@ -23,7 +23,7 @@ from ..fast_hybridization import (
     Interaction,
     dump_target_file,
     parse_risearch_hits_pyarrow,
-    stats_by_trigger_multi_cutoff,
+    stats_by_query_multi_cutoff,
 )
 from .parallel import run_tasks_parallel
 
@@ -44,22 +44,22 @@ def _validate_genes_found(target_genes, gene_to_data):
         raise ValueError(f"The following genes are not found in gene_to_data: {not_found}")
 
 
-def _scan_one_gene_chunk(row_triggers, target_path, cutoffs, chunk_size=112):
+def _scan_one_gene_chunk(row_queries, target_path, cutoffs, chunk_size=112):
     """Site-resolved stats for one gene's ASOs against its target, in query chunks, per cutoff.
 
-    row_triggers: [(aso_index, trigger_seq)] for ASOs targeting this gene.
-    Returns ``{cutoff: {trigger_id: (sum_exp, min_energy, n_sites)}}``. chunk_size caps the
+    row_queries: [(aso_index, query_seq)] for ASOs targeting this gene.
+    Returns ``{cutoff: {query_id: (sum_exp, min_energy, n_sites)}}``. chunk_size caps the
     per-call query batch (and thus peak RIsearch output held while parsing).
     """
     cutoffs = [int(c) for c in cutoffs]
     minimum_score = min(cutoffs)
     combined: dict = {c: {} for c in cutoffs}
-    for i in range(0, len(row_triggers), chunk_size):
-        chunk = row_triggers[i : i + chunk_size]
+    for i in range(0, len(row_queries), chunk_size):
+        chunk = row_queries[i : i + chunk_size]
         partial = parse_risearch_hits_pyarrow(
-            trigger_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
+            query_id_seq_pairs=[(str(idx), trig) for idx, trig in chunk],
             target_file_path=target_path,
-            aggregation=stats_by_trigger_multi_cutoff(cutoffs),
+            aggregation=stats_by_query_multi_cutoff(cutoffs),
             minimum_score=minimum_score,
             parsing_type="2",
             interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
@@ -68,29 +68,29 @@ def _scan_one_gene_chunk(row_triggers, target_path, cutoffs, chunk_size=112):
         )
         for c in cutoffs:
             dst = combined[c]
-            for trigger, (s, e, n) in partial.get(c, {}).items():
-                if trigger in dst:
-                    ps, pe, pn = dst[trigger]
-                    dst[trigger] = (ps + s, min(pe, e), pn + n)
+            for query, (s, e, n) in partial.get(c, {}).items():
+                if query in dst:
+                    ps, pe, pn = dst[query]
+                    dst[query] = (ps + s, min(pe, e), pn + n)
                 else:
-                    dst[trigger] = (s, e, n)
+                    dst[query] = (s, e, n)
     return combined
 
 
-def build_gene_chunk_tasks(gene_to_row_triggers, gene_to_target_path, n_jobs):
+def build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs):
     """Split each gene's ASOs into sub-batches so all n_jobs workers are used.
 
     When there are fewer genes than workers, each gene's rows are divided into
-    ceil(n_jobs / n_genes) sub-batches. Returns [(gene, sub_triggers, target_path)].
+    ceil(n_jobs / n_genes) sub-batches. Returns [(gene, sub_queries, target_path)].
     """
-    n_genes = max(1, len(gene_to_row_triggers))
+    n_genes = max(1, len(gene_to_row_queries))
     tasks_per_gene = max(1, (n_jobs + n_genes - 1) // n_genes)
     tasks = []
-    for gene, row_triggers in gene_to_row_triggers.items():
-        sub_size = max(1, (len(row_triggers) + tasks_per_gene - 1) // tasks_per_gene)
+    for gene, row_queries in gene_to_row_queries.items():
+        sub_size = max(1, (len(row_queries) + tasks_per_gene - 1) // tasks_per_gene)
         target_path = gene_to_target_path[gene]
-        for i in range(0, len(row_triggers), sub_size):
-            tasks.append((gene, row_triggers[i : i + sub_size], target_path))
+        for i in range(0, len(row_queries), sub_size):
+            tasks.append((gene, row_queries[i : i + sub_size], target_path))
     return tasks
 
 
@@ -112,21 +112,21 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, get_gene_fn, cutoffs, n_
                 f"target-{gene}-{uuid.uuid4().hex}.fa", {gene: gene_to_data[gene].full_mrna}
             )
 
-        gene_to_row_triggers = defaultdict(list)
+        gene_to_row_queries = defaultdict(list)
         for idx, seq, gene in zip(aso_df.index, aso_df[ASO_SEQUENCE], aso_df.apply(get_gene_fn, axis=1)):
             if pd.notna(gene) and gene in gene_to_target_path:
-                gene_to_row_triggers[gene].append((idx, get_antisense(seq)))
+                gene_to_row_queries[gene].append((idx, get_antisense(seq)))
 
-        chunk_tasks = build_gene_chunk_tasks(gene_to_row_triggers, gene_to_target_path, n_jobs)
+        chunk_tasks = build_gene_chunk_tasks(gene_to_row_queries, gene_to_target_path, n_jobs)
         logger.info(
             "RIsearch scan: %d genes, %d ASOs, %d tasks, %d cutoffs",
-            len(gene_to_row_triggers),
-            sum(len(v) for v in gene_to_row_triggers.values()),
+            len(gene_to_row_queries),
+            sum(len(v) for v in gene_to_row_queries.values()),
             len(chunk_tasks),
             len(cutoffs),
         )
 
-        tasks = [((gene, i), triggers, path, cutoffs) for i, (gene, triggers, path) in enumerate(chunk_tasks)]
+        tasks = [((gene, i), queries, path, cutoffs) for i, (gene, queries, path) in enumerate(chunk_tasks)]
         chunk_stats = run_tasks_parallel(tasks, _scan_one_gene_chunk, n_jobs)
 
         gene_stats: dict = defaultdict(lambda: {c: {} for c in cutoffs})
@@ -135,10 +135,10 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, get_gene_fn, cutoffs, n_
                 gene_stats[gene][c].update(per_cutoff.get(c, {}))
 
         scan: dict = {c: {} for c in cutoffs}
-        for gene, row_triggers in gene_to_row_triggers.items():
+        for gene, row_queries in gene_to_row_queries.items():
             for c in cutoffs:
                 gene_cutoff_stats = gene_stats[gene][c]
-                for idx, _ in row_triggers:
+                for idx, _ in row_queries:
                     stat = gene_cutoff_stats.get(str(idx))
                     if stat is not None:
                         scan[c][idx] = SiteStats(*stat)
