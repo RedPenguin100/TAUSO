@@ -47,7 +47,6 @@ def _hits(pairs, target_path):
         pairs,
         target_path,
         minimum_score=CUTOFF,
-        parsing_type="2",
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         transpose=True,
     )

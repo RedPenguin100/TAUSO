@@ -7,8 +7,6 @@ expression-weighted off-target score.
 
 import logging
 import math
-import os
-import uuid
 
 import pandas as pd
 
@@ -70,10 +68,8 @@ def risearch_occupancy_score_per_cutoff(query_pairs, target_path, cutoffs, minim
         target_file_path=target_path,
         aggregation=aggregate_by_pair_multi_cutoff(cutoffs),
         minimum_score=minimum_score,
-        parsing_type="2",
         interaction_type=Interaction.RNA_DNA_NO_WOBBLE,
         transpose=True,
-        batch_id=f"{os.getpid()}-{uuid.uuid4().hex}",
     )
 
 
