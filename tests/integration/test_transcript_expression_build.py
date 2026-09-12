@@ -1,7 +1,8 @@
 """build-cohort-transcript-expression over the real DepMap table and the real annotation.
 
 Nothing here is stubbed but the directory the build reads and writes, so the transcript-to-gene
-mapping, the hash check and the row selection are the ones that run in production.
+mapping and the row selection are the ones that run in production. The values are checked against
+the CSV the table is published as, read independently of the build.
 """
 
 import json
@@ -22,12 +23,9 @@ COHORT = {"CellA": "ACH-000004", "CellB": "ACH-000008", "Absent": "ACH-000000"}
 
 @pytest.fixture(scope="module")
 def built(tmp_path_factory):
-    source = os.path.join(get_data_dir(), cli.TRANSCRIPT_EXPRESSION_CSV)
-    if not os.path.exists(source):
-        pytest.skip(f"{cli.TRANSCRIPT_EXPRESSION_CSV} not downloaded")
-
+    source = os.path.join(get_data_dir(), cli.TRANSCRIPT_EXPRESSION_PARQUET)
     data_dir = tmp_path_factory.mktemp("transcript_build")
-    os.symlink(source, data_dir / cli.TRANSCRIPT_EXPRESSION_CSV)
+    os.symlink(source, data_dir / cli.TRANSCRIPT_EXPRESSION_PARQUET)
     (data_dir / "cell_cohort.json").write_text(json.dumps(COHORT))
 
     original = cli.get_data_dir
