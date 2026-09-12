@@ -386,12 +386,7 @@ def _ensure_transcript_parquet(data_dir):
         return parquet_path
 
     csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    # A truncated download keeps the full header and reads cleanly, so check the hash, not the name.
-    if os.path.exists(csv_path) and not file_matches_hash(csv_path, TRANSCRIPT_EXPRESSION_SHA1):
-        echo_warn(f"{TRANSCRIPT_EXPRESSION_CSV} does not match its expected SHA1 — re-downloading.")
-        os.remove(csv_path)
-    if not os.path.exists(csv_path):
-        _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
+    _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
 
     click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet (one time)...")
     with open(csv_path) as handle:
