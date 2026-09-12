@@ -1,49 +1,199 @@
 bad_sample_runs:
-- input_sequence: AAAGTGAGCAAGGGCGAGGA
+- hits:
+  - energy: -29.65
+    score: 2194
+    target: gfp_seq
+    target_end: 20
+    target_start: 4
+    trigger: trigger
+    trigger_end: 17
+    trigger_start: 1
+  - energy: -17.25
+    score: 1434
+    target: gfp_seq
+    target_end: 106
+    target_start: 98
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 2
+  - energy: -12.8
+    score: 1109
+    target: gfp_seq
+    target_end: 353
+    target_start: 347
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 4
+  - energy: -10.25
+    score: 914
+    target: gfp_seq
+    target_end: 521
+    target_start: 516
+    trigger: trigger
+    trigger_end: 6
+    trigger_start: 1
+  input_sequence: AAAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -29.65
     - -17.25
     - -12.8
     - -10.25
-  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t2194\t-29.65\ntrigger\t2\t10\t\
-    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
-    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
-- input_sequence: ATAGTGAGCAAGGGCGAGGA
+- hits:
+  - energy: -29.65
+    score: 2194
+    target: gfp_seq
+    target_end: 20
+    target_start: 4
+    trigger: trigger
+    trigger_end: 17
+    trigger_start: 1
+  - energy: -17.25
+    score: 1434
+    target: gfp_seq
+    target_end: 106
+    target_start: 98
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 2
+  - energy: -12.8
+    score: 1109
+    target: gfp_seq
+    target_end: 353
+    target_start: 347
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 4
+  - energy: -10.25
+    score: 914
+    target: gfp_seq
+    target_end: 521
+    target_start: 516
+    trigger: trigger
+    trigger_end: 6
+    trigger_start: 1
+  input_sequence: ATAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -29.65
     - -17.25
     - -12.8
     - -10.25
-  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t2194\t-29.65\ntrigger\t2\t10\t\
-    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
-    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
-- input_sequence: AGAGTGAGCAAGGGCGAGGA
+- hits:
+  - energy: -29.65
+    score: 2194
+    target: gfp_seq
+    target_end: 20
+    target_start: 4
+    trigger: trigger
+    trigger_end: 17
+    trigger_start: 1
+  - energy: -17.25
+    score: 1434
+    target: gfp_seq
+    target_end: 106
+    target_start: 98
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 2
+  - energy: -12.8
+    score: 1109
+    target: gfp_seq
+    target_end: 353
+    target_start: 347
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 4
+  - energy: -10.25
+    score: 914
+    target: gfp_seq
+    target_end: 521
+    target_start: 516
+    trigger: trigger
+    trigger_end: 6
+    trigger_start: 1
+  input_sequence: AGAGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -29.65
     - -17.25
     - -12.8
     - -10.25
-  risearch_result: "trigger\t1\t17\tgfp_seq\t4\t20\t2194\t-29.65\ntrigger\t2\t10\t\
-    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
-    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
-- input_sequence: ACGGTGAGCAAGGGCGAGGA
+- hits:
+  - energy: -32.55
+    score: 2424
+    target: gfp_seq
+    target_end: 20
+    target_start: 3
+    trigger: trigger
+    trigger_end: 18
+    trigger_start: 1
+  - energy: -17.25
+    score: 1434
+    target: gfp_seq
+    target_end: 106
+    target_start: 98
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 2
+  - energy: -12.8
+    score: 1109
+    target: gfp_seq
+    target_end: 353
+    target_start: 347
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 4
+  - energy: -10.25
+    score: 914
+    target: gfp_seq
+    target_end: 521
+    target_start: 516
+    trigger: trigger
+    trigger_end: 6
+    trigger_start: 1
+  input_sequence: ACGGTGAGCAAGGGCGAGGA
   mfe_scores:
   - - -32.55
     - -17.25
     - -12.8
     - -10.25
-  risearch_result: "trigger\t1\t18\tgfp_seq\t3\t20\t2424\t-32.55\ntrigger\t2\t10\t\
-    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
-    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
 good_sample_run:
+  hits:
+  - energy: -33.4
+    score: 2449
+    target: gfp_seq
+    target_end: 20
+    target_start: 2
+    trigger: trigger
+    trigger_end: 19
+    trigger_start: 1
+  - energy: -17.25
+    score: 1434
+    target: gfp_seq
+    target_end: 106
+    target_start: 98
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 2
+  - energy: -12.8
+    score: 1109
+    target: gfp_seq
+    target_end: 353
+    target_start: 347
+    trigger: trigger
+    trigger_end: 10
+    trigger_start: 4
+  - energy: -10.25
+    score: 914
+    target: gfp_seq
+    target_end: 521
+    target_start: 516
+    trigger: trigger
+    trigger_end: 6
+    trigger_start: 1
   mfe_scores:
   - - -33.4
     - -17.25
     - -12.8
     - -10.25
-  risearch_result: "trigger\t1\t19\tgfp_seq\t2\t20\t2449\t-33.40\ntrigger\t2\t10\t\
-    gfp_seq\t98\t106\t1434\t-17.25\ntrigger\t4\t10\tgfp_seq\t347\t353\t1109\t-12.80\n\
-    trigger\t1\t6\tgfp_seq\t516\t521\t914\t-10.25\n"
 metadata:
   gfp_ontarget_slice: CGGCATGGACGAGCTGTAC
   sample_antisense: TCCTCGCCCTTGCTCACCAT

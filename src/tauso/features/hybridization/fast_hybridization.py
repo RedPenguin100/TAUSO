@@ -1,8 +1,6 @@
 import os
 import platform
-import re
 import tempfile
-import uuid
 from pathlib import Path
 from typing import Callable, Dict, List, NamedTuple, Tuple
 
@@ -118,67 +116,6 @@ def _library_reduction(aggregation: "RisearchAggregation"):
         finalize=aggregation.finalize,
         empty={},
     )
-
-
-def get_trigger_mfe_scores_by_risearch(
-    trigger: str,
-    name_to_sequence: Dict[str, str],
-    interaction_type: Interaction = Interaction.RNA_DNA_NO_WOBBLE,
-    minimum_score: int = 900,
-    neighborhood: int = 0,
-    parsing_type=None,
-    target_file_cache=None,
-    transpose=False,
-    unique_id=None,
-) -> str:
-    if not name_to_sequence:
-        raise ValueError("name_to_sequence is empty!")
-    TMP_PATH.mkdir(parents=True, exist_ok=True)
-
-    if unique_id is None:
-        unique_id = uuid.uuid4().hex
-
-    if target_file_cache is None:
-        target_path = Path(dump_target_file(f"target-{unique_id}.fa", name_to_sequence)).resolve()
-    else:
-        target_path = Path(target_file_cache).resolve()
-
-    query_path = (TMP_PATH / f"query-{unique_id}.fa").resolve()
-    with open(query_path, "w") as f:
-        f.write(f">trigger\n{get_antisense_rna(trigger)}\n")
-
-    for p, name in [(target_path, "Target"), (query_path, "Query")]:
-        if not p.exists():
-            raise FileNotFoundError(f"{name} file was not created at {p}")
-        if p.stat().st_size == 0:
-            raise ValueError(f"{name} file is empty at {p}. Disk might be full.")
-
-    args = [
-        "-q",
-        str(query_path),
-        "-t",
-        str(target_path),
-        "-s",
-        str(minimum_score),
-        "-d",
-        str(EXTENSION_PENALTY),
-        "-m",
-        _interaction_mode(interaction_type),
-        "-n",
-        str(neighborhood),
-    ]
-    if transpose:
-        args.append("-R")
-    if parsing_type is not None:
-        args.append(f"-p{parsing_type}")
-
-    try:
-        return pyrisearch_tauso.run(args, cwd=TMP_PATH).stdout
-    finally:
-        if target_file_cache is None and target_path.exists():
-            os.remove(target_path)
-        if query_path.exists():
-            query_path.unlink()
 
 
 class RisearchAggregation(NamedTuple):
@@ -411,37 +348,3 @@ def stats_by_trigger_multi_cutoff(cutoffs) -> RisearchAggregation:
         value_aggs=(("s", "_exp", "sum"), ("e", "energy", "min"), ("n", "energy", "count")),
         pack=lambda r: (float(r["s"]), float(r["e"]), int(r["n"])),
     )
-
-
-def _parse_mfe_scores_2(result):
-    if not result:
-        return [[]]
-
-    lines = result.split("\n")
-    target_to_energies = dict()
-    for line in lines:
-        if line == "":
-            continue
-        line_parts = line.split("\t")
-        target_name = line_parts[3]
-        target_energy = line_parts[-1]
-        if line_parts[3] in target_to_energies:
-            target_to_energies[target_name].append(float(target_energy))
-        else:
-            target_to_energies[target_name] = [float(target_energy)]
-
-    return list(target_to_energies.values())
-
-
-def get_mfe_scores(result: str, parsing_type=None) -> List[List[float]]:
-    mfe_results = []
-
-    if parsing_type is None:
-        for gene_result in result.split("\n\nquery trigger")[1:]:
-            stripped_result = gene_result.strip()
-            regex_results = re.findall("Free energy \\[kcal/mol\\]: [0-9-.]+ ", stripped_result)
-            mfe_results.append([float(r.replace("Free energy [kcal/mol]: ", "").strip()) for r in regex_results])
-    elif parsing_type == "2":
-        return _parse_mfe_scores_2(result)
-
-    return mfe_results
