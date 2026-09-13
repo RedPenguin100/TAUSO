@@ -2,7 +2,6 @@ import pandas as pd
 import pytest
 from tests.complete.conftest import get_n_jobs
 
-from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.populate.populate_rbp import (
     populate_complexity_features,
     populate_rbp_affinity_features,
@@ -29,17 +28,7 @@ def test_rbp_complexity_features_regression(
     rbp_map, pwm_db = rbp_assets
 
     for flank_size in [50]:
-        window_col = f"flank_sequence_{flank_size}"
-
-        scores = populate_rbp_affinity_features(
-            data[window_col],
-            data[CANONICAL_GENE_NAME],
-            rbp_map,
-            pwm_db,
-            gene_to_data,
-            str(flank_size),
-            n_jobs=get_n_jobs(),
-        )
+        scores = populate_rbp_affinity_features(data, rbp_map, pwm_db, gene_to_data, flank_size, n_jobs=get_n_jobs())
         individual_features = list(scores.columns)
 
         scores, global_features = populate_complexity_features(

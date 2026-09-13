@@ -10,6 +10,8 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+from tauso.algorithms.genomic_context_windows import flank_sequence_column
+from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.features.rbp.rbp_features import get_background_probs
 from tauso.util import BASE_INDEX
 
@@ -99,13 +101,14 @@ def process_rbp(task, flat_seq, offsets, background_groups):
     return col_name, 1.0 - np.exp(log_unbound)
 
 
-def populate_rbp_affinity_features(sequences, genes, rbp_map, pwm_db, gene_to_data, flank_param, n_jobs=32):
-    """One affinity column per RBP, as a frame indexed like `sequences`.
+def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, flank_size, n_jobs=32):
+    """One affinity column per RBP, as a frame indexed like `df`.
 
-    Takes the two columns it reads rather than the whole feature frame: the step runs late,
-    when that frame is at its widest, and copying it costs more than the scan does.
+    Reads the two columns it needs and returns only what it computed. The step runs 27th of
+    28, when `df` is at its widest, and copying it costs more than the scan does.
     """
-    sequences = sequences.fillna("").astype(str)
+    sequences = df[flank_sequence_column(flank_size)].fillna("").astype(str)
+    genes = df[CANONICAL_GENE_NAME]
     n_rows = len(sequences)
 
     # Calculate backgrounds once per gene, then group rows sharing motif weights.
@@ -128,7 +131,7 @@ def populate_rbp_affinity_features(sequences, genes, rbp_map, pwm_db, gene_to_da
             {
                 "name": rbp,
                 "matrices": [pwm_db[m] for m in valid_mids],
-                "col_name": f"rbp_{rbp.lower()}_aff_{flank_param}",
+                "col_name": f"rbp_{rbp.lower()}_aff_{flank_size}",
             }
         )
 
