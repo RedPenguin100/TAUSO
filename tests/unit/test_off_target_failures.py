@@ -1,5 +1,6 @@
 """Search failures must never become successful zero-hit or intergenic results."""
 
+import io
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,6 +14,21 @@ from tauso.off_target import search
 SEQUENCE = "ACGTACGTACGT"
 
 
+class FakePopen:
+    """Stands in for the streamed bowtie call: `stdout` is read a line at a time."""
+
+    def __init__(self, stdout="", stderr="", returncode=0):
+        self.stdout = io.StringIO(stdout)
+        self.stderr = io.StringIO(stderr)
+        self.returncode = returncode
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
 @pytest.fixture(params=["single", "bulk", "counts"])
 def run_search(request, monkeypatch, tmp_path):
     monkeypatch.setattr(search, "get_bowtie_index_base", lambda **kwargs: "test-index")
@@ -24,7 +40,7 @@ def run_search(request, monkeypatch, tmp_path):
         "counts": lambda: search.count_offtarget_matches_bulk([SEQUENCE], max_mismatches=2),
     }
     empty_results = {
-        "single": ([], {"mismatches0": 0, "mismatches1": 0, "mismatches2": 0}),
+        "single": {"mismatches0": 0, "mismatches1": 0, "mismatches2": 0},
         "bulk": [],
         "counts": {SEQUENCE: {0: 0, 1: 0, 2: 0}},
     }
@@ -40,11 +56,16 @@ def test_alignment_failure_raises_with_command_and_diagnostics(run_search, monke
         raise error
 
     monkeypatch.setattr(search.subprocess, "run", fail)
+    # The streamed search sees the failure as a non-zero exit rather than a raise.
+    monkeypatch.setattr(
+        search.subprocess, "Popen", lambda cmd, **kwargs: FakePopen(stderr="Could not read index", returncode=2)
+    )
     run, _ = run_search
     with pytest.raises(RuntimeError, match="Could not read index") as caught:
         run()
-    assert caught.value.__cause__ is errors[0]
-    assert str(errors[0]) in str(caught.value)
+    cause = caught.value.__cause__
+    assert isinstance(cause, subprocess.CalledProcessError)
+    assert str(cause) in str(caught.value)
 
 
 @pytest.mark.parametrize("stdout", ["", f"{SEQUENCE}\t4\t*\t0\t0\t*\t*\t0\t0\t{SEQUENCE}\t*\n"])
@@ -56,8 +77,13 @@ def test_successful_search_without_alignments_keeps_empty_result(run_search, mon
         return subprocess.CompletedProcess(cmd, 0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(search.subprocess, "run", succeed)
+    monkeypatch.setattr(search.subprocess, "Popen", lambda cmd, **kwargs: FakePopen(stdout=stdout))
     run, expected = run_search
-    assert run() == expected
+    result = run()
+    if isinstance(result, tuple):  # the single search also reports its per-mismatch counts
+        hits, result = result
+        assert len(hits) == 0
+    assert result == expected
 
 
 @pytest.fixture
@@ -101,6 +127,9 @@ def test_cli_reports_failed_search_without_writing_results(monkeypatch, tmp_path
         raise subprocess.CalledProcessError(2, cmd, stderr="Could not read index")
 
     monkeypatch.setattr(search.subprocess, "run", fail)
+    monkeypatch.setattr(
+        search.subprocess, "Popen", lambda cmd, **kwargs: FakePopen(stderr="Could not read index", returncode=2)
+    )
     output = tmp_path / "hits.csv"
     result = CliRunner().invoke(cli.main, ["run-off-target", SEQUENCE, "--output", str(output)])
     assert result.exit_code == 1
