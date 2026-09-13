@@ -31,7 +31,7 @@ def _build_top_n_to_data(expression_df, top_n_list, gene_to_data, *, require_seq
     Also returns the union seq_map keyed by gene → mRNA sequence, for genes in the
     largest gene_set that have entries in gene_to_data. If ``require_seq`` is True
     (general path), a missing gene_to_data entry is fatal; if False (specific path),
-    such genes are silently skipped (matching the previous behaviour).
+    such genes are silently skipped.
     """
     top_n_to_data: dict = {}
     seq_map: dict = {}
@@ -66,7 +66,6 @@ def populate_off_target_specific(
     method,
     n_jobs=1,
     chunk_size=250,
-    stream=True,
 ):
     """
     Enriches ASO_df with off-target scores based on the specific cell line transcriptome.
@@ -79,8 +78,7 @@ def populate_off_target_specific(
     (no gene-sharding).
 
     Fallbacks: a cell line absent from cell_line2data scores NaN; a known cell line with no
-    usable target genes scores 0.0. `stream` is accepted for backward compatibility; the
-    multi-cutoff path always streams.
+    usable target genes scores 0.0.
     """
     ASO_df = ASO_df.copy()
     feature_names = []
@@ -170,7 +168,6 @@ def populate_off_target_general(
     method,
     n_jobs=1,
     chunk_size=250,
-    stream=True,
 ):
     """
     Enriches ASO_df with off-target scores using batched RIsearch calls.
@@ -179,8 +176,7 @@ def populate_off_target_general(
     cutoff against the head(max(top_n_list)) target, every (top_n, cutoff) feature
     derived from it (smaller top_n by gene-subset filter, cutoffs by score-filter on
     the streaming pyarrow output). Each chunk is at most chunk_size ASOs to bound peak
-    RIsearch memory; results are assembled in original (top_n, cutoff) order. `stream`
-    is accepted for backward compatibility; the multi-cutoff path always streams.
+    RIsearch memory; results are assembled in original (top_n, cutoff) order.
     """
     ASO_df = ASO_df.copy()
     feature_names = []

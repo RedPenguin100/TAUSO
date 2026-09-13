@@ -1,7 +1,7 @@
 """Per-gene RIsearch scan engine.
 
 Scores ASOs against their target gene(s) with one loose RIsearch pass per gene, in parallel: a
-target FASTA per gene, ASOs split into worker chunks over a thread pool, hits reduced to
+target FASTA per gene, one search per gene over a thread pool, hits reduced to
 a table of ``EnergyStats`` fields per ASO and cutoff. That superset feeds every
 per-gene hybridization feature, each of which reads the columns it needs
 (see off_target_specific_gene.py).
@@ -32,8 +32,8 @@ def scan_gene_sites(aso_df, gene_to_data, target_genes, row_genes, cutoffs, n_jo
     """Search each ASO against the gene it is assigned, and tabulate what was found.
 
     row_genes gives the target gene of each row, in DataFrame order. The result has
-    one row per ASO and a column per (cutoff, statistic) -- sum_exp, min_energy and
-    n_sites, the fields of EnergyStats. An ASO with no hit above a cutoff is NaN
+    one row per ASO and a column per (cutoff, statistic) -- sum_exp and min_energy,
+    the fields of EnergyStats. An ASO with no hit above a cutoff is NaN
     there, so each feature decides for itself what that means.
     """
     cutoffs = [int(c) for c in cutoffs]
