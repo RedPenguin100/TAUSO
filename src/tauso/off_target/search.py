@@ -9,10 +9,11 @@ from functools import lru_cache
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import pyranges as pr
 from ncls import NCLS
 
-from ..data.data import ANNOTATION_PRIORITY, get_paths, load_gene_intervals, load_gtf_pyranges_gene_only
+from ..data.data import ANNOTATION_PRIORITY, ensure_gene_intervals, get_paths, load_gtf_pyranges_gene_only
 from ..debug import log_memory_usage
 from ..timer import Timer
 
@@ -232,27 +233,89 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
     return hits, counts
 
 
-@lru_cache(maxsize=2)
-def _annotation_index(genome):
-    """The ranked annotation as (column arrays, one interval tree per chrom/strand).
+DICTIONARY_INTERVAL_COLUMNS = ["chrom", "featuretype", "strand", "gene_id", "gene_name"]
+"""Interval columns read as a code per row plus one copy of each distinct value."""
 
-    One tree per (chrom, strand) so a hit only ever searches the strand it can be antisense
-    to. NCLS is half-open and the GTF is closed, so ends are widened by one; querying with
+
+class EncodedColumn:
+    """An annotation column held as a code per row and one copy of each distinct value.
+
+    Indexing resolves the values, so callers read it like an array of 2.4 million strings
+    while only the codes are stored. A null row codes to -1, which resolves to the None in
+    the last slot: a missing gene name reaches callers as None, as the annotation stores it.
+    """
+
+    __slots__ = ("codes", "values")
+
+    def __init__(self, codes, values):
+        self.codes = codes
+        self.values = values
+
+    @classmethod
+    def from_arrow(cls, column):
+        """Take a dictionary-encoded Arrow column as it was read."""
+        column = column.combine_chunks()
+        codes = column.indices.fill_null(-1).to_numpy(zero_copy_only=False).astype(np.int32)
+        values = np.empty(len(column.dictionary) + 1, dtype=object)
+        values[:-1] = column.dictionary.to_numpy(zero_copy_only=False)
+        values[-1] = None
+        return cls(codes, values)
+
+    def recoded(self, mapping, default, dtype):
+        """The same rows, carrying `mapping`'s value for each distinct value of this column."""
+        return EncodedColumn(self.codes, np.array([mapping.get(v, default) for v in self.values], dtype))
+
+    def __getitem__(self, rows):
+        return self.values[self.codes[rows]]
+
+    def __len__(self):
+        return len(self.codes)
+
+
+def _interval_trees(chrom, strand, start, end):
+    """One NCLS per (chrom, strand), over the rows that belong to it.
+
+    NCLS is half-open and the GTF is closed, so ends are widened by one; querying with
     `end + 1` as well then reproduces the closed-interval overlap gffutils tests for.
     """
-    df = load_gene_intervals(genome)
-    columns = {
-        "start": df["start"].to_numpy(np.int64),
-        "end": df["end"].to_numpy(np.int64),
-        "priority": df["featuretype"].map(ANNOTATION_PRIORITY).to_numpy(np.int16),
-        "featuretype": df["featuretype"].to_numpy(object),
-        "gene_name": df["gene_name"].to_numpy(object),
-        "gene_id": df["gene_id"].to_numpy(object),
-    }
+    key = chrom.codes.astype(np.int64) * len(strand.values) + strand.codes
+    order = np.argsort(key, kind="stable")
+    sorted_key = key[order]
+    group_starts = np.flatnonzero(np.r_[True, sorted_key[1:] != sorted_key[:-1]])
+
     trees = {}
-    for key, sub in df.groupby(["chrom", "strand"], sort=False, observed=True):
-        rows = sub.index.to_numpy(np.int64)
-        trees[key] = NCLS(columns["start"][rows], columns["end"][rows] + 1, rows)
+    for position, group_start in enumerate(group_starts):
+        group_end = group_starts[position + 1] if position + 1 < len(group_starts) else len(order)
+        rows = np.sort(order[group_start:group_end])
+        combined = sorted_key[group_start]
+        name = (chrom.values[combined // len(strand.values)], strand.values[combined % len(strand.values)])
+        trees[name] = NCLS(start[rows], end[rows] + 1, rows)
+    return trees
+
+
+@lru_cache(maxsize=2)
+def _annotation_index(genome):
+    """The ranked annotation as (columns, one interval tree per chrom/strand).
+
+    One tree per (chrom, strand) so a hit only ever searches the strand it can be antisense
+    to. The annotation is 2.4 million rows, so its strings stay encoded and are spelled out
+    only at the rows a hit lands on; chrom and strand group the trees and are not kept.
+    """
+    table = pq.read_table(ensure_gene_intervals(genome), read_dictionary=DICTIONARY_INTERVAL_COLUMNS)
+    start = table["start"].combine_chunks().to_numpy(zero_copy_only=False).astype(np.int64)
+    end = table["end"].combine_chunks().to_numpy(zero_copy_only=False).astype(np.int64)
+    featuretype = EncodedColumn.from_arrow(table["featuretype"])
+    columns = {
+        "start": start,
+        "end": end,
+        "priority": featuretype.recoded(ANNOTATION_PRIORITY, 0, np.int16),
+        "featuretype": featuretype,
+        "gene_name": EncodedColumn.from_arrow(table["gene_name"]),
+        "gene_id": EncodedColumn.from_arrow(table["gene_id"]),
+    }
+    trees = _interval_trees(
+        EncodedColumn.from_arrow(table["chrom"]), EncodedColumn.from_arrow(table["strand"]), start, end
+    )
     return columns, trees
 
 

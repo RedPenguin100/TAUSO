@@ -2,7 +2,6 @@ import gzip
 import logging
 import os
 import tempfile
-from functools import lru_cache
 
 import gffutils
 import pandas as pd
@@ -82,18 +81,15 @@ def _parse_gene_intervals(gtf_gz_path: str):
     return df
 
 
-@lru_cache(maxsize=2)
-def load_gene_intervals(genome="GRCh38"):
-    """Ranked annotation features as a flat interval table, one row per exon/CDS/gene.
+def ensure_gene_intervals(genome="GRCh38"):
+    """Path to the ranked annotation as a flat interval parquet, one row per exon/CDS/gene.
 
-    Built from the GTF on first use and cached beside it as parquet (~16 MB, a few seconds),
-    then reloaded in well under a second. Cached per process: callers get a shared frame and
-    must not mutate it.
+    Built from the GTF on first use (~16 MB, a few seconds) and read from disk after.
     """
     paths = get_paths(genome)
     cache = paths["gene_intervals"]
     if os.path.exists(cache):
-        return pd.read_parquet(cache)
+        return cache
 
     if not os.path.exists(paths["gtf_gz"]):
         raise FileNotFoundError(f"GTF for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
@@ -103,7 +99,7 @@ def load_gene_intervals(genome="GRCh38"):
     df.to_parquet(tmp, index=False)
     os.replace(tmp, cache)
     logger.info("Cached %d annotation features to %s", len(df), cache)
-    return df
+    return cache
 
 
 def load_gtf_db(genome="GRCh38"):
