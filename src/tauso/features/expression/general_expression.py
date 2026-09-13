@@ -12,6 +12,20 @@ GENE_COLUMN_BATCH = 1000
 mean is kept, so holding a slice at a time costs a fraction of holding the table."""
 
 
+def column_means(handle, columns):
+    """The mean of each named column of an open Parquet file, in the order given.
+
+    Read a batch of columns at a time: only the means are kept, so a table far too wide to
+    hold at once costs no more than one batch of it.
+    """
+    means = np.empty(len(columns))
+    for start in range(0, len(columns), GENE_COLUMN_BATCH):
+        batch = handle.read(columns=columns[start : start + GENE_COLUMN_BATCH])
+        for offset, column in enumerate(batch.columns):
+            means[start + offset] = np.nanmean(column.to_numpy(zero_copy_only=False))
+    return means
+
+
 def get_general_expression_of_genes(EXP_path, valid_genes):
     """
     Loads expression data, filters for valid genes based on GTF (e.g., protein_coding),
@@ -35,11 +49,7 @@ def get_general_expression_of_genes(EXP_path, valid_genes):
     if not valid_cols:
         return pd.DataFrame(columns=["Gene", "expression_norm", "expression_TPM"])
 
-    mean_exp = np.empty(len(valid_cols))
-    for start in range(0, len(valid_cols), GENE_COLUMN_BATCH):
-        batch = handle.read(columns=valid_cols[start : start + GENE_COLUMN_BATCH])
-        for offset, column in enumerate(batch.columns):
-            mean_exp[start + offset] = np.nanmean(column.to_numpy(zero_copy_only=False))
+    mean_exp = column_means(handle, valid_cols)
 
     mean_exp_data = pd.DataFrame({"Gene": valid_cols, "expression_norm": mean_exp})
     mean_exp_data["expression_TPM"] = 2 ** mean_exp_data["expression_norm"]
