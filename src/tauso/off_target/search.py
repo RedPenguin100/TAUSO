@@ -9,10 +9,11 @@ from functools import lru_cache
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import pyranges as pr
 from ncls import NCLS
 
-from ..data.data import ANNOTATION_PRIORITY, get_paths, load_gene_intervals, load_gtf_pyranges_gene_only
+from ..data.data import ANNOTATION_PRIORITY, ensure_gene_intervals, get_paths, load_gtf_pyranges_gene_only
 from ..debug import log_memory_usage
 from ..timer import Timer
 
@@ -232,6 +233,24 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
     return hits, counts
 
 
+DICTIONARY_INTERVAL_COLUMNS = ["chrom", "featuretype", "strand", "gene_id", "gene_name"]
+"""Interval columns read as a code per row plus one copy of each distinct string."""
+
+
+def _codes_and_values(column):
+    """(code per row, value per code) for a dictionary-encoded column.
+
+    A null row codes to -1, and the value array carries None in its last slot so that -1
+    resolves to it: missing gene names reach callers as None, as the annotation stores them.
+    """
+    column = column.combine_chunks()
+    codes = column.indices.fill_null(-1).to_numpy(zero_copy_only=False).astype(np.int32)
+    values = np.empty(len(column.dictionary) + 1, dtype=object)
+    values[:-1] = column.dictionary.to_numpy(zero_copy_only=False)
+    values[-1] = None
+    return codes, values
+
+
 @lru_cache(maxsize=2)
 def _annotation_index(genome):
     """The ranked annotation as (column arrays, one interval tree per chrom/strand).
@@ -239,20 +258,39 @@ def _annotation_index(genome):
     One tree per (chrom, strand) so a hit only ever searches the strand it can be antisense
     to. NCLS is half-open and the GTF is closed, so ends are widened by one; querying with
     `end + 1` as well then reproduces the closed-interval overlap gffutils tests for.
+
+    The annotation is 2.4 million rows and the strings on it are resolved only at the rows a
+    hit lands on, so the columns stay as codes and the gene names are never spelled out in
+    full. chrom and strand are needed to group the trees and are dropped once they are built.
     """
-    df = load_gene_intervals(genome)
+    table = pq.read_table(ensure_gene_intervals(genome), read_dictionary=DICTIONARY_INTERVAL_COLUMNS)
+    start = table["start"].combine_chunks().to_numpy(zero_copy_only=False).astype(np.int64)
+    end = table["end"].combine_chunks().to_numpy(zero_copy_only=False).astype(np.int64)
+    featuretype_codes, featuretype_values = _codes_and_values(table["featuretype"])
     columns = {
-        "start": df["start"].to_numpy(np.int64),
-        "end": df["end"].to_numpy(np.int64),
-        "priority": df["featuretype"].map(ANNOTATION_PRIORITY).to_numpy(np.int16),
-        "featuretype": df["featuretype"].to_numpy(object),
-        "gene_name": df["gene_name"].to_numpy(object),
-        "gene_id": df["gene_id"].to_numpy(object),
+        "start": start,
+        "end": end,
+        "priority_by_code": np.array([ANNOTATION_PRIORITY.get(v, 0) for v in featuretype_values], np.int16),
+        "featuretype": (featuretype_codes, featuretype_values),
+        "gene_name": _codes_and_values(table["gene_name"]),
+        "gene_id": _codes_and_values(table["gene_id"]),
     }
+
+    chrom_codes, chrom_values = _codes_and_values(table["chrom"])
+    strand_codes, strand_values = _codes_and_values(table["strand"])
+    del table
+    key = chrom_codes.astype(np.int64) * len(strand_values) + strand_codes
+    order = np.argsort(key, kind="stable")
+    sorted_key = key[order]
+    starts_of_group = np.flatnonzero(np.r_[True, sorted_key[1:] != sorted_key[:-1]])
     trees = {}
-    for key, sub in df.groupby(["chrom", "strand"], sort=False, observed=True):
-        rows = sub.index.to_numpy(np.int64)
-        trees[key] = NCLS(columns["start"][rows], columns["end"][rows] + 1, rows)
+    for position, group_start in enumerate(starts_of_group):
+        group_end = starts_of_group[position + 1] if position + 1 < len(starts_of_group) else len(order)
+        rows = np.sort(order[group_start:group_end])
+        combined = sorted_key[group_start]
+        chrom = chrom_values[combined // len(strand_values)]
+        strand = strand_values[combined % len(strand_values)]
+        trees[(chrom, strand)] = NCLS(start[rows], end[rows] + 1, rows)
     return columns, trees
 
 
@@ -294,22 +332,25 @@ def annotate_hits(hits_list, genome="GRCh38"):
     if hit_rows:
         hit_row = np.concatenate(hit_rows)
         feature_row = np.concatenate(feature_rows)
+        featuretype_codes, featuretype_values = columns["featuretype"]
         # Highest priority wins; ties go to the earliest feature, ordered as the annotation is.
         order = np.lexsort(
             (
                 feature_row,
                 columns["end"][feature_row],
                 columns["start"][feature_row],
-                -columns["priority"][feature_row],
+                -columns["priority_by_code"][featuretype_codes[feature_row]],
                 hit_row,
             )
         )
         hit_row, feature_row = hit_row[order], feature_row[order]
         best = np.flatnonzero(np.r_[True, hit_row[1:] != hit_row[:-1]])
         winner_hit, winner_feature = hit_row[best], feature_row[best]
-        region_type[winner_hit] = columns["featuretype"][winner_feature]
-        gene_name[winner_hit] = columns["gene_name"][winner_feature]
-        gene_id[winner_hit] = columns["gene_id"][winner_feature]
+        gene_name_codes, gene_name_values = columns["gene_name"]
+        gene_id_codes, gene_id_values = columns["gene_id"]
+        region_type[winner_hit] = featuretype_values[featuretype_codes[winner_feature]]
+        gene_name[winner_hit] = gene_name_values[gene_name_codes[winner_feature]]
+        gene_id[winner_hit] = gene_id_values[gene_id_codes[winner_feature]]
 
     hits["gene_id"] = gene_id
     hits["gene_name"] = gene_name

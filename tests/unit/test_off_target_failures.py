@@ -73,7 +73,7 @@ def test_annotation_failures_propagate(monkeypatch, hit, stage):
         raise error
 
     if stage == "load":
-        monkeypatch.setattr(search, "load_gene_intervals", fail)
+        monkeypatch.setattr(search, "ensure_gene_intervals", fail)
     else:
         tree = SimpleNamespace(all_overlaps_both=fail)
         monkeypatch.setattr(search, "_annotation_index", lambda genome: ({}, {("chr1", "+"): tree}))
