@@ -160,6 +160,37 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, flank_size
     return pd.DataFrame(dict(results), index=sequences.index)
 
 
+def _total_and_diversity(df, feature_cols):
+    """The per-row sum across `feature_cols`, and the entropy of the row once normalised.
+
+    Both reduce along a row, so rows are taken a chunk at a time: the matrix and its
+    normalised copy never exist for the whole frame at once.
+    """
+    total_scores = np.empty(len(df))
+    diversity = np.empty(len(df))
+    positions = [df.columns.get_loc(column) for column in feature_cols]
+
+    for start in range(0, len(df), COMPLEXITY_ROW_CHUNK):
+        stop = start + COMPLEXITY_ROW_CHUNK
+        # Filling NaNs with 0 is crucial if some lookups failed.
+        matrix = df.iloc[start:stop, positions].to_numpy(dtype=np.float64, na_value=0.0)
+
+        chunk_total = matrix.sum(axis=1)
+        total_scores[start:stop] = chunk_total
+
+        # Normalize rows to sum to 1 to treat as probabilities.
+        # Avoid division by zero for rows with 0 interaction.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            matrix /= chunk_total[:, None]
+            # Replace NaNs (from 0/0) with 0
+            np.nan_to_num(matrix, copy=False)
+
+        # Entropy, base e by default.
+        diversity[start:stop] = entropy(matrix, axis=1)
+
+    return total_scores, diversity
+
+
 def populate_complexity_features(df, feature_cols, suffix, type="generic"):
     """
     Calculates role-independent global features:
@@ -169,33 +200,6 @@ def populate_complexity_features(df, feature_cols, suffix, type="generic"):
     total_col = f"rbp_interaction_total_{suffix}_{type}"
     div_col = f"rbp_diversity_global_{suffix}_{type}"
 
-    total_scores = np.empty(len(df))
-    diversity = np.empty(len(df))
-    positions = [df.columns.get_loc(column) for column in feature_cols]
-
-    # Both features reduce along a row, so rows are taken a chunk at a time: the matrix and the
-    # row-normalised copy of it never exist for the whole frame at once.
-    for start in range(0, len(df), COMPLEXITY_ROW_CHUNK):
-        stop = start + COMPLEXITY_ROW_CHUNK
-        # Filling NaNs with 0 is crucial if some lookups failed.
-        matrix = df.iloc[start:stop, positions].to_numpy(dtype=np.float64, na_value=0.0)
-
-        # 1. Total Interaction (Sum of all RBPs)
-        chunk_total = matrix.sum(axis=1)
-        total_scores[start:stop] = chunk_total
-
-        # 2. Global Diversity (Shannon Entropy)
-        # Normalize rows to sum to 1 to treat as probabilities
-        # Avoid division by zero for rows with 0 interaction
-        with np.errstate(divide="ignore", invalid="ignore"):
-            matrix /= chunk_total[:, None]
-            # Replace NaNs (from 0/0) with 0
-            np.nan_to_num(matrix, copy=False)
-
-        # Calculate entropy (base e by default)
-        diversity[start:stop] = entropy(matrix, axis=1)
-
-    df[total_col] = total_scores
-    df[div_col] = diversity
+    df[total_col], df[div_col] = _total_and_diversity(df, feature_cols)
 
     return df, [total_col, div_col]
