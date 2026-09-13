@@ -6,7 +6,6 @@ off_target_specific_gene.log_number_of_sites). The pipeline emits this column vi
 ``add_on_target_site_features``; this entry point runs its own scan and backs the regression test.
 """
 
-from ....pandas_utils import add_columns
 from .off_target_specific_gene import _scan_own_gene, log_number_of_sites
 
 
@@ -18,4 +17,6 @@ def on_target_log_number_of_sites(aso_df, gene_to_data, cutoffs, n_jobs=1):
     """
     sites = _scan_own_gene(aso_df, gene_to_data, cutoffs, n_jobs)
     columns = {f"on_target_log_number_of_sites_{c}": log_number_of_sites(sites, c) for c in map(int, cutoffs)}
-    return add_columns(aso_df, columns), list(columns)
+    for name, values in columns.items():
+        aso_df[name] = values
+    return aso_df, list(columns)

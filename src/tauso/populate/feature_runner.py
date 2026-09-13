@@ -5,7 +5,6 @@ from collections.abc import Callable, Iterable, Sequence
 
 import pandas as pd
 
-from ..pandas_utils import add_columns
 from ..parallel_utils import make_apply_fn
 from ..timer import Timer
 
@@ -39,4 +38,6 @@ def compute_features(
         computed = {name: apply_feature(apply_fn, available[name]) for name in names}
     logger.info("Computed %d features in %.4fs: %s", len(names), timer.elapsed_time, ", ".join(names))
 
-    return add_columns(df, computed), names
+    for name, values in computed.items():
+        df[name] = values
+    return df, names

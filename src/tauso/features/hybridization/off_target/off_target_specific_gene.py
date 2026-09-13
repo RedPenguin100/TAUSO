@@ -11,7 +11,6 @@ the individual entry points run their own scan and back the regression tests.
 import numpy as np
 
 from ....data.consts import CANONICAL_GENE_NAME
-from ....pandas_utils import add_columns
 from . import RT_KCAL_MOL
 from .gene_chunk_scoring import scan_gene_sites
 
@@ -56,14 +55,18 @@ def add_on_target_site_features(aso_df, gene_to_data, cutoffs, n_jobs=1):
     for cutoff in (int(c) for c in cutoffs):
         columns[f"on_target_total_hybridization_{cutoff}"] = total_hybridization(sites, cutoff)
         columns[f"on_target_log_number_of_sites_{cutoff}"] = log_number_of_sites(sites, cutoff)
-    return add_columns(aso_df, columns), list(columns)
+    for name, values in columns.items():
+        aso_df[name] = values
+    return aso_df, list(columns)
 
 
 def on_target_total_hybridization(aso_df, gene_to_data, cutoffs, n_jobs=1):
     """Score each oligo against its own canonical gene: total hybridization, one feature per cutoff."""
     sites = _scan_own_gene(aso_df, gene_to_data, cutoffs, n_jobs)
     columns = {f"on_target_total_hybridization_{c}": total_hybridization(sites, c) for c in map(int, cutoffs)}
-    return add_columns(aso_df, columns), list(columns)
+    for name, values in columns.items():
+        aso_df[name] = values
+    return aso_df, list(columns)
 
 
 def off_target_single_gene_hybridization(aso_df, gene_name, gene_to_data, cutoffs, n_jobs=1):
@@ -77,4 +80,6 @@ def off_target_single_gene_hybridization(aso_df, gene_name, gene_to_data, cutoff
         n_jobs=n_jobs,
     )
     columns = {f"off_target_single_{gene_name}_c{c}": total_hybridization(sites, c) for c in map(int, cutoffs)}
-    return add_columns(aso_df, columns), list(columns)
+    for name, values in columns.items():
+        aso_df[name] = values
+    return aso_df, list(columns)

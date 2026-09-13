@@ -7,7 +7,6 @@ from ..features.regional_composition.regional_composition import (
     FEATURE_NAMES,
     calculate_regional_composition,
 )
-from ..pandas_utils import add_columns
 
 logger = logging.getLogger(__name__)
 
@@ -33,4 +32,6 @@ def populate_regional_composition_features(df, cpus=1):
 
     scored = calculate_regional_composition(df[ASO_SEQUENCE].to_numpy(), df[CHEMICAL_PATTERN].to_numpy())
     columns = {regional_composition_feature_name(q): scored[q] for q in FEATURE_NAMES}
-    return add_columns(df, columns), list(columns)
+    for name, values in columns.items():
+        df[name] = values
+    return df, list(columns)
