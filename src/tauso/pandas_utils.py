@@ -4,16 +4,12 @@ import pandas as pd
 
 
 def add_columns(df: pd.DataFrame, columns: dict) -> pd.DataFrame:
-    """Return `df` with `columns` ({name: values}) attached in one pass.
+    """Return `df` with `columns` ({name: values}) attached.
 
     A name already on the frame has its values replaced and keeps its position; the rest are
-    appended together. Assigning a column at a time inserts it into the existing frame, and
-    pandas rebuilds the frame on every insert.
+    appended in the order given. The frame is written in place, so it never has to be copied
+    however wide it has grown.
     """
-    fresh = {name: values for name, values in columns.items() if name not in df.columns}
     for name, values in columns.items():
-        if name not in fresh:
-            df[name] = values
-    if fresh:
-        df = pd.concat([df, pd.DataFrame(fresh, index=df.index)], axis=1)
+        df[name] = values
     return df
