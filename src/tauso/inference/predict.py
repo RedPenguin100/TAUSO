@@ -8,6 +8,7 @@ other within a target; the absolute value is not a percent-inhibition prediction
 The model is large (~100 MB) so it is not committed to git; download it with `tauso setup-model`.
 """
 
+import hashlib
 import logging
 import os
 from functools import lru_cache
@@ -36,6 +37,16 @@ MODEL_FILES = {
         "md5": "ae3a65d9fd16e48af4679251a4ba0a40",
     },
 }
+
+
+def model_cache_key():
+    """A key for the models directory that changes when the registered models change.
+
+    Derived from the record and the registry rather than written out by hand, so a cache
+    cannot go on answering for a model that is no longer the one being fetched.
+    """
+    registry = hashlib.sha1(repr(sorted(MODEL_FILES.items())).encode()).hexdigest()[:8]
+    return f"tauso-model-{ZENODO_MODEL_RECORD}-{registry}"
 
 
 def score_column(version: str = DEFAULT_VERSION) -> str:

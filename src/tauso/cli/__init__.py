@@ -810,6 +810,15 @@ def setup_model(version, force):
         echo_ok(f"Converted: {convert_model_to_binary(version)}")
 
 
+@main.command(name="model-cache-key")
+def model_cache_key():
+    """Print a cache key for <data_dir>/models, for CI to key its model cache on."""
+    # tauso.inference re-exports a function called predict, which shadows the module.
+    from tauso.inference.predict import model_cache_key as key
+
+    click.echo(key())
+
+
 @main.command(name="setup-tgcn")
 @click.option(
     "--organism",

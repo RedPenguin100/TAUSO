@@ -227,7 +227,7 @@ jobs:
       # one, and leaves every run downloading from Zenodo.
       - name: Model cache key
         id: model
-        run: python -c "import hashlib; from tauso.inference.predict import MODEL_FILES, ZENODO_MODEL_RECORD; print('key=tauso-model-' + ZENODO_MODEL_RECORD + '-' + hashlib.sha1(repr(sorted(MODEL_FILES.items())).encode()).hexdigest()[:8])" >> "$GITHUB_OUTPUT"
+        run: echo "key=$(tauso model-cache-key)" >> "$GITHUB_OUTPUT"
 
       - name: Cache model
         uses: actions/cache@v4
