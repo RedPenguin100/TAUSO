@@ -16,14 +16,13 @@ MODIFICATION_FEATURE_TO_CALCULATION = {
 """Each reads the chemical pattern alone, so the features are mapped over that column."""
 
 
-def populate_modifications(df, n_cores=None, features_to_run=None):  # Added features_to_run
+def populate_modifications(df, features_to_run=None):
     """
     Populates modification-based features for ASO chemical patterns.
 
     Args:
         df (pd.DataFrame): Input dataframe.
-        n_cores (int/None): Accepted for a uniform populate signature; the scan is a
-            microsecond per pattern, so it runs on one core.
+        features_to_run (list/None): Features to calculate. None runs the whole registry.
     """
     if features_to_run is None:
         features_to_run = list(MODIFICATION_FEATURE_TO_CALCULATION.keys())
