@@ -785,7 +785,14 @@ def setup_model(version, force):
     fetching it on first use. The per-version registry (Zenodo record + md5) lives in
     tauso.inference.predict; this command just provisions it like the other setup-* assets.
     """
-    from tauso.inference.predict import DEFAULT_VERSION, MODEL_FILES, ZENODO_MODEL_RECORD, model_path
+    from tauso.inference.predict import (
+        DEFAULT_VERSION,
+        MODEL_FILES,
+        ZENODO_MODEL_RECORD,
+        binary_model_path,
+        convert_model_to_binary,
+        model_path,
+    )
 
     version = version or DEFAULT_VERSION
     if version not in MODEL_FILES:
@@ -797,6 +804,10 @@ def setup_model(version, force):
     click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
     _ensure_zenodo_content_file(ZENODO_MODEL_RECORD, spec["filename"], str(dest), spec["md5"], "md5", force)
     echo_ok(f"Model ready and verified: {dest}")
+    # Converting here means inference reads the binary form and never parses the JSON.
+    if force or not binary_model_path(version).exists():
+        click.echo("  Converting the booster to its binary encoding...")
+        echo_ok(f"Converted: {convert_model_to_binary(version)}")
 
 
 @main.command(name="setup-tgcn")

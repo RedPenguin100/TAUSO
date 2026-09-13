@@ -9,6 +9,7 @@ The model is large (~100 MB) so it is not committed to git; download it with `ta
 """
 
 import logging
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import FrozenSet, List, Sequence, Tuple
@@ -50,17 +51,45 @@ def model_path(version=DEFAULT_VERSION):
     return Path(get_data_dir()) / "models" / MODEL_FILES[version]["filename"]
 
 
-@lru_cache(maxsize=None)
-def load_model(version=DEFAULT_VERSION):
-    """Return (booster, feature_names) for `tauso_score_<version>`. The booster must already be
-    present locally (run `tauso setup-model` to download it); the feature list ships in the package."""
+def binary_model_path(version=DEFAULT_VERSION):
+    """Local path to the booster for `version` in XGBoost's binary encoding, beside the JSON."""
+    return model_path(version).with_suffix(".ubj")
+
+
+def convert_model_to_binary(version=DEFAULT_VERSION):
+    """Write the booster beside its JSON in XGBoost's binary encoding, and return that path.
+
+    Parsing 265 MB of JSON builds a document tree many times the size of the text, which the
+    allocator holds on to afterwards: the same booster read from the binary form peaks at
+    0.9 GB rather than 3.5 GB. The encoding is lossless -- same trees, same predictions.
+    """
     path = model_path(version)
     if not path.exists():
         message = f"Model '{version}' not found at {path}. Run `tauso setup-model` to download it."
         logger.error(message)
         raise FileNotFoundError(message)
+
+    binary = binary_model_path(version)
     booster = xgb.Booster()
     booster.load_model(str(path))
+    # Named only once it is whole, so a killed conversion is not mistaken for a finished one.
+    # The extension has to stay .ubj: it is what tells XGBoost which encoding to write.
+    partial = binary.with_suffix(".partial.ubj")
+    booster.save_model(str(partial))
+    os.replace(partial, binary)
+    logger.info("Converted %s to %s", path.name, binary.name)
+    return binary
+
+
+@lru_cache(maxsize=None)
+def load_model(version=DEFAULT_VERSION):
+    """Return (booster, feature_names) for `tauso_score_<version>`. The booster must already be
+    present locally (run `tauso setup-model` to download it); the feature list ships in the package."""
+    binary = binary_model_path(version)
+    if not binary.exists():
+        binary = convert_model_to_binary(version)
+    booster = xgb.Booster()
+    booster.load_model(str(binary))
     features = (MODEL_DIR / f"tauso_score_{version}.features.txt").read_text().splitlines()
     return booster, features
 
