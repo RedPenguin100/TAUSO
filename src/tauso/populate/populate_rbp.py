@@ -10,6 +10,9 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+COMPLEXITY_ROW_CHUNK = 20000
+"""Rows reduced at once when summing across RBPs."""
+
 from tauso.algorithms.genomic_context_windows import flank_sequence_column
 from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.features.rbp.rbp_features import get_background_probs
@@ -163,25 +166,36 @@ def populate_complexity_features(df, feature_cols, suffix, type="generic"):
     1. Total Interaction Load (Sum)
     2. Global Diversity (Entropy)
     """
-    # Create a matrix of the relevant columns (add epsilon to avoid div/0)
-    # Filling NaNs with 0 is crucial if some lookups failed
-    matrix = df[feature_cols].fillna(0.0).values
-
-    # 1. Total Interaction (Sum of all RBPs)
     total_col = f"rbp_interaction_total_{suffix}_{type}"
-    total_scores = matrix.sum(axis=1)
-    df[total_col] = total_scores
-
-    # 2. Global Diversity (Shannon Entropy)
-    # Normalize rows to sum to 1 to treat as probabilities
-    # Avoid division by zero for rows with 0 interaction
-    with np.errstate(divide="ignore", invalid="ignore"):
-        probs = matrix / total_scores[:, None]
-        # Replace NaNs (from 0/0) with 0
-        probs = np.nan_to_num(probs)
-
     div_col = f"rbp_diversity_global_{suffix}_{type}"
-    # Calculate entropy (base e by default)
-    df[div_col] = entropy(probs, axis=1)
+
+    total_scores = np.empty(len(df))
+    diversity = np.empty(len(df))
+    positions = [df.columns.get_loc(column) for column in feature_cols]
+
+    # Both features reduce along a row, so rows are taken a chunk at a time: the matrix and the
+    # row-normalised copy of it never exist for the whole frame at once.
+    for start in range(0, len(df), COMPLEXITY_ROW_CHUNK):
+        stop = start + COMPLEXITY_ROW_CHUNK
+        # Filling NaNs with 0 is crucial if some lookups failed.
+        matrix = df.iloc[start:stop, positions].to_numpy(dtype=np.float64, na_value=0.0)
+
+        # 1. Total Interaction (Sum of all RBPs)
+        chunk_total = matrix.sum(axis=1)
+        total_scores[start:stop] = chunk_total
+
+        # 2. Global Diversity (Shannon Entropy)
+        # Normalize rows to sum to 1 to treat as probabilities
+        # Avoid division by zero for rows with 0 interaction
+        with np.errstate(divide="ignore", invalid="ignore"):
+            matrix /= chunk_total[:, None]
+            # Replace NaNs (from 0/0) with 0
+            np.nan_to_num(matrix, copy=False)
+
+        # Calculate entropy (base e by default)
+        diversity[start:stop] = entropy(matrix, axis=1)
+
+    df[total_col] = total_scores
+    df[div_col] = diversity
 
     return df, [total_col, div_col]
