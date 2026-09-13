@@ -539,7 +539,7 @@ class Calculator:
         def compute(missing):
             from tauso.populate.populate_modification import populate_modifications
 
-            return populate_modifications(self.data, n_cores=self.cpus, features_to_run=missing)
+            return populate_modifications(self.data, features_to_run=missing)
 
         self._step("modification", list(MODIFICATION_FEATURE_TO_CALCULATION), compute)
 

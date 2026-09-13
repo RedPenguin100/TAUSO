@@ -1,6 +1,5 @@
 import pytest
 from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
-from tests.complete.conftest import get_n_jobs
 
 from tauso.populate.populate_modification import populate_modifications
 
@@ -23,5 +22,5 @@ def mini_sampled_chemistry_only_data(request, chemistry_only_data):
 
 @pytest.mark.parametrize("mini_sampled_chemistry_only_data", [10000], indirect=True)
 def test_modification_sugar(mini_sampled_chemistry_only_data, dataframe_regression):
-    data, feature_names = populate_modifications(mini_sampled_chemistry_only_data, n_cores=get_n_jobs())
+    data, feature_names = populate_modifications(mini_sampled_chemistry_only_data)
     dataframe_regression.check(data[["index_oligo"] + feature_names])

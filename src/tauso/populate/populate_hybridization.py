@@ -70,7 +70,7 @@ def populate_hybridization(df, n_cores=1, features_to_run=None):
     registry runs in a single pass on one core. ``n_cores`` is accepted for a uniform
     populate signature and is unused.
     """
-    all_data = df.copy()
+    all_data = df
 
     if features_to_run is None:
         features_to_run = list(HYBR_FEATURE_TO_CALCULATION.keys())

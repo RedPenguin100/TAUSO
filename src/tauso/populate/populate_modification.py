@@ -1,5 +1,4 @@
 import logging
-import multiprocessing
 
 logger = logging.getLogger(__name__)
 
@@ -9,27 +8,22 @@ from ..features.sequence_modification.mod_features import (
     compute_mod_sugar_max_block_length,
 )
 from ..pandas_utils import add_columns
-from ..parallel_utils import make_apply_fn
 
 MODIFICATION_FEATURE_TO_CALCULATION = {
-    "mod_sugar_block_count": lambda row: compute_mod_sugar_block_count(row[CHEMICAL_PATTERN]),
-    "mod_sugar_max_block_length": lambda row: compute_mod_sugar_max_block_length(row[CHEMICAL_PATTERN]),
+    "mod_sugar_block_count": compute_mod_sugar_block_count,
+    "mod_sugar_max_block_length": compute_mod_sugar_max_block_length,
 }
+"""Each reads the chemical pattern alone, so the features are mapped over that column."""
 
 
-def populate_modifications(df, n_cores=None, features_to_run=None):  # Added features_to_run
+def populate_modifications(df, features_to_run=None):
     """
     Populates modification-based features for ASO chemical patterns.
 
     Args:
         df (pd.DataFrame): Input dataframe.
-        n_cores (int/None): Number of cores to use. None uses all available.
+        features_to_run (list/None): Features to calculate. None runs the whole registry.
     """
-    all_data = df.copy()
-
-    nb_workers = multiprocessing.cpu_count() if n_cores is None else n_cores
-    apply_func = make_apply_fn(all_data, n_jobs=nb_workers)
-
     if features_to_run is None:
         features_to_run = list(MODIFICATION_FEATURE_TO_CALCULATION.keys())
 
@@ -40,8 +34,8 @@ def populate_modifications(df, n_cores=None, features_to_run=None):  # Added fea
 
         if callable(logic):
             logger.debug("Calculating: %s", feature)
-            computed[feature] = apply_func(logic, axis=1)
+            computed[feature] = df[CHEMICAL_PATTERN].map(logic)
         else:
             logger.warning("Feature '%s' logic not found or not callable. Skipping.", feature)
 
-    return add_columns(all_data, computed), features_to_run
+    return add_columns(df, computed), features_to_run
