@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from tauso.inference import DEFAULT_VERSION, load_finite_features, load_model
-from tauso.inference.predict import classify_nonfinite, find_nonfinite
+from tauso.inference.scoring import classify_nonfinite, find_nonfinite
 
 
 @pytest.fixture(scope="module")

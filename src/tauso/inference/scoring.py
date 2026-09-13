@@ -8,7 +8,7 @@ other within a target; the absolute value is not a percent-inhibition prediction
 The model is large (~100 MB) so it is not committed to git; download it with `tauso setup-model`.
 """
 
-import hashlib
+import json
 import logging
 import os
 from functools import lru_cache
@@ -26,27 +26,12 @@ logger = logging.getLogger(__name__)
 MODEL_DIR = Path(__file__).resolve().parent / "model"  # committed per-version feature lists
 DEFAULT_VERSION = "v1"
 
-# Zenodo record holding the trained boosters.
-ZENODO_MODEL_RECORD = "22688592"
-# Per version: the Zenodo model file + its md5 (pins the exact booster). `filename` must be the exact
-# name of the file uploaded to the Zenodo record; it is fetched and cached under that same name.
-MODEL_FILES = {
-    "v1": {"filename": "tauso_score_v1_clean_exp_med.json", "md5": "ea59020955191a062ca35d3605665ca2"},
-    "v1_clean_exp_low": {
-        "filename": "tauso_score_v1_clean_exp_low.json",
-        "md5": "ae3a65d9fd16e48af4679251a4ba0a40",
-    },
-}
-
-
-def model_cache_key():
-    """A key for the models directory that changes when the registered models change.
-
-    Derived from the record and the registry rather than written out by hand, so a cache
-    cannot go on answering for a model that is no longer the one being fetched.
-    """
-    registry = hashlib.sha1(repr(sorted(MODEL_FILES.items())).encode()).hexdigest()[:8]
-    return f"tauso-model-{ZENODO_MODEL_RECORD}-{registry}"
+# The Zenodo record and, per version, the model file on it with its md5, which pins the exact
+# booster. `filename` is the name the file carries on the record; it is fetched and cached under
+# that same name. Kept as data so CI can key its model cache on this file alone.
+_REGISTRY = json.loads((MODEL_DIR / "models.json").read_text())
+ZENODO_MODEL_RECORD = _REGISTRY["zenodo_record"]
+MODEL_FILES = _REGISTRY["models"]
 
 
 def score_column(version: str = DEFAULT_VERSION) -> str:

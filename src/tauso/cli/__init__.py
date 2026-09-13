@@ -783,9 +783,9 @@ def setup_model(version, force):
     """Download the trained ASO-efficacy booster (tauso_score) from Zenodo into
     <data_dir>/models/, verifying its md5, so inference finds it locally instead of
     fetching it on first use. The per-version registry (Zenodo record + md5) lives in
-    tauso.inference.predict; this command just provisions it like the other setup-* assets.
+    tauso.inference.scoring; this command just provisions it like the other setup-* assets.
     """
-    from tauso.inference.predict import (
+    from tauso.inference.scoring import (
         DEFAULT_VERSION,
         MODEL_FILES,
         ZENODO_MODEL_RECORD,
@@ -808,15 +808,6 @@ def setup_model(version, force):
     if force or not binary_model_path(version).exists():
         click.echo("  Converting the booster to its binary encoding...")
         echo_ok(f"Converted: {convert_model_to_binary(version)}")
-
-
-@main.command(name="model-cache-key")
-def model_cache_key():
-    """Print a cache key for <data_dir>/models, for CI to key its model cache on."""
-    # tauso.inference re-exports a function called predict, which shadows the module.
-    from tauso.inference.predict import model_cache_key as key
-
-    click.echo(key())
 
 
 @main.command(name="setup-tgcn")

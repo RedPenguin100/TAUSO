@@ -1,4 +1,4 @@
-from tauso.inference.predict import (
+from tauso.inference.scoring import (
     DEFAULT_VERSION,
     load_finite_features,
     load_model,

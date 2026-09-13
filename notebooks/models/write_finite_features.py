@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from tauso.inference.predict import MODEL_DIR
+from tauso.inference.scoring import MODEL_DIR
 from tauso.populate.feature_cache import cache_path_if_present
 
 

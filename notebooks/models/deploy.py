@@ -30,7 +30,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root, for the notebooks.* imports
 from notebooks.models import common
 
-from tauso.inference.predict import DEFAULT_VERSION, MODEL_DIR
+from tauso.inference.scoring import DEFAULT_VERSION, MODEL_DIR
 
 CONFIGS = json.loads((Path(__file__).parent / "deploy_parameters.json").read_text())
 
