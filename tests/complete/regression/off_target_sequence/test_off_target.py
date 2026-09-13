@@ -151,7 +151,7 @@ def test_annotate_hits_antisense_maps_to_target_gene(aso, gene):
 def test_annotate_hits_sense_strand_is_not_counted_as_the_gene(aso, gene):
     sense = get_antisense(aso)
     hits, _ = run_bowtie_search(sense, max_mismatches=0)
-    assert hits
+    assert not hits.empty
     assert gene not in set(annotate_hits(hits)["gene_name"])
 
 
