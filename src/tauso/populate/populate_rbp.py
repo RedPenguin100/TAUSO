@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.features.rbp.rbp_features import get_background_probs
 from tauso.util import BASE_INDEX
 
@@ -100,23 +99,21 @@ def process_rbp(task, flat_seq, offsets, background_groups):
     return col_name, 1.0 - np.exp(log_unbound)
 
 
-def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_col="flank_sequence_50", n_jobs=32):
-    """
-    Calculates the raw Affinity for each RBP (regardless of Expression).
-    """
-    flank_param = sequence_col.split("_")[-1]
-    df = df.loc[:, ~df.columns.duplicated()].copy()  # Use .copy() to avoid SettingWithCopy warnings later
+def populate_rbp_affinity_features(sequences, genes, rbp_map, pwm_db, gene_to_data, flank_param, n_jobs=32):
+    """One affinity column per RBP, as a frame indexed like `sequences`.
 
-    sequences = df[sequence_col].fillna("").astype(str).tolist()
+    Takes the two columns it reads rather than the whole feature frame: the step runs late,
+    when that frame is at its widest, and copying it costs more than the scan does.
+    """
+    sequences = sequences.fillna("").astype(str)
     n_rows = len(sequences)
 
     # Calculate backgrounds once per gene, then group rows sharing motif weights.
     default_bg = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
     backgrounds = {
-        g: get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg
-        for g in df[CANONICAL_GENE_NAME].unique()
+        g: get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg for g in genes.unique()
     }
-    background_probs_arr = np.array(df[CANONICAL_GENE_NAME].map(backgrounds).tolist(), dtype=np.float32).reshape(-1, 4)
+    background_probs_arr = np.array(genes.map(backgrounds).tolist(), dtype=np.float32).reshape(-1, 4)
     unique, inverse = np.unique(background_probs_arr, axis=0, return_inverse=True)
     background_groups = [(bg.astype(np.float64), np.flatnonzero(inverse == i)) for i, bg in enumerate(unique)]
 
@@ -137,7 +134,7 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
 
     if not target_tasks:
         logger.warning("No valid RBP tasks found in PWM DB.")
-        return df, []
+        return pd.DataFrame(index=sequences.index)
 
     logger.info("Calculating affinity features for %d RBPs on %d rows...", len(target_tasks), n_rows)
 
@@ -153,16 +150,8 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
         for task in tqdm(target_tasks, desc="Computing RBPs")
     )
 
-    # --- 4. AGGREGATION & ASSIGNMENT ---
-    logger.debug("Assigning columns...")
-
-    # Bundle all new columns into a dictionary, then concat once
-    new_cols_dict = {col_name: scores for col_name, scores in results}
-    df = pd.concat([df, pd.DataFrame(new_cols_dict, index=df.index)], axis=1)
-    new_col_names = list(new_cols_dict.keys())
-
-    logger.info("Done. Added %d affinity features.", len(new_col_names))
-    return df, new_col_names
+    logger.info("Done. Added %d affinity features.", len(results))
+    return pd.DataFrame(dict(results), index=sequences.index)
 
 
 def populate_complexity_features(df, feature_cols, suffix, type="generic"):

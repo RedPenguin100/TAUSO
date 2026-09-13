@@ -769,11 +769,23 @@ class Calculator:
             # Empty gene->data map: every row falls back to the uniform [.25]*4 background, so no
             # per-transcript composition is used.
             uniform_background = {}
-            data, ind_feats = populate_rbp_affinity_features(
-                self.data, rbp_map, pwm_db, uniform_background, window_col, n_jobs=self.cpus
+            if self.data.columns.has_duplicates:
+                self.data = self.data.loc[:, ~self.data.columns.duplicated()]
+            scores = populate_rbp_affinity_features(
+                self.data[window_col],
+                self.data[CANONICAL_GENE_NAME],
+                rbp_map,
+                pwm_db,
+                uniform_background,
+                str(flank_size),
+                n_jobs=self.cpus,
             )
-            data, glob_feats = populate_complexity_features(data, ind_feats, suffix=str(flank_size), type="generic")
-            return data, ind_feats + glob_feats
+            ind_feats = list(scores.columns)
+            # The complexity features are derived from the affinity block alone, so both are
+            # built on the narrow frame and joined to self.data once.
+            scores, glob_feats = populate_complexity_features(scores, ind_feats, suffix=str(flank_size), type="generic")
+            self.data[list(scores.columns)] = scores
+            return self.data, ind_feats + glob_feats
 
         self._step("RBP", sentinel, compute)
 
