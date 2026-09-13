@@ -4,7 +4,6 @@ import logging
 
 from ..data.consts import ASO_SEQUENCE, CHEMICAL_PATTERN
 from ..features.aso_rna.aso_rna import FEATURE_NAMES, calculate_aso_rna
-from ..pandas_utils import add_columns
 
 logger = logging.getLogger(__name__)
 
@@ -30,4 +29,6 @@ def populate_aso_rna_features(df, cpus=1):
 
     scored = calculate_aso_rna(df[ASO_SEQUENCE].to_numpy(), df[CHEMICAL_PATTERN].to_numpy())
     columns = {aso_rna_feature_name(q): scored[q] for q in FEATURE_NAMES}
-    return add_columns(df, columns), list(columns)
+    for name, values in columns.items():
+        df[name] = values
+    return df, list(columns)

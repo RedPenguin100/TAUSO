@@ -4,7 +4,6 @@ import pandas as pd
 
 from ..data.consts import *
 from ..data.consts import STRUCTURE_SENSE_START
-from ..pandas_utils import add_columns
 
 # Assuming STRUCTURE_SENSE_START, CANONICAL_GENE_NAME, ASO_SEQUENCE, etc. are imported
 
@@ -114,11 +113,14 @@ def add_external_mrna_and_context_columns(
     columns = {IN_CODING: in_coding_list}
     columns.update({flank_sequence_column(fs): premrna_cols[fs] for fs in flank_sizes_premrna})
     columns.update({f"local_coding_region_around_ASO_{fs}": cds_cols[fs] for fs in flank_sizes_cds})
-    df = add_columns(df, columns)
+    for name, values in columns.items():
+        df[name] = values
 
     # 4. Final Flags, off the coding regions just attached
     flags = {
         f"region_is_local_{fs}": (df[f"local_coding_region_around_ASO_{fs}"].str.len() > 0).astype(int)
         for fs in flank_sizes_cds
     }
-    return add_columns(df, flags)
+    for name, values in flags.items():
+        df[name] = values
+    return df

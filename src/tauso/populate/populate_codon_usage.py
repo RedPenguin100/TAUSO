@@ -10,7 +10,6 @@ from ..data.data import get_data_dir
 from ..features.codon_usage.cai import CAI_WEIGHTS_FILENAME, CAIScorerCache
 from ..features.codon_usage.enc import compute_ENC
 from ..features.codon_usage.tai import compute_tAI
-from ..pandas_utils import add_columns
 from ..parallel_utils import init_pandarallel
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,9 @@ def populate_tai(df: pd.DataFrame, cds_windows: list, registry: dict) -> tuple[p
     local_scores["tai_score_global"] = df[CANONICAL_GENE_NAME].map(gene_tai_lookup)
     feature_names.append("tai_score_global")
 
-    return add_columns(df, local_scores), feature_names
+    for name, values in local_scores.items():
+        df[name] = values
+    return df, feature_names
 
 
 def populate_enc(
@@ -111,7 +112,9 @@ def populate_enc(
 
     logger.info("Global ENC Calculation Complete.")
 
-    return add_columns(df, local_scores), feature_names
+    for name, values in local_scores.items():
+        df[name] = values
+    return df, feature_names
 
 
 def populate_cai(
