@@ -379,10 +379,8 @@ def _sequence_offtarget_table(ranked, *, genome, max_distance, exclude_genes):
     rank_of = {seq: i + 1 for i, seq in enumerate(ranked[ASO_SEQUENCE].tolist())}
 
     unique_seqs = list(dict.fromkeys(ranked[ASO_SEQUENCE].tolist()))
-    all_hits = []
-    for seq in unique_seqs:
-        hits, _ = run_bowtie_search(seq, genome=genome, max_mismatches=max_distance)
-        all_hits.extend(hits)
+    per_sequence = [run_bowtie_search(seq, genome=genome, max_mismatches=max_distance)[0] for seq in unique_seqs]
+    all_hits = pd.concat(per_sequence, ignore_index=True) if per_sequence else []
     annotated = annotate_hits(all_hits, genome=genome)
 
     if annotated.empty:

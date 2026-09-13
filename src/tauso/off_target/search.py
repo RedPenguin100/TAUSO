@@ -167,7 +167,7 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
     Runs Bowtie 1 alignment.
     Raises RuntimeError on alignment failure, including Bowtie's diagnostics.
     Returns:
-        hits_list: List of all hit dictionaries (for annotation)
+        hits: DataFrame of all hits (for annotation)
         counts_dict: Dictionary of counts {'mismatches0': X, 'mismatches1': Y...}
     """
     index_base = get_bowtie_index_base(genome=genome)
@@ -185,51 +185,51 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
         sequence,
     ]
 
-    try:
-        process = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Bowtie search failed: {e}\n{e.stderr or ''}") from e
-
-    hits = []
-
-    # --- IMPLEMENTATION OF YOUR REQUEST ---
-    # Initialize the columns/counters you wanted
     counts = {f"mismatches{i}": 0 for i in range(max_mismatches + 1)}
+    chroms, starts, strands, mismatch_counts = [], [], [], []
 
-    for line in process.stdout.splitlines():
-        if not line.strip():
-            continue
-        parts = line.split("\t")
-        flag = int(parts[1])
-        if flag & 4:
-            continue  # Unmapped
+    # A low-complexity oligo aligns millions of times, so the alignments are read off the pipe
+    # one line at a time and kept as columns: holding the whole report, and a dict per hit,
+    # costs about half a kilobyte per alignment.
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
+        for line in process.stdout:
+            if not line.strip():
+                continue
+            parts = line.split("\t")
+            flag = int(parts[1])
+            if flag & 4:
+                continue  # Unmapped
 
-        chrom = parts[2]
-        start_pos = int(parts[3]) - 1
+            mismatches = 0
+            for tag in parts[11:]:
+                if tag.startswith("NM:i:"):
+                    mismatches = int(tag.split(":")[2])
+                    break
 
-        # Parse mismatches from NM tag
-        mismatches = 0
-        for tag in parts[11:]:
-            if tag.startswith("NM:i:"):
-                mismatches = int(tag.split(":")[2])
-                break
+            if mismatches <= max_mismatches:
+                counts[f"mismatches{mismatches}"] += 1
 
-        # 1. Do the ++ for the specific mismatch column
-        if mismatches <= max_mismatches:
-            counts[f"mismatches{mismatches}"] += 1
+            chroms.append(parts[2])
+            starts.append(int(parts[3]) - 1)
+            strands.append("-" if (flag & 16) else "+")
+            mismatch_counts.append(mismatches)
+        stderr = process.stderr.read()
 
-        # 2. Keep the hit data (needed for 'annotate_hits' later)
-        hits.append(
-            {
-                "chrom": chrom,
-                "start": start_pos,
-                "end": start_pos + len(sequence),
-                "strand": "-" if (flag & 16) else "+",
-                "mismatches": mismatches,
-                "sequence": sequence,
-            }
-        )
+    if process.returncode:
+        failure = subprocess.CalledProcessError(process.returncode, cmd, stderr=stderr)
+        raise RuntimeError(f"Bowtie search failed: {failure}\n{stderr or ''}") from failure
 
+    start = np.array(starts, np.int64)
+    hits = pd.DataFrame(
+        {
+            "chrom": chroms,
+            "start": start,
+            "end": start + len(sequence),
+            "strand": strands,
+            "mismatches": np.array(mismatch_counts, np.int16),
+            "sequence": [sequence] * len(start),
+        }
+    )
     return hits, counts
 
 
@@ -328,7 +328,7 @@ def annotate_hits(hits_list, genome="GRCh38"):
     per hit instead costs a full chromosome scan each time, because the overlap test cannot use
     the database's index -- minutes rather than seconds once a low-complexity ASO aligns widely.
     """
-    if not hits_list:
+    if len(hits_list) == 0:
         return pd.DataFrame()
 
     columns, trees = _annotation_index(genome)
