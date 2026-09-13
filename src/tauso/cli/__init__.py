@@ -779,11 +779,21 @@ def setup_rrna(force):
 @main.command(name="setup-model")
 @click.option("--version", default=None, help="Model version to fetch (default: the deployed default).")
 @click.option("--force", is_flag=True, help="Force redownload if the model file exists.")
-def setup_model(version, force):
+@click.option(
+    "--from",
+    "source",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Install the booster from a local copy instead of fetching it, for when Zenodo is unreachable.",
+)
+def setup_model(version, force, source):
     """Download the trained ASO-efficacy booster (tauso_score) from Zenodo into
     <data_dir>/models/, verifying its md5, so inference finds it locally instead of
     fetching it on first use. The per-version registry (Zenodo record + md5) lives in
     tauso.inference.scoring; this command just provisions it like the other setup-* assets.
+
+    `--from` takes the booster from a local copy instead, checked against the same md5, so a
+    machine that already has the file can provision one that cannot reach Zenodo.
     """
     from tauso.inference.scoring import (
         DEFAULT_VERSION,
@@ -801,8 +811,15 @@ def setup_model(version, force):
     spec = MODEL_FILES[version]
     dest = model_path(version)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
-    _ensure_zenodo_content_file(ZENODO_MODEL_RECORD, spec["filename"], str(dest), spec["md5"], "md5", force)
+    if source:
+        # Checked before it is put in place, so a wrong file is refused rather than installed.
+        verify_hash_or_exit(source, spec["md5"], algo="md5")
+        if os.path.abspath(source) != os.path.abspath(dest):
+            shutil.copyfile(source, dest)
+        echo_ok(f"Installed from {source}")
+    else:
+        click.echo(f"Fetching tauso_score model '{version}' from Zenodo...")
+        _ensure_zenodo_content_file(ZENODO_MODEL_RECORD, spec["filename"], str(dest), spec["md5"], "md5", force)
     echo_ok(f"Model ready and verified: {dest}")
     # Converting here means inference reads the binary form and never parses the JSON.
     if force or not binary_model_path(version).exists():
