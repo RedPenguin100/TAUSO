@@ -222,11 +222,18 @@ jobs:
       - name: Setup rRNA reference (off-target)
         run: tauso setup-rrna
 
+      # Keyed on the registry itself, so the cache follows the model it holds. A key naming one
+      # model while the registry names another restores the wrong file, never saves the right
+      # one, and leaves every run downloading from Zenodo.
+      - name: Model cache key
+        id: model
+        run: python -c "import hashlib; from tauso.inference.predict import MODEL_FILES, ZENODO_MODEL_RECORD; print('key=tauso-model-' + ZENODO_MODEL_RECORD + '-' + hashlib.sha1(repr(sorted(MODEL_FILES.items())).encode()).hexdigest()[:8])" >> "$GITHUB_OUTPUT"
+
       - name: Cache model
         uses: actions/cache@v4
         with:
           path: ${{ env.TAUSO_DATA_DIR }}/models
-          key: tauso-model-22543712-7db62ebd
+          key: ${{ steps.model.outputs.key }}
 
       - name: Setup model (tauso_score)
         run: tauso setup-model
