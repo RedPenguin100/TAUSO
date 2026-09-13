@@ -10,6 +10,10 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+COMPLEXITY_ROW_CHUNK = 20000
+"""Rows reduced at once when summing across RBPs."""
+
+from tauso.algorithms.genomic_context_windows import flank_sequence_column
 from tauso.data.consts import CANONICAL_GENE_NAME
 from tauso.features.rbp.rbp_features import get_background_probs
 from tauso.util import BASE_INDEX
@@ -100,23 +104,22 @@ def process_rbp(task, flat_seq, offsets, background_groups):
     return col_name, 1.0 - np.exp(log_unbound)
 
 
-def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_col="flank_sequence_50", n_jobs=32):
-    """
-    Calculates the raw Affinity for each RBP (regardless of Expression).
-    """
-    flank_param = sequence_col.split("_")[-1]
-    df = df.loc[:, ~df.columns.duplicated()].copy()  # Use .copy() to avoid SettingWithCopy warnings later
+def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, flank_size, n_jobs=32):
+    """One affinity column per RBP, as a frame indexed like `df`.
 
-    sequences = df[sequence_col].fillna("").astype(str).tolist()
+    Reads the two columns it needs and returns only what it computed. The step runs 27th of
+    28, when `df` is at its widest, and copying it costs more than the scan does.
+    """
+    sequences = df[flank_sequence_column(flank_size)].fillna("").astype(str)
+    genes = df[CANONICAL_GENE_NAME]
     n_rows = len(sequences)
 
     # Calculate backgrounds once per gene, then group rows sharing motif weights.
     default_bg = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
     backgrounds = {
-        g: get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg
-        for g in df[CANONICAL_GENE_NAME].unique()
+        g: get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg for g in genes.unique()
     }
-    background_probs_arr = np.array(df[CANONICAL_GENE_NAME].map(backgrounds).tolist(), dtype=np.float32).reshape(-1, 4)
+    background_probs_arr = np.array(genes.map(backgrounds).tolist(), dtype=np.float32).reshape(-1, 4)
     unique, inverse = np.unique(background_probs_arr, axis=0, return_inverse=True)
     background_groups = [(bg.astype(np.float64), np.flatnonzero(inverse == i)) for i, bg in enumerate(unique)]
 
@@ -131,13 +134,13 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
             {
                 "name": rbp,
                 "matrices": [pwm_db[m] for m in valid_mids],
-                "col_name": f"rbp_{rbp.lower()}_aff_{flank_param}",
+                "col_name": f"rbp_{rbp.lower()}_aff_{flank_size}",
             }
         )
 
     if not target_tasks:
         logger.warning("No valid RBP tasks found in PWM DB.")
-        return df, []
+        return pd.DataFrame(index=sequences.index)
 
     logger.info("Calculating affinity features for %d RBPs on %d rows...", len(target_tasks), n_rows)
 
@@ -153,16 +156,39 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, sequence_c
         for task in tqdm(target_tasks, desc="Computing RBPs")
     )
 
-    # --- 4. AGGREGATION & ASSIGNMENT ---
-    logger.debug("Assigning columns...")
+    logger.info("Done. Added %d affinity features.", len(results))
+    return pd.DataFrame(dict(results), index=sequences.index)
 
-    # Bundle all new columns into a dictionary, then concat once
-    new_cols_dict = {col_name: scores for col_name, scores in results}
-    df = pd.concat([df, pd.DataFrame(new_cols_dict, index=df.index)], axis=1)
-    new_col_names = list(new_cols_dict.keys())
 
-    logger.info("Done. Added %d affinity features.", len(new_col_names))
-    return df, new_col_names
+def _total_and_diversity(df, feature_cols):
+    """The per-row sum across `feature_cols`, and the entropy of the row once normalised.
+
+    Both reduce along a row, so rows are taken a chunk at a time: the matrix and its
+    normalised copy never exist for the whole frame at once.
+    """
+    total_scores = np.empty(len(df))
+    diversity = np.empty(len(df))
+    positions = [df.columns.get_loc(column) for column in feature_cols]
+
+    for start in range(0, len(df), COMPLEXITY_ROW_CHUNK):
+        stop = start + COMPLEXITY_ROW_CHUNK
+        # Filling NaNs with 0 is crucial if some lookups failed.
+        matrix = df.iloc[start:stop, positions].to_numpy(dtype=np.float64, na_value=0.0)
+
+        chunk_total = matrix.sum(axis=1)
+        total_scores[start:stop] = chunk_total
+
+        # Normalize rows to sum to 1 to treat as probabilities.
+        # Avoid division by zero for rows with 0 interaction.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            matrix /= chunk_total[:, None]
+            # Replace NaNs (from 0/0) with 0
+            np.nan_to_num(matrix, copy=False)
+
+        # Entropy, base e by default.
+        diversity[start:stop] = entropy(matrix, axis=1)
+
+    return total_scores, diversity
 
 
 def populate_complexity_features(df, feature_cols, suffix, type="generic"):
@@ -171,25 +197,9 @@ def populate_complexity_features(df, feature_cols, suffix, type="generic"):
     1. Total Interaction Load (Sum)
     2. Global Diversity (Entropy)
     """
-    # Create a matrix of the relevant columns (add epsilon to avoid div/0)
-    # Filling NaNs with 0 is crucial if some lookups failed
-    matrix = df[feature_cols].fillna(0.0).values
-
-    # 1. Total Interaction (Sum of all RBPs)
     total_col = f"rbp_interaction_total_{suffix}_{type}"
-    total_scores = matrix.sum(axis=1)
-    df[total_col] = total_scores
-
-    # 2. Global Diversity (Shannon Entropy)
-    # Normalize rows to sum to 1 to treat as probabilities
-    # Avoid division by zero for rows with 0 interaction
-    with np.errstate(divide="ignore", invalid="ignore"):
-        probs = matrix / total_scores[:, None]
-        # Replace NaNs (from 0/0) with 0
-        probs = np.nan_to_num(probs)
-
     div_col = f"rbp_diversity_global_{suffix}_{type}"
-    # Calculate entropy (base e by default)
-    df[div_col] = entropy(probs, axis=1)
+
+    df[total_col], df[div_col] = _total_and_diversity(df, feature_cols)
 
     return df, [total_col, div_col]

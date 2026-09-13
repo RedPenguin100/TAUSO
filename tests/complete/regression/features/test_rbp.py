@@ -28,19 +28,16 @@ def test_rbp_complexity_features_regression(
     rbp_map, pwm_db = rbp_assets
 
     for flank_size in [50]:
-        window_col = f"flank_sequence_{flank_size}"
+        scores = populate_rbp_affinity_features(data, rbp_map, pwm_db, gene_to_data, flank_size, n_jobs=get_n_jobs())
+        individual_features = list(scores.columns)
 
-        data, individual_features = populate_rbp_affinity_features(
-            data, rbp_map, pwm_db, gene_to_data, window_col, n_jobs=get_n_jobs()
-        )
-
-        data, global_features = populate_complexity_features(
-            data, individual_features, suffix=str(flank_size), type="generic"
+        scores, global_features = populate_complexity_features(
+            scores, individual_features, suffix=str(flank_size), type="generic"
         )
 
     # DataFrame Regression
     dataframe_regression.check(
-        data[individual_features + global_features],
+        scores[individual_features + global_features],
         default_tolerance=dict(atol=1e-5, rtol=1e-5),
     )
 

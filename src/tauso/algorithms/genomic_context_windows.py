@@ -9,6 +9,11 @@ from ..pandas_utils import add_columns
 # Assuming STRUCTURE_SENSE_START, CANONICAL_GENE_NAME, ASO_SEQUENCE, etc. are imported
 
 
+def flank_sequence_column(flank_size):
+    """Name of the column holding the pre-mRNA window reaching `flank_size` bases either side."""
+    return f"flank_sequence_{flank_size}"
+
+
 def add_external_mrna_and_context_columns(
     df: pd.DataFrame,
     gene_registry: Dict[str, dict],
@@ -107,7 +112,7 @@ def add_external_mrna_and_context_columns(
         )
 
     columns = {IN_CODING: in_coding_list}
-    columns.update({f"flank_sequence_{fs}": premrna_cols[fs] for fs in flank_sizes_premrna})
+    columns.update({flank_sequence_column(fs): premrna_cols[fs] for fs in flank_sizes_premrna})
     columns.update({f"local_coding_region_around_ASO_{fs}": cds_cols[fs] for fs in flank_sizes_cds})
     df = add_columns(df, columns)
 

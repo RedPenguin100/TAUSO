@@ -751,7 +751,6 @@ class Calculator:
     def calculate_rbp(self):
         """RBP motif-occupancy features."""
         flank_size = 5
-        window_col = f"flank_sequence_{flank_size}"
 
         # Sentinel: if the summary feature exists on disk the block already completed.
         sentinel = [f"rbp_interaction_total_{flank_size}_generic"]
@@ -769,11 +768,15 @@ class Calculator:
             # Empty gene->data map: every row falls back to the uniform [.25]*4 background, so no
             # per-transcript composition is used.
             uniform_background = {}
-            data, ind_feats = populate_rbp_affinity_features(
-                self.data, rbp_map, pwm_db, uniform_background, window_col, n_jobs=self.cpus
+            scores = populate_rbp_affinity_features(
+                self.data, rbp_map, pwm_db, uniform_background, flank_size, n_jobs=self.cpus
             )
-            data, glob_feats = populate_complexity_features(data, ind_feats, suffix=str(flank_size), type="generic")
-            return data, ind_feats + glob_feats
+            ind_feats = list(scores.columns)
+            # The complexity features are derived from the affinity block alone, so both are
+            # built on the narrow frame and joined to self.data once.
+            scores, glob_feats = populate_complexity_features(scores, ind_feats, suffix=str(flank_size), type="generic")
+            self.data[list(scores.columns)] = scores
+            return self.data, ind_feats + glob_feats
 
         self._step("RBP", sentinel, compute)
 
