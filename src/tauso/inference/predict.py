@@ -29,7 +29,7 @@ ZENODO_MODEL_RECORD = "22688592"
 # Per version: the Zenodo model file + its md5 (pins the exact booster). `filename` must be the exact
 # name of the file uploaded to the Zenodo record; it is fetched and cached under that same name.
 MODEL_FILES = {
-    "v1": {"filename": "tauso_score_v1_clean_exp_med.json", "md5": "ea59020955191a062ca35d3605665ca2"},
+    "v1": {"filename": "tauso_score_v1_clean_exp_med.ubj", "md5": "8dcff7f537013d51080a2d8479567a25"},
     "v1_clean_exp_low": {
         "filename": "tauso_score_v1_clean_exp_low.json",
         "md5": "ae3a65d9fd16e48af4679251a4ba0a40",
