@@ -2,7 +2,6 @@ import gzip
 import logging
 import os
 import tempfile
-from functools import lru_cache
 
 import gffutils
 import pandas as pd
@@ -56,6 +55,10 @@ def get_paths(genome="GRCh38"):
 ANNOTATION_PRIORITY = {"exon": 4, "CDS": 4, "intron": 2, "gene": 1}
 
 
+LOW_CARDINALITY_INTERVAL_COLUMNS = ("chrom", "featuretype", "strand")
+"""Interval columns with a handful of distinct values across millions of rows."""
+
+
 def _parse_gene_intervals(gtf_gz_path: str):
     """Read the annotation's ranked features out of the GTF into a flat interval table."""
     df = pd.read_csv(
@@ -76,24 +79,29 @@ def _parse_gene_intervals(gtf_gz_path: str):
     name = name.fillna(df["attributes"].str.extract(r'(?:^|; )Name "([^"]+)"', expand=False))
     df["gene_name"] = name.fillna(df["gene_id"])
     df = df.drop(columns="attributes")
+    # Twenty-five contigs, two strands and three feature types over millions of rows: as
+    # categories these are a code per row and one copy of each string.
+    for column in LOW_CARDINALITY_INTERVAL_COLUMNS:
+        df[column] = df[column].astype("category")
     # Missing values reach callers as None, not NaN, matching the attribute lookup's default.
     for column in ("gene_name", "gene_id"):
         df[column] = df[column].astype(object).where(df[column].notna(), None)
     return df
 
 
-@lru_cache(maxsize=2)
 def load_gene_intervals(genome="GRCh38"):
     """Ranked annotation features as a flat interval table, one row per exon/CDS/gene.
 
     Built from the GTF on first use and cached beside it as parquet (~16 MB, a few seconds),
-    then reloaded in well under a second. Cached per process: callers get a shared frame and
-    must not mutate it.
+    then reloaded in well under a second. The frame is not held between calls; callers that
+    need it repeatedly should build their own index from it once.
     """
     paths = get_paths(genome)
     cache = paths["gene_intervals"]
     if os.path.exists(cache):
-        return pd.read_parquet(cache)
+        df = pd.read_parquet(cache)
+        # A cache written before these were categories reads back as object.
+        return df.astype({c: "category" for c in LOW_CARDINALITY_INTERVAL_COLUMNS if df[c].dtype == object})
 
     if not os.path.exists(paths["gtf_gz"]):
         raise FileNotFoundError(f"GTF for {genome} not found. Run 'tauso setup-genome --genome {genome}'")
