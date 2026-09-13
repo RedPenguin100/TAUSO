@@ -193,6 +193,10 @@ def run_bowtie_search_many(sequences, genome="GRCh38", max_mismatches=3, threads
         "-a",  # Report all valid alignments
         "-S",
         "--sam-nohead",
+        # Map the index rather than reading it in: it is the difference between roughly 2 GB of
+        # anonymous memory per bowtie and page cache the kernel can reclaim and concurrent
+        # searches can share.
+        "--mm",
         "-p",
         str(threads),
         "-f",
@@ -463,6 +467,7 @@ def run_bowtie_search_bulk(fasta_path, genome="GRCh38", max_mismatches=0, thread
         "-a",  # Report all valid alignments
         "-S",
         "--sam-nohead",
+        "--mm",
         "-p",
         str(threads),  # MULTITHREADING ENABLED
         "-f",  # FASTA INPUT (changed from -c)
@@ -650,6 +655,7 @@ def count_offtarget_matches_bulk(sequences, genome="GRCh38", max_mismatches=2, t
             "-a",  # Report all valid alignments
             "-S",
             "--sam-nohead",
+            "--mm",
             "-p",
             str(threads),
             "-f",  # FASTA input; read name == the sequence
