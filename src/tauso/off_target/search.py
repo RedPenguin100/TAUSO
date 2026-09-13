@@ -511,7 +511,7 @@ def annotate_hits_bulk(hits_list, genome):
     Pure spatial intersection: returns ALL genes an ASO touches,
     ignoring feature types, introns, or biotypes.
     """
-    if not hits_list:
+    if len(hits_list) == 0:
         return {}
 
     gr_genome = load_gtf_pyranges_gene_only(get_paths(genome)["gtf_gz"])
