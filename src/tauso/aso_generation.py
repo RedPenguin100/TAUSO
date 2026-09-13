@@ -238,7 +238,11 @@ def design_asos(
     if off_targets:
         genome = "GRCm39" if config.organism_name == "mouse" else "GRCh38"
         offtargets = _sequence_offtarget_table(
-            ranked, genome=genome, max_distance=off_target_max_distance, exclude_genes=off_target_exclude_genes
+            ranked,
+            genome=genome,
+            max_distance=off_target_max_distance,
+            exclude_genes=off_target_exclude_genes,
+            threads=n_jobs,
         )
         logger.info(
             f"design_asos: {len(offtargets)} sequence off-target hits (<= {off_target_max_distance} mismatches) "
@@ -351,7 +355,7 @@ def _liability_note(immune_cpg, hepatotox, binds_rrna):
 _OFFTARGET_COLS = ["rank", "aso_sequence", "off_target_gene", "distance", "region", "chrom", "start", "strand"]
 
 
-def _sequence_offtarget_table(ranked, *, genome, max_distance, exclude_genes):
+def _sequence_offtarget_table(ranked, *, genome, max_distance, exclude_genes, threads=1):
     """Build the tidy sequence off-target table for a set of ranked candidates (see `design_asos`).
 
     Aligns each candidate ASO to `genome` with Bowtie up to `max_distance` mismatches and returns one
@@ -365,7 +369,7 @@ def _sequence_offtarget_table(ranked, *, genome, max_distance, exclude_genes):
     import os
 
     from tauso.data.data import get_paths
-    from tauso.off_target.search import annotate_hits, run_bowtie_search
+    from tauso.off_target.search import annotate_hits, run_bowtie_search_many
 
     paths = get_paths(genome)
     sentinel = os.path.join(os.path.dirname(paths["fasta"]), f"{genome}_bowtie_index", "SUCCESS")
@@ -378,9 +382,11 @@ def _sequence_offtarget_table(ranked, *, genome, max_distance, exclude_genes):
     exclude = set(exclude_genes or []) | set(pd.Series(ranked[CANONICAL_GENE_NAME]).dropna().unique())
     rank_of = {seq: i + 1 for i, seq in enumerate(ranked[ASO_SEQUENCE].tolist())}
 
-    unique_seqs = list(dict.fromkeys(ranked[ASO_SEQUENCE].tolist()))
-    per_sequence = [run_bowtie_search(seq, genome=genome, max_mismatches=max_distance)[0] for seq in unique_seqs]
-    all_hits = pd.concat(per_sequence, ignore_index=True) if per_sequence else []
+    # One bowtie run for the whole shortlist: the index costs far more to load than the
+    # alignments cost to find, so it is loaded once rather than once per candidate.
+    all_hits, _ = run_bowtie_search_many(
+        ranked[ASO_SEQUENCE].tolist(), genome=genome, max_mismatches=max_distance, threads=threads
+    )
     annotated = annotate_hits(all_hits, genome=genome)
 
     if annotated.empty:

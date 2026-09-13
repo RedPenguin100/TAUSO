@@ -162,15 +162,29 @@ def get_bowtie_index_base(genome="GRCh38", force_rebuild=False, threads=1, mem_p
     return index_base
 
 
-def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
-    """
-    Runs Bowtie 1 alignment.
+def run_bowtie_search_many(sequences, genome="GRCh38", max_mismatches=3, threads=1):
+    """Align every sequence against the genome in a single bowtie run.
+
+    One process for the whole batch: loading the index costs around 0.6s against 25ms of
+    alignment per oligo, so a shortlist pays for the index once rather than once per oligo.
+
     Raises RuntimeError on alignment failure, including Bowtie's diagnostics.
     Returns:
-        hits: DataFrame of all hits (for annotation)
-        counts_dict: Dictionary of counts {'mismatches0': X, 'mismatches1': Y...}
+        hits: DataFrame of every alignment, carrying the sequence it came from
+        counts: {sequence: {'mismatches0': X, 'mismatches1': Y, ...}}, one entry per sequence
     """
+    wanted = list(dict.fromkeys(sequences))
+    counts = {sequence: {f"mismatches{i}": 0 for i in range(max_mismatches + 1)} for sequence in wanted}
+    if not wanted:
+        return _empty_hits(), counts
+
     index_base = get_bowtie_index_base(genome=genome)
+    # Each sequence is its own record, named after itself, so an alignment's QNAME says which
+    # oligo produced it.
+    handle, fasta_path = tempfile.mkstemp(suffix=".fasta")
+    with os.fdopen(handle, "w") as fasta:
+        for sequence in wanted:
+            fasta.write(f">{sequence}\n{sequence}\n")
 
     cmd = [
         "bowtie",
@@ -179,58 +193,96 @@ def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
         "-a",  # Report all valid alignments
         "-S",
         "--sam-nohead",
+        "-p",
+        str(threads),
+        "-f",
         "-x",
         index_base,
-        "-c",
-        sequence,
+        fasta_path,
     ]
 
-    counts = {f"mismatches{i}": 0 for i in range(max_mismatches + 1)}
-    chroms, starts, strands, mismatch_counts = [], [], [], []
+    # One string per distinct value, not per alignment: a wide-aligning oligo repeats the same
+    # two dozen contig names and its own sequence millions of times.
+    by_name = {sequence: sequence for sequence in wanted}
+    contigs = {}
+    chroms, starts, ends, strands, mismatch_counts, found = [], [], [], [], [], []
 
-    # A low-complexity oligo aligns millions of times, so the alignments are read off the pipe
-    # one line at a time and kept as columns: holding the whole report, and a dict per hit,
-    # costs about half a kilobyte per alignment.
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
-        for line in process.stdout:
-            if not line.strip():
-                continue
-            parts = line.split("\t")
-            flag = int(parts[1])
-            if flag & 4:
-                continue  # Unmapped
+    try:
+        # A low-complexity oligo aligns millions of times, so the alignments are read off the
+        # pipe one line at a time and kept as columns: holding the whole report, and a dict per
+        # hit, costs about half a kilobyte per alignment.
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
+            for line in process.stdout:
+                if not line.strip():
+                    continue
+                parts = line.split("\t")
+                flag = int(parts[1])
+                if flag & 4:
+                    continue  # Unmapped
 
-            mismatches = 0
-            for tag in parts[11:]:
-                if tag.startswith("NM:i:"):
-                    mismatches = int(tag.split(":")[2])
-                    break
+                mismatches = 0
+                for tag in parts[11:]:
+                    if tag.startswith("NM:i:"):
+                        mismatches = int(tag.split(":")[2])
+                        break
 
-            if mismatches <= max_mismatches:
-                counts[f"mismatches{mismatches}"] += 1
+                sequence = by_name.get(parts[0], parts[0])
+                if mismatches <= max_mismatches and sequence in counts:
+                    counts[sequence][f"mismatches{mismatches}"] += 1
 
-            chroms.append(parts[2])
-            starts.append(int(parts[3]) - 1)
-            strands.append("-" if (flag & 16) else "+")
-            mismatch_counts.append(mismatches)
-        stderr = process.stderr.read()
+                start = int(parts[3]) - 1
+                chroms.append(contigs.setdefault(parts[2], parts[2]))
+                starts.append(start)
+                ends.append(start + len(sequence))
+                strands.append("-" if (flag & 16) else "+")
+                mismatch_counts.append(mismatches)
+                found.append(sequence)
+            # stdout is drained first: bowtie blocks if its stderr pipe fills while we wait.
+            stderr = process.stderr.read()
+    finally:
+        os.remove(fasta_path)
 
     if process.returncode:
         failure = subprocess.CalledProcessError(process.returncode, cmd, stderr=stderr)
         raise RuntimeError(f"Bowtie search failed: {failure}\n{stderr or ''}") from failure
 
-    start = np.array(starts, np.int64)
     hits = pd.DataFrame(
         {
             "chrom": chroms,
-            "start": start,
-            "end": start + len(sequence),
+            "start": np.array(starts, np.int64),
+            "end": np.array(ends, np.int64),
             "strand": strands,
             "mismatches": np.array(mismatch_counts, np.int16),
-            "sequence": [sequence] * len(start),
+            "sequence": found,
         }
     )
     return hits, counts
+
+
+def run_bowtie_search(sequence, genome="GRCh38", max_mismatches=3):
+    """
+    Runs Bowtie 1 alignment.
+    Raises RuntimeError on alignment failure, including Bowtie's diagnostics.
+    Returns:
+        hits: DataFrame of all hits (for annotation)
+        counts_dict: Dictionary of counts {'mismatches0': X, 'mismatches1': Y...}
+    """
+    hits, counts = run_bowtie_search_many([sequence], genome=genome, max_mismatches=max_mismatches)
+    return hits, counts[sequence]
+
+
+def _empty_hits():
+    """The hit table's shape, for a search that aligned nothing."""
+    return pd.DataFrame(
+        {
+            "chrom": pd.Series(dtype=object),
+            "start": pd.Series(dtype=np.int64),
+            "end": pd.Series(dtype=np.int64),
+            "strand": pd.Series(dtype=object),
+            "mismatches": pd.Series(dtype=np.int16),
+            "sequence": pd.Series(dtype=object),
+        }
+    )
 
 
 DICTIONARY_INTERVAL_COLUMNS = ["chrom", "featuretype", "strand", "gene_id", "gene_name"]
