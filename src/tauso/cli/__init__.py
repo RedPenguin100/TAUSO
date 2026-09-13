@@ -783,9 +783,9 @@ def setup_model(version, force):
     """Download the trained ASO-efficacy booster (tauso_score) from Zenodo into
     <data_dir>/models/, verifying its md5, so inference finds it locally instead of
     fetching it on first use. The per-version registry (Zenodo record + md5) lives in
-    tauso.inference.predict; this command just provisions it like the other setup-* assets.
+    tauso.inference.scoring; this command just provisions it like the other setup-* assets.
     """
-    from tauso.inference.predict import (
+    from tauso.inference.scoring import (
         DEFAULT_VERSION,
         MODEL_FILES,
         ZENODO_MODEL_RECORD,

@@ -1,0 +1,13 @@
+{
+  "zenodo_record": "22688592",
+  "models": {
+    "v1": {
+      "filename": "tauso_score_v1_clean_exp_med.json",
+      "md5": "ea59020955191a062ca35d3605665ca2"
+    },
+    "v1_clean_exp_low": {
+      "filename": "tauso_score_v1_clean_exp_low.json",
+      "md5": "ae3a65d9fd16e48af4679251a4ba0a40"
+    }
+  }
+}
