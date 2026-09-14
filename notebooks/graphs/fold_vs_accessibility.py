@@ -109,7 +109,7 @@ def group_stats(df, labels):
     return rows
 
 
-def draw(rows, fold_column, access_column, pearson, out_path):
+def draw(rows, out_path):
     fig, ax = plt.subplots(figsize=(7.6, 4.6))
     x = np.arange(len(rows))
     means = np.array([r["mean"] for r in rows])
@@ -143,15 +143,7 @@ def draw(rows, fold_column, access_column, pearson, out_path):
     ax.set_title("Fold stability and opening energy are complementary", fontsize=12)
     ax.spines[["top", "right"]].set_visible(False)
 
-    fig.tight_layout(rect=(0, 0.075, 1, 1))
-    fig.text(
-        0.01,
-        0.015,
-        f"median split on {fold_column} and {access_column};  Pearson = {pearson:.2f};  "
-        f"bars are group means \u00b1 95% CI",
-        fontsize=7,
-        color="#555555",
-    )
+    fig.tight_layout()
     fig.savefig(out_path, dpi=300)
     print(f"\nwrote {out_path}")
 
@@ -206,7 +198,7 @@ def main():
             f"[{row['mean'] - row['ci']:+.2f}, {row['mean'] + row['ci']:+.2f}]"
         )
 
-    draw(rows, args.fold, args.access, pearson, args.out)
+    draw(rows, args.out)
 
 
 if __name__ == "__main__":
