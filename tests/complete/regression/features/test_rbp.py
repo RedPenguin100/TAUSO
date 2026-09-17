@@ -17,9 +17,7 @@ def sampled_base_data(request, final_data):
 
 
 @pytest.mark.parametrize("sampled_base_data", [1000], indirect=True)
-def test_rbp_complexity_features_regression(
-    sampled_base_data, gene_to_data, rbp_assets, dataframe_regression, data_regression
-):
+def test_rbp_complexity_features_regression(sampled_base_data, rbp_assets, dataframe_regression, data_regression):
     """
     Tests the RBP affinity and complexity feature population.
     Uses dataframe_regression for the main df, and data_regression for the feature dicts/dfs.
@@ -28,7 +26,7 @@ def test_rbp_complexity_features_regression(
     rbp_map, pwm_db = rbp_assets
 
     for flank_size in [50]:
-        scores = populate_rbp_affinity_features(data, rbp_map, pwm_db, gene_to_data, flank_size, n_jobs=get_n_jobs())
+        scores = populate_rbp_affinity_features(data, rbp_map, pwm_db, flank_size, n_jobs=get_n_jobs())
         individual_features = list(scores.columns)
 
         scores, global_features = populate_complexity_features(
