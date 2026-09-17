@@ -3,7 +3,7 @@ from notebooks.data.OligoAI.parse_chemistry import assign_chemistry
 from tests.complete.conftest import get_n_jobs
 
 from tauso.data.consts import CELL_LINE_DEPMAP
-from tauso.genome.transcriptome import load_transcriptomes
+from tauso.expression.cohort import load_cohort_expression
 from tauso.populate.populate_off_target import populate_off_target_specific
 
 
@@ -25,7 +25,7 @@ def test_off_target_hybridization(request, mini_sampled_data, dataframe_regressi
     gene_to_data_full = request.getfixturevalue("gene_to_data_full")
 
     cell_lines_depmap = mini_sampled_data[CELL_LINE_DEPMAP].dropna().unique().tolist()
-    transcriptomes = load_transcriptomes(cell_lines_depmap)
+    transcriptomes = load_cohort_expression(cell_lines_depmap)
 
     mini_sampled_data, feature_names = populate_off_target_specific(
         mini_sampled_data, gene_to_data_full, transcriptomes, [50], [1200], method="BOLTZ", n_jobs=get_n_jobs()

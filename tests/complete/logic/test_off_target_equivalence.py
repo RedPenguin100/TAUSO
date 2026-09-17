@@ -66,7 +66,7 @@ def test_off_target_general_multi_cutoff_matches_per_cutoff(
     multi, _ = populate_off_target_general(
         ASO_df=mini_structure_data.copy(),
         gene_to_data=gene_to_data_full,
-        cell_line2data=transcriptomes_with_general,
+        expression_df=transcriptomes_with_general["general"],
         top_n_list=[25],
         cutoff_list=cutoffs,
         method=AggregationMethod.BOLTZMANN_SUM,
@@ -76,7 +76,7 @@ def test_off_target_general_multi_cutoff_matches_per_cutoff(
         single, feats = populate_off_target_general(
             ASO_df=mini_structure_data.copy(),
             gene_to_data=gene_to_data_full,
-            cell_line2data=transcriptomes_with_general,
+            expression_df=transcriptomes_with_general["general"],
             top_n_list=[25],
             cutoff_list=[c],
             method=AggregationMethod.BOLTZMANN_SUM,
@@ -121,7 +121,7 @@ def test_off_target_general_multi_topn_matches_per_topn(
     multi, _ = populate_off_target_general(
         ASO_df=mini_structure_data.copy(),
         gene_to_data=gene_to_data_full,
-        cell_line2data=transcriptomes_with_general,
+        expression_df=transcriptomes_with_general["general"],
         top_n_list=top_ns,
         cutoff_list=[800],
         method=AggregationMethod.BOLTZMANN_SUM,
@@ -131,7 +131,7 @@ def test_off_target_general_multi_topn_matches_per_topn(
         single, feats = populate_off_target_general(
             ASO_df=mini_structure_data.copy(),
             gene_to_data=gene_to_data_full,
-            cell_line2data=transcriptomes_with_general,
+            expression_df=transcriptomes_with_general["general"],
             top_n_list=[n],
             cutoff_list=[800],
             method=AggregationMethod.BOLTZMANN_SUM,

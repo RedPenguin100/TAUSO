@@ -101,7 +101,7 @@ def test_off_target_general_regression(
     data, feature_names = populate_off_target_general(
         ASO_df=data,
         gene_to_data=gene_to_data_full,
-        cell_line2data=transcriptomes_with_general,
+        expression_df=transcriptomes_with_general["general"],
         top_n_list=[25],
         cutoff_list=[800],
         method=AggregationMethod.BOLTZMANN_SUM,

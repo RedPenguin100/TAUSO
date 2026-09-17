@@ -142,8 +142,8 @@ def setup_depmap(force):
         Path(omics_parquet_sha).write_text(sha256_file(omics_parquet))
 
     # The CSV is dead weight once the Parquet exists — every consumer (production
-    # code in genome/transcriptome.py and features/expression/general_expression.py,
-    # plus tests) takes the CSV path but immediately swaps the suffix to .parquet.
+    # code in expression/, plus tests) takes the CSV path but immediately swaps the
+    # suffix to .parquet.
     if os.path.exists(omics_csv):
         os.remove(omics_csv)
         echo_ok(f"Removed {omics_csv_name} (Parquet supersedes it).")
@@ -197,6 +197,9 @@ def setup_all(ctx, genome, force, threads, mem_per_thread):
     click.echo()
     click.echo(click.style("=== setup-all: rRNA ===", bold=True))
     ctx.invoke(setup_rrna, force=force)
+    click.echo()
+    click.echo(click.style("=== setup-all: general expression ===", bold=True))
+    ctx.invoke(build_general_expression_command, genome=genome, force=force)
     click.echo()
     echo_ok("setup-all complete.")
 
@@ -529,6 +532,29 @@ def build_cohort_transcript_expression(force):
     with open(sentinel, "w") as f:
         json.dump(sorted(target_ids), f)
     click.echo(f"✓ Processed {found_count} cell lines. Data in {output_dir}")
+
+
+@main.command(name="build-general-expression")
+@click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
+@click.option("--force", is_flag=True, help="Rebuild even if the table is already there.")
+def build_general_expression_command(genome, force):
+    """
+    Averages every gene's expression across the DepMap cohort into one table.
+
+    The general off-target features rank genes by it and score against the most expressed
+    of them. Reading the DepMap matrix to build it costs far more than the table itself, and
+    nothing about it changes from run to run, so it is built once and read from disk after.
+    """
+    from tauso.expression.general import build_general_expression, general_expression_path
+
+    path = general_expression_path()
+    if path.exists() and not force:
+        echo_ok(f"{path.name} exists. Use --force to rebuild.")
+        return
+
+    click.echo("Averaging the cohort's expression per gene...")
+    table = build_general_expression(genome)
+    echo_ok(f"Wrote {path} for {len(table):,} genes ({path.stat().st_size / 1024:.0f} KB).")
 
 
 @main.command()
