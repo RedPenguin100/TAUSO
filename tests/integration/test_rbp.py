@@ -1,8 +1,7 @@
-import numpy as np
 import pytest
 
 from tauso.features.rbp.load_rbp import load_attract_data
-from tauso.populate.populate_rbp import _encode_sequence, process_rbp
+from tauso.populate.populate_rbp import encode_sequences, process_rbp
 
 
 def test_per_motif_occupancy_regression(data_regression):
@@ -41,9 +40,7 @@ def test_per_motif_occupancy_regression(data_regression):
 
     # 2. Lay the sequences out the way the pipeline scans them
     names = list(test_sequences)
-    encoded = [_encode_sequence(sequence) for sequence in test_sequences.values()]
-    offsets = np.concatenate(([0], np.cumsum([len(sequence) for sequence in encoded], dtype=np.int64)))
-    flat_seq = np.concatenate(encoded)
+    flat_seq, offsets = encode_sequences(test_sequences.values())
 
     # 3. Collect results from the scorer
     results = {}
@@ -71,4 +68,4 @@ def test_per_motif_occupancy_regression(data_regression):
 def test_unknown_base_raises():
     """A sequence with an unknown base (N/etc.) must fail loudly, not be silently scored."""
     with pytest.raises(ValueError):
-        _encode_sequence("AUGNNNUGA")
+        encode_sequences(["AUGNNNUGA"])
