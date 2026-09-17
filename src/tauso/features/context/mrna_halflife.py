@@ -53,22 +53,36 @@ HALFLIFE_BASELINE_CONDITIONS = (
 )
 
 
+def _distinct(series):
+    """The column's distinct values: its categories when it has them, its values otherwise.
+
+    A categorical column already holds each distinct value once, and the half-life table has
+    a few dozen of them over millions of rows. Matching against those rather than against a
+    string per row is what keeps the filter from expanding the column it is reading.
+    """
+    values = series.cat.categories if isinstance(series.dtype, pd.CategoricalDtype) else series.unique()
+    return pd.Index(values)
+
+
+def _select(df, column, wanted, absent_message):
+    """Rows whose `column`, stripped, is one of `wanted`, ignoring case."""
+    distinct = _distinct(df[column])
+    stripped = distinct.astype(str).str.strip()
+    wanted = {str(w).strip().casefold() for w in wanted}
+    hit = df[column].isin(distinct[stripped.str.casefold().isin(wanted)])
+    if not hit.any():
+        raise ValueError(f"{absent_message} in the half-life data; it has {sorted(stripped.unique())}.")
+    return df[hit]
+
+
 def select_species(df, species):
     """Rows for `species`. Raises if absent, naming what the file has."""
-    present = df["species_name"].astype(str).str.strip()
-    hit = present.str.casefold() == str(species).strip().casefold()
-    if not hit.any():
-        raise ValueError(f"No {species!r} rows in the half-life data; it has {sorted(present.unique())}.")
-    return df[hit]
+    return _select(df, "species_name", [species], f"No {species!r} rows")
 
 
 def select_conditions(df, conditions):
     """Rows for the baseline `conditions`. Raises if none match, naming what the file has."""
-    present = df["condition"].astype(str).str.strip()
-    hit = present.str.casefold().isin({str(c).strip().casefold() for c in conditions})
-    if not hit.any():
-        raise ValueError(f"No {sorted(conditions)} rows in the half-life data; it has {sorted(present.unique())}.")
-    return df[hit]
+    return _select(df, "condition", conditions, f"No {sorted(conditions)} rows")
 
 
 def load_halflife_mapping(species=HALFLIFE_SPECIES, conditions=HALFLIFE_BASELINE_CONDITIONS):
@@ -86,11 +100,15 @@ def load_halflife_mapping(species=HALFLIFE_SPECIES, conditions=HALFLIFE_BASELINE
 
     # 1. Load necessary columns. Parquet is columnar, so this reads only these
     # (we use 'gene_name_y' standardized and 'condition' for filtering).
+    #
+    # The text columns are read as categories: over 2.17M rows they hold 5 species, 26
+    # conditions, 46 cell types and 63k genes, so a category code per row and one copy of
+    # each distinct string is a tenth of the size of a Python string per row.
     have = set(pq.ParquetFile(path).schema_arrow.names)
     missing = [c for c in HALFLIFE_SOURCE_COLUMNS if c not in have]
     if missing:
         raise ValueError(f"{path} is missing {missing}. Rebuild it with 'tauso setup-mrna-halflife --force'.")
-    df = pd.read_parquet(path, columns=HALFLIFE_SOURCE_COLUMNS)
+    df = pq.read_table(path, columns=HALFLIFE_SOURCE_COLUMNS).to_pandas(strings_to_categorical=True)
 
     # 2. Rename for clarity
     df = df.rename(columns={"gene_name_y": "gene", "cell_type": "cell_line"})
