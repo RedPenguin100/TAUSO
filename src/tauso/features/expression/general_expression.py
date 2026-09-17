@@ -71,28 +71,38 @@ def general_expression_path() -> Path:
     return Path(get_data_dir()) / GENERAL_EXPRESSION_FILENAME
 
 
-def build_general_expression(genome: str = "GRCh38") -> Path:
+def build_general_expression(genome: str = "GRCh38") -> pd.DataFrame:
     """Compute the per-gene mean expression across the cohort and write it to the data dir.
 
     Reading the DepMap matrix costs far more than the table it produces -- 60,655 columns
     against 38,584 rows of means -- and nothing about it changes from run to run.
     """
+    import os
+
     from ...common.gtf import filter_gtf_genes
     from ...data.data import get_data_dir, load_gtf_db
 
     valid_genes = filter_gtf_genes(load_gtf_db(genome), filter_mode="non_mt")
     table = get_general_expression_of_genes(Path(get_data_dir()) / OMICS_FILENAME, valid_genes)
 
+    # write-then-rename: two runs starting at once must not read a half-written table
     path = general_expression_path()
-    table.to_parquet(path, index=False)
-    return path
+    tmp = f"{path}.{os.getpid()}.tmp"
+    table.to_parquet(tmp, index=False)
+    os.replace(tmp, path)
+    return table
 
 
-def load_general_expression() -> pd.DataFrame:
-    """The per-gene mean expression, most expressed first, as build_general_expression wrote it."""
+def load_general_expression(genome: str = "GRCh38") -> pd.DataFrame:
+    """The per-gene mean expression, most expressed first.
+
+    Built on first use and read from the data dir after; `tauso build-general-expression`
+    does the same thing ahead of time.
+    """
     from ...frames import arrow_strings
 
     path = general_expression_path()
     if not path.exists():
-        raise FileNotFoundError(f"General expression table not found at {path}. Run 'tauso build-general-expression'.")
+        logger.info("No general expression table yet; building %s (once).", path)
+        return build_general_expression(genome)
     return arrow_strings(pd.read_parquet(path))

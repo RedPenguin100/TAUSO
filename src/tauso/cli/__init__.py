@@ -553,8 +553,8 @@ def build_general_expression_command(genome, force):
         return
 
     click.echo("Averaging the cohort's expression per gene...")
-    path = build_general_expression(genome)
-    echo_ok(f"Wrote {path} ({path.stat().st_size / 1024:.0f} KB).")
+    table = build_general_expression(genome)
+    echo_ok(f"Wrote {path} for {len(table):,} genes ({path.stat().st_size / 1024:.0f} KB).")
 
 
 @main.command()
