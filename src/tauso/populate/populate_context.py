@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -104,44 +104,43 @@ def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.Dat
     return master.drop_duplicates(subset=[CELL_LINE_DEPMAP, "Gene"])
 
 
-def _drop_existing(df: pd.DataFrame, cols: Sequence[str]) -> pd.DataFrame:
-    existing_cols = [c for c in cols if c in df.columns]
-    if existing_cols:
-        logger.warning("Dropping existing columns: %s", existing_cols)
-        return df.drop(columns=existing_cols)
-    return df
+def _by_cell_line_and_gene(expression_dict: Dict[str, pd.DataFrame]) -> pd.Series:
+    """Expression indexed by (cell line, gene), one value per pair."""
+    master = _build_expression_master(expression_dict)
+    return master.set_index([CELL_LINE_DEPMAP, "Gene"])["expression_norm"]
+
+
+def _lookup(values: pd.Series, cell_lines, genes) -> np.ndarray:
+    """`values`, indexed by (cell line, gene), read at each row's pair; NaN where there is none.
+
+    A lookup rather than a merge: a merge rebuilds the whole frame to add one column and
+    hands back a frame with a fresh index, and this step adds thirty of them.
+    """
+    return values.reindex(pd.MultiIndex.from_arrays([cell_lines, genes])).to_numpy()
+
+
+def _fixed_gene(values: pd.Series, df: pd.DataFrame, gene: str) -> np.ndarray:
+    """One gene's expression in each row's cell line."""
+    return _lookup(values, df[CELL_LINE_DEPMAP], np.full(len(df), gene, dtype=object))
 
 
 def populate_target_expression(
     df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """Merges the ASO's target gene expression (per cell line × gene) into df."""
-    _drop_existing(df, TARGET_EXPRESSION_FEATURE_NAMES)
-
-    expression_master = _build_expression_master(expression_dict)
-
-    enhanced_df = df.merge(
-        expression_master,
-        left_on=[CELL_LINE_DEPMAP, CANONICAL_GENE_NAME],
-        right_on=[CELL_LINE_DEPMAP, "Gene"],
-        how="left",
-    )
-    enhanced_df = enhanced_df.rename(columns={"expression_norm": "expr_target"})
-    enhanced_df = enhanced_df.drop(columns=["Gene"])
-
-    return enhanced_df, TARGET_EXPRESSION_FEATURE_NAMES
+    """Adds the ASO's target gene expression (per cell line x gene) to df."""
+    values = _by_cell_line_and_gene(expression_dict)
+    df["expr_target"] = _lookup(values, df[CELL_LINE_DEPMAP], df[CANONICAL_GENE_NAME])
+    return df, TARGET_EXPRESSION_FEATURE_NAMES
 
 
 def populate_target_dominant_transcript(
     df: pd.DataFrame, transcript_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """Merges the target gene's dominant-transcript share (per cell line x gene) into df.
+    """Adds the target gene's dominant-transcript share (per cell line x gene) to df.
 
     The share is the most abundant transcript's TPM over the gene's total, so 1.0 is a gene
     expressed as a single species and 0.2 one spread across several.
     """
-    _drop_existing(df, TARGET_TRANSCRIPT_FEATURE_NAMES)
-
     frames = []
     for depmap_id, t_df in transcript_dict.items():
         grouped = t_df.groupby("Gene")["expression_TPM"]
@@ -160,57 +159,31 @@ def populate_target_dominant_transcript(
     master["expr_target_dom_fraction"] = np.where(
         master["gene_tpm"] > 0, master["top_tpm"] / master["gene_tpm"], np.nan
     )
-    master = master.drop(columns=["top_tpm", "gene_tpm"])
-
-    merged = df.merge(
-        master,
-        left_on=[CELL_LINE_DEPMAP, CANONICAL_GENE_NAME],
-        right_on=[CELL_LINE_DEPMAP, "Gene"],
-        how="left",
-    ).drop(columns=["Gene"])
-
-    return merged, TARGET_TRANSCRIPT_FEATURE_NAMES
-
-
-def _merge_fixed_gene(
-    df: pd.DataFrame, expression_master: pd.DataFrame, gene_symbol: str, feat_name: str
-) -> pd.DataFrame:
-    gene_vals = expression_master[expression_master["Gene"] == gene_symbol]
-    merged = df.merge(
-        gene_vals[[CELL_LINE_DEPMAP, "expression_norm"]],
-        on=CELL_LINE_DEPMAP,
-        how="left",
-        suffixes=("", f"_{feat_name}"),
-    )
-    return merged.rename(columns={"expression_norm": feat_name})
+    values = master.set_index([CELL_LINE_DEPMAP, "Gene"])["expr_target_dom_fraction"]
+    df[TARGET_TRANSCRIPT_FEATURE_NAMES[0]] = _lookup(values, df[CELL_LINE_DEPMAP], df[CANONICAL_GENE_NAME])
+    return df, TARGET_TRANSCRIPT_FEATURE_NAMES
 
 
 def populate_special_gene_expression(
     df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """Merges per-cell-line expression for the genes named in _SPECIAL_GENES."""
-    _drop_existing(df, SPECIAL_GENE_EXPRESSION_FEATURE_NAMES)
-
-    expression_master = _build_expression_master(expression_dict)
-
-    for feat_name, gene_symbol in _SPECIAL_GENES.items():
-        df = _merge_fixed_gene(df, expression_master, gene_symbol, feat_name)
-
+    """Adds per-cell-line expression for the genes named in _SPECIAL_GENES."""
+    values = _by_cell_line_and_gene(expression_dict)
+    columns = {feat_name: _fixed_gene(values, df, gene_symbol) for feat_name, gene_symbol in _SPECIAL_GENES.items()}
+    df[list(columns)] = pd.DataFrame(columns, index=df.index)
     return df, SPECIAL_GENE_EXPRESSION_FEATURE_NAMES
 
 
 def populate_special_transcript_expression(
     df: pd.DataFrame, expression_dict: Dict[str, pd.DataFrame]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """Merges per-cell-line expression of each named special transcript.
+    """Adds per-cell-line expression of each named special transcript.
 
     The transcript-level twin of populate_special_gene_expression. Where that one takes a
     gene's expression, this takes one named isoform of it: a gene whose expression sits in a
     single isoform and one split across four share a gene-level value but hold different
     amounts of any one species. Ids are matched unversioned.
     """
-    _drop_existing(df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES)
-
     rows = []
     for depmap_id, t_df in expression_dict.items():
         indexed = t_df.set_index("TranscriptName")
@@ -232,10 +205,9 @@ def populate_special_transcript_expression(
             df[feat_name] = np.nan
         return df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
 
-    master = pd.DataFrame(rows)
-    for feat_name in _SPECIAL_TRANSCRIPTS:
-        df = _merge_fixed_gene(df, master, feat_name, feat_name)
-
+    values = pd.DataFrame(rows).set_index([CELL_LINE_DEPMAP, "Gene"])["expression_norm"]
+    columns = {feat_name: _fixed_gene(values, df, feat_name) for feat_name in _SPECIAL_TRANSCRIPTS}
+    df[list(columns)] = pd.DataFrame(columns, index=df.index)
     return df, SPECIAL_TRANSCRIPT_EXPRESSION_FEATURE_NAMES
 
 
