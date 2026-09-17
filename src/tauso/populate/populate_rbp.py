@@ -28,7 +28,7 @@ def _occupancy_from_log2_odds(score):
     return 1.0 / (1.0 + 2.0 ** (-score))
 
 
-@njit(fastmath=True)
+@njit(fastmath=True, nogil=True)
 def _log_unbound_numba_core(seq_indices, weights):
     """Log-probability that this PWM leaves every site unoccupied over the sequence.
 
@@ -83,7 +83,7 @@ def encode_sequences(sequences):
     return flat_seq, offsets
 
 
-@njit(fastmath=True)
+@njit(fastmath=True, nogil=True)
 def _log_unbound_batch(flat_seq, offsets, weights, out):
     """Scan every row without copying its sequence."""
     for row in range(len(out)):
@@ -144,8 +144,10 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, flank_size, n_jobs=32):
     flat_seq, offsets = encode_sequences(sequences)
 
     # --- 3. EXECUTION: Parallelize over RBPs, not Rows ---
+    # Threads, not processes: the kernel runs without the GIL, so they scale the same,
+    # read flat_seq in place, and cost no interpreter of their own.
     # Small batches cost less to scan than to dispatch to workers.
-    results = Parallel(n_jobs=1 if n_rows < 500 else n_jobs)(
+    results = Parallel(n_jobs=1 if n_rows < 500 else n_jobs, prefer="threads")(
         delayed(process_rbp)(task, flat_seq, offsets) for task in tqdm(target_tasks, desc="Computing RBPs")
     )
 
