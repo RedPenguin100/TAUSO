@@ -765,12 +765,7 @@ class Calculator:
             # it needs no CDS windows, so none are requested.
             self._ensure_genomic_context(cds_windows=[])
             rbp_map, pwm_db = self.cache.get_rbp_assets()
-            # Empty gene->data map: every row falls back to the uniform [.25]*4 background, so no
-            # per-transcript composition is used.
-            uniform_background = {}
-            scores = populate_rbp_affinity_features(
-                self.data, rbp_map, pwm_db, uniform_background, flank_size, n_jobs=self.cpus
-            )
+            scores = populate_rbp_affinity_features(self.data, rbp_map, pwm_db, flank_size, n_jobs=self.cpus)
             ind_feats = list(scores.columns)
             # The complexity features are derived from the affinity block alone, so both are
             # built on the narrow frame and joined to self.data once.

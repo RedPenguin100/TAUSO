@@ -14,9 +14,12 @@ COMPLEXITY_ROW_CHUNK = 20000
 """Rows reduced at once when summing across RBPs."""
 
 from tauso.algorithms.genomic_context_windows import flank_sequence_column
-from tauso.data.consts import CANONICAL_GENE_NAME
-from tauso.features.rbp.rbp_features import get_background_probs
+from tauso.data.consts import STRUCTURE_SENSE_START
 from tauso.util import BASE_INDEX
+
+BACKGROUND = 0.25
+"""The nucleotide background the PWM log-odds are taken against. Uniform, so a motif scores
+the same wherever it sits; the composition of the transcript around it plays no part."""
 
 
 @njit(fastmath=True)
@@ -25,7 +28,7 @@ def _occupancy_from_log2_odds(score):
     return 1.0 / (1.0 + 2.0 ** (-score))
 
 
-@njit(fastmath=True)
+@njit(fastmath=True, nogil=True)
 def _log_unbound_numba_core(seq_indices, weights):
     """Log-probability that this PWM leaves every site unoccupied over the sequence.
 
@@ -53,38 +56,41 @@ def _log_unbound_numba_core(seq_indices, weights):
     return log_unbound
 
 
-def _encode_sequence(sequence):
-    """Map A/C/G/U/T to PWM columns; missing sequences have no sites."""
-    if sequence is None or pd.isna(sequence):
-        return np.empty(0, dtype=np.int8)
-    seq_str = str(sequence)
-    seq_indices = np.array([BASE_INDEX.get(base, -1) for base in seq_str.upper()], dtype=np.int8)
-    if (seq_indices == -1).any():
-        unknown = sorted(set(seq_str.upper()) - {"A", "C", "G", "U", "T"})
-        raise ValueError(f"Unknown base(s) {unknown} in sequence {seq_str!r}; only A/C/G/U/T are allowed.")
-    return seq_indices
+def _base_columns():
+    """A byte's PWM column, -1 for anything that is not a base. Either case of a base reads the same."""
+    table = np.full(256, -1, dtype=np.int8)
+    for base, column in BASE_INDEX.items():
+        table[ord(base)] = column
+        table[ord(base.lower())] = column
+    return table
 
 
-def motif_log_unbound_numba(sequence, pwm_matrix, background_probs=None):
-    """Σ log(1 - o) over a PWM's gapless placements (the log-probability it occupies no site).
-    NaN/empty sequences contribute 0 (an unoccupied factor). See _log_unbound_numba_core."""
-    seq_indices = _encode_sequence(sequence)
-    if not len(seq_indices):
-        return 0.0
-    if background_probs is None:
-        background_probs = np.full(4, 0.25)
-    weights = np.log2((np.asarray(pwm_matrix, dtype=np.float64) + 1e-9) / background_probs)
-    return _log_unbound_numba_core(seq_indices, weights)
+_BASE_COLUMN = _base_columns()
 
 
-@njit(fastmath=True)
-def _log_unbound_batch(flat_seq, offsets, rows, weights, out):
-    """Scan rows sharing a background without copying their sequences."""
-    for row in rows:
+def encode_sequences(sequences):
+    """Glue the sequences into one array of PWM column indices.
+
+    Returns (flat_seq, offsets): row i is flat_seq[offsets[i]:offsets[i + 1]].
+    """
+    sequences = list(sequences)
+    offsets = np.cumsum([0, *map(len, sequences)], dtype=np.int64)
+    letters = np.frombuffer("".join(sequences).encode("ascii"), dtype=np.uint8)
+    flat_seq = _BASE_COLUMN[letters]
+    if (flat_seq == -1).any():
+        unknown = sorted({chr(b) for b in letters[flat_seq == -1]})
+        raise ValueError(f"Unknown base(s) {unknown}; only A/C/G/U/T are allowed.")
+    return flat_seq, offsets
+
+
+@njit(fastmath=True, nogil=True)
+def _log_unbound_batch(flat_seq, offsets, weights, out):
+    """Scan every row without copying its sequence."""
+    for row in range(len(out)):
         out[row] += _log_unbound_numba_core(flat_seq[offsets[row] : offsets[row + 1]], weights)
 
 
-def process_rbp(task, flat_seq, offsets, background_groups):
+def process_rbp(task, flat_seq, offsets):
     """Worker function: processes ONE RBP for ALL sequences.
 
     The per-RBP score is the probability that the protein occupies at least one site in the
@@ -97,31 +103,21 @@ def process_rbp(task, flat_seq, offsets, background_groups):
     log_unbound = np.zeros(n_rows, dtype=np.float64)
     for matrix in matrices:
         pwm = np.asarray(matrix, dtype=np.float64)
-        for background, rows in background_groups:
-            weights = np.log2((pwm + 1e-9) / background)
-            _log_unbound_batch(flat_seq, offsets, rows, weights, log_unbound)
+        weights = np.log2((pwm + 1e-9) / BACKGROUND)
+        _log_unbound_batch(flat_seq, offsets, weights, log_unbound)
 
     return col_name, 1.0 - np.exp(log_unbound)
 
 
-def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, flank_size, n_jobs=32):
+def populate_rbp_affinity_features(df, rbp_map, pwm_db, flank_size, n_jobs=32):
     """One affinity column per RBP, as a frame indexed like `df`.
 
-    Reads the two columns it needs and returns only what it computed. The step runs 27th of
+    Reads the one column it needs and returns only what it computed. The step runs 27th of
     28, when `df` is at its widest, and copying it costs more than the scan does.
     """
-    sequences = df[flank_sequence_column(flank_size)].fillna("").astype(str)
-    genes = df[CANONICAL_GENE_NAME]
+    placed = df[STRUCTURE_SENSE_START] != -1
+    sequences = df.loc[placed, flank_sequence_column(flank_size)]
     n_rows = len(sequences)
-
-    # Calculate backgrounds once per gene, then group rows sharing motif weights.
-    default_bg = np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
-    backgrounds = {
-        g: get_background_probs(gene_to_data[g].full_mrna) if g in gene_to_data else default_bg for g in genes.unique()
-    }
-    background_probs_arr = np.array(genes.map(backgrounds).tolist(), dtype=np.float32).reshape(-1, 4)
-    unique, inverse = np.unique(background_probs_arr, axis=0, return_inverse=True)
-    background_groups = [(bg.astype(np.float64), np.flatnonzero(inverse == i)) for i, bg in enumerate(unique)]
 
     # --- 2. FILTER & PREPARE RBP METADATA ---
     target_tasks = []
@@ -140,24 +136,23 @@ def populate_rbp_affinity_features(df, rbp_map, pwm_db, gene_to_data, flank_size
 
     if not target_tasks:
         logger.warning("No valid RBP tasks found in PWM DB.")
-        return pd.DataFrame(index=sequences.index)
+        return pd.DataFrame(index=df.index)
 
     logger.info("Calculating affinity features for %d RBPs on %d rows...", len(target_tasks), n_rows)
 
     # Encode once for all motifs; offsets delimit each row in the shared array.
-    encoded = [_encode_sequence(sequence) for sequence in sequences]
-    offsets = np.concatenate(([0], np.cumsum([len(sequence) for sequence in encoded], dtype=np.int64)))
-    flat_seq = np.concatenate(encoded) if encoded else np.empty(0, dtype=np.int8)
+    flat_seq, offsets = encode_sequences(sequences)
 
     # --- 3. EXECUTION: Parallelize over RBPs, not Rows ---
+    # Threads, not processes: the kernel runs without the GIL, so they scale the same,
+    # read flat_seq in place, and cost no interpreter of their own.
     # Small batches cost less to scan than to dispatch to workers.
-    results = Parallel(n_jobs=1 if n_rows < 500 else n_jobs)(
-        delayed(process_rbp)(task, flat_seq, offsets, background_groups)
-        for task in tqdm(target_tasks, desc="Computing RBPs")
+    results = Parallel(n_jobs=1 if n_rows < 500 else n_jobs, prefer="threads")(
+        delayed(process_rbp)(task, flat_seq, offsets) for task in tqdm(target_tasks, desc="Computing RBPs")
     )
 
     logger.info("Done. Added %d affinity features.", len(results))
-    return pd.DataFrame(dict(results), index=sequences.index)
+    return pd.DataFrame(dict(results), index=sequences.index).reindex(df.index)
 
 
 def _total_and_diversity(df, feature_cols):
@@ -172,21 +167,17 @@ def _total_and_diversity(df, feature_cols):
 
     for start in range(0, len(df), COMPLEXITY_ROW_CHUNK):
         stop = start + COMPLEXITY_ROW_CHUNK
-        # Filling NaNs with 0 is crucial if some lookups failed.
-        matrix = df.iloc[start:stop, positions].to_numpy(dtype=np.float64, na_value=0.0)
+        matrix = df.iloc[start:stop, positions].to_numpy(dtype=np.float64)
 
         chunk_total = matrix.sum(axis=1)
         total_scores[start:stop] = chunk_total
 
-        # Normalize rows to sum to 1 to treat as probabilities.
-        # Avoid division by zero for rows with 0 interaction.
+        # Normalize rows to sum to 1 to treat as probabilities. A row with no window is NaN
+        # in every column and stays NaN here.
         with np.errstate(divide="ignore", invalid="ignore"):
             matrix /= chunk_total[:, None]
-            # Replace NaNs (from 0/0) with 0
-            np.nan_to_num(matrix, copy=False)
-
-        # Entropy, base e by default.
-        diversity[start:stop] = entropy(matrix, axis=1)
+            # Entropy, base e by default.
+            diversity[start:stop] = entropy(matrix, axis=1)
 
     return total_scores, diversity
 
