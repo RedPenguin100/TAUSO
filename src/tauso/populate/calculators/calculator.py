@@ -1,8 +1,9 @@
 import logging
 import os
 
-import numpy as np
 import pandas as pd
+
+from tauso.frames import arrow_strings
 
 from ...data.consts import (
     CANONICAL_GENE_NAME,
@@ -84,25 +85,6 @@ from ..populate_structure import get_populated_df_with_structure_features
 from .cache import AssetCache
 
 logger = logging.getLogger(__name__)
-
-
-ARROW_STRINGS = pd.StringDtype("pyarrow", na_value=np.nan)
-
-
-def arrow_strings(df):
-    """Store every text column as Arrow strings rather than Python objects.
-
-    A column of Python strings costs about 60 bytes of header per cell on top of the
-    text; Arrow keeps one buffer per column, which is smaller and cheaper to hand to
-    the workers that receive copies of the frame. Missing values stay NaN and the
-    string methods keep returning numpy arrays, so the rest of the code reads the
-    column as it always did. Only columns holding nothing but strings (and missing
-    values) are converted; the rest stay as they are.
-    """
-    for column in df.columns[(df.dtypes == object).to_numpy()]:
-        if pd.api.types.infer_dtype(df[column], skipna=True) == "string":
-            df[column] = df[column].astype(ARROW_STRINGS)
-    return df
 
 
 class Calculator:

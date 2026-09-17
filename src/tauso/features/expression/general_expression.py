@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
+from ...frames import ARROW_STRINGS
+
 logger = logging.getLogger(__name__)
 
 GENE_COLUMN_BATCH = 1000
@@ -51,7 +53,7 @@ def get_general_expression_of_genes(EXP_path, valid_genes):
 
     mean_exp = column_means(handle, valid_cols)
 
-    mean_exp_data = pd.DataFrame({"Gene": valid_cols, "expression_norm": mean_exp})
+    mean_exp_data = pd.DataFrame({"Gene": pd.array(valid_cols, dtype=ARROW_STRINGS), "expression_norm": mean_exp})
     mean_exp_data["expression_TPM"] = 2 ** mean_exp_data["expression_norm"]
 
     return mean_exp_data.sort_values("expression_norm", ascending=False)

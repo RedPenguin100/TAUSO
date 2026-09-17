@@ -3,6 +3,8 @@ import os
 
 import pandas as pd
 
+from ..frames import ARROW_STRINGS
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,6 +20,8 @@ def load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir):
         # Load and Filter
         df = pd.read_csv(path)
         df = df[df["Gene"].isin(valid_genes)].copy()
+        # After the filter, so only the names that are kept are converted.
+        df["Gene"] = df["Gene"].astype(ARROW_STRINGS)
 
         if not df.empty:
             transcriptomes[ach_id] = df
@@ -58,8 +62,11 @@ def load_cell_line_transcript_expression(depmap_ids, valid_transcript_names, exp
             logger.warning("No transcript expression data for %s", ach_id)
             continue
 
-        df = pd.read_csv(path)
+        # Only the transcript's name and its expression are read; the file's other
+        # columns are three quarters of it.
+        df = pd.read_csv(path, usecols=["TranscriptName", "expression_TPM"])
         df = df[df["TranscriptName"].isin(wanted)].copy()
+        df["TranscriptName"] = df["TranscriptName"].astype(ARROW_STRINGS)
 
         if not df.empty:
             transcriptomes[ach_id] = df
@@ -86,8 +93,11 @@ def load_cell_line_gene_transcripts(depmap_ids, valid_genes, expression_dir):
             logger.warning("No transcript expression data for %s", ach_id)
             continue
 
-        df = pd.read_csv(path)
+        # Only the gene and its expression are read; the file's other columns are three
+        # quarters of it.
+        df = pd.read_csv(path, usecols=["Gene", "expression_TPM"])
         df = df[df["Gene"].isin(wanted)].copy()
+        df["Gene"] = df["Gene"].astype(ARROW_STRINGS)
 
         if not df.empty:
             transcriptomes[ach_id] = df
