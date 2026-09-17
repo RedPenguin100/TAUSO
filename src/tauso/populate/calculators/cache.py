@@ -1,6 +1,5 @@
 import logging
 import os
-from pathlib import Path
 
 from ...common.gtf import filter_gtf_genes
 from ...data.data import get_data_dir, load_gtf_db
@@ -9,7 +8,7 @@ from ...dependencies.depmap import (
     load_cell_line_gene_transcripts,
     load_cell_line_transcript_expression,
 )
-from ...features.expression.general_expression import get_general_expression_of_genes
+from ...features.expression.general_expression import load_general_expression
 from ...genome.LocusInfo import LocusInfo
 from ...genome.read_human_genome import get_locus_to_data_dict
 from ...populate.populate_context import _SPECIAL_TRANSCRIPTS
@@ -30,6 +29,7 @@ class AssetCache:
 
         self._halflife_provider = None
         self._transcriptomes = None
+        self._general_expression = None
         self._transcript_transcriptomes = None
         self._target_gene_transcripts = None
 
@@ -116,8 +116,15 @@ class AssetCache:
 
         return self._target_gene_transcripts
 
+    def get_general_expression(self):
+        """Lazy loader for the per-gene mean expression across the cohort, which the general
+        off-target features rank genes by. Built by `tauso build-general-expression`."""
+        if self._general_expression is None:
+            self._general_expression = load_general_expression()
+        return self._general_expression
+
     def get_transcriptomes(self, cell_lines_depmap):
-        """Lazy loader for the FULL transcriptomes (required for off-target scanning)."""
+        """Lazy loader for the FULL per-cell-line transcriptomes (required for off-target scanning)."""
         if self._transcriptomes is None:
             logger.info("Loading FULL transcriptomes into memory (happens once)...")
 
@@ -132,11 +139,6 @@ class AssetCache:
                 valid_genes,
                 expression_dir=expression_dir,
             )
-
-            mean_exp_data = get_general_expression_of_genes(
-                Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet", valid_genes
-            )
-            self._transcriptomes["general"] = mean_exp_data
 
         return self._transcriptomes
 

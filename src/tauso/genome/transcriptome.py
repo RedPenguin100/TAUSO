@@ -1,10 +1,8 @@
 import os
-from pathlib import Path
 
 from ..common.gtf import filter_gtf_genes
 from ..data.data import get_data_dir, load_gtf_db
 from ..dependencies.depmap import load_cell_line_gene_expression
-from ..features.expression.general_expression import get_general_expression_of_genes
 
 
 def load_transcriptomes(cell_lines_depmap):
@@ -23,9 +21,4 @@ def load_transcriptomes(cell_lines_depmap):
         expression_dir=expression_dir,
     )
 
-    # 3. Load the general mean expression
-    mean_exp_data = get_general_expression_of_genes(
-        Path(data_dir) / "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv", valid_genes
-    )
-    transcriptomes["general"] = mean_exp_data
     return transcriptomes

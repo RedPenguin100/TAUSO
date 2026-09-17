@@ -651,8 +651,7 @@ class Calculator:
 
             gene_to_data = self.cache.get_full_gene_data()
             self._check_dependencies([CELL_LINE_DEPMAP])
-            cell_lines_depmap = self.data[CELL_LINE_DEPMAP].dropna().unique().tolist()
-            transcriptomes = self.cache.get_transcriptomes(cell_lines_depmap=cell_lines_depmap)
+            expression_df = self.cache.get_general_expression()
 
             # All (top_n, cutoff) features are derived together per chunk:
             # target FASTA built at max(needed_top_ns), smaller top_n derived by
@@ -675,7 +674,7 @@ class Calculator:
                 self.data, method_features = populate_off_target_general(
                     ASO_df=self.data,
                     gene_to_data=gene_to_data,
-                    cell_line2data=transcriptomes,
+                    expression_df=expression_df,
                     top_n_list=needed_top_ns,
                     cutoff_list=cutoffs,
                     method=method,

@@ -162,7 +162,7 @@ def populate_off_target_specific(
 def populate_off_target_general(
     ASO_df,
     gene_to_data,
-    cell_line2data,
+    expression_df,
     top_n_list,
     cutoff_list,
     method,
@@ -172,6 +172,9 @@ def populate_off_target_general(
     """
     Enriches ASO_df with off-target scores using batched RIsearch calls.
 
+    expression_df ranks the genes: head(top_n) of it is the universe each feature scores
+    against, so it is expected ordered most expressed first.
+
     Top_n-collapse and cutoff-collapse: scored per ASO chunk at the loosest
     cutoff against the head(max(top_n_list)) target, every (top_n, cutoff) feature
     derived from it (smaller top_n by gene-subset filter, cutoffs by score-filter on
@@ -180,10 +183,6 @@ def populate_off_target_general(
     """
     ASO_df = ASO_df.copy()
     feature_names = []
-
-    if "general" not in cell_line2data:
-        raise ValueError("Key 'general' not found in cell_line2data dictionary.")
-    general_df_all = cell_line2data["general"]
 
     aso_chunks = _chunk_df(ASO_df, chunk_size)
 
@@ -196,7 +195,7 @@ def populate_off_target_general(
         n_jobs,
     )
 
-    top_n_to_data, seq_map = _build_top_n_to_data(general_df_all, top_n_list, gene_to_data, require_seq=True)
+    top_n_to_data, seq_map = _build_top_n_to_data(expression_df, top_n_list, gene_to_data, require_seq=True)
     with pyrisearch_tauso.fasta_targets(seq_map) as target_path:
         tasks = [
             ((chunk_idx,), chunk_df, top_n_to_data, cutoff_list, target_path)
