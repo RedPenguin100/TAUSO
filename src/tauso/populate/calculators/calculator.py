@@ -1,6 +1,7 @@
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 
 from ...data.consts import (
@@ -85,6 +86,25 @@ from .cache import AssetCache
 logger = logging.getLogger(__name__)
 
 
+ARROW_STRINGS = pd.StringDtype("pyarrow", na_value=np.nan)
+
+
+def arrow_strings(df):
+    """Store every text column as Arrow strings rather than Python objects.
+
+    A column of Python strings costs about 60 bytes of header per cell on top of the
+    text; Arrow keeps one buffer per column, which is smaller and cheaper to hand to
+    the workers that receive copies of the frame. Missing values stay NaN and the
+    string methods keep returning numpy arrays, so the rest of the code reads the
+    column as it always did. Only columns holding nothing but strings (and missing
+    values) are converted; the rest stay as they are.
+    """
+    for column in df.columns[(df.dtypes == object).to_numpy()]:
+        if pd.api.types.infer_dtype(df[column], skipna=True) == "string":
+            df[column] = df[column].astype(ARROW_STRINGS)
+    return df
+
+
 class Calculator:
     def __init__(
         self,
@@ -95,7 +115,7 @@ class Calculator:
         cache: AssetCache | None = None,
         get_feature_dir=None,
     ):
-        self.data = data
+        self.data = arrow_strings(data)
         self.cpus = cpus or 32
         self.data_version = data_version
         self.index = f"index_{data_version}" if data_version else None
@@ -901,6 +921,7 @@ class Calculator:
             try:
                 with Timer(name=step.__name__):
                     step()
+                self.data = arrow_strings(self.data)
                 if profile_memory:
                     log_dataframe_memory(self.data, f"after {step.__name__}")
             except Exception:

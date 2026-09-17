@@ -38,6 +38,7 @@ from tauso.features.expression.general_expression import get_general_expression_
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import build_gene_sequence_registry
+from tauso.populate.calculators.calculator import arrow_strings
 from tauso.populate.populate_structure import get_populated_df_with_structure_features
 from tauso.timer import Timer
 
@@ -103,7 +104,7 @@ def base_data(raw_oligo_data):
 
         data, _ = populate_transfection(data)
 
-    return data
+    return arrow_strings(data)
 
 
 @pytest.fixture(scope="session")
@@ -138,7 +139,7 @@ def half_life_provider():
 def structure_data(base_data, target_genes, gene_to_data):
     """Populates the dataframe with structure features."""
     with Timer("Populate DF with Structure Features"):
-        return get_populated_df_with_structure_features(base_data, target_genes, gene_to_data)
+        return arrow_strings(get_populated_df_with_structure_features(base_data, target_genes, gene_to_data))
 
 
 @pytest.fixture(scope="session")
@@ -150,7 +151,7 @@ def mini_structure_data(request, structure_data):
 
 @pytest.fixture(scope="session")
 def chemistry_data(structure_data):
-    return assign_chemistry(structure_data)
+    return arrow_strings(assign_chemistry(structure_data))
 
 
 @pytest.fixture(scope="session")
@@ -164,11 +165,13 @@ def ref_registry(target_genes, gene_to_data):
 def final_data(structure_data, ref_registry):
     """Runs the optimized context generator to add external mRNA and context columns."""
     with Timer("Add External mRNA & Context Columns"):
-        return add_external_mrna_and_context_columns(
-            df=structure_data,
-            gene_registry=ref_registry,
-            flank_sizes_premrna=FLANK_SIZES_PREMRNA,
-            flank_sizes_cds=CDS_WINDOWS,
+        return arrow_strings(
+            add_external_mrna_and_context_columns(
+                df=structure_data,
+                gene_registry=ref_registry,
+                flank_sizes_premrna=FLANK_SIZES_PREMRNA,
+                flank_sizes_cds=CDS_WINDOWS,
+            )
         )
 
 
