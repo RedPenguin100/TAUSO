@@ -32,7 +32,7 @@ def expression_transcriptomes(base_data, target_genes):
 def test_target_expression_regression(mini_sampled_data, expression_transcriptomes, dataframe_regression):
     data = mini_sampled_data.copy()
     result, feats = populate_target_expression(data, expression_transcriptomes)
-    dataframe_regression.check(result[feats])
+    dataframe_regression.check(result[["index_oligo"] + feats])
 
 
 @pytest.mark.skipif(not _SPECIAL_GENES, reason="no special genes configured")
@@ -40,7 +40,7 @@ def test_target_expression_regression(mini_sampled_data, expression_transcriptom
 def test_special_gene_expression_regression(mini_sampled_data, expression_transcriptomes, dataframe_regression):
     data = mini_sampled_data.copy()
     result, feats = populate_special_gene_expression(data, expression_transcriptomes)
-    dataframe_regression.check(result[feats])
+    dataframe_regression.check(result[["index_oligo"] + feats])
 
 
 @pytest.fixture(scope="session")
@@ -70,7 +70,7 @@ def transcript_transcriptomes(base_data):
 def test_special_transcript_expression_regression(mini_sampled_data, transcript_transcriptomes, dataframe_regression):
     data = mini_sampled_data.copy()
     result, feats = populate_special_transcript_expression(data, transcript_transcriptomes)
-    dataframe_regression.check(result[feats])
+    dataframe_regression.check(result[["index_oligo"] + feats])
 
 
 @pytest.fixture(scope="session")
@@ -100,4 +100,4 @@ def target_gene_transcripts(base_data, target_genes):
 def test_target_dominant_transcript_regression(mini_sampled_data, target_gene_transcripts, dataframe_regression):
     data = mini_sampled_data.copy()
     result, feats = populate_target_dominant_transcript(data, target_gene_transcripts)
-    dataframe_regression.check(result[feats])
+    dataframe_regression.check(result[["index_oligo"] + feats])
