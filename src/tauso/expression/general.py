@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
-from ...frames import ARROW_STRINGS
+from ..frames import ARROW_STRINGS
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def get_general_expression_of_genes(EXP_path, valid_genes):
 
 
 def general_expression_path() -> Path:
-    from ...data.data import get_data_dir
+    from ..data.data import get_data_dir
 
     return Path(get_data_dir()) / GENERAL_EXPRESSION_FILENAME
 
@@ -79,8 +79,8 @@ def build_general_expression(genome: str = "GRCh38") -> pd.DataFrame:
     """
     import os
 
-    from ...common.gtf import filter_gtf_genes
-    from ...data.data import get_data_dir, load_gtf_db
+    from ..common.gtf import filter_gtf_genes
+    from ..data.data import get_data_dir, load_gtf_db
 
     valid_genes = filter_gtf_genes(load_gtf_db(genome), filter_mode="non_mt")
     table = get_general_expression_of_genes(Path(get_data_dir()) / OMICS_FILENAME, valid_genes)
@@ -99,7 +99,7 @@ def load_general_expression(genome: str = "GRCh38") -> pd.DataFrame:
     Built on first use and read from the data dir after; `tauso build-general-expression`
     does the same thing ahead of time.
     """
-    from ...frames import arrow_strings
+    from ..frames import arrow_strings
 
     path = general_expression_path()
     if not path.exists():

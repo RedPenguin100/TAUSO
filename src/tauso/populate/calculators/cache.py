@@ -1,14 +1,11 @@
 import logging
-import os
 
-from ...common.gtf import filter_gtf_genes
-from ...data.data import get_data_dir, load_gtf_db
-from ...dependencies.depmap import (
-    load_cell_line_gene_expression,
-    load_cell_line_gene_transcripts,
-    load_cell_line_transcript_expression,
+from ...expression.cohort import (
+    load_cohort_expression,
+    load_cohort_gene_transcripts,
+    load_cohort_transcript_expression,
 )
-from ...features.expression.general_expression import load_general_expression
+from ...expression.general import load_general_expression
 from ...genome.LocusInfo import LocusInfo
 from ...genome.read_human_genome import get_locus_to_data_dict
 from ...populate.populate_context import _SPECIAL_TRANSCRIPTS
@@ -91,10 +88,8 @@ class AssetCache:
         if self._transcript_transcriptomes is None:
             logger.info("Loading transcript expression into memory (happens once)...")
 
-            self._transcript_transcriptomes = load_cell_line_transcript_expression(
-                cell_lines_depmap,
-                {name for names in _SPECIAL_TRANSCRIPTS.values() for name in names},
-                expression_dir=os.path.join(get_data_dir(), "processed_transcript_expression"),
+            self._transcript_transcriptomes = load_cohort_transcript_expression(
+                cell_lines_depmap, {name for names in _SPECIAL_TRANSCRIPTS.values() for name in names}
             )
 
         return self._transcript_transcriptomes
@@ -108,11 +103,7 @@ class AssetCache:
         if self._target_gene_transcripts is None:
             logger.info("Loading target-gene transcript expression into memory (happens once)...")
 
-            self._target_gene_transcripts = load_cell_line_gene_transcripts(
-                cell_lines_depmap,
-                genes,
-                expression_dir=os.path.join(get_data_dir(), "processed_transcript_expression"),
-            )
+            self._target_gene_transcripts = load_cohort_gene_transcripts(cell_lines_depmap, genes)
 
         return self._target_gene_transcripts
 
@@ -127,18 +118,7 @@ class AssetCache:
         """Lazy loader for the FULL per-cell-line transcriptomes (required for off-target scanning)."""
         if self._transcriptomes is None:
             logger.info("Loading FULL transcriptomes into memory (happens once)...")
-
-            db = load_gtf_db()
-            valid_genes = filter_gtf_genes(db, filter_mode="non_mt")
-
-            data_dir = get_data_dir()
-            expression_dir = os.path.join(data_dir, "processed_expression")
-
-            self._transcriptomes = load_cell_line_gene_expression(
-                cell_lines_depmap,
-                valid_genes,
-                expression_dir=expression_dir,
-            )
+            self._transcriptomes = load_cohort_expression(cell_lines_depmap, genome=self.genome)
 
         return self._transcriptomes
 

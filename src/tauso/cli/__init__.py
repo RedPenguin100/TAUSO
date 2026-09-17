@@ -142,8 +142,8 @@ def setup_depmap(force):
         Path(omics_parquet_sha).write_text(sha256_file(omics_parquet))
 
     # The CSV is dead weight once the Parquet exists — every consumer (production
-    # code in genome/transcriptome.py and features/expression/general_expression.py,
-    # plus tests) takes the CSV path but immediately swaps the suffix to .parquet.
+    # code in expression/, plus tests) takes the CSV path but immediately swaps the
+    # suffix to .parquet.
     if os.path.exists(omics_csv):
         os.remove(omics_csv)
         echo_ok(f"Removed {omics_csv_name} (Parquet supersedes it).")
@@ -545,7 +545,7 @@ def build_general_expression_command(genome, force):
     of them. Reading the DepMap matrix to build it costs far more than the table itself, and
     nothing about it changes from run to run, so it is built once and read from disk after.
     """
-    from tauso.features.expression.general_expression import build_general_expression, general_expression_path
+    from tauso.expression.general import build_general_expression, general_expression_path
 
     path = general_expression_path()
     if path.exists() and not force:

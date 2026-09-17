@@ -33,8 +33,8 @@ from tauso.data.consts import *
 from tauso.data.consts import CELL_LINE_DEPMAP
 from tauso.data.data import get_data_dir, load_gtf_db
 from tauso.dependencies.depmap import load_cell_line_gene_expression
+from tauso.expression.general import get_general_expression_of_genes
 from tauso.features.context.mrna_halflife import HalfLifeProvider, load_halflife_mapping
-from tauso.features.expression.general_expression import get_general_expression_of_genes
 from tauso.features.rbp.load_rbp import load_attract_data
 from tauso.genome.read_human_genome import get_locus_to_data_dict
 from tauso.genome.TranscriptMapper import build_gene_sequence_registry
