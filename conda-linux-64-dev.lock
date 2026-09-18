@@ -53,7 +53,7 @@ https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.
 https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h1df4ec4_4.conda#676a2f9b1c4fcf57b70aa5c65f6c60d0
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libice-1.1.2-h280c20c_0.conda#85c9442aec283b4e464fa9ecc484a2f3
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libxau-1.0.12-h7cc23a3_2.conda#da33efee1a93603d92e06d4a2b68def6
-https://conda.anaconda.org/conda-forge/linux-64/xorg-libxdmcp-1.1.5-hb03c661_2.conda#2e66c929f3d879708335b6ea4557c838
+https://conda.anaconda.org/conda-forge/linux-64/xorg-libxdmcp-1.1.5-h7cc23a3_2.conda#eabfc45786244de252090cf8d55128a8
 https://conda.anaconda.org/conda-forge/linux-64/xorg-xorgproto-2025.1-hebe6cf0_3.conda#c3d0a6f03ba3aa312777b41b20a71ec0
 https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-hebe6cf0_3.conda#e741576fb8f89821ac7c1c537322a33d
 https://conda.anaconda.org/conda-forge/linux-64/cuda-nvrtc-13.4.92-hd2095e1_0.conda#6e7f43cf3b30bb22c746782d939cfc75
@@ -81,7 +81,7 @@ https://conda.anaconda.org/conda-forge/linux-64/uv-0.12.15-h841d291_0.conda#e07a
 https://conda.anaconda.org/conda-forge/linux-64/wayland-1.26.0-hc1c935e_2.conda#88a47e22b53e50865b1cabe2eb648352
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libsm-1.2.6-h0d788c3_1.conda#aa7459ed9ad086ba11dda843d764b33d
 https://conda.anaconda.org/conda-forge/linux-64/krb5-1.22.2-hbc21106_2.conda#53318d715316929a574f83591308b1f8
-https://conda.anaconda.org/conda-forge/linux-64/libcublas-13.7.0.27-h393e864_0.conda#d849e40f408bf2948bf5551e21730bb3
+https://conda.anaconda.org/conda-forge/linux-64/libcublas-13.8.0.4-h393e864_0.conda#1cd3448b24cb61ec8b24b32a6f735b1d
 https://conda.anaconda.org/conda-forge/linux-64/libcusparse-12.8.6.72-hd2095e1_0.conda#019e36b4aa18530d55562a191b81d2a2
 https://conda.anaconda.org/conda-forge/linux-64/libfreetype-2.14.3-ha770c72_2.conda#f8054e759d0ddddaf34a5c8fedc900a1
 https://conda.anaconda.org/conda-forge/linux-64/libglib-2.90.0-h569388d_0.conda#c85e9539551f1fd21104e518d940c244
@@ -102,7 +102,7 @@ https://conda.anaconda.org/conda-forge/linux-64/gts-0.7.6-h977cf35_4.conda#4d8df
 https://conda.anaconda.org/conda-forge/linux-64/libblas-3.11.0-11_h4a7cf45_openblas.conda#b8cce1486f3c62f33291d6318c193d0d
 https://conda.anaconda.org/conda-forge/linux-64/libcups-2.3.3-h7a8fb5f_6.conda#49c553b47ff679a6a1e9fc80b9c5a2d4
 https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.22.0-ha042cf0_0.conda#e617deee7af8eb0c04f6296d12b54157
-https://conda.anaconda.org/conda-forge/linux-64/libcusolver-12.3.2.15-h393e864_0.conda#ee2b10202efab252854ed12cbe627d44
+https://conda.anaconda.org/conda-forge/linux-64/libcusolver-12.3.4.7-h393e864_0.conda#e74b82be401322908af96979078892a6
 https://conda.anaconda.org/conda-forge/linux-64/libglx-1.7.0-ha4b6fd6_5.conda#614e10aae180f87b84f0d1ca8ceb7d9e
 https://conda.anaconda.org/conda-forge/linux-64/libxml2-2.15.4-h7df9aa5_0.conda#ea192d1ef556bf1d55de4acb8c0f5b65
 https://conda.anaconda.org/conda-forge/linux-64/python-3.12.14-h5f976f7_3_cpython.conda#98be3cf76eca2e8871f907a03aed3b84
@@ -122,7 +122,7 @@ https://conda.anaconda.org/conda-forge/noarch/certifi-2026.7.22-pyhd8ed1ab_0.con
 https://conda.anaconda.org/conda-forge/noarch/charset-normalizer-3.5.1-pyhd8ed1ab_0.conda#e0ac3accc64e23e40969d660e5f58ac8
 https://conda.anaconda.org/conda-forge/noarch/comm-0.2.3-pyhe01879c_0.conda#2da13f2b299d8e1995bafbbe9689a2f7
 https://conda.anaconda.org/conda-forge/noarch/cpython-3.12.14-py312hd8ed1ab_3.conda#adee9213d9a98d7f8b5627209c8b4ae0
-https://conda.anaconda.org/conda-forge/noarch/cuda-pathfinder-1.8.1-pyhc364b38_0.conda#45716133412f5e899d2d23a3c88f563f
+https://conda.anaconda.org/conda-forge/noarch/cuda-pathfinder-1.8.2-pyhc364b38_0.conda#9fd49f91d0b0b7efa7801865d31cf97b
 https://conda.anaconda.org/conda-forge/linux-64/debugpy-1.8.21-py312h80505a6_2.conda#f229d9912b4e36a82e1551ef41d6fc2f
 https://conda.anaconda.org/conda-forge/noarch/defusedxml-0.7.1-pyhd8ed1ab_0.tar.bz2#961b3a227b437d82ad7054484cfa71b2
 https://conda.anaconda.org/conda-forge/noarch/executing-2.2.1-pyhd8ed1ab_0.conda#ff9efb7f7469aed3c4a8106ffa29593c
@@ -146,7 +146,7 @@ https://conda.anaconda.org/conda-forge/noarch/pandocfilters-1.5.0-pyhd8ed1ab_0.t
 https://conda.anaconda.org/conda-forge/noarch/parso-0.8.7-pyhcf101f3_0.conda#39894c952938276405a1bd30e4ce2caf
 https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.11.8-pyh5ded981_0.conda#48e9ecf08b0578a4313f13b2e2b0fd72
 https://conda.anaconda.org/conda-forge/noarch/prometheus_client-0.26.0-pyhd8ed1ab_0.conda#3aa7e2d85645e61627c98082747dfdfe
-https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py312h1b36aeb_2.conda#e59300b9232e82a351a9390bfdfe72f9
+https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py312h1b36aeb_3.conda#2f8faed6c111c9ed0c1d217bc1be75f2
 https://conda.anaconda.org/conda-forge/noarch/ptyprocess-0.7.0-pyhd8ed1ab_1.conda#7d9daffbb8d8e0af0f769dbbcd173a54
 https://conda.anaconda.org/conda-forge/noarch/pure_eval-0.2.4-pyhd8ed1ab_0.conda#35993ea8ef5e76333e6efb6a0ffb3771
 https://conda.anaconda.org/conda-forge/noarch/pycparser-3.0-pyhcf101f3_0.conda#9c5491066224083c41b6d5635ed7107b
@@ -234,7 +234,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libegl-devel-1.7.0-ha4b6fd6_5.co
 https://conda.anaconda.org/conda-forge/linux-64/libharfbuzz-devel-14.4.0-h23af247_1.conda#148cd995f5ba8af22412a4258abc2f94
 https://conda.anaconda.org/conda-forge/linux-64/pango-1.58.2-h7bb47b9_1.conda#0b889b1c6b472d215d6332c6b195589c
 https://conda.anaconda.org/conda-forge/noarch/pip-26.2.1-pyh8b19718_0.conda#77b6cf3b0689d9fc68561df0db9b856d
-https://conda.anaconda.org/bioconda/linux-64/pybigwig-0.3.25-py312hca67b4d_1.conda#80f16a292e92c33893b5bd75c2b5dabf
+https://conda.anaconda.org/bioconda/linux-64/pybigwig-0.3.26-py312hca67b4d_0.conda#1f98b874e4a107cc8e669ef25531d080
 https://conda.anaconda.org/conda-forge/noarch/urllib3-2.8.0-pyhd8ed1ab_0.conda#407a3d3778570bae8e8fcf554e803e43
 https://conda.anaconda.org/bioconda/linux-64/viennarna-2.7.2-py312pl5321h245ea3e_1.conda#071f7b910e9ba46a2cf373a2640081a5
 https://conda.anaconda.org/conda-forge/noarch/argon2-cffi-25.1.0-pyhd8ed1ab_0.conda#8ac12aff0860280ee0cff7fa2cf63f3b
