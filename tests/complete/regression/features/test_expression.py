@@ -28,6 +28,40 @@ def expression_transcriptomes(base_data, target_genes):
         return load_cell_line_gene_expression(depmap_ids, valid_genes, expression_dir=expression_dir)
 
 
+# A cohort the reference data has never heard of: the loader finds no file for it and
+# returns nothing, which is the shape the features see when no cell line resolves.
+UNRESOLVABLE_CELL_LINE = "ACH-000000-absent"
+
+
+@pytest.fixture(scope="session")
+def no_expression_transcriptomes():
+    """What the loader gives back for a cohort it has no expression for."""
+    expression_dir = os.path.join(get_data_dir(), "processed_expression")
+    loaded = load_cell_line_gene_expression(
+        [UNRESOLVABLE_CELL_LINE], list(_SPECIAL_GENES.values()), expression_dir=expression_dir
+    )
+    assert loaded == {}, "the point of the fixture is that nothing resolves"
+    return loaded
+
+
+@pytest.mark.parametrize("mini_sampled_data", [50], indirect=True)
+def test_expression_regression_when_no_cell_line_resolves(
+    mini_sampled_data, no_expression_transcriptomes, dataframe_regression
+):
+    """Every gene-level expression feature, for rows whose cell line the data does not have.
+
+    The gene features and the special-gene features are taken together because they read the
+    same table: with nothing in it, each is NaN rather than an error.
+    """
+    data = mini_sampled_data.copy()
+    data[CELL_LINE_DEPMAP] = UNRESOLVABLE_CELL_LINE
+
+    data, target_feats = populate_target_expression(data, no_expression_transcriptomes)
+    data, special_feats = populate_special_gene_expression(data, no_expression_transcriptomes)
+
+    dataframe_regression.check(data[["index_oligo"] + target_feats + special_feats])
+
+
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
 def test_target_expression_regression(mini_sampled_data, expression_transcriptomes, dataframe_regression):
     data = mini_sampled_data.copy()

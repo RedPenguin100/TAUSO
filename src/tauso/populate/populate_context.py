@@ -90,7 +90,9 @@ EXPRESSION_FEATURE_NAMES: List[str] = (
 )
 
 
-EXPRESSION_MASTER_COLUMNS = [CELL_LINE_DEPMAP, "Gene", "expression_norm"]
+# The master's columns and what they hold, so that a table with no rows in it still gives
+# the lookup a float to miss against rather than an object column of NaN.
+EXPRESSION_MASTER_COLUMNS = {CELL_LINE_DEPMAP: object, "Gene": object, "expression_norm": float}
 
 
 def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -104,7 +106,7 @@ def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.Dat
     """
     if not expression_dict:
         logger.warning("No expression for any cell line; the expression features will be NaN.")
-        return pd.DataFrame({column: pd.Series(dtype=object) for column in EXPRESSION_MASTER_COLUMNS})
+        return pd.DataFrame({column: pd.Series(dtype=dtype) for column, dtype in EXPRESSION_MASTER_COLUMNS.items()})
 
     dfs = []
     for depmap_id, t_df in expression_dict.items():
