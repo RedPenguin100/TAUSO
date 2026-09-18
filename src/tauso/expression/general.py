@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
-from ..frames import ARROW_STRINGS
+from ..frames import ARROW_STRINGS, release_arrow_memory
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +90,7 @@ def build_general_expression(genome: str = "GRCh38") -> pd.DataFrame:
     tmp = f"{path}.{os.getpid()}.tmp"
     table.to_parquet(tmp, index=False)
     os.replace(tmp, path)
+    release_arrow_memory()
     return table
 
 

@@ -3,7 +3,7 @@ import os
 
 import pandas as pd
 
-from tauso.frames import arrow_strings
+from tauso.frames import arrow_strings, release_arrow_memory
 
 from ...data.consts import (
     CANONICAL_GENE_NAME,
@@ -903,6 +903,8 @@ class Calculator:
                 with Timer(name=step.__name__):
                     step()
                 self.data = arrow_strings(self.data)
+                # A finished step keeps no claim on what it decoded or streamed.
+                release_arrow_memory()
                 if profile_memory:
                     log_dataframe_memory(self.data, f"after {step.__name__}")
             except Exception:
