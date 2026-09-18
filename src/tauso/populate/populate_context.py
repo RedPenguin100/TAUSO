@@ -90,11 +90,24 @@ EXPRESSION_FEATURE_NAMES: List[str] = (
 )
 
 
+# The master's columns and what they hold, so that a table with no rows in it still gives
+# the lookup a float to miss against rather than an object column of NaN.
+EXPRESSION_MASTER_COLUMNS = {CELL_LINE_DEPMAP: object, "Gene": object, "expression_norm": float}
+
+
 def _build_expression_master(expression_dict: Dict[str, pd.DataFrame]) -> pd.DataFrame:
     """
     Convert from expression_dict (depmap_id : DataFrame(gene / expr)
     To expression_master (DataFrame (gene / expr / depmap_id))
+
+    No cell line has expression when none of them was recognised. That is a table with no
+    rows rather than no table: every lookup against it misses, and the features come out NaN
+    the same way one unknown gene does.
     """
+    if not expression_dict:
+        logger.warning("No expression for any cell line; the expression features will be NaN.")
+        return pd.DataFrame({column: pd.Series(dtype=dtype) for column, dtype in EXPRESSION_MASTER_COLUMNS.items()})
+
     dfs = []
     for depmap_id, t_df in expression_dict.items():
         temp = t_df[["Gene", "expression_norm"]].copy()
