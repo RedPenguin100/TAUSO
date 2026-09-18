@@ -9,6 +9,7 @@ import pyarrow.parquet as pq
 logger = logging.getLogger(__name__)
 
 from ...data.data import get_data_dir
+from ...frames import release_arrow_memory
 
 # Cell-line tokens that carry no usable identity. They skip the exact (Tier-1)
 # lookup and resolve to the gene-level estimate, so a missing/unknown cell line
@@ -157,6 +158,7 @@ def load_halflife_mapping(species=HALFLIFE_SPECIES, conditions=HALFLIFE_BASELINE
     mapping = df_clean.to_dict()
 
     logger.info(f"Successfully loaded {len(mapping)} specific (Gene+Cell) {species} stability profiles.")
+    release_arrow_memory()
     return mapping
 
 
