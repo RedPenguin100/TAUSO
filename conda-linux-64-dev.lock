@@ -77,7 +77,7 @@ https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-h8b3dc9c_1.conda#06f
 https://conda.anaconda.org/conda-forge/linux-64/perl-5.32.1-9_h7cc23a3_perl5.conda#da53476767a523b23baf56b724a11e0b
 https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda#0ee5bb30034b081a1386c1e2c98ab0a7
 https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-hd6e31c0_1.conda#69c01c781e7c8190bbdaf79e3848c5ca
-https://conda.anaconda.org/conda-forge/linux-64/uv-0.12.15-h841d291_0.conda#e07a8b84fd0c1b134cbbdd3deca971ac
+https://conda.anaconda.org/conda-forge/linux-64/uv-0.12.16-h841d291_0.conda#b30a65cc0fc9c2557f15b44f69b695b8
 https://conda.anaconda.org/conda-forge/linux-64/wayland-1.26.0-hc1c935e_2.conda#88a47e22b53e50865b1cabe2eb648352
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libsm-1.2.6-h0d788c3_1.conda#aa7459ed9ad086ba11dda843d764b33d
 https://conda.anaconda.org/conda-forge/linux-64/krb5-1.22.2-hbc21106_2.conda#53318d715316929a574f83591308b1f8
@@ -123,7 +123,7 @@ https://conda.anaconda.org/conda-forge/noarch/charset-normalizer-3.5.1-pyhd8ed1a
 https://conda.anaconda.org/conda-forge/noarch/comm-0.2.3-pyhe01879c_0.conda#2da13f2b299d8e1995bafbbe9689a2f7
 https://conda.anaconda.org/conda-forge/noarch/cpython-3.12.14-py312hd8ed1ab_3.conda#adee9213d9a98d7f8b5627209c8b4ae0
 https://conda.anaconda.org/conda-forge/noarch/cuda-pathfinder-1.8.2-pyhc364b38_0.conda#9fd49f91d0b0b7efa7801865d31cf97b
-https://conda.anaconda.org/conda-forge/linux-64/debugpy-1.8.21-py312h80505a6_2.conda#f229d9912b4e36a82e1551ef41d6fc2f
+https://conda.anaconda.org/conda-forge/linux-64/debugpy-1.8.22-py312h80505a6_0.conda#8181d48cc85b7ffda685669e76f67a3a
 https://conda.anaconda.org/conda-forge/noarch/defusedxml-0.7.1-pyhd8ed1ab_0.tar.bz2#961b3a227b437d82ad7054484cfa71b2
 https://conda.anaconda.org/conda-forge/noarch/executing-2.2.1-pyhd8ed1ab_0.conda#ff9efb7f7469aed3c4a8106ffa29593c
 https://conda.anaconda.org/conda-forge/noarch/hpack-4.2.0-pyhd8ed1ab_0.conda#b395909221b9bd1df066e5930e18855b
@@ -217,7 +217,7 @@ https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.16.0-h69aa097_
 https://conda.anaconda.org/conda-forge/noarch/wheel-0.48.0-pyhd8ed1ab_0.conda#9a2124517bfd5d792e0f7b86eefdfeb8
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libxtst-1.2.5-h7cc23a3_4.conda#752a5ac9322e0fbbc24146c1ce3ae44e
 https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda#3845f3d75991bae0fb90884662f4327c
-https://conda.anaconda.org/conda-forge/linux-64/argon2-cffi-bindings-26.1.0-py312h5cc1888_1.conda#ae00593f27c3455cf443ec5ff5ad3b9e
+https://conda.anaconda.org/conda-forge/linux-64/argon2-cffi-bindings-26.1.0-py312h5cc1888_2.conda#ee98bca1934072b6628eaf59359b056a
 https://conda.anaconda.org/conda-forge/noarch/arrow-1.4.0-pyhcf101f3_0.conda#85c4f19f377424eafc4ed7911b291642
 https://conda.anaconda.org/conda-forge/linux-64/at-spi2-core-2.40.3-h0630a04_0.tar.bz2#8cb2fc4cd6cc63f1369cfa318f581cc3
 https://conda.anaconda.org/conda-forge/noarch/beautifulsoup4-4.15.0-pyha770c72_0.conda#3b261da3fe9b4168738712832410b022
@@ -245,7 +245,7 @@ https://conda.anaconda.org/conda-forge/linux-64/harfbuzz-14.4.0-ha770c72_1.conda
 https://conda.anaconda.org/conda-forge/noarch/httpx-0.28.1-pyhd8ed1ab_0.conda#d6989ead454181f4f9bc987d3dc4e285
 https://conda.anaconda.org/conda-forge/noarch/isoduration-20.11.0-pyhd8ed1ab_1.conda#0b0154421989637d424ccf0f104be51a
 https://conda.anaconda.org/conda-forge/noarch/jsonschema-4.26.0-pyhcf101f3_1.conda#204b5ca91eba7738790ecc333facbbbe
-https://conda.anaconda.org/conda-forge/linux-64/pyzmq-27.2.0-py312h8a5ba0d_1.conda#a5b12b1faf14ff9a4bef4413b19d1e27
+https://conda.anaconda.org/conda-forge/linux-64/pyzmq-27.2.0-py312h8a5ba0d_2.conda#2186325469ffe83c7b8807d638a478d9
 https://conda.anaconda.org/conda-forge/noarch/requests-2.34.2-pyhcf101f3_0.conda#4a85203c1d80c1059086ae860836ffb9
 https://conda.anaconda.org/conda-forge/linux-64/gtk3-3.24.52-ha5ea40c_0.conda#bcaea22d85999a4f17918acfab877e61
 https://conda.anaconda.org/conda-forge/noarch/jsonschema-with-format-nongpl-4.26.0-hcf101f3_1.conda#ae36c895b9e25a127d2acbdbaa87e301
