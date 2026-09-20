@@ -5,14 +5,16 @@ duplex is looked up in a table built for the sugar pair it actually has. Steps w
 chemistry changes use the junction cells, which are keyed on both sugars.
 
 Thirteen geometric observables are read at every step; each is averaged over the 5' wing, the
-gap and the 3' wing. The averaging is done twice, once over the tables' mean values and once
-over their spread, since how variable a step's geometry is carries information the mean does
-not.
+gap, the 3' wing and the two junctions. The averaging is done twice, once over the tables' mean
+values and once over their spread, since how variable a step's geometry is carries information
+the mean does not.
 
-Steps straddling the gap boundary belong to no region, so a value is averaged only over steps
-that sit wholly inside one. A step whose chemistry changes elsewhere in the oligo -- a lone
-deoxy base inside a wing, say -- does sit inside a region, and its junction value is averaged
-in with that region's.
+A body region holds the steps that sit wholly inside it, so the step where the sugar changes
+belongs to none of the three. Each junction region holds a three-step window centred on that
+step, which overlaps its neighbours rather than taking steps away from them. A junction is
+empty when the gap runs to that end of the oligo, since no sugar change happens there. A step
+whose chemistry changes elsewhere in the oligo -- a lone deoxy base inside a wing, say -- does
+sit inside a body region, and its junction value is averaged in with that region's.
 
 Every column is NaN where there is nothing to measure against: an oligo whose pattern holds
 no single deoxy stretch, and an oligo carrying any sugar beyond deoxy, 2'-MOE and cEt, which
@@ -44,7 +46,7 @@ OBSERVABLES = (
     "hTwist",
     "hX",
 )
-REGIONS = ("wing5", "gap", "wing3")
+REGIONS = ("wing5", "gap", "wing3", "j5", "j3")
 
 SUGARS = {"D": "D", "M": "M", "C": "E"}
 """`chemical_pattern` letters mapped to the sugar the weight tables are keyed on.
@@ -74,6 +76,7 @@ def _load(filename, stat):
 UNIFORM_MEAN = _load("rna_uniform.csv", "mean")
 UNIFORM_SPREAD = _load("rna_uniform.csv", "sd")
 JUNCTION_MEAN = _load("rna_junction.csv", "mean")
+JUNCTION_SPREAD = _load("rna_junction.csv", "sd")
 
 
 def sugars(chemical_pattern, length):
@@ -102,20 +105,22 @@ def single_dna_gap(chemical_pattern):
 
 
 def step_regions(chemical_pattern, length):
-    """Boolean mask per region over the L-1 steps; a boundary step is in none of them.
+    """Boolean mask per region over the L-1 steps; the junction masks overlap the others.
 
     Every mask is empty when the pattern holds no single deoxy stretch to measure against.
     """
     span = single_dna_gap(chemical_pattern)
     steps = np.arange(1, length)
+    empty = np.zeros(length - 1, dtype=bool)
     if span is None:
-        empty = np.zeros(length - 1, dtype=bool)
         return {region: empty for region in REGIONS}
     start, end = span
     return {
         "wing5": (steps - 1 < start) & (steps < start),
         "gap": (steps - 1 >= start) & (steps < end),
         "wing3": (steps - 1 >= end) & (steps >= end),
+        "j5": ((steps >= start - 1) & (steps <= start + 1)) if start > 0 else empty,
+        "j3": ((steps >= end - 1) & (steps <= end + 1)) if end < length else empty,
     }
 
 
@@ -126,13 +131,13 @@ def step_cell(sugar_5, sugar_3, dinucleotide):
     return f"{sugar_5}{sugar_3}|RR@{dinucleotide}", True
 
 
-def _profile(sequence, sugar, uniform):
+def _profile(sequence, sugar, uniform, junction):
     """One value per step for every observable, or NaN where the cell is unmeasured."""
     length = len(sequence)
     values = {o: np.full(length - 1, np.nan) for o in OBSERVABLES}
     for i in range(1, length):
         cell, is_junction = step_cell(sugar[i - 1], sugar[i], sequence[i - 1] + sequence[i])
-        tables = JUNCTION_MEAN if is_junction else uniform
+        tables = junction if is_junction else uniform
         for o in OBSERVABLES:
             values[o][i - 1] = tables[o].get(cell, np.nan)
     return values
@@ -154,8 +159,11 @@ def calculate_aso_rna(sequences, chemical_patterns):
         if sugar is None:
             continue
         masks = step_regions(pattern, length)
-        for uniform, suffix in ((UNIFORM_MEAN, ""), (UNIFORM_SPREAD, "_spread")):
-            values = _profile(sequence, sugar, uniform)
+        for uniform, junction, suffix in (
+            (UNIFORM_MEAN, JUNCTION_MEAN, ""),
+            (UNIFORM_SPREAD, JUNCTION_SPREAD, "_spread"),
+        ):
+            values = _profile(sequence, sugar, uniform, junction)
             for o in OBSERVABLES:
                 for region, mask in masks.items():
                     inside = values[o][mask]
