@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 # Proteins a PS-ASO has to get past in the cell it is dosed into, taken per gene. EGFR,
-# stabilin-1 and stabilin-2 are endocytic receptors for phosphorothioate oligonucleotides;
-# TREX1 is the 3'-exonuclease that degrades them. A gene total is the measure here because
+# stabilin-1 and stabilin-2 are endocytic receptors for phosphorothioate oligonucleotides.
+# A gene total is the measure here because
 # these features stand for how much of the protein a cell line carries, which does not turn on
 # which isoform the message sits in.
 # The PS-ASO protein interactome from Crooke et al. (PMC7261153), which sorts the proteins a
@@ -22,7 +22,6 @@ _SPECIAL_GENES: Dict[str, str] = {
     "expr_egfr": "EGFR",
     "expr_stab1": "STAB1",
     "expr_stab2": "STAB2",
-    "expr_trex1": "TREX1",
     # uptake and endosomal trafficking
     "expr_anxa2": "ANXA2",
     "expr_stx5": "STX5",
