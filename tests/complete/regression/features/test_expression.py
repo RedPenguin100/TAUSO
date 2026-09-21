@@ -6,6 +6,7 @@ import pytest
 from tauso.data.consts import CELL_LINE_DEPMAP
 from tauso.data.data import get_data_dir
 from tauso.dependencies.depmap import load_cell_line_gene_expression
+from tauso.populate.calculators.cache import AssetCache
 from tauso.populate.populate_context import (
     _SPECIAL_GENES,
     _SPECIAL_TRANSCRIPTS,
@@ -130,8 +131,16 @@ def target_gene_transcripts(base_data, target_genes):
     return frames
 
 
+@pytest.fixture(scope="session")
+def canonical_transcripts(target_genes):
+    """The annotation's canonical transcript for each of the cohort's target genes."""
+    return AssetCache().get_canonical_transcripts(list(target_genes))
+
+
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
-def test_target_dominant_transcript_regression(mini_sampled_data, target_gene_transcripts, dataframe_regression):
+def test_target_dominant_transcript_regression(
+    mini_sampled_data, target_gene_transcripts, canonical_transcripts, dataframe_regression
+):
     data = mini_sampled_data.copy()
-    result, feats = populate_target_dominant_transcript(data, target_gene_transcripts)
+    result, feats = populate_target_dominant_transcript(data, target_gene_transcripts, canonical_transcripts)
     dataframe_regression.check(result[["index_oligo"] + feats])

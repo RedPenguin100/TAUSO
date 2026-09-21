@@ -32,20 +32,19 @@ from ...common.modifications import check_pattern_length
 from ...util import normalize_dna
 
 OBSERVABLES = (
-    "Roll",
-    "Tilt",
     "hIncl",
     "hTip",
     "hY",
     "hRise",
     "Shift",
-    "Rise",
     "Slide",
     "Zp",
-    "Twist",
     "hTwist",
     "hX",
 )
+"""Roll and Tilt are hIncl and hTip in a second coordinate frame, so only one of each pair is
+kept. Rise and Twist are dropped: their cell values track GC content closely enough that what
+they add over composition does not survive measurement."""
 REGIONS = ("wing5", "gap", "wing3", "j5", "j3")
 
 SUGARS = {"D": "D", "M": "M", "C": "E"}
