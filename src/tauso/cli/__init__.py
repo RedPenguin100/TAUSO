@@ -219,6 +219,9 @@ kept few and large."""
 TRANSCRIPT_COLUMN_BATCH = 5000
 """Transcript columns read at once when pulling a cohort out of the Parquet."""
 
+GENE_COLUMN_BATCH = 2000
+"""Gene columns read at once when pulling a cohort out of the gene-level Parquet."""
+
 DEFAULT_COHORT_CELLS = (
     "HEPG2",
     "SNU449",
@@ -557,6 +560,40 @@ def build_general_expression_command(genome, force):
     echo_ok(f"Wrote {path} for {len(table):,} genes ({path.stat().st_size / 1024:.0f} KB).")
 
 
+def _read_gene_cohort(parquet_path, target_ids):
+    """The wanted cell lines' gene expression, as (model ids, gene columns, values).
+
+    The table holds tens of thousands of gene columns for every DepMap model, so the columns are taken a batch
+    at a time and only the wanted rows are kept: what stays resident is the cohort, not the table.
+    """
+    handle = pq.ParquetFile(parquet_path)
+    schema = handle.schema_arrow
+    # The pandas index, if the file kept one, is stored as a column too.
+    index_cols = {c for c in (schema.pandas_metadata or {}).get("index_columns", []) if isinstance(c, str)}
+    names = [c for c in schema.names if c not in index_cols]
+    meta = handle.read(columns=[c for c in names if c in DEPMAP_PROFILE_COLUMNS]).to_pandas()
+    model_col = "ModelID" if "ModelID" in meta.columns else meta.columns[0]
+    wanted = meta[model_col].isin(target_ids)
+    # A model can carry several sequencing profiles; DepMap flags the one to use with the
+    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
+    if "IsDefaultEntryForModel" in meta.columns:
+        wanted &= meta["IsDefaultEntryForModel"] == "Yes"
+    rows = np.flatnonzero(wanted.to_numpy())
+    # A model that still has two profiles after that filter yields one file, from its first row.
+    _, first = np.unique(meta[model_col].to_numpy()[rows], return_index=True)
+    rows = rows[np.sort(first)]
+
+    gene_cols = [c for c in names if c not in DEPMAP_PROFILE_COLUMNS]
+    values = np.empty((len(rows), len(gene_cols)), dtype=np.float64)
+    for start in range(0, len(gene_cols), GENE_COLUMN_BATCH):
+        batch = gene_cols[start : start + GENE_COLUMN_BATCH]
+        block = handle.read(columns=batch)
+        for offset, column in enumerate(block.columns):
+            values[:, start + offset] = column.to_numpy(zero_copy_only=False)[rows]
+    values[np.isnan(values)] = 0.0
+    return meta[model_col].to_numpy()[rows], gene_cols, values
+
+
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
 def build_cohort_expression(genome):
@@ -587,16 +624,8 @@ def build_cohort_expression(genome):
     target_ids = set(cohort.values())
     click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
-    click.echo(f"Loading {os.path.basename(exp_path)}...")
-    exp_df = pd.read_parquet(exp_path)
-
-    model_col = "ModelID" if "ModelID" in exp_df.columns else exp_df.columns[0]
-    # A model can carry several sequencing profiles; DepMap flags the one to use with the
-    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
-    if "IsDefaultEntryForModel" in exp_df.columns:
-        exp_df = exp_df[exp_df["IsDefaultEntryForModel"] == "Yes"]
-
-    gene_cols = [c for c in exp_df.columns if c not in DEPMAP_PROFILE_COLUMNS]
+    click.echo(f"Reading {os.path.basename(exp_path)}...")
+    found_ids, gene_cols, values = _read_gene_cohort(exp_path, target_ids)
 
     # Most genes are named "SYMBOL (1234)"; the ones with no symbol keep their Ensembl id.
     gene_regex = re.compile(r"^(.+?) \(\d+\)$")
@@ -606,17 +635,11 @@ def build_cohort_expression(genome):
     os.makedirs(output_dir, exist_ok=True)
 
     found_count = 0
-    for curr_id in target_ids:
-        cell_rows = exp_df[exp_df[model_col] == curr_id]
-        if cell_rows.empty:
-            continue
-
+    for position, curr_id in enumerate(found_ids):
         click.echo(f"  Extracting {curr_id}...")
-        row = cell_rows.iloc[0]
-        vals = pd.to_numeric(row[gene_cols], errors="coerce").fillna(0.0).values
         clean_genes = [clean_gene_map[c] for c in gene_cols]
 
-        out_df = pd.DataFrame({"Gene": clean_genes, "expression_norm": vals})
+        out_df = pd.DataFrame({"Gene": clean_genes, "expression_norm": values[position]})
         out_df["expression_TPM"] = (2 ** out_df["expression_norm"]) - 1
         out_df = out_df.sort_values("expression_norm", ascending=False)
         out_df.to_csv(os.path.join(output_dir, f"{curr_id}_expression.csv"), index=False)
