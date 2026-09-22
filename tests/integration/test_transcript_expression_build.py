@@ -23,9 +23,13 @@ COHORT = {"CellA": "ACH-000004", "CellB": "ACH-000008", "Absent": "ACH-000000"}
 
 @pytest.fixture(scope="module")
 def built(tmp_path_factory):
-    source = os.path.join(get_data_dir(), cli.TRANSCRIPT_EXPRESSION_PARQUET)
     data_dir = tmp_path_factory.mktemp("transcript_build")
-    os.symlink(source, data_dir / cli.TRANSCRIPT_EXPRESSION_PARQUET)
+    # The table is either Parquet parts or, in a data dir converted before the split, one file.
+    for name in (cli.TRANSCRIPT_EXPRESSION_PARTS, cli.TRANSCRIPT_EXPRESSION_PARQUET):
+        source = os.path.join(get_data_dir(), name)
+        if os.path.exists(source):
+            os.symlink(source, data_dir / name)
+            break
     (data_dir / "cell_cohort.json").write_text(json.dumps(COHORT))
 
     original = cli.get_data_dir
