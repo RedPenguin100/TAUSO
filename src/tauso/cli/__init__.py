@@ -44,6 +44,7 @@ from ._download import (
     RRNA_SHA1,
     TRANSCRIPT_EXPRESSION_CSV,
     TRANSCRIPT_EXPRESSION_PARQUET,
+    TRANSCRIPT_EXPRESSION_PARTS,
     TRANSCRIPT_EXPRESSION_SHA1,
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
@@ -213,8 +214,11 @@ TRANSCRIPT_CSV_BLOCK_BYTES = 1 << 28
 """Text read at once while converting the transcript table to Parquet."""
 
 TRANSCRIPT_ROWS_PER_GROUP = 600
-"""Cell lines per Parquet row group. Every group repeats the 237,000-column footer, so they are
-kept few and large."""
+"""Cell lines per Parquet row group of a transcript part."""
+
+TRANSCRIPT_COLUMNS_PER_PART = 2000
+"""Transcript columns per Parquet part. A Parquet writer holds buffers for every column until a
+row group is written, so its memory follows the table's width; narrow parts keep it small."""
 
 TRANSCRIPT_COLUMN_BATCH = 5000
 """Transcript columns read at once when pulling a cohort out of the Parquet."""
@@ -386,20 +390,37 @@ def add_cell(cell_names, reset):
     click.echo(f"Cohort saved to {manifest_path} ({len(cohort)} cell lines).")
 
 
-def _ensure_transcript_parquet(data_dir):
-    """The transcript table as Parquet, converting the CSV on first use and dropping it after.
+def _split_csv_by_columns(csv_path, out_dir):
+    """Split the CSV into narrow CSVs of the same rows, and return their paths in column order.
 
-    The CSV is 237,000 columns wide and reading it whole costs about 26 GB, so the conversion
-    streams it a block of text at a time.
+    The first holds the profile columns, each later one TRANSCRIPT_COLUMNS_PER_PART transcripts.
+    The split is plain text, one line at a time, so no parser ever sees the full width.
     """
-    parquet_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
-    if os.path.exists(parquet_path):
-        return parquet_path
+    with open(csv_path) as source:
+        header = source.readline().rstrip("\r\n").split(",")
+        profile = [i for i, c in enumerate(header) if not c.startswith("ENST")]
+        transcripts = [i for i, c in enumerate(header) if c.startswith("ENST")]
+        groups = [profile] + [
+            transcripts[start : start + TRANSCRIPT_COLUMNS_PER_PART]
+            for start in range(0, len(transcripts), TRANSCRIPT_COLUMNS_PER_PART)
+        ]
+        paths = [os.path.join(out_dir, f"part-{k:03d}.csv") for k in range(len(groups))]
+        outs = [open(path, "w") for path in paths]
+        try:
+            for out, group in zip(outs, groups):
+                out.write(",".join(header[i] for i in group) + "\n")
+            for line in source:
+                fields = line.rstrip("\r\n").split(",")
+                for out, group in zip(outs, groups):
+                    out.write(",".join([fields[i] for i in group]) + "\n")
+        finally:
+            for out in outs:
+                out.close()
+    return paths
 
-    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
 
-    click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet (one time)...")
+def _csv_to_parquet(csv_path, parquet_path):
+    """Write one CSV of the transcript table as Parquet, a block of text at a time."""
     with open(csv_path) as handle:
         header = handle.readline().rstrip("\n").split(",")
     # Typing the expression columns up front stops a block of blanks being read as text,
@@ -409,9 +430,8 @@ def _ensure_transcript_parquet(data_dir):
         read_options=pacsv.ReadOptions(block_size=TRANSCRIPT_CSV_BLOCK_BYTES),
         convert_options=pacsv.ConvertOptions(column_types={c: pa.float64() for c in header if c.startswith("ENST")}),
     )
-    partial_path = parquet_path + ".partial"
     pending = []
-    with pq.ParquetWriter(partial_path, reader.schema) as writer:
+    with pq.ParquetWriter(parquet_path, reader.schema) as writer:
         for batch in reader:
             pending.append(batch)
             if sum(b.num_rows for b in pending) >= TRANSCRIPT_ROWS_PER_GROUP:
@@ -419,22 +439,50 @@ def _ensure_transcript_parquet(data_dir):
                 pending = []
         if pending:
             writer.write_table(pa.Table.from_batches(pending))
+
+
+def _ensure_transcript_parquet(data_dir):
+    """The transcript table as Parquet parts in column order, converting the CSV on first use.
+
+    The CSV is 237,000 columns wide. A Parquet writer's memory follows the width it is given, so
+    the CSV is first split into narrow CSVs as text and each is converted on its own. A data dir
+    from before the split holds the table as one Parquet file, which is read as a single part.
+    """
+    parts_dir = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARTS)
+    if os.path.isdir(parts_dir):
+        return sorted(str(p) for p in Path(parts_dir).glob("part-*.parquet"))
+    single_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
+    if os.path.exists(single_path):
+        return [single_path]
+
+    csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
+    _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
+
+    click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet parts (one time)...")
+    partial_dir = parts_dir + ".partial"
+    shutil.rmtree(partial_dir, ignore_errors=True)
+    os.makedirs(partial_dir)
+    part_csvs = _split_csv_by_columns(csv_path, partial_dir)
+    for part_csv in part_csvs:
+        _csv_to_parquet(part_csv, part_csv[: -len(".csv")] + ".parquet")
+        os.remove(part_csv)
     # Named only once it is whole, so a killed conversion is not mistaken for a finished one.
-    os.replace(partial_path, parquet_path)
+    os.replace(partial_dir, parts_dir)
     os.remove(csv_path)
-    echo_ok(f"Converted to Parquet: {parquet_path} ({TRANSCRIPT_EXPRESSION_CSV} removed)")
-    return parquet_path
+    echo_ok(f"Converted to {len(part_csvs)} Parquet parts: {parts_dir} ({TRANSCRIPT_EXPRESSION_CSV} removed)")
+    return sorted(str(p) for p in Path(parts_dir).glob("part-*.parquet"))
 
 
-def _read_transcript_cohort(parquet_path, target_ids):
+def _read_transcript_cohort(part_paths, target_ids):
     """The wanted cell lines' expression, as (model ids, transcript columns, values).
 
     One cell line is one row of a 237,000-column table, so the columns are taken a batch at a
     time and only the wanted rows are kept: what stays resident is the cohort, not the table.
+    Every part holds the same rows in the same order; the first holds the profile columns.
     """
-    handle = pq.ParquetFile(parquet_path)
-    names = handle.schema.names
-    meta = handle.read(columns=[c for c in names if not c.startswith("ENST")]).to_pandas()
+    first_part = pq.ParquetFile(part_paths[0])
+    names = first_part.schema.names
+    meta = first_part.read(columns=[c for c in names if not c.startswith("ENST")]).to_pandas()
     model_col = "ModelID" if "ModelID" in meta.columns else meta.columns[0]
     wanted = meta[model_col].isin(target_ids)
     # A model can carry several sequencing profiles; DepMap flags the one to use with the
@@ -446,13 +494,20 @@ def _read_transcript_cohort(parquet_path, target_ids):
     _, first = np.unique(meta[model_col].to_numpy()[rows], return_index=True)
     rows = rows[np.sort(first)]
 
-    transcript_cols = [c for c in names if c.startswith("ENST")]
+    # One part is open at a time: every open part holds its footer in memory.
+    part_names = [names] + [pq.read_schema(path).names for path in part_paths[1:]]
+    part_cols = [[c for c in part if c.startswith("ENST")] for part in part_names]
+    transcript_cols = [c for cols in part_cols for c in cols]
     values = np.empty((len(rows), len(transcript_cols)))
-    for start in range(0, len(transcript_cols), TRANSCRIPT_COLUMN_BATCH):
-        batch = transcript_cols[start : start + TRANSCRIPT_COLUMN_BATCH]
-        block = handle.read(columns=batch)
-        for offset, column in enumerate(block.columns):
-            values[:, start + offset] = column.to_numpy(zero_copy_only=False)[rows]
+    part_start = 0
+    for index, (path, cols) in enumerate(zip(part_paths, part_cols)):
+        handle = first_part if index == 0 else pq.ParquetFile(path)
+        for start in range(0, len(cols), TRANSCRIPT_COLUMN_BATCH):
+            batch = cols[start : start + TRANSCRIPT_COLUMN_BATCH]
+            block = handle.read(columns=batch)
+            for offset, column in enumerate(block.columns):
+                values[:, part_start + start + offset] = column.to_numpy(zero_copy_only=False)[rows]
+        part_start += len(cols)
     values[np.isnan(values)] = 0.0
     return meta[model_col].to_numpy()[rows], transcript_cols, values
 
@@ -489,10 +544,10 @@ def build_cohort_transcript_expression(force):
             echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
             return
 
-    parquet_path = _ensure_transcript_parquet(data_dir)
+    part_paths = _ensure_transcript_parquet(data_dir)
 
-    click.echo(f"Reading {TRANSCRIPT_EXPRESSION_PARQUET} for {len(target_ids)} cohort cell lines...")
-    found_ids, transcript_cols, values = _read_transcript_cohort(parquet_path, target_ids)
+    click.echo(f"Reading the transcript table for {len(target_ids)} cohort cell lines...")
+    found_ids, transcript_cols, values = _read_transcript_cohort(part_paths, target_ids)
     clean_transcripts = [c.split(".", 1)[0] for c in transcript_cols]
 
     # Carry the gene each transcript belongs to, so the files can be filtered by gene the way
@@ -530,7 +585,7 @@ def build_cohort_transcript_expression(force):
         found_count += 1
 
     if not found_count:
-        echo_err(f"No cohort cell line found in {TRANSCRIPT_EXPRESSION_PARQUET}; wrote nothing.")
+        echo_err("No cohort cell line found in the transcript table; wrote nothing.")
         return
     with open(sentinel, "w") as f:
         json.dump(sorted(target_ids), f)
