@@ -150,20 +150,12 @@ def save_parquet_sha256(csv_path):
     _sha256_file_path(csv_path).write_text(parquet_sha256(csv_path))
 
 
-def iter_cell_lines(csv_path, model_ids):
-    """Yield (model id, expression columns, values) for each wanted cell line found, in table order.
+def _default_rows(first_part, model_ids):
+    """The rows to read for the wanted models, in table order, and the model id of each.
 
     A model can carry several sequencing profiles; the one DepMap flags as the default is read,
-    and a model with two left is read from its first. Missing values read as 0.
-
-    Parquet stores a table by column, so no cell line can be read without decoding every column
-    whole. Each part is decoded once and the wanted rows of its columns go to a temporary file in
-    the data dir, one cell line per row; the cell lines are then read back one at a time. What
-    stays resident is one part and one cell line however large the cohort; the file takes 8 bytes
-    per value (1.9 MB per cell line of the transcript table) until the last one is yielded.
+    and a model with two left is read from its first.
     """
-    paths = _files(csv_path)
-    first_part = pq.ParquetFile(paths[0])
     names = first_part.schema.names
     meta = first_part.read(columns=[c for c in names if c in DEPMAP_PROFILE_COLUMNS]).to_pandas()
     model_col = "ModelID" if "ModelID" in meta.columns else meta.columns[0]
@@ -174,47 +166,74 @@ def iter_cell_lines(csv_path, model_ids):
     rows = np.flatnonzero(wanted.to_numpy())
     _, first = np.unique(meta[model_col].to_numpy()[rows], return_index=True)
     rows = rows[np.sort(first)]
-    found = meta[model_col].to_numpy()[rows]
+    return rows, meta[model_col].to_numpy()[rows]
 
-    # One part is open at a time: every open part holds its footer in memory.
+
+def _column_blocks(paths, first_part, part_cols, rows):
+    """Yield (index of its first column, the rows' values) for each block of up to COLUMNS_PER_PART
+    columns, in column order, missing values as 0. One part is open at a time: every open part
+    holds its footer in memory."""
+    part_start = 0
+    for index, (path, cols) in enumerate(zip(paths, part_cols)):
+        handle = first_part if index == 0 else pq.ParquetFile(path)
+        for start in range(0, len(cols), COLUMNS_PER_PART):
+            batch = cols[start : start + COLUMNS_PER_PART]
+            block = np.empty((len(rows), len(batch)), dtype=np.float64)
+            for offset, column in enumerate(handle.read(columns=batch).columns):
+                block[:, offset] = column.to_numpy(zero_copy_only=False)[rows]
+            block[np.isnan(block)] = 0.0
+            yield part_start + start, block
+        part_start += len(cols)
+
+
+def _wanted_blocks(csv_path, model_ids):
+    """The wanted cell lines' model ids, the expression columns, and their values as column blocks.
+
+    Parquet stores a table by column, so no cell line can be read without decoding every column
+    whole: the blocks come one part at a time, each holding every wanted cell line.
+    """
+    paths = _files(csv_path)
+    first_part = pq.ParquetFile(paths[0])
+    rows, found = _default_rows(first_part, model_ids)
     part_cols = [_expression_columns_in(first_part.schema_arrow)]
     part_cols += [_expression_columns_in(pq.read_schema(path)) for path in paths[1:]]
     columns = [c for cols in part_cols for c in cols]
-    width = len(columns)
-    # In the data dir, not the system temp dir, which on some machines is held in memory.
-    with tempfile.TemporaryFile(dir=Path(csv_path).parent) as scratch:
-        part_start = 0
-        for index, (path, cols) in enumerate(zip(paths, part_cols)):
-            handle = first_part if index == 0 else pq.ParquetFile(path)
-            for start in range(0, len(cols), COLUMNS_PER_PART):
-                batch = cols[start : start + COLUMNS_PER_PART]
-                table = handle.read(columns=batch)
-                block = np.empty((len(rows), len(batch)), dtype=np.float64)
-                for offset, column in enumerate(table.columns):
-                    block[:, offset] = column.to_numpy(zero_copy_only=False)[rows]
-                del table
-                block[np.isnan(block)] = 0.0
-                for position in range(len(rows)):
-                    scratch.seek((position * width + part_start + start) * 8)
-                    scratch.write(block[position].tobytes())
-            part_start += len(cols)
-        for position, model_id in enumerate(found):
-            scratch.seek(position * width * 8)
-            yield model_id, columns, np.fromfile(scratch, dtype=np.float64, count=width)
+    return found, columns, _column_blocks(paths, first_part, part_cols, rows)
 
 
 def read_cell_lines(csv_path, model_ids):
     """The wanted cell lines' expression, as (model ids found, expression columns, values).
 
-    iter_cell_lines, gathered into one array: for a cohort small enough to hold at once.
+    The default profile of each, missing values as 0, all held at once: for a cohort small
+    enough to hold. iter_cell_lines gives the same one cell line at a time.
     """
-    columns = expression_columns(csv_path)
-    found, rows = [], []
-    for model_id, _, row in iter_cell_lines(csv_path, model_ids):
-        found.append(model_id)
-        rows.append(row)
-    values = np.vstack(rows) if rows else np.empty((0, len(columns)), dtype=np.float64)
-    return np.array(found, dtype=object), columns, values
+    found, columns, blocks = _wanted_blocks(csv_path, model_ids)
+    values = np.empty((len(found), len(columns)), dtype=np.float64)
+    for first_column, block in blocks:
+        values[:, first_column : first_column + block.shape[1]] = block
+    return found, columns, values
+
+
+def iter_cell_lines(csv_path, model_ids):
+    """Yield (model id, expression columns, values) for each wanted cell line, as read_cell_lines
+    reads them, in table order.
+
+    A cell line is only whole once every part has been decoded, so the blocks are written to a
+    temporary file, one cell line per row, and the cell lines are read back from it one at a time.
+    What stays in memory is one block and one cell line however large the cohort; the file, in
+    the data dir because some machines keep the system temp dir in memory, is 8 bytes per value
+    (1.9 MB per cell line of the transcript table) and is gone when the last one is yielded.
+    """
+    found, columns, blocks = _wanted_blocks(csv_path, model_ids)
+    width = len(columns)
+    with tempfile.TemporaryFile(dir=Path(csv_path).parent) as scratch:
+        for first_column, block in blocks:
+            for position, values in enumerate(block):
+                scratch.seek((position * width + first_column) * 8)
+                scratch.write(values.tobytes())
+        for position, model_id in enumerate(found):
+            scratch.seek(position * width * 8)
+            yield model_id, columns, np.fromfile(scratch, dtype=np.float64, count=width)
 
 
 def mean_expression(csv_path, columns):
