@@ -10,11 +10,7 @@ from pathlib import Path
 
 import click
 import gffutils
-import numpy as np
 import pandas as pd
-import pyarrow as pa
-import pyarrow.csv as pacsv
-import pyarrow.parquet as pq
 from gffutils.iterators import DataIterator
 from pyfaidx import Fasta
 
@@ -26,10 +22,17 @@ from tauso.cli_utils import (
     echo_ok,
     echo_warn,
     file_matches_hash,
-    sha256_file,
     verify_hash_or_exit,
 )
 from tauso.data.data import get_data_dir, get_paths, load_gtf_db
+from tauso.expression.depmap_table import (
+    read_rows,
+    record_sha256,
+    recorded_sha256,
+    table_exists,
+    table_sha256,
+    write_table,
+)
 from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_FILENAME, build_scorer_from_reference
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
 from tauso.features.codon_usage.tai import TGCNSource
@@ -41,10 +44,9 @@ from tauso.off_target.search import find_all_gene_off_targets, get_bowtie_index_
 from ..util import normalize_dna
 from ._download import (
     DEPMAP_FILES_SHA1,
+    GENE_EXPRESSION_CSV,
     RRNA_SHA1,
     TRANSCRIPT_EXPRESSION_CSV,
-    TRANSCRIPT_EXPRESSION_PARQUET,
-    TRANSCRIPT_EXPRESSION_PARTS,
     TRANSCRIPT_EXPRESSION_SHA1,
     ZENODO_RRNA_RECORD,
     _ensure_depmap_file,
@@ -107,22 +109,17 @@ def setup_depmap(force):
 
     click.echo("Initializing DepMap setup (Zenodo mirror of DepMap Public 25Q3)...")
 
-    omics_csv_name = "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
+    omics_csv_name = GENE_EXPRESSION_CSV
     omics_csv = os.path.join(data_dir, omics_csv_name)
-    omics_parquet = omics_csv.replace(".csv", ".parquet")
-    omics_parquet_sha = omics_parquet + ".sha256"
-    parquet_already_built = os.path.exists(omics_parquet) and not force
+    parquet_already_built = table_exists(omics_csv) and not force
 
-    # If we have both the Parquet and its sidecar hash, verify they agree.
-    # Mismatch (or missing sidecar with --force) means the Parquet is no longer
-    # the one we wrote → rebuild from a fresh CSV download.
-    if parquet_already_built and os.path.exists(omics_parquet_sha):
-        recorded = Path(omics_parquet_sha).read_text().strip()
-        if sha256_file(omics_parquet) != recorded:
-            echo_warn(f"{os.path.basename(omics_parquet)} hash mismatch — will re-download CSV and re-convert.")
-            os.remove(omics_parquet)
-            os.remove(omics_parquet_sha)
-            parquet_already_built = False
+    # If a hash was recorded for the Parquet, verify it still agrees.
+    # Mismatch (or --force) means the Parquet is no longer the one we wrote
+    # → rebuild from a fresh CSV download.
+    recorded = recorded_sha256(omics_csv)
+    if parquet_already_built and recorded and table_sha256(omics_csv) != recorded:
+        echo_warn(f"{omics_csv_name} Parquet hash mismatch — will re-download CSV and re-convert.")
+        parquet_already_built = False
 
     for filename, expected_sha1 in DEPMAP_FILES_SHA1.items():
         if filename == omics_csv_name and parquet_already_built:
@@ -135,16 +132,15 @@ def setup_depmap(force):
 
     if not parquet_already_built:
         click.echo("  Converting OmicsExpression CSV to Parquet...")
-        pd.read_csv(omics_csv).to_parquet(omics_parquet, index=False)
+        write_table(omics_csv, parser="pandas")
         echo_ok("Converted to Parquet.")
 
-    # Record (or refresh) the sidecar hash so future runs can detect tampering / bit rot.
-    if not os.path.exists(omics_parquet_sha):
-        Path(omics_parquet_sha).write_text(sha256_file(omics_parquet))
+    # Record the hash if none was, so future runs can detect tampering / bit rot.
+    if not recorded_sha256(omics_csv):
+        record_sha256(omics_csv)
 
     # The CSV is dead weight once the Parquet exists — every consumer (production
-    # code in expression/, plus tests) takes the CSV path but immediately swaps the
-    # suffix to .parquet.
+    # code in expression/, plus tests) takes the CSV path and finds the Parquet from it.
     if os.path.exists(omics_csv):
         os.remove(omics_csv)
         echo_ok(f"Removed {omics_csv_name} (Parquet supersedes it).")
@@ -204,27 +200,6 @@ def setup_all(ctx, genome, force, threads, mem_per_thread):
     click.echo()
     echo_ok("setup-all complete.")
 
-
-DEPMAP_PROFILE_COLUMNS = frozenset(
-    {"Unnamed: 0", "", "SequencingID", "ModelID", "IsDefaultEntryForModel", "ModelConditionID", "IsDefaultEntryForMC"}
-)
-"""The columns of a DepMap expression table that describe the sequencing run, not a measurement."""
-
-TRANSCRIPT_CSV_BLOCK_BYTES = 1 << 28
-"""Text read at once while converting the transcript table to Parquet."""
-
-TRANSCRIPT_ROWS_PER_GROUP = 600
-"""Cell lines per Parquet row group of a transcript part."""
-
-TRANSCRIPT_COLUMNS_PER_PART = 2000
-"""Transcript columns per Parquet part. A Parquet writer holds buffers for every column until a
-row group is written, so its memory follows the table's width; narrow parts keep it small."""
-
-TRANSCRIPT_COLUMN_BATCH = 5000
-"""Transcript columns read at once when pulling a cohort out of the Parquet."""
-
-GENE_COLUMN_BATCH = 2000
-"""Gene columns read at once when pulling a cohort out of the gene-level Parquet."""
 
 DEFAULT_COHORT_CELLS = (
     "HEPG2",
@@ -390,126 +365,15 @@ def add_cell(cell_names, reset):
     click.echo(f"Cohort saved to {manifest_path} ({len(cohort)} cell lines).")
 
 
-def _split_csv_by_columns(csv_path, out_dir):
-    """Split the CSV into narrow CSVs of the same rows, and return their paths in column order.
-
-    The first holds the profile columns, each later one TRANSCRIPT_COLUMNS_PER_PART transcripts.
-    The split is plain text, one line at a time, so no parser ever sees the full width.
-    """
-    with open(csv_path) as source:
-        header = source.readline().rstrip("\r\n").split(",")
-        profile = [i for i, c in enumerate(header) if not c.startswith("ENST")]
-        transcripts = [i for i, c in enumerate(header) if c.startswith("ENST")]
-        groups = [profile] + [
-            transcripts[start : start + TRANSCRIPT_COLUMNS_PER_PART]
-            for start in range(0, len(transcripts), TRANSCRIPT_COLUMNS_PER_PART)
-        ]
-        paths = [os.path.join(out_dir, f"part-{k:03d}.csv") for k in range(len(groups))]
-        outs = [open(path, "w") for path in paths]
-        try:
-            for out, group in zip(outs, groups):
-                out.write(",".join(header[i] for i in group) + "\n")
-            for line in source:
-                fields = line.rstrip("\r\n").split(",")
-                for out, group in zip(outs, groups):
-                    out.write(",".join([fields[i] for i in group]) + "\n")
-        finally:
-            for out in outs:
-                out.close()
-    return paths
-
-
-def _csv_to_parquet(csv_path, parquet_path):
-    """Write one CSV of the transcript table as Parquet, a block of text at a time."""
-    with open(csv_path) as handle:
-        header = handle.readline().rstrip("\n").split(",")
-    # Typing the expression columns up front stops a block of blanks being read as text,
-    # which would clash with the float blocks either side of it.
-    reader = pacsv.open_csv(
-        csv_path,
-        read_options=pacsv.ReadOptions(block_size=TRANSCRIPT_CSV_BLOCK_BYTES),
-        convert_options=pacsv.ConvertOptions(column_types={c: pa.float64() for c in header if c.startswith("ENST")}),
-    )
-    pending = []
-    with pq.ParquetWriter(parquet_path, reader.schema) as writer:
-        for batch in reader:
-            pending.append(batch)
-            if sum(b.num_rows for b in pending) >= TRANSCRIPT_ROWS_PER_GROUP:
-                writer.write_table(pa.Table.from_batches(pending))
-                pending = []
-        if pending:
-            writer.write_table(pa.Table.from_batches(pending))
-
-
-def _ensure_transcript_parquet(data_dir):
-    """The transcript table as Parquet parts in column order, converting the CSV on first use.
-
-    The CSV is 237,000 columns wide. A Parquet writer's memory follows the width it is given, so
-    the CSV is first split into narrow CSVs as text and each is converted on its own. A data dir
-    from before the split holds the table as one Parquet file, which is read as a single part.
-    """
-    parts_dir = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARTS)
-    if os.path.isdir(parts_dir):
-        return sorted(str(p) for p in Path(parts_dir).glob("part-*.parquet"))
-    single_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_PARQUET)
-    if os.path.exists(single_path):
-        return [single_path]
-
+def _ensure_transcript_table(data_dir):
+    """The transcript table's CSV path, the table converted from the downloaded CSV on first use."""
     csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
-
-    click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet parts (one time)...")
-    partial_dir = parts_dir + ".partial"
-    shutil.rmtree(partial_dir, ignore_errors=True)
-    os.makedirs(partial_dir)
-    part_csvs = _split_csv_by_columns(csv_path, partial_dir)
-    for part_csv in part_csvs:
-        _csv_to_parquet(part_csv, part_csv[: -len(".csv")] + ".parquet")
-        os.remove(part_csv)
-    # Named only once it is whole, so a killed conversion is not mistaken for a finished one.
-    os.replace(partial_dir, parts_dir)
-    os.remove(csv_path)
-    echo_ok(f"Converted to {len(part_csvs)} Parquet parts: {parts_dir} ({TRANSCRIPT_EXPRESSION_CSV} removed)")
-    return sorted(str(p) for p in Path(parts_dir).glob("part-*.parquet"))
-
-
-def _read_transcript_cohort(part_paths, target_ids):
-    """The wanted cell lines' expression, as (model ids, transcript columns, values).
-
-    One cell line is one row of a 237,000-column table, so the columns are taken a batch at a
-    time and only the wanted rows are kept: what stays resident is the cohort, not the table.
-    Every part holds the same rows in the same order; the first holds the profile columns.
-    """
-    first_part = pq.ParquetFile(part_paths[0])
-    names = first_part.schema.names
-    meta = first_part.read(columns=[c for c in names if not c.startswith("ENST")]).to_pandas()
-    model_col = "ModelID" if "ModelID" in meta.columns else meta.columns[0]
-    wanted = meta[model_col].isin(target_ids)
-    # A model can carry several sequencing profiles; DepMap flags the one to use with the
-    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
-    if "IsDefaultEntryForModel" in meta.columns:
-        wanted &= meta["IsDefaultEntryForModel"] == "Yes"
-    rows = np.flatnonzero(wanted.to_numpy())
-    # A model that still has two profiles after that filter yields one file, from its first row.
-    _, first = np.unique(meta[model_col].to_numpy()[rows], return_index=True)
-    rows = rows[np.sort(first)]
-
-    # One part is open at a time: every open part holds its footer in memory.
-    part_names = [names] + [pq.read_schema(path).names for path in part_paths[1:]]
-    part_cols = [[c for c in part if c.startswith("ENST")] for part in part_names]
-    transcript_cols = [c for cols in part_cols for c in cols]
-    values = np.empty((len(rows), len(transcript_cols)))
-    part_start = 0
-    for index, (path, cols) in enumerate(zip(part_paths, part_cols)):
-        handle = first_part if index == 0 else pq.ParquetFile(path)
-        for start in range(0, len(cols), TRANSCRIPT_COLUMN_BATCH):
-            batch = cols[start : start + TRANSCRIPT_COLUMN_BATCH]
-            block = handle.read(columns=batch)
-            for offset, column in enumerate(block.columns):
-                values[:, part_start + start + offset] = column.to_numpy(zero_copy_only=False)[rows]
-        part_start += len(cols)
-    values[np.isnan(values)] = 0.0
-    return meta[model_col].to_numpy()[rows], transcript_cols, values
+    if not table_exists(csv_path):
+        _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
+        click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet (one time)...")
+        write_table(csv_path, parser="pyarrow")
+        echo_ok(f"Converted to Parquet ({TRANSCRIPT_EXPRESSION_CSV} removed)")
+    return csv_path
 
 
 @main.command()
@@ -544,10 +408,10 @@ def build_cohort_transcript_expression(force):
             echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
             return
 
-    part_paths = _ensure_transcript_parquet(data_dir)
+    table = _ensure_transcript_table(data_dir)
 
     click.echo(f"Reading the transcript table for {len(target_ids)} cohort cell lines...")
-    found_ids, transcript_cols, values = _read_transcript_cohort(part_paths, target_ids)
+    found_ids, transcript_cols, values = read_rows(table, target_ids)
     clean_transcripts = [c.split(".", 1)[0] for c in transcript_cols]
 
     # Carry the gene each transcript belongs to, so the files can be filtered by gene the way
@@ -615,40 +479,6 @@ def build_general_expression_command(genome, force):
     echo_ok(f"Wrote {path} for {len(table):,} genes ({path.stat().st_size / 1024:.0f} KB).")
 
 
-def _read_gene_cohort(parquet_path, target_ids):
-    """The wanted cell lines' gene expression, as (model ids, gene columns, values).
-
-    The table holds tens of thousands of gene columns for every DepMap model, so the columns are taken a batch
-    at a time and only the wanted rows are kept: what stays resident is the cohort, not the table.
-    """
-    handle = pq.ParquetFile(parquet_path)
-    schema = handle.schema_arrow
-    # The pandas index, if the file kept one, is stored as a column too.
-    index_cols = {c for c in (schema.pandas_metadata or {}).get("index_columns", []) if isinstance(c, str)}
-    names = [c for c in schema.names if c not in index_cols]
-    meta = handle.read(columns=[c for c in names if c in DEPMAP_PROFILE_COLUMNS]).to_pandas()
-    model_col = "ModelID" if "ModelID" in meta.columns else meta.columns[0]
-    wanted = meta[model_col].isin(target_ids)
-    # A model can carry several sequencing profiles; DepMap flags the one to use with the
-    # strings "Yes"/"No". Without this a cell line yields two conflicting profiles.
-    if "IsDefaultEntryForModel" in meta.columns:
-        wanted &= meta["IsDefaultEntryForModel"] == "Yes"
-    rows = np.flatnonzero(wanted.to_numpy())
-    # A model that still has two profiles after that filter yields one file, from its first row.
-    _, first = np.unique(meta[model_col].to_numpy()[rows], return_index=True)
-    rows = rows[np.sort(first)]
-
-    gene_cols = [c for c in names if c not in DEPMAP_PROFILE_COLUMNS]
-    values = np.empty((len(rows), len(gene_cols)), dtype=np.float64)
-    for start in range(0, len(gene_cols), GENE_COLUMN_BATCH):
-        batch = gene_cols[start : start + GENE_COLUMN_BATCH]
-        block = handle.read(columns=batch)
-        for offset, column in enumerate(block.columns):
-            values[:, start + offset] = column.to_numpy(zero_copy_only=False)[rows]
-    values[np.isnan(values)] = 0.0
-    return meta[model_col].to_numpy()[rows], gene_cols, values
-
-
 @main.command()
 @click.option("--genome", default="GRCh38", help="Genome version (default: GRCh38).")
 def build_cohort_expression(genome):
@@ -662,14 +492,14 @@ def build_cohort_expression(genome):
 
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
-    exp_path = os.path.join(data_dir, "OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet")
+    table = os.path.join(data_dir, GENE_EXPRESSION_CSV)
 
     if not os.path.exists(manifest_path):
         echo_err("No cohort found. Use 'tauso add-cell' first.")
         return
 
-    if not os.path.exists(exp_path):
-        echo_err(f"Expression parquet not found: {exp_path}")
+    if not table_exists(table):
+        echo_err(f"Expression table not found for {table}")
         click.echo("Run 'tauso setup-depmap' to download and convert it.")
         return
 
@@ -679,8 +509,8 @@ def build_cohort_expression(genome):
     target_ids = set(cohort.values())
     click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
-    click.echo(f"Reading {os.path.basename(exp_path)}...")
-    found_ids, gene_cols, values = _read_gene_cohort(exp_path, target_ids)
+    click.echo("Reading the gene table...")
+    found_ids, gene_cols, values = read_rows(table, target_ids)
 
     # Most genes are named "SYMBOL (1234)"; the ones with no symbol keep their Ensembl id.
     gene_regex = re.compile(r"^(.+?) \(\d+\)$")
