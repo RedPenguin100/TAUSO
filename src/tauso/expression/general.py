@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..frames import ARROW_STRINGS, release_arrow_memory
-from .depmap_table import column_means, column_names, table_exists
+from .depmap_parquet import expression_columns, mean_expression, parquet_exists
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,9 @@ def get_general_expression_of_genes(EXP_path, valid_genes):
     """
     valid_genes_set = set(valid_genes)
 
-    if not table_exists(EXP_path):
+    if not parquet_exists(EXP_path):
         raise FileNotFoundError(f"No Parquet for {EXP_path}. Run 'tauso setup-depmap'.")
-    potential_gene_cols = [c for c in column_names(EXP_path) if "(" in c]
+    potential_gene_cols = [c for c in expression_columns(EXP_path) if "(" in c]
     valid_cols = [c for c in potential_gene_cols if c.split(" (")[0] in valid_genes_set]
 
     logger.info(f"Filtering: Kept {len(valid_cols)} genes out of {len(potential_gene_cols)} total columns.")
@@ -34,7 +34,7 @@ def get_general_expression_of_genes(EXP_path, valid_genes):
     if not valid_cols:
         return pd.DataFrame(columns=["Gene", "expression_norm", "expression_TPM"])
 
-    mean_exp = column_means(EXP_path, valid_cols)
+    mean_exp = mean_expression(EXP_path, valid_cols)
 
     mean_exp_data = pd.DataFrame({"Gene": pd.array(valid_cols, dtype=ARROW_STRINGS), "expression_norm": mean_exp})
     mean_exp_data["expression_TPM"] = 2 ** mean_exp_data["expression_norm"]

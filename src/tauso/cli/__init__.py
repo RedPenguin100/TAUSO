@@ -25,13 +25,13 @@ from tauso.cli_utils import (
     verify_hash_or_exit,
 )
 from tauso.data.data import get_data_dir, get_paths, load_gtf_db
-from tauso.expression.depmap_table import (
-    read_rows,
-    record_sha256,
-    recorded_sha256,
-    table_exists,
-    table_sha256,
-    write_table,
+from tauso.expression.depmap_parquet import (
+    csv_to_parquet,
+    parquet_exists,
+    parquet_sha256,
+    read_cell_lines,
+    save_parquet_sha256,
+    saved_parquet_sha256,
 )
 from tauso.features.codon_usage.cai import CAI_DEFAULT_PSEUDOCOUNT, CAI_WEIGHTS_FILENAME, build_scorer_from_reference
 from tauso.features.codon_usage.find_cai_reference import load_cell_line_gene_maps
@@ -111,13 +111,13 @@ def setup_depmap(force):
 
     omics_csv_name = GENE_EXPRESSION_CSV
     omics_csv = os.path.join(data_dir, omics_csv_name)
-    parquet_already_built = table_exists(omics_csv) and not force
+    parquet_already_built = parquet_exists(omics_csv) and not force
 
-    # If a hash was recorded for the Parquet, verify it still agrees.
+    # If a hash was saved for the Parquet, verify it still agrees.
     # Mismatch (or --force) means the Parquet is no longer the one we wrote
     # → rebuild from a fresh CSV download.
-    recorded = recorded_sha256(omics_csv)
-    if parquet_already_built and recorded and table_sha256(omics_csv) != recorded:
+    saved = saved_parquet_sha256(omics_csv)
+    if parquet_already_built and saved and parquet_sha256(omics_csv) != saved:
         echo_warn(f"{omics_csv_name} Parquet hash mismatch — will re-download CSV and re-convert.")
         parquet_already_built = False
 
@@ -132,12 +132,12 @@ def setup_depmap(force):
 
     if not parquet_already_built:
         click.echo("  Converting OmicsExpression CSV to Parquet...")
-        write_table(omics_csv, parser="pandas")
+        csv_to_parquet(omics_csv)
         echo_ok("Converted to Parquet.")
 
-    # Record the hash if none was, so future runs can detect tampering / bit rot.
-    if not recorded_sha256(omics_csv):
-        record_sha256(omics_csv)
+    # Save the hash if none was, so future runs can detect tampering / bit rot.
+    if not saved_parquet_sha256(omics_csv):
+        save_parquet_sha256(omics_csv)
 
     # The CSV is dead weight once the Parquet exists — every consumer (production
     # code in expression/, plus tests) takes the CSV path and finds the Parquet from it.
@@ -365,13 +365,13 @@ def add_cell(cell_names, reset):
     click.echo(f"Cohort saved to {manifest_path} ({len(cohort)} cell lines).")
 
 
-def _ensure_transcript_table(data_dir):
-    """The transcript table's CSV path, the table converted from the downloaded CSV on first use."""
+def _ensure_transcript_parquet(data_dir):
+    """The transcript table's CSV path, converted to Parquet from the downloaded CSV on first use."""
     csv_path = os.path.join(data_dir, TRANSCRIPT_EXPRESSION_CSV)
-    if not table_exists(csv_path):
+    if not parquet_exists(csv_path):
         _ensure_depmap_file(TRANSCRIPT_EXPRESSION_CSV, TRANSCRIPT_EXPRESSION_SHA1, data_dir, False)
         click.echo(f"Converting {TRANSCRIPT_EXPRESSION_CSV} to Parquet (one time)...")
-        write_table(csv_path, parser="pyarrow")
+        csv_to_parquet(csv_path)
         echo_ok(f"Converted to Parquet ({TRANSCRIPT_EXPRESSION_CSV} removed)")
     return csv_path
 
@@ -408,10 +408,10 @@ def build_cohort_transcript_expression(force):
             echo_ok(f"Already built for these {len(target_ids)} cohort cell lines: {output_dir}")
             return
 
-    table = _ensure_transcript_table(data_dir)
+    transcript_csv = _ensure_transcript_parquet(data_dir)
 
     click.echo(f"Reading the transcript table for {len(target_ids)} cohort cell lines...")
-    found_ids, transcript_cols, values = read_rows(table, target_ids)
+    found_ids, transcript_cols, values = read_cell_lines(transcript_csv, target_ids)
     clean_transcripts = [c.split(".", 1)[0] for c in transcript_cols]
 
     # Carry the gene each transcript belongs to, so the files can be filtered by gene the way
@@ -492,14 +492,14 @@ def build_cohort_expression(genome):
 
     data_dir = get_data_dir()
     manifest_path = os.path.join(data_dir, "cell_cohort.json")
-    table = os.path.join(data_dir, GENE_EXPRESSION_CSV)
+    gene_csv = os.path.join(data_dir, GENE_EXPRESSION_CSV)
 
     if not os.path.exists(manifest_path):
         echo_err("No cohort found. Use 'tauso add-cell' first.")
         return
 
-    if not table_exists(table):
-        echo_err(f"Expression table not found for {table}")
+    if not parquet_exists(gene_csv):
+        echo_err(f"Expression parquet not found for {gene_csv}")
         click.echo("Run 'tauso setup-depmap' to download and convert it.")
         return
 
@@ -510,7 +510,7 @@ def build_cohort_expression(genome):
     click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
     click.echo("Reading the gene table...")
-    found_ids, gene_cols, values = read_rows(table, target_ids)
+    found_ids, gene_cols, values = read_cell_lines(gene_csv, target_ids)
 
     # Most genes are named "SYMBOL (1234)"; the ones with no symbol keep their Ensembl id.
     gene_regex = re.compile(r"^(.+?) \(\d+\)$")
