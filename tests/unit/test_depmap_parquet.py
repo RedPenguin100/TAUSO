@@ -16,6 +16,7 @@ from tauso.expression.depmap_parquet import (
     parquet_exists,
     parquet_sha256,
     read_cell_lines,
+    read_columns,
     save_parquet_sha256,
     saved_parquet_sha256,
 )
@@ -79,6 +80,25 @@ def test_column_means_are_in_the_order_asked(tmp_path, table):
     np.testing.assert_array_equal(mean_expression(csv, asked), [np.nanmean(whole[c].to_numpy(float)) for c in asked])
 
 
+@pytest.mark.parametrize("table", TABLES)
+def test_read_columns_returns_every_row_as_asked(tmp_path, table):
+    name, columns = TABLES[table]
+    csv = write_csv(tmp_path, name, columns)
+    whole = pd.read_csv(csv)
+    csv_to_parquet(csv)
+
+    asked = [columns[5], columns[2]]
+    got = read_columns(csv, asked)
+
+    # Every profile is a row, the non-default one included, and a missing value stays missing.
+    assert list(got.ModelID) == ["ACH-000001", "ACH-000002", "ACH-000002", "ACH-000003"]
+    assert list(got.columns[-2:]) == asked
+    pd.testing.assert_frame_equal(got[asked], whole[asked])
+    assert got[columns[2]].isna().sum() == 1
+    with pytest.raises(KeyError):
+        read_columns(csv, ["NOT A COLUMN"])
+
+
 def test_an_older_single_file_reads_the_same(tmp_path):
     (tmp_path / "parts").mkdir()
     (tmp_path / "single").mkdir()
@@ -92,6 +112,7 @@ def test_an_older_single_file_reads_the_same(tmp_path):
     assert list(got[0]) == list(want[0]) and got[1] == want[1]
     np.testing.assert_array_equal(got[2], want[2])
     np.testing.assert_array_equal(mean_expression(parts_csv, GENES), mean_expression(single_csv, GENES))
+    pd.testing.assert_frame_equal(read_columns(parts_csv, GENES[:3]), read_columns(single_csv, GENES[:3]))
 
 
 def test_writing_replaces_an_older_single_file(tmp_path):

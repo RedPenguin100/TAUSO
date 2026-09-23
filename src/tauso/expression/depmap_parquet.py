@@ -187,6 +187,30 @@ def read_cell_lines(csv_path, model_ids):
     return meta[model_col].to_numpy()[rows], columns, values
 
 
+def read_columns(csv_path, columns):
+    """The profile columns and the named expression columns, for every row, missing values kept.
+
+    For a few genes or transcripts across all of DepMap: every sequencing profile is a row, not
+    only the default one. Only the parts holding the named columns are read.
+    """
+    paths = _files(csv_path)
+    first_part = pq.ParquetFile(paths[0])
+    frame = first_part.read(columns=[c for c in first_part.schema.names if c in DEPMAP_PROFILE_COLUMNS]).to_pandas()
+    profile = list(frame.columns)
+    wanted = set(columns)
+    for index, path in enumerate(paths):
+        names = [c for c in _expression_columns_in(pq.read_schema(path)) if c in wanted]
+        if names:
+            handle = first_part if index == 0 else pq.ParquetFile(path)
+            block = handle.read(columns=names).to_pandas()
+            for name in names:
+                frame[name] = block[name].to_numpy()
+    missing = [c for c in columns if c not in frame.columns]
+    if missing:
+        raise KeyError(f"Not in {Path(csv_path).name}: {missing}")
+    return frame[profile + list(columns)]
+
+
 def mean_expression(csv_path, columns):
     """Each named column's mean over every cell line, ignoring missing values, in the order given.
 
