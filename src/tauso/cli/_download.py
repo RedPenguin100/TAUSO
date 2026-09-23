@@ -11,6 +11,7 @@ from tauso.cli_utils import download_with_progress, echo_err, echo_ok, echo_warn
 # the SHA1 of each download.
 ZENODO_DEPMAP_RECORD = "22158936"
 
+GENE_EXPRESSION_CSV = "OmicsExpressionTPMLogp1HumanAllGenesStranded.csv"
 TRANSCRIPT_EXPRESSION_CSV = "OmicsExpressionTranscriptTPMLogp1HumanAllGenes.csv"
 TRANSCRIPT_EXPRESSION_PARQUET = TRANSCRIPT_EXPRESSION_CSV.replace(".csv", ".parquet")
 TRANSCRIPT_EXPRESSION_PARTS = TRANSCRIPT_EXPRESSION_CSV.replace(".csv", "_parts")

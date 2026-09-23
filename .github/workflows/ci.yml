@@ -182,10 +182,10 @@ jobs:
           path: |
             ${{ env.TAUSO_DATA_DIR }}/Model.csv
             ${{ env.TAUSO_DATA_DIR }}/OmicsProfiles.csv
-            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet
-            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded.parquet.sha256
+            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded_parts
+            ${{ env.TAUSO_DATA_DIR }}/OmicsExpressionTPMLogp1HumanAllGenesStranded_parts.sha256
             ${{ env.TAUSO_DATA_DIR }}/processed_expression
-          key: depmap-25Q3-v5
+          key: depmap-25Q3-v6
 
       - name: Setup DepMap
         run: tauso setup-depmap
