@@ -11,6 +11,7 @@ Parquet file instead, which reads the same way.
 import hashlib
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -27,10 +28,6 @@ DEPMAP_PROFILE_COLUMNS = frozenset(
 COLUMNS_PER_PART = 2000
 """Expression columns per Parquet part, and per read. A Parquet writer holds buffers for every
 column until a row group is written, so narrow parts keep its memory small."""
-
-CELL_LINES_PER_READ = 100
-"""Cell lines iter_cell_lines reads at once. A cell line of the transcript table is 237,000
-values (1.9 MB), so a batch holds ~190 MB however large the cohort."""
 
 
 def _parts_dir(csv_path):
@@ -153,13 +150,17 @@ def save_parquet_sha256(csv_path):
     _sha256_file_path(csv_path).write_text(parquet_sha256(csv_path))
 
 
-def read_cell_lines(csv_path, model_ids):
-    """The wanted cell lines' expression, as (model ids found, expression columns, values).
+def iter_cell_lines(csv_path, model_ids):
+    """Yield (model id, expression columns, values) for each wanted cell line found, in table order.
 
     A model can carry several sequencing profiles; the one DepMap flags as the default is read,
-    and a model with two left is read from its first. Missing values read as 0. Only the wanted
-    rows are kept, a batch of columns at a time, so what stays resident is the cohort, not the
-    table.
+    and a model with two left is read from its first. Missing values read as 0.
+
+    Parquet stores a table by column, so no cell line can be read without decoding every column
+    whole. Each part is decoded once and the wanted rows of its columns go to a temporary file in
+    the data dir, one cell line per row; the cell lines are then read back one at a time. What
+    stays resident is one part and one cell line however large the cohort; the file takes 8 bytes
+    per value (1.9 MB per cell line of the transcript table) until the last one is yielded.
     """
     paths = _files(csv_path)
     first_part = pq.ParquetFile(paths[0])
@@ -173,35 +174,47 @@ def read_cell_lines(csv_path, model_ids):
     rows = np.flatnonzero(wanted.to_numpy())
     _, first = np.unique(meta[model_col].to_numpy()[rows], return_index=True)
     rows = rows[np.sort(first)]
+    found = meta[model_col].to_numpy()[rows]
 
     # One part is open at a time: every open part holds its footer in memory.
     part_cols = [_expression_columns_in(first_part.schema_arrow)]
     part_cols += [_expression_columns_in(pq.read_schema(path)) for path in paths[1:]]
     columns = [c for cols in part_cols for c in cols]
-    values = np.empty((len(rows), len(columns)), dtype=np.float64)
-    part_start = 0
-    for index, (path, cols) in enumerate(zip(paths, part_cols)):
-        handle = first_part if index == 0 else pq.ParquetFile(path)
-        for start in range(0, len(cols), COLUMNS_PER_PART):
-            block = handle.read(columns=cols[start : start + COLUMNS_PER_PART])
-            for offset, column in enumerate(block.columns):
-                values[:, part_start + start + offset] = column.to_numpy(zero_copy_only=False)[rows]
-        part_start += len(cols)
-    values[np.isnan(values)] = 0.0
-    return meta[model_col].to_numpy()[rows], columns, values
+    width = len(columns)
+    # In the data dir, not the system temp dir, which on some machines is held in memory.
+    with tempfile.TemporaryFile(dir=Path(csv_path).parent) as scratch:
+        part_start = 0
+        for index, (path, cols) in enumerate(zip(paths, part_cols)):
+            handle = first_part if index == 0 else pq.ParquetFile(path)
+            for start in range(0, len(cols), COLUMNS_PER_PART):
+                batch = cols[start : start + COLUMNS_PER_PART]
+                table = handle.read(columns=batch)
+                block = np.empty((len(rows), len(batch)), dtype=np.float64)
+                for offset, column in enumerate(table.columns):
+                    block[:, offset] = column.to_numpy(zero_copy_only=False)[rows]
+                del table
+                block[np.isnan(block)] = 0.0
+                for position in range(len(rows)):
+                    scratch.seek((position * width + part_start + start) * 8)
+                    scratch.write(block[position].tobytes())
+            part_start += len(cols)
+        for position, model_id in enumerate(found):
+            scratch.seek(position * width * 8)
+            yield model_id, columns, np.fromfile(scratch, dtype=np.float64, count=width)
 
 
-def iter_cell_lines(csv_path, model_ids):
-    """Yield (model id, expression columns, values) for each wanted cell line found.
+def read_cell_lines(csv_path, model_ids):
+    """The wanted cell lines' expression, as (model ids found, expression columns, values).
 
-    The same rows read_cell_lines reads, taken CELL_LINES_PER_READ cell lines at a time, so a
-    cohort of every DepMap cell line costs one batch, not the whole cohort at once.
+    iter_cell_lines, gathered into one array: for a cohort small enough to hold at once.
     """
-    ids = sorted(model_ids)
-    for start in range(0, len(ids), CELL_LINES_PER_READ):
-        found, columns, values = read_cell_lines(csv_path, set(ids[start : start + CELL_LINES_PER_READ]))
-        for model_id, row in zip(found, values):
-            yield model_id, columns, row
+    columns = expression_columns(csv_path)
+    found, rows = [], []
+    for model_id, _, row in iter_cell_lines(csv_path, model_ids):
+        found.append(model_id)
+        rows.append(row)
+    values = np.vstack(rows) if rows else np.empty((0, len(columns)), dtype=np.float64)
+    return np.array(found, dtype=object), columns, values
 
 
 def mean_expression(csv_path, columns):
