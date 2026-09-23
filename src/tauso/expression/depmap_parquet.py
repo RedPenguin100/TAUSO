@@ -28,6 +28,10 @@ COLUMNS_PER_PART = 2000
 """Expression columns per Parquet part, and per read. A Parquet writer holds buffers for every
 column until a row group is written, so narrow parts keep its memory small."""
 
+CELL_LINES_PER_READ = 100
+"""Cell lines iter_cell_lines reads at once. A cell line of the transcript table is 237,000
+values (1.9 MB), so a batch holds ~190 MB however large the cohort."""
+
 
 def _parts_dir(csv_path):
     path = Path(csv_path)
@@ -185,6 +189,19 @@ def read_cell_lines(csv_path, model_ids):
         part_start += len(cols)
     values[np.isnan(values)] = 0.0
     return meta[model_col].to_numpy()[rows], columns, values
+
+
+def iter_cell_lines(csv_path, model_ids):
+    """Yield (model id, expression columns, values) for each wanted cell line found.
+
+    The same rows read_cell_lines reads, taken CELL_LINES_PER_READ cell lines at a time, so a
+    cohort of every DepMap cell line costs one batch, not the whole cohort at once.
+    """
+    ids = sorted(model_ids)
+    for start in range(0, len(ids), CELL_LINES_PER_READ):
+        found, columns, values = read_cell_lines(csv_path, set(ids[start : start + CELL_LINES_PER_READ]))
+        for model_id, row in zip(found, values):
+            yield model_id, columns, row
 
 
 def mean_expression(csv_path, columns):

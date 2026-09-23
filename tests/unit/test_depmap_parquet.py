@@ -12,6 +12,7 @@ from tauso.expression import depmap_parquet
 from tauso.expression.depmap_parquet import (
     csv_to_parquet,
     expression_columns,
+    iter_cell_lines,
     mean_expression,
     parquet_exists,
     parquet_sha256,
@@ -77,6 +78,23 @@ def test_column_means_are_in_the_order_asked(tmp_path, table):
 
     asked = [columns[4], columns[0], columns[2]]
     np.testing.assert_array_equal(mean_expression(csv, asked), [np.nanmean(whole[c].to_numpy(float)) for c in asked])
+
+
+@pytest.mark.parametrize("table", TABLES)
+def test_cell_lines_read_in_batches_are_the_same(tmp_path, table, monkeypatch):
+    name, columns = TABLES[table]
+    csv = write_csv(tmp_path, name, columns)
+    csv_to_parquet(csv)
+    ids = {"ACH-000001", "ACH-000002", "ACH-000003", "ACH-999999"}
+    found, want_columns, values = read_cell_lines(csv, ids)
+
+    monkeypatch.setattr(depmap_parquet, "CELL_LINES_PER_READ", 1)
+    got = list(iter_cell_lines(csv, ids))
+
+    assert sorted(m for m, _, _ in got) == sorted(found)
+    for model_id, got_columns, row in got:
+        assert got_columns == want_columns
+        np.testing.assert_array_equal(row, values[list(found).index(model_id)])
 
 
 def test_an_older_single_file_reads_the_same(tmp_path):

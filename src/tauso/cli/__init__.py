@@ -27,9 +27,10 @@ from tauso.cli_utils import (
 from tauso.data.data import get_data_dir, get_paths, load_gtf_db
 from tauso.expression.depmap_parquet import (
     csv_to_parquet,
+    expression_columns,
+    iter_cell_lines,
     parquet_exists,
     parquet_sha256,
-    read_cell_lines,
     save_parquet_sha256,
     saved_parquet_sha256,
 )
@@ -411,8 +412,7 @@ def build_cohort_transcript_expression(force):
     transcript_csv = _ensure_transcript_parquet(data_dir)
 
     click.echo(f"Reading the transcript table for {len(target_ids)} cohort cell lines...")
-    found_ids, transcript_cols, values = read_cell_lines(transcript_csv, target_ids)
-    clean_transcripts = [c.split(".", 1)[0] for c in transcript_cols]
+    clean_transcripts = [c.split(".", 1)[0] for c in expression_columns(transcript_csv)]
 
     # Carry the gene each transcript belongs to, so the files can be filtered by gene the way
     # the gene-level ones are. Transcripts the annotation does not know get an empty Gene.
@@ -437,9 +437,9 @@ def build_cohort_transcript_expression(force):
     os.makedirs(output_dir, exist_ok=True)
 
     found_count = 0
-    for position, curr_id in enumerate(found_ids):
+    for curr_id, _, values in iter_cell_lines(transcript_csv, target_ids):
         click.echo(f"  Extracting {curr_id}...")
-        out_df = pd.DataFrame({"Transcript": clean_transcripts, "expression_norm": values[position]})
+        out_df = pd.DataFrame({"Transcript": clean_transcripts, "expression_norm": values})
         out_df["Gene"] = out_df["Transcript"].map(transcript_to_gene)
         out_df["TranscriptName"] = out_df["Transcript"].map(transcript_to_name)
         out_df["expression_TPM"] = (2 ** out_df["expression_norm"]) - 1
@@ -510,7 +510,7 @@ def build_cohort_expression(genome):
     click.echo(f"Processing {len(target_ids)} cell lines from cohort...")
 
     click.echo("Reading the gene table...")
-    found_ids, gene_cols, values = read_cell_lines(gene_csv, target_ids)
+    gene_cols = expression_columns(gene_csv)
 
     # Most genes are named "SYMBOL (1234)"; the ones with no symbol keep their Ensembl id.
     gene_regex = re.compile(r"^(.+?) \(\d+\)$")
@@ -520,11 +520,11 @@ def build_cohort_expression(genome):
     os.makedirs(output_dir, exist_ok=True)
 
     found_count = 0
-    for position, curr_id in enumerate(found_ids):
+    for curr_id, _, values in iter_cell_lines(gene_csv, target_ids):
         click.echo(f"  Extracting {curr_id}...")
         clean_genes = [clean_gene_map[c] for c in gene_cols]
 
-        out_df = pd.DataFrame({"Gene": clean_genes, "expression_norm": values[position]})
+        out_df = pd.DataFrame({"Gene": clean_genes, "expression_norm": values})
         out_df["expression_TPM"] = (2 ** out_df["expression_norm"]) - 1
         out_df = out_df.sort_values("expression_norm", ascending=False)
         out_df.to_csv(os.path.join(output_dir, f"{curr_id}_expression.csv"), index=False)
