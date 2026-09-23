@@ -12,6 +12,7 @@ from tauso.expression import depmap_parquet
 from tauso.expression.depmap_parquet import (
     csv_to_parquet,
     expression_columns,
+    iter_cell_lines,
     mean_expression,
     parquet_exists,
     parquet_sha256,
@@ -77,6 +78,33 @@ def test_column_means_are_in_the_order_asked(tmp_path, table):
 
     asked = [columns[4], columns[0], columns[2]]
     np.testing.assert_array_equal(mean_expression(csv, asked), [np.nanmean(whole[c].to_numpy(float)) for c in asked])
+
+
+@pytest.mark.parametrize("table", TABLES)
+def test_cell_lines_come_one_at_a_time_and_leave_no_file(tmp_path, table):
+    name, columns = TABLES[table]
+    csv = write_csv(tmp_path, name, columns)
+    whole = pd.read_csv(csv)
+    csv_to_parquet(csv)
+    before = sorted(tmp_path.iterdir())
+
+    got = list(iter_cell_lines(csv, {"ACH-000003", "ACH-000001", "ACH-000002", "ACH-999999"}))
+
+    # Table order; ACH-000002 from its default profile (the third row); missing reads as 0.
+    assert [m for m, _, _ in got] == ["ACH-000001", "ACH-000002", "ACH-000003"]
+    want = whole.iloc[[0, 2, 3]][columns].fillna(0.0).to_numpy(dtype=np.float64)
+    for (_, got_columns, row), want_row in zip(got, want):
+        assert got_columns == columns
+        np.testing.assert_array_equal(row, want_row)
+
+    # Stopping part way leaves nothing behind either.
+    partial = iter_cell_lines(csv, {"ACH-000001", "ACH-000003"})
+    next(partial)
+    partial.close()
+    assert sorted(tmp_path.iterdir()) == before
+
+    found, none_columns, values = read_cell_lines(csv, {"ACH-999999"})
+    assert len(found) == 0 and none_columns == columns and values.shape == (0, len(columns))
 
 
 def test_an_older_single_file_reads_the_same(tmp_path):
