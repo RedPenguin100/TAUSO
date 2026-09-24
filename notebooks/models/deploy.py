@@ -63,8 +63,8 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--version", default=DEFAULT_VERSION, help="model version to write")
     box = ap.add_mutually_exclusive_group()
-    box.add_argument("--low", action="store_true", help="the LOW search's parameters (default)")
-    box.add_argument("--med", action="store_true", help="the MED search's parameters")
+    box.add_argument("--low", action="store_true", help="the LOW search's parameters")
+    box.add_argument("--med", action="store_true", help="the MED search's parameters (default)")
     objective = ap.add_mutually_exclusive_group()
     objective.add_argument(
         "--clean-exp", action="store_true", help="fit the deviation from each experiment's mean (default)"
@@ -77,7 +77,7 @@ def main():
     )
     args = ap.parse_args()
 
-    config_name = f"{'regression' if args.regression else 'clean_exp'}_{'med' if args.med else 'low'}"
+    config_name = f"{'regression' if args.regression else 'clean_exp'}_{'low' if args.low else 'med'}"
     spec = CONFIGS[config_name]
 
     if args.use_calculated and not current_pipeline_features():

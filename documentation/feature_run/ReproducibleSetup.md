@@ -146,10 +146,24 @@ micromamba run -n tauso_repro \
 
 ```bash
 cd "$BASE/TAUSO"
-# example: gain + rank:ndcg
 micromamba run -n tauso_repro \
-  python -u -m notebooks.models.train_model --loss ndcg --split cohort --importance gain --cpus 64
+  python -u notebooks/models/deploy.py --use-calculated
 ```
+
+`deploy.py` trains the shipped model and writes the booster, the feature list the
+package scores with, and the list of features that are never missing. Its four
+configurations live in `notebooks/models/deploy_parameters.json`:
+
+| flags | fits |
+|-------|------|
+| (default) | `clean_exp` deviation from each experiment's mean, MED box |
+| `--low` | the same target, LOW box |
+| `--regression` | raw inhibition, MED box |
+| `--regression --low` | raw inhibition, LOW box |
+
+`--use-calculated` trains on what Phase 4 wrote; `--use-downloaded` uses the
+published cache instead. The parameters specify `device: cuda` — training
+without a GPU needs that changed to `cpu` in `deploy_parameters.json`.
 
 ---
 

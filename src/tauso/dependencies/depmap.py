@@ -93,11 +93,12 @@ def load_cell_line_gene_transcripts(depmap_ids, valid_genes, expression_dir):
             logger.warning("No transcript expression data for %s", ach_id)
             continue
 
-        # Only the gene and its expression are read; the file's other columns are three
-        # quarters of it.
-        df = pd.read_csv(path, usecols=["Gene", "expression_TPM"])
+        # The transcript name is read alongside the gene so the canonical isoform can be
+        # picked out; the file's remaining columns are half of it.
+        df = pd.read_csv(path, usecols=["Gene", "TranscriptName", "expression_TPM"])
         df = df[df["Gene"].isin(wanted)].copy()
         df["Gene"] = df["Gene"].astype(ARROW_STRINGS)
+        df["TranscriptName"] = df["TranscriptName"].astype(ARROW_STRINGS)
 
         if not df.empty:
             transcriptomes[ach_id] = df
