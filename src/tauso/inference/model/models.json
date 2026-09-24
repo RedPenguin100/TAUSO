@@ -3,11 +3,19 @@
   "models": {
     "v1": {
       "filename": "tauso_score_v1_clean_exp_med.json",
-      "md5": "ea59020955191a062ca35d3605665ca2"
+      "md5": "0f0364451aebbaff98115a8367510694"
     },
     "v1_clean_exp_low": {
       "filename": "tauso_score_v1_clean_exp_low.json",
-      "md5": "ae3a65d9fd16e48af4679251a4ba0a40"
+      "md5": "dfbff660d6a60819cd2dabb64e26bc57"
+    },
+    "v1_regression_low": {
+      "filename": "tauso_score_v1_regression_low.json",
+      "md5": "de5971c1fe67cb3a8b514dd9dc32dc8b"
+    },
+    "v1_regression_med": {
+      "filename": "tauso_score_v1_regression_med.json",
+      "md5": "5bdc8406590cc4b1e10bf197c423ab26"
     }
   }
 }

@@ -156,10 +156,10 @@ configurations live in `notebooks/models/deploy_parameters.json`:
 
 | flags | fits |
 |-------|------|
-| (default) | `clean_exp` deviation from each experiment's mean, LOW box |
-| `--med` | the same target, MED box |
-| `--regression` | raw inhibition, LOW box |
-| `--regression --med` | raw inhibition, MED box |
+| (default) | `clean_exp` deviation from each experiment's mean, MED box |
+| `--low` | the same target, LOW box |
+| `--regression` | raw inhibition, MED box |
+| `--regression --low` | raw inhibition, LOW box |
 
 `--use-calculated` trains on what Phase 4 wrote; `--use-downloaded` uses the
 published cache instead. The parameters specify `device: cuda` — training
