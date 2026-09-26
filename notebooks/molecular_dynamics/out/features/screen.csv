@@ -1,0 +1,27 @@
+observable,D:R_nn,D:R_gc,M:R_nn,M:R_gc,E:R_nn,E:R_gc,nn_worst,gain_worst,reproducibility,verdict,closest,closest_r_min,arm,DE|RR_nn,DE|RR_gc,DM|RR_nn,DM|RR_gc,ED|RR_nn,ED|RR_gc,MD|RR_nn,MD|RR_gc
+Roll,0.89,0.0,0.86,0.0,0.73,0.01,0.73,0.72,0.92,redundant with hIncl in every chemistry (|r| >= 0.99),hIncl,0.9919439875504695,uniform,,,,,,,,
+hIncl,0.9,0.0,0.84,0.0,0.72,0.01,0.72,0.71,0.91,retained,Roll,0.9919439875504695,uniform,,,,,,,,
+hTip,0.79,0.0,0.73,0.03,0.71,0.03,0.71,0.69,0.97,retained,Tilt,0.9976717457748908,uniform,,,,,,,,
+Tilt,0.75,0.0,0.72,0.03,0.71,0.02,0.71,0.68,0.93,redundant with hTip in every chemistry (|r| >= 1.00),hTip,0.9976717457748908,uniform,,,,,,,,
+hRise,0.85,0.07,0.78,0.03,0.64,0.08,0.64,0.56,0.88,retained,,,uniform,,,,,,,,
+hX,0.65,0.09,0.81,0.09,0.71,0.02,0.65,0.55,0.81,retained,,,uniform,,,,,,,,
+hTwist,0.52,0.02,0.9,0.0,0.69,0.0,0.52,0.5,0.81,retained,,,uniform,,,,,,,,
+Shift,0.5,0.02,0.53,0.0,0.82,0.01,0.5,0.48,0.81,retained,,,uniform,,,,,,,,
+hY,0.41,0.01,0.66,0.03,0.53,0.01,0.41,0.4,0.83,retained,,,uniform,,,,,,,,
+Slide,0.48,0.17,0.86,0.08,0.77,0.03,0.48,0.31,0.9,retained,,,uniform,,,,,,,,
+Twist,0.31,0.06,0.9,0.01,0.65,0.0,0.31,0.25,0.72,predictability 0.31 below 0.4,,,uniform,,,,,,,,
+Rise,0.47,0.31,0.72,0.15,0.34,0.07,0.34,0.16,0.84,predictability 0.34 below 0.4,,,uniform,,,,,,,,
+Zp,0.45,0.32,0.63,0.16,0.7,0.07,0.45,0.13,0.88,retained,,,uniform,,,,,,,,
+Roll,,,,,,,0.7,0.68,0.92,redundant with hIncl in every chemistry (|r| >= 0.99),hIncl,0.9895749318139779,junction,0.87,0.0,0.89,0.02,0.7,0.02,0.88,0.01
+hTip,,,,,,,0.68,0.67,0.96,retained,Tilt,0.9980535373596701,junction,0.76,0.03,0.95,0.0,0.68,0.01,0.77,0.0
+Tilt,,,,,,,0.66,0.65,0.97,redundant with hTip in every chemistry (|r| >= 1.00),hTip,0.9980535373596701,junction,0.78,0.03,0.96,0.0,0.66,0.01,0.76,0.0
+hIncl,,,,,,,0.66,0.63,0.91,retained,Roll,0.9895749318139779,junction,0.87,0.0,0.88,0.02,0.66,0.03,0.85,0.0
+hTwist,,,,,,,0.55,0.52,0.84,retained,,,junction,0.55,0.03,0.93,0.01,0.78,0.0,0.92,0.0
+Shift,,,,,,,0.55,0.5,0.82,retained,,,junction,0.63,0.06,0.88,0.03,0.55,0.05,0.69,0.04
+hY,,,,,,,0.5,0.48,0.9,retained,,,junction,0.65,0.04,0.72,0.04,0.5,0.02,0.82,0.02
+hRise,,,,,,,0.63,0.47,0.84,retained,,,junction,0.8,0.03,0.77,0.05,0.63,0.16,0.78,0.06
+Twist,,,,,,,0.47,0.42,0.8,retained,,,junction,0.47,0.04,0.9,0.01,0.73,0.01,0.83,0.0
+Slide,,,,,,,0.63,0.41,0.88,retained,,,junction,0.68,0.19,0.68,0.11,0.68,0.08,0.63,0.22
+Rise,,,,,,,0.63,0.37,0.92,retained,,,junction,0.63,0.12,0.9,0.09,0.66,0.23,0.65,0.28
+hX,,,,,,,0.55,0.33,0.79,retained,,,junction,0.82,0.15,0.55,0.15,0.71,0.02,0.6,0.26
+Zp,,,,,,,0.61,0.26,0.9,retained,,,junction,0.65,0.39,0.64,0.22,0.67,0.19,0.61,0.23

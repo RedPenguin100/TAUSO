@@ -1,0 +1,1542 @@
+{
+ "M": [
+  {
+   "seq": "AGATAATGGTAACTGC",
+   "partner": "GCAGTTACCATTATCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "AA"
+  },
+  {
+   "seq": "CGTTAGTACCAGATCA",
+   "partner": "TGATCTGGTACTAACG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "AG"
+  },
+  {
+   "seq": "GTCCATCGCTATGAGA",
+   "partner": "TCTCATAGCGATGGAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "AT"
+  },
+  {
+   "seq": "ATGCACGCTGACCATC",
+   "partner": "GATGGTCAGCGTGCAT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "AC"
+  },
+  {
+   "seq": "CAGCGATTAGGACCGG",
+   "partner": "CCGGTCCTAATCGCTG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "GA"
+  },
+  {
+   "seq": "AGCCGGATTCGGCCTT",
+   "partner": "AAGGCCGAATCCGGCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "GG"
+  },
+  {
+   "seq": "ACCTGTTAGTGTCGTG",
+   "partner": "CACGACACTAACAGGT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "GT"
+  },
+  {
+   "seq": "GCGTGCCTCCGCAGAA",
+   "partner": "TTCTGCGGAGGCACGC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "GC"
+  },
+  {
+   "seq": "TGCATACAGTTAGATG",
+   "partner": "CATCTAACTGTATGCA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "TA"
+  },
+  {
+   "seq": "AACCTGCGGATGTATA",
+   "partner": "TATACATCCGCAGGTT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "TG"
+  },
+  {
+   "seq": "GGACTTAGGTTTAACG",
+   "partner": "CGTTAAACCTAAGTCC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "TT"
+  },
+  {
+   "seq": "CAAGTCCATATCCCGC",
+   "partner": "GCGGGATATGGACTTG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "TC"
+  },
+  {
+   "seq": "TTATCAGTCCCACTAC",
+   "partner": "GTAGTGGGACTGATAA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "CA"
+  },
+  {
+   "seq": "AGTTCGCCCACGCCAA",
+   "partner": "TTGGCGTGGGCGAACT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "CG"
+  },
+  {
+   "seq": "AGTTCTACCACTGTGG",
+   "partner": "CCACAGTGGTAGAACT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "CT"
+  },
+  {
+   "seq": "CTTACCAACGCCGCAT",
+   "partner": "ATGCGGCGTTGGTAAG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "CC"
+  },
+  {
+   "seq": "TTTCAACGTCGTATGG",
+   "partner": "CCATACGACGTTGAAA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "GT"
+  },
+  {
+   "seq": "TTAGAGCATCGCGTCT",
+   "partner": "AGACGCGATGCTCTAA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "GC"
+  },
+  {
+   "seq": "TCCGATTCAGTATTGG",
+   "partner": "CCAATACTGAATCGGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "TA"
+  },
+  {
+   "seq": "TTCCACGCGGTGTATA",
+   "partner": "TATACACCGCGTGGAA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "TG"
+  },
+  {
+   "seq": "AACTGATCGCTTGTCG",
+   "partner": "CGACAAGCGATCAGTT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "TT"
+  },
+  {
+   "seq": "TAGAGGCTTCTCCGAA",
+   "partner": "TTCGGAGAAGCCTCTA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "TC"
+  },
+  {
+   "seq": "GCTGGTCTTTCACAGT",
+   "partner": "ACTGTGAAAGACCAGC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "CA"
+  },
+  {
+   "seq": "GCTGGCCTAACGAATC",
+   "partner": "GATTCGTTAGGCCAGC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "CG"
+  },
+  {
+   "seq": "TGTCTATAACCTTGCG",
+   "partner": "CGCAAGGTTATAGACA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "CT"
+  },
+  {
+   "seq": "CTAGTGAGGACCTTGG",
+   "partner": "CCAAGGTCCTCACTAG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "CC"
+  },
+  {
+   "seq": "GTCCTTACGGAAATTG",
+   "partner": "CAATTTCCGTAAGGAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "AA"
+  },
+  {
+   "seq": "TCCATCGACAAGGGTG",
+   "partner": "CACCCTTGTCGATGGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "AG"
+  },
+  {
+   "seq": "AGATCAACTTATTGGG",
+   "partner": "CCCAATAAGTTGATCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "AT"
+  },
+  {
+   "seq": "TGGCCGTCAGACGCTA",
+   "partner": "TAGCGTCTGACGGCCA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "AC"
+  },
+  {
+   "seq": "ACAGCTACCTGATGGT",
+   "partner": "ACCATCAGGTAGCTGT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "GA"
+  },
+  {
+   "seq": "TCTGCCACATGGACAA",
+   "partner": "TTGTCCATGTGGCAGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "GG"
+  },
+  {
+   "seq": "TGTCAAGGTACACGCA",
+   "partner": "TGCGTGTACCTTGACA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "CA"
+  },
+  {
+   "seq": "TCGGAGTCCGCGACAT",
+   "partner": "ATGTCGCGGACTCCGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "CG"
+  },
+  {
+   "seq": "CATGATACTTCTGTCT",
+   "partner": "AGACAGAAGTATCATG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "CT"
+  },
+  {
+   "seq": "CGTTACAGCTCCCGCA",
+   "partner": "TGCGGGAGCTGTAACG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "CC"
+  },
+  {
+   "seq": "TTCCGATCCAAAGATA",
+   "partner": "TATCTTTGGATCGGAA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "AA"
+  },
+  {
+   "seq": "GGATGGCCGCAGGTTC",
+   "partner": "GAACCTGCGGCCATCC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "AG"
+  },
+  {
+   "seq": "GTCAGTAGACATTCAA",
+   "partner": "TTGAATGTCTACTGAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "AT"
+  },
+  {
+   "seq": "ACGGGCTCGAACACTT",
+   "partner": "AAGTGTTCGAGCCCGT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "AC"
+  },
+  {
+   "seq": "GCCGTATATGGAACCT",
+   "partner": "AGGTTCCATATACGGC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "GA"
+  },
+  {
+   "seq": "TATCTGGGACGGTAGC",
+   "partner": "GCTACCGTCCCAGATA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "GG"
+  },
+  {
+   "seq": "AAGATTATTGGTAGTC",
+   "partner": "GACTACCAATAATCTT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "GT"
+  },
+  {
+   "seq": "CGCCTCAAACGCTTTA",
+   "partner": "TAAAGCGTTTGAGGCG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "GC"
+  },
+  {
+   "seq": "TCCTCACAACTAGAGT",
+   "partner": "ACTCTAGTTGTGAGGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "TA"
+  },
+  {
+   "seq": "ATTCCGGCGTTGCCCT",
+   "partner": "AGGGCAACGCCGGAAT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "TG"
+  },
+  {
+   "seq": "GACTCTGCCTTTCGCA",
+   "partner": "TGCGAAAGGCAGAGTC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "TT"
+  },
+  {
+   "seq": "TCAACCCTTCTCTATG",
+   "partner": "CATAGAGAAGGGTTGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "TC"
+  },
+  {
+   "seq": "TGGCAAACTCATCATA",
+   "partner": "TATGATGAGTTTGCCA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "AT"
+  },
+  {
+   "seq": "GTGTAGTACGACCGCA",
+   "partner": "TGCGGTCGTACTACAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "AC"
+  },
+  {
+   "seq": "TATGATCTCAGAGTGC",
+   "partner": "GCACTCTGAGATCATA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "GA"
+  },
+  {
+   "seq": "CGCGACACTCGGCCAA",
+   "partner": "TTGGCCGAGTGTCGCG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "GG"
+  },
+  {
+   "seq": "GTAAGATCCAGTGATC",
+   "partner": "GATCACTGGATCTTAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "GT"
+  },
+  {
+   "seq": "AGAAGGTACTGCTACT",
+   "partner": "AGTAGCAGTACCTTCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "GC"
+  },
+  {
+   "seq": "GCGAGTAACATATCTT",
+   "partner": "AAGATATGTTACTCGC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "TA"
+  },
+  {
+   "seq": "CCACGCTCAGTGTCGA",
+   "partner": "TCGACACTGAGCGTGG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "TG"
+  },
+  {
+   "seq": "GTTGTAGCGGTTTCAG",
+   "partner": "CTGAAACCGCTACAAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "TT"
+  },
+  {
+   "seq": "GGACTGATTATCTGAG",
+   "partner": "CTCAGATAATCAGTCC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "TC"
+  },
+  {
+   "seq": "TTATTTGGAACAGACG",
+   "partner": "CGTCTGTTCCAAATAA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "CA"
+  },
+  {
+   "seq": "CTGATCTCTACGGCAC",
+   "partner": "GTGCCGTAGAGATCAG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "CG"
+  },
+  {
+   "seq": "GGGACAAATCCTGCTA",
+   "partner": "TAGCAGGATTTGTCCC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "CT"
+  },
+  {
+   "seq": "AGGGCGTTGACCCACA",
+   "partner": "TGTGGGTCAACGCCCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "CC"
+  },
+  {
+   "seq": "TCGTCTGAGCAAATGG",
+   "partner": "CCATTTGCTCAGACGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "AA"
+  },
+  {
+   "seq": "CTTTCCGTCGAGGACC",
+   "partner": "GGTCCTCGACGGAAAG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "AG"
+  },
+  {
+   "seq": "TGCCAAGGACTAACCT",
+   "partner": "AGGTTAGTCCTTGGCA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "TA"
+  },
+  {
+   "seq": "TGTGAGAACTTGGCCT",
+   "partner": "AGGCCAAGTTCTCACA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "TG"
+  },
+  {
+   "seq": "CGGCATCTCATTCTAG",
+   "partner": "CTAGAATGAGATGCCG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "TT"
+  },
+  {
+   "seq": "TAGGACTTCCTCTGCT",
+   "partner": "AGCAGAGGAAGTCCTA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "TC"
+  },
+  {
+   "seq": "GACGGAGTTGCAGCGT",
+   "partner": "ACGCTGCAACTCCGTC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "CA"
+  },
+  {
+   "seq": "CTCGGGAATACGTGAA",
+   "partner": "TTCACGTATTCCCGAG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "CG"
+  },
+  {
+   "seq": "TACGGTGTATCTTTCT",
+   "partner": "AGAAAGATACACCGTA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "CT"
+  },
+  {
+   "seq": "CTAAGCGAAGCCACGA",
+   "partner": "TCGTGGCTTCGCTTAG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "CC"
+  },
+  {
+   "seq": "ACGGTAGGCCAATACA",
+   "partner": "TGTATTGGCCTACCGT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "AA"
+  },
+  {
+   "seq": "AGGATGTCAAAGGGCG",
+   "partner": "CGCCCTTTGACATCCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "AG"
+  },
+  {
+   "seq": "GAGTTTGCACATAAGA",
+   "partner": "TCTTATGTGCAAACTC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "AT"
+  },
+  {
+   "seq": "AGGCTCGATTACTCTC",
+   "partner": "GAGAGTAATCGAGCCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "AC"
+  },
+  {
+   "seq": "CGGGCATTTCGACTAA",
+   "partner": "TTAGTCGAAATGCCCG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "GA"
+  },
+  {
+   "seq": "GGAACGTAAGGGATCG",
+   "partner": "CGATCCCTTACGTTCC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "GG"
+  },
+  {
+   "seq": "TAGGCTCCCGGTTCTG",
+   "partner": "CAGAACCGGGAGCCTA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "GT"
+  },
+  {
+   "seq": "GAGACCTTCGGCCAAC",
+   "partner": "GTTGGCCGAAGGTCTC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "GC"
+  },
+  {
+   "seq": "TCGAAACTCACTGGAT",
+   "partner": "ATCCAGTGAGTTTCGA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "CT"
+  },
+  {
+   "seq": "TTACAGTCTCCCGTGC",
+   "partner": "GCACGGGAGACTGTAA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "CC"
+  },
+  {
+   "seq": "GCACATAGCCAAACTG",
+   "partner": "CAGTTTGGCTATGTGC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "AA"
+  },
+  {
+   "seq": "GATCACGGCGAGAGTA",
+   "partner": "TACTCTCGCCGTGATC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "AG"
+  },
+  {
+   "seq": "CCTCGACTTAATCGGA",
+   "partner": "TCCGATTAAGTCGAGG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "AT"
+  },
+  {
+   "seq": "AGAAGGTCGGACTCAT",
+   "partner": "ATGAGTCCGACCTTCT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "AC"
+  },
+  {
+   "seq": "TACAGTGAAGGACGTG",
+   "partner": "CACGTCCTTCACTGTA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "GA"
+  },
+  {
+   "seq": "GTCGGCCACTGGTACA",
+   "partner": "TGTACCAGTGGCCGAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "GG"
+  },
+  {
+   "seq": "TATGTAGCCAGTAATT",
+   "partner": "AATTACTGGCTACATA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "GT"
+  },
+  {
+   "seq": "AACATGCAGTGCCACT",
+   "partner": "AGTGGCACTGCATGTT",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "GC"
+  },
+  {
+   "seq": "CCTGTTTCCGTACTAA",
+   "partner": "TTAGTACGGAAACAGG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "TA"
+  },
+  {
+   "seq": "CAAGTCTGGTTGGAGT",
+   "partner": "ACTCCAACCAGACTTG",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "TG"
+  },
+  {
+   "seq": "GCGTCACTTCTTAGAA",
+   "partner": "TTCTAAGAAGTGACGC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "TT"
+  },
+  {
+   "seq": "TACCCGACTATCATGG",
+   "partner": "CCATGATAGTCGGGTA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "TC"
+  },
+  {
+   "seq": "GTACCTCTGGCAATCC",
+   "partner": "GGATTGCCAGAGGTAC",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "CA"
+  },
+  {
+   "seq": "TGCACCAAGTCGGTTG",
+   "partner": "CAACCGACTTGGTGCA",
+   "sugarA": "MMMMMDDDDDDMMMMM",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "CG"
+  }
+ ],
+ "E": [
+  {
+   "seq": "CGCAAATCTTAAATAC",
+   "partner": "GTATTTAAGATTTGCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "AA"
+  },
+  {
+   "seq": "TAACAGCCATAGATGA",
+   "partner": "TCATCTATGGCTGTTA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "AG"
+  },
+  {
+   "seq": "ATCCATCGTAATTCTC",
+   "partner": "GAGAATTACGATGGAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "AT"
+  },
+  {
+   "seq": "TGTTACAGACACTAAT",
+   "partner": "ATTAGTGTCTGTAACA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "AC"
+  },
+  {
+   "seq": "CAATGACTTGGATATA",
+   "partner": "TATATCCAAGTCATTG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "GA"
+  },
+  {
+   "seq": "CGATGGTCTTGGGCTA",
+   "partner": "TAGCCCAAGACCATCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "GG"
+  },
+  {
+   "seq": "ATCCGTTTGCGTTAAT",
+   "partner": "ATTAACGCAAACGGAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "GT"
+  },
+  {
+   "seq": "TCAAGCATGGGCACGG",
+   "partner": "CCGTGCCCATGCTTGA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "GC"
+  },
+  {
+   "seq": "TCTTTACAGGTATTCC",
+   "partner": "GGAATACCTGTAAAGA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "TA"
+  },
+  {
+   "seq": "GGCGTGGTCCTGCGAA",
+   "partner": "TTCGCAGGACCACGCC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "TG"
+  },
+  {
+   "seq": "AAAGTTATCGTTGTCT",
+   "partner": "AGACAACGATAACTTT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "TT"
+  },
+  {
+   "seq": "GGGCTCTGTATCCGTG",
+   "partner": "CACGGATACAGAGCCC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "TC"
+  },
+  {
+   "seq": "GTGGCAATCGCATTCG",
+   "partner": "CGAATGCGATTGCCAC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "CA"
+  },
+  {
+   "seq": "CAAGCGGAACCGATGG",
+   "partner": "CCATCGGTTCCGCTTG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "CG"
+  },
+  {
+   "seq": "ACGACTTTAGCTGAGG",
+   "partner": "CCTCAGCTAAAGTCGT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "CT"
+  },
+  {
+   "seq": "CTAGCCCGCACCTGAT",
+   "partner": "ATCAGGTGCGGGCTAG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "CC"
+  },
+  {
+   "seq": "CCAGAAATGCGTCCGG",
+   "partner": "CCGGACGCATTTCTGG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "GT"
+  },
+  {
+   "seq": "GGTTAGTTGTGCGACC",
+   "partner": "GGTCGCACAACTAACC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "GC"
+  },
+  {
+   "seq": "CTTAATTGCGTACTTC",
+   "partner": "GAAGTACGCAATTAAG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "TA"
+  },
+  {
+   "seq": "CTAGACACTTTGTAGG",
+   "partner": "CCTACAAAGTGTCTAG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "TG"
+  },
+  {
+   "seq": "CCATGAACGATTTCTA",
+   "partner": "TAGAAATCGTTCATGG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "TT"
+  },
+  {
+   "seq": "TGAGGGAAGGTCCACG",
+   "partner": "CGTGGACCTTCCCTCA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "TC"
+  },
+  {
+   "seq": "GCACGTTACTCAGTCG",
+   "partner": "CGACTGAGTAACGTGC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "CA"
+  },
+  {
+   "seq": "TGTAGCTGTACGCAAG",
+   "partner": "CTTGCGTACAGCTACA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "CG"
+  },
+  {
+   "seq": "CTTGTACCGACTATTA",
+   "partner": "TAATAGTCGGTACAAG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "CT"
+  },
+  {
+   "seq": "GGGCTGATAACCAGTG",
+   "partner": "CACTGGTTATCAGCCC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "CC"
+  },
+  {
+   "seq": "TCTATTGCATAATAGC",
+   "partner": "GCTATTATGCAATAGA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "AA"
+  },
+  {
+   "seq": "ATAATCTCCGAGCGCC",
+   "partner": "GGCGCTCGGAGATTAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "AG"
+  },
+  {
+   "seq": "AGGACATGGAATAAGC",
+   "partner": "GCTTATTCCATGTCCT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "AT"
+  },
+  {
+   "seq": "TCCGCGTCGTACCAGG",
+   "partner": "CCTGGTACGACGCGGA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "AC"
+  },
+  {
+   "seq": "TACACTTTCGGACCGA",
+   "partner": "TCGGTCCGAAAGTGTA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "GA"
+  },
+  {
+   "seq": "GAAACCTGCCGGGTAT",
+   "partner": "ATACCCGGCAGGTTTC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "GG"
+  },
+  {
+   "seq": "CGTAAAGAAACATCTC",
+   "partner": "GAGATGTTTCTTTACG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "CA"
+  },
+  {
+   "seq": "CCGCAGCTTACGCCTG",
+   "partner": "CAGGCGTAAGCTGCGG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "CG"
+  },
+  {
+   "seq": "GCTTATCGGCCTTGAT",
+   "partner": "ATCAAGGCCGATAAGC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "CT"
+  },
+  {
+   "seq": "AAATACCGCACCACTG",
+   "partner": "CAGTGGTGCGGTATTT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "CC"
+  },
+  {
+   "seq": "CGGTGAATGTAAGCTA",
+   "partner": "TAGCTTACATTCACCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "AA"
+  },
+  {
+   "seq": "CGAAGGGCCTAGCAGA",
+   "partner": "TCTGCTAGGCCCTTCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "AG"
+  },
+  {
+   "seq": "TTACGTGGAGATTACC",
+   "partner": "GGTAATCTCCACGTAA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "AT"
+  },
+  {
+   "seq": "TTAGGCGTTCACCTCG",
+   "partner": "CGAGGTGAACGCCTAA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "AC"
+  },
+  {
+   "seq": "TTTCTATGAGGACATA",
+   "partner": "TATGTCCTCATAGAAA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "GA"
+  },
+  {
+   "seq": "TAGTTGGCGCGGACAA",
+   "partner": "TTGTCCGCGCCAACTA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "GG"
+  },
+  {
+   "seq": "GCGCTTCAAGGTAGTT",
+   "partner": "AACTACCTTGAAGCGC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "GT"
+  },
+  {
+   "seq": "AGACTCCAGCGCGTGC",
+   "partner": "GCACGCGCTGGAGTCT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "GC"
+  },
+  {
+   "seq": "GGCCCACCATTAACAG",
+   "partner": "CTGTTAATGGTGGGCC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "TA"
+  },
+  {
+   "seq": "GGACCGTTTGTGCCTG",
+   "partner": "CAGGCACAAACGGTCC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "TG"
+  },
+  {
+   "seq": "CATACTACTCTTAGTG",
+   "partner": "CACTAAGAGTAGTATG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "TT"
+  },
+  {
+   "seq": "ACAACCCGGATCAGGC",
+   "partner": "GCCTGATCCGGGTTGT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "TC"
+  },
+  {
+   "seq": "ACGCAACACGATACTC",
+   "partner": "GAGTATCGTGTTGCGT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "AT"
+  },
+  {
+   "seq": "CCCGAGCTACACTCTT",
+   "partner": "AAGAGTGTAGCTCGGG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "AC"
+  },
+  {
+   "seq": "AACTATCCGGGACAAT",
+   "partner": "ATTGTCCCGGATAGTT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "GA"
+  },
+  {
+   "seq": "CTATACTGGTGGCGAA",
+   "partner": "TTCGCCACCAGTATAG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "GG"
+  },
+  {
+   "seq": "TCAGGACGCCGTTCTC",
+   "partner": "GAGAACGGCGTCCTGA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "GT"
+  },
+  {
+   "seq": "CTCAGGCACGGCCATT",
+   "partner": "AATGGCCGTGCCTGAG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "GC"
+  },
+  {
+   "seq": "AATAGTCGTGTAGCTT",
+   "partner": "AAGCTACACGACTATT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "TA"
+  },
+  {
+   "seq": "TGTCGCATTCTGTCCG",
+   "partner": "CGGACAGAATGCGACA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "TG"
+  },
+  {
+   "seq": "GATTTATGGCTTTAGT",
+   "partner": "ACTAAAGCCATAAATC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "TT"
+  },
+  {
+   "seq": "CACTTGTAGATCAACT",
+   "partner": "AGTTGATCTACAAGTG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "TC"
+  },
+  {
+   "seq": "CCGATTTGTCCAAGTC",
+   "partner": "GACTTGGACAAATCGG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "CA"
+  },
+  {
+   "seq": "GTAATCTGACCGTGTG",
+   "partner": "CACACGGTCAGATTAC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "CG"
+  },
+  {
+   "seq": "TTGGCAAGTGCTGAAA",
+   "partner": "TTTCAGCACTTGCCAA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "CT"
+  },
+  {
+   "seq": "ATCTCGGCGTCCCAGT",
+   "partner": "ACTGGGACGCCGAGAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "CC"
+  },
+  {
+   "seq": "TTCACTGCCGAAGGCA",
+   "partner": "TGCCTTCGGCAGTGAA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "AA"
+  },
+  {
+   "seq": "CTTACCTTGTAGAGCC",
+   "partner": "GGCTCTACAAGGTAAG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "AG"
+  },
+  {
+   "seq": "AAGAAACCGATACTCA",
+   "partner": "TGAGTATCGGTTTCTT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "TA"
+  },
+  {
+   "seq": "ATGAAGTCCCTGAGTA",
+   "partner": "TACTCAGGGACTTCAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "TG"
+  },
+  {
+   "seq": "CACGATGTATTTCTAC",
+   "partner": "GTAGAAATACATCGTG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "TT"
+  },
+  {
+   "seq": "GAGGACTCATTCCCAA",
+   "partner": "TTGGGAATGAGTCCTC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "TC"
+  },
+  {
+   "seq": "CGCTGAAGTACACGAA",
+   "partner": "TTCGTGTACTTCAGCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "CA"
+  },
+  {
+   "seq": "CGCCGGGCTACGAGAA",
+   "partner": "TTCTCGTAGCCCGGCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "CG"
+  },
+  {
+   "seq": "GAGAGTCTTACTGCCG",
+   "partner": "CGGCAGTAAGACTCTC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "CT"
+  },
+  {
+   "seq": "GCTGGCACATCCTTCA",
+   "partner": "TGAAGGATGTGCCAGC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "CC"
+  },
+  {
+   "seq": "TACATAGAGTAACGGC",
+   "partner": "GCCGTTACTCTATGTA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "AA"
+  },
+  {
+   "seq": "TCCATGTATAAGGCAA",
+   "partner": "TTGCCTTATACATGGA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "AG"
+  },
+  {
+   "seq": "ACGCTTGTAGATGAAT",
+   "partner": "ATTCATCTACAAGCGT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "AT"
+  },
+  {
+   "seq": "GCTGTCCCTAACGCAT",
+   "partner": "ATGCGTTAGGGACAGC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "AC"
+  },
+  {
+   "seq": "AGAGCAGCCGGACTTT",
+   "partner": "AAAGTCCGGCTGCTCT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "GA"
+  },
+  {
+   "seq": "CCTGCGCTATGGTAGA",
+   "partner": "TCTACCATAGCGCAGG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "GG"
+  },
+  {
+   "seq": "CGGGCTATTGGTTGCA",
+   "partner": "TGCAACCAATAGCCCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "GT"
+  },
+  {
+   "seq": "ATCTCCGCCAGCCGAC",
+   "partner": "GTCGGCTGGCGGAGAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "GC"
+  },
+  {
+   "seq": "TCCAAAGTCTCTGCGA",
+   "partner": "TCGCAGAGACTTTGGA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AA",
+   "junction3": "CT"
+  },
+  {
+   "seq": "ATCGAGTCAACCTGCG",
+   "partner": "CGCAGGTTGACTCGAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AG",
+   "junction3": "CC"
+  },
+  {
+   "seq": "GAACATCCTCAAGCCA",
+   "partner": "TGGCTTGAGGATGTTC",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AT",
+   "junction3": "AA"
+  },
+  {
+   "seq": "TGAGACAGGTAGGATC",
+   "partner": "GATCCTACCTGTCTCA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "AC",
+   "junction3": "AG"
+  },
+  {
+   "seq": "TGGTGACTGTATCTGC",
+   "partner": "GCAGATACAGTCACCA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GA",
+   "junction3": "AT"
+  },
+  {
+   "seq": "TTCGGGTGTGACCTAA",
+   "partner": "TTAGGTCACACCCGAA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GG",
+   "junction3": "AC"
+  },
+  {
+   "seq": "ACCAGTTAATGAAGAT",
+   "partner": "ATCTTCATTAACTGGT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GT",
+   "junction3": "GA"
+  },
+  {
+   "seq": "CATAGCTGCCGGTTCT",
+   "partner": "AGAACCGGCAGCTATG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "GC",
+   "junction3": "GG"
+  },
+  {
+   "seq": "TGTCTACCGTGTGAAA",
+   "partner": "TTTCACACGGTAGACA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TA",
+   "junction3": "GT"
+  },
+  {
+   "seq": "ATGTTGGCTGGCCGGA",
+   "partner": "TCCGGCCAGCCAACAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TG",
+   "junction3": "GC"
+  },
+  {
+   "seq": "CGGCTTCGTATATTAC",
+   "partner": "GTAATATACGAAGCCG",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TT",
+   "junction3": "TA"
+  },
+  {
+   "seq": "TGTCTCTAAATGCCCA",
+   "partner": "TGGGCATTTAGAGACA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "TC",
+   "junction3": "TG"
+  },
+  {
+   "seq": "ATTACACGGCTTGACA",
+   "partner": "TGTCAAGCCGTGTAAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CA",
+   "junction3": "TT"
+  },
+  {
+   "seq": "TAAGCGATCTTCTGCC",
+   "partner": "GGCAGAAGATCGCTTA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CG",
+   "junction3": "TC"
+  },
+  {
+   "seq": "TGGACTCTTGCACACC",
+   "partner": "GGTGTGCAAGAGTCCA",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CT",
+   "junction3": "CA"
+  },
+  {
+   "seq": "ATTGCCGTAACGATGA",
+   "partner": "TCATCGTTACGGCAAT",
+   "sugarA": "EEEEEDDDDDDEEEEE",
+   "sugarB": "R",
+   "junction5": "CC",
+   "junction3": "CG"
+  }
+ ]
+}

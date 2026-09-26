@@ -1,0 +1,15 @@
+# MD output: ~15 GB of trajectories and topologies, mirrored from
+# /tamir2/kovaliov/md50_150mM on the cluster. Only the tables below are tracked.
+# The tables rebuild from these; see ../README.md.
+*
+!.gitignore
+!README.md
+
+# The per-dinucleotide tables and the screen that chose the observables are the result the
+# rest of the code reads, and cannot be rebuilt without the cluster. Small enough to track.
+!features/
+features/*
+!features/tables/
+!features/tables/*.csv
+!features/screen.csv
+!features/correlations.csv
