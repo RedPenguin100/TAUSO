@@ -30,6 +30,7 @@ nastruct needs to be told that the modXNA residue names are nucleotides; the map
 the same tables step 3 built the libraries from, so it cannot drift from what was simulated.
 """
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -37,9 +38,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from consts import (BASES_BY_SUGAR, DUPLEX_LENGTH as L, FEATURES, ROLES, SUGARS, SYSTEMS,
+from consts import (BASES_BY_SUGAR, DUPLEX_LENGTH as L, FEATURES, MDIN, ROLES, SUGARS, SYSTEMS,
                     ensure_dirs)
 
+PS_PER_FRAME = 2.0                  # how much time one saved frame stands for
 EQUILIBRATION_FRAMES = 500          # the first ns, discarded; see the note above
 MARGIN = 2                          # terminal pairs fray; the core masks below exclude them
 
@@ -49,6 +51,25 @@ STEP_PARAMS = ("Shift", "Slide", "Rise", "Tilt", "Roll", "Twist", "Zp")
 HELIX_PARAMS = (("X-disp", "hX"), ("Y-disp", "hY"), ("Rise", "hRise"),
                 ("Incl.", "hIncl"), ("Tip", "hTip"), ("Twist", "hTwist"))
 COLUMNS = ["system", "replicate", "level", "index", "obs", "mean", "sd"]
+
+
+def frame_interval_ps():
+    """How much simulated time one saved frame covers, read from the production input."""
+    text = (MDIN / "prod.in").read_text()
+    step = float(re.search(r"\bdt\s*=\s*([0-9.]+)", text).group(1))
+    every = int(re.search(r"\bntwx\s*=\s*([0-9]+)", text).group(1))
+    return step * every
+
+
+def check_frame_interval():
+    """EQUILIBRATION_FRAMES counts frames, so it only means 1 ns while a frame is 2 ps."""
+    interval = frame_interval_ps()
+    if abs(interval - PS_PER_FRAME) > 1e-9:
+        raise SystemExit(
+            f"prod.in saves a frame every {interval:g} ps, not {PS_PER_FRAME:g}. "
+            f"EQUILIBRATION_FRAMES = {EQUILIBRATION_FRAMES} would discard "
+            f"{EQUILIBRATION_FRAMES * interval / 1000:g} ns rather than "
+            f"{EQUILIBRATION_FRAMES * PS_PER_FRAME / 1000:g} ns.")
 
 
 def resmap():
@@ -204,6 +225,7 @@ def main():
     args = parser.parse_args()
 
     if args.run:
+        check_frame_interval()
         print(f"{args.run}: {analyse(args.run)} rows", flush=True)
     else:
         gather()
