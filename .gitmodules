@@ -4,3 +4,6 @@
 [submodule "notebooks/competitors/PFREDIntegration"]
 	path = notebooks/competitors/PFRED/PFREDIntegration
 	url = https://github.com/RedPenguin100/PFREDIntegration.git
+[submodule "notebooks/molecular_dynamics/lib/modxna"]
+	path = notebooks/molecular_dynamics/lib/modxna
+	url = https://github.com/modxna/modxna.git

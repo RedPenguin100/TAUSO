@@ -1,0 +1,3842 @@
+[
+ {
+  "name": "RD_000",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GGAATCGACCAGTACG",
+  "partner": "CGTACTGGTCGATTCC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_001",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CCCACTTGTGGCCGCA",
+  "partner": "TGCGGCCACAAGTGGG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_002",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CAGGGAATAGCTCCAT",
+  "partner": "ATGGAGCTATTCCCTG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_003",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CTGTTTGCTAGACAGG",
+  "partner": "CCTGTCTAGCAAACAG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_004",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "ACTATCGGTTGAATTG",
+  "partner": "CAATTCAACCGATAGT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_005",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "TTCCGCTCGACAAGTA",
+  "partner": "TACTTGTCGAGCGGAA",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_006",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CATATAGTTGGCCTTG",
+  "partner": "CAAGGCCAACTATATG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_007",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "AGGGCCAAATCGACAT",
+  "partner": "ATGTCGATTTGGCCCT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_008",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GATCTTACAGTGTCTC",
+  "partner": "GAGACACTGTAAGATC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_009",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "TTGGCACCGAAGTGCC",
+  "partner": "GGCACTTCGGTGCCAA",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_010",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "AACACTTTCTATGGCG",
+  "partner": "CGCCATAGAAAGTGTT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_011",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GGGCCAGCGAAATGGA",
+  "partner": "TCCATTTCGCTGGCCC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_012",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GGAGGATTCCCGTACA",
+  "partner": "TGTACGGGAATCCTCC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_013",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "AGACTTCAGACTGCGG",
+  "partner": "CCGCAGTCTGAAGTCT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_014",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "TTATCGGAGCGTAACC",
+  "partner": "GGTTACGCTCCGATAA",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_015",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "AAGATGGCACCTTAGG",
+  "partner": "CCTAAGGTGCCATCTT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_016",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "ATTACAAAGTTCCGGC",
+  "partner": "GCCGGAACTTTGTAAT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_017",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CAGTGTCTAGGATTAT",
+  "partner": "ATAATCCTAGACACTG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_018",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GGCCTACAATGGCACG",
+  "partner": "CGTGCCATTGTAGGCC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_019",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CTCTTCGTGACGCTAT",
+  "partner": "ATAGCGTCACGAAGAG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_020",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "TGGGAAATTCAGCCGT",
+  "partner": "ACGGCTGAATTTCCCA",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_021",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GTATAGCGGACGTGAT",
+  "partner": "ATCACGTCCGCTATAC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_022",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GTCATATCCCTGGTAC",
+  "partner": "GTACCAGGGATATGAC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_023",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GTTCAGAAACCGTTCG",
+  "partner": "CGAACGGTTTCTGAAC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_024",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CTCACTAGCGTTGGTG",
+  "partner": "CACCAACGCTAGTGAG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_025",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "TCGGCTATCCTGAACT",
+  "partner": "AGTTCAGGATAGCCGA",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_026",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GGAACAGCCGTTACGG",
+  "partner": "CCGTAACGGCTGTTCC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_027",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GCGGAGTTCTGATCGA",
+  "partner": "TCGATCAGAACTCCGC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_028",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "ATAGCGGACCAATAGG",
+  "partner": "CCTATTGGTCCGCTAT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_029",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GTTACCAATCGTTGCG",
+  "partner": "CGCAACGATTGGTAAC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_030",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "ACAAGCTCTTGGTTTC",
+  "partner": "GAAACCAAGAGCTTGT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_031",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GACCATACGGAGCATA",
+  "partner": "TATGCTCCGTATGGTC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_032",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "TAGCCGATGTCTAGCC",
+  "partner": "GGCTAGACATCGGCTA",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_033",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CGCTTGTAAACGGGCT",
+  "partner": "AGCCCGTTTACAAGCG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_034",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "TCTGTGCCAGATTCTG",
+  "partner": "CAGAATCTGGCACAGA",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_035",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GTATCCTAGAACACCC",
+  "partner": "GGGTGTTCTAGGATAC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_036",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "ACTTATCGCGTGGCTG",
+  "partner": "CAGCCACGCGATAAGT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_037",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CACCTTCCAGAACACG",
+  "partner": "CGTGTTCTGGAAGGTG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_038",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CAACGTGGGCTTAGTC",
+  "partner": "GACTAAGCCCACGTTG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_039",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "AATCAGTATGAACCCT",
+  "partner": "AGGGTTCATACTGATT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_040",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "AGATGAGCGGCCTTTC",
+  "partner": "GAAAGGCCGCTCATCT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_041",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CGGGAAATTACACGCG",
+  "partner": "CGCGTGTAATTTCCCG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_042",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "CAGTCTTCCAGCGAAT",
+  "partner": "ATTCGCTGGAAGACTG",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_043",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GACTAAATCGTGGGTA",
+  "partner": "TACCCACGATTTAGTC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_044",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GGGTATAGCCACTGGG",
+  "partner": "CCCAGTGGCTATACCC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_045",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "GACCGATTTGACAAGT",
+  "partner": "ACTTGTCAAATCGGTC",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_046",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "ACAGCGTCTGGAGTCG",
+  "partner": "CGACTCCAGACGCTGT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RD_047",
+  "family": "rna",
+  "state": "D:R",
+  "status": "todo",
+  "seq": "AGATAACTCTGCCATG",
+  "partner": "CATGGCAGAGTTATCT",
+  "sugarA": "D",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_000",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GGAATCGACCAGTACG",
+  "partner": "CGTACTGGTCGATTCC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_001",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CCCACTTGTGGCCGCA",
+  "partner": "TGCGGCCACAAGTGGG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_002",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CAGGGAATAGCTCCAT",
+  "partner": "ATGGAGCTATTCCCTG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_003",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CTGTTTGCTAGACAGG",
+  "partner": "CCTGTCTAGCAAACAG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_004",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "ACTATCGGTTGAATTG",
+  "partner": "CAATTCAACCGATAGT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_005",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "TTCCGCTCGACAAGTA",
+  "partner": "TACTTGTCGAGCGGAA",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_006",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CATATAGTTGGCCTTG",
+  "partner": "CAAGGCCAACTATATG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_007",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "AGGGCCAAATCGACAT",
+  "partner": "ATGTCGATTTGGCCCT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_008",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GATCTTACAGTGTCTC",
+  "partner": "GAGACACTGTAAGATC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_009",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "TTGGCACCGAAGTGCC",
+  "partner": "GGCACTTCGGTGCCAA",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_010",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "AACACTTTCTATGGCG",
+  "partner": "CGCCATAGAAAGTGTT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_011",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GGGCCAGCGAAATGGA",
+  "partner": "TCCATTTCGCTGGCCC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_012",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GGAGGATTCCCGTACA",
+  "partner": "TGTACGGGAATCCTCC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_013",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "AGACTTCAGACTGCGG",
+  "partner": "CCGCAGTCTGAAGTCT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_014",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "TTATCGGAGCGTAACC",
+  "partner": "GGTTACGCTCCGATAA",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_015",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "AAGATGGCACCTTAGG",
+  "partner": "CCTAAGGTGCCATCTT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_016",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "ATTACAAAGTTCCGGC",
+  "partner": "GCCGGAACTTTGTAAT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_017",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CAGTGTCTAGGATTAT",
+  "partner": "ATAATCCTAGACACTG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_018",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GGCCTACAATGGCACG",
+  "partner": "CGTGCCATTGTAGGCC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_019",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CTCTTCGTGACGCTAT",
+  "partner": "ATAGCGTCACGAAGAG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_020",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "TGGGAAATTCAGCCGT",
+  "partner": "ACGGCTGAATTTCCCA",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_021",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GTATAGCGGACGTGAT",
+  "partner": "ATCACGTCCGCTATAC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_022",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GTCATATCCCTGGTAC",
+  "partner": "GTACCAGGGATATGAC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_023",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GTTCAGAAACCGTTCG",
+  "partner": "CGAACGGTTTCTGAAC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_024",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CTCACTAGCGTTGGTG",
+  "partner": "CACCAACGCTAGTGAG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_025",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "TCGGCTATCCTGAACT",
+  "partner": "AGTTCAGGATAGCCGA",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_026",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GGAACAGCCGTTACGG",
+  "partner": "CCGTAACGGCTGTTCC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_027",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GCGGAGTTCTGATCGA",
+  "partner": "TCGATCAGAACTCCGC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_028",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "ATAGCGGACCAATAGG",
+  "partner": "CCTATTGGTCCGCTAT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_029",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GTTACCAATCGTTGCG",
+  "partner": "CGCAACGATTGGTAAC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_030",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "ACAAGCTCTTGGTTTC",
+  "partner": "GAAACCAAGAGCTTGT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_031",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GACCATACGGAGCATA",
+  "partner": "TATGCTCCGTATGGTC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_032",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "TAGCCGATGTCTAGCC",
+  "partner": "GGCTAGACATCGGCTA",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_033",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CGCTTGTAAACGGGCT",
+  "partner": "AGCCCGTTTACAAGCG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_034",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "TCTGTGCCAGATTCTG",
+  "partner": "CAGAATCTGGCACAGA",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_035",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GTATCCTAGAACACCC",
+  "partner": "GGGTGTTCTAGGATAC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_036",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "ACTTATCGCGTGGCTG",
+  "partner": "CAGCCACGCGATAAGT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_037",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CACCTTCCAGAACACG",
+  "partner": "CGTGTTCTGGAAGGTG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_038",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CAACGTGGGCTTAGTC",
+  "partner": "GACTAAGCCCACGTTG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_039",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "AATCAGTATGAACCCT",
+  "partner": "AGGGTTCATACTGATT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_040",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "AGATGAGCGGCCTTTC",
+  "partner": "GAAAGGCCGCTCATCT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_041",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CGGGAAATTACACGCG",
+  "partner": "CGCGTGTAATTTCCCG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_042",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "CAGTCTTCCAGCGAAT",
+  "partner": "ATTCGCTGGAAGACTG",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_043",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GACTAAATCGTGGGTA",
+  "partner": "TACCCACGATTTAGTC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_044",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GGGTATAGCCACTGGG",
+  "partner": "CCCAGTGGCTATACCC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_045",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "GACCGATTTGACAAGT",
+  "partner": "ACTTGTCAAATCGGTC",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_046",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "ACAGCGTCTGGAGTCG",
+  "partner": "CGACTCCAGACGCTGT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RM_047",
+  "family": "rna",
+  "state": "M:R",
+  "status": "todo",
+  "seq": "AGATAACTCTGCCATG",
+  "partner": "CATGGCAGAGTTATCT",
+  "sugarA": "M",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_000",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GGAATCGACCAGTACG",
+  "partner": "CGTACTGGTCGATTCC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_001",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CCCACTTGTGGCCGCA",
+  "partner": "TGCGGCCACAAGTGGG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_002",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CAGGGAATAGCTCCAT",
+  "partner": "ATGGAGCTATTCCCTG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_003",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CTGTTTGCTAGACAGG",
+  "partner": "CCTGTCTAGCAAACAG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_004",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "ACTATCGGTTGAATTG",
+  "partner": "CAATTCAACCGATAGT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_005",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "TTCCGCTCGACAAGTA",
+  "partner": "TACTTGTCGAGCGGAA",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_006",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CATATAGTTGGCCTTG",
+  "partner": "CAAGGCCAACTATATG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_007",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "AGGGCCAAATCGACAT",
+  "partner": "ATGTCGATTTGGCCCT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_008",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GATCTTACAGTGTCTC",
+  "partner": "GAGACACTGTAAGATC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_009",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "TTGGCACCGAAGTGCC",
+  "partner": "GGCACTTCGGTGCCAA",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_010",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "AACACTTTCTATGGCG",
+  "partner": "CGCCATAGAAAGTGTT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_011",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GGGCCAGCGAAATGGA",
+  "partner": "TCCATTTCGCTGGCCC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_012",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GGAGGATTCCCGTACA",
+  "partner": "TGTACGGGAATCCTCC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_013",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "AGACTTCAGACTGCGG",
+  "partner": "CCGCAGTCTGAAGTCT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_014",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "TTATCGGAGCGTAACC",
+  "partner": "GGTTACGCTCCGATAA",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_015",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "AAGATGGCACCTTAGG",
+  "partner": "CCTAAGGTGCCATCTT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_016",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "ATTACAAAGTTCCGGC",
+  "partner": "GCCGGAACTTTGTAAT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_017",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CAGTGTCTAGGATTAT",
+  "partner": "ATAATCCTAGACACTG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_018",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GGCCTACAATGGCACG",
+  "partner": "CGTGCCATTGTAGGCC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_019",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CTCTTCGTGACGCTAT",
+  "partner": "ATAGCGTCACGAAGAG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_020",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "TGGGAAATTCAGCCGT",
+  "partner": "ACGGCTGAATTTCCCA",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_021",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GTATAGCGGACGTGAT",
+  "partner": "ATCACGTCCGCTATAC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_022",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GTCATATCCCTGGTAC",
+  "partner": "GTACCAGGGATATGAC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_023",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GTTCAGAAACCGTTCG",
+  "partner": "CGAACGGTTTCTGAAC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_024",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CTCACTAGCGTTGGTG",
+  "partner": "CACCAACGCTAGTGAG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_025",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "TCGGCTATCCTGAACT",
+  "partner": "AGTTCAGGATAGCCGA",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_026",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GGAACAGCCGTTACGG",
+  "partner": "CCGTAACGGCTGTTCC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_027",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GCGGAGTTCTGATCGA",
+  "partner": "TCGATCAGAACTCCGC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_028",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "ATAGCGGACCAATAGG",
+  "partner": "CCTATTGGTCCGCTAT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_029",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GTTACCAATCGTTGCG",
+  "partner": "CGCAACGATTGGTAAC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_030",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "ACAAGCTCTTGGTTTC",
+  "partner": "GAAACCAAGAGCTTGT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_031",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GACCATACGGAGCATA",
+  "partner": "TATGCTCCGTATGGTC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_032",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "TAGCCGATGTCTAGCC",
+  "partner": "GGCTAGACATCGGCTA",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_033",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CGCTTGTAAACGGGCT",
+  "partner": "AGCCCGTTTACAAGCG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_034",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "TCTGTGCCAGATTCTG",
+  "partner": "CAGAATCTGGCACAGA",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_035",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GTATCCTAGAACACCC",
+  "partner": "GGGTGTTCTAGGATAC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_036",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "ACTTATCGCGTGGCTG",
+  "partner": "CAGCCACGCGATAAGT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_037",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CACCTTCCAGAACACG",
+  "partner": "CGTGTTCTGGAAGGTG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_038",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CAACGTGGGCTTAGTC",
+  "partner": "GACTAAGCCCACGTTG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_039",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "AATCAGTATGAACCCT",
+  "partner": "AGGGTTCATACTGATT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_040",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "AGATGAGCGGCCTTTC",
+  "partner": "GAAAGGCCGCTCATCT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_041",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CGGGAAATTACACGCG",
+  "partner": "CGCGTGTAATTTCCCG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_042",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "CAGTCTTCCAGCGAAT",
+  "partner": "ATTCGCTGGAAGACTG",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_043",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GACTAAATCGTGGGTA",
+  "partner": "TACCCACGATTTAGTC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_044",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GGGTATAGCCACTGGG",
+  "partner": "CCCAGTGGCTATACCC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_045",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "GACCGATTTGACAAGT",
+  "partner": "ACTTGTCAAATCGGTC",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_046",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "ACAGCGTCTGGAGTCG",
+  "partner": "CGACTCCAGACGCTGT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RE_047",
+  "family": "rna",
+  "state": "E:R",
+  "status": "todo",
+  "seq": "AGATAACTCTGCCATG",
+  "partner": "CATGGCAGAGTTATCT",
+  "sugarA": "E",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_000",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GGAATCGACCAGTACG",
+  "partner": "CGTACTGGTCGATTCC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_001",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CCCACTTGTGGCCGCA",
+  "partner": "TGCGGCCACAAGTGGG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_002",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CAGGGAATAGCTCCAT",
+  "partner": "ATGGAGCTATTCCCTG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_003",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CTGTTTGCTAGACAGG",
+  "partner": "CCTGTCTAGCAAACAG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_004",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "ACTATCGGTTGAATTG",
+  "partner": "CAATTCAACCGATAGT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_005",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "TTCCGCTCGACAAGTA",
+  "partner": "TACTTGTCGAGCGGAA",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_006",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CATATAGTTGGCCTTG",
+  "partner": "CAAGGCCAACTATATG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_007",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "AGGGCCAAATCGACAT",
+  "partner": "ATGTCGATTTGGCCCT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_008",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GATCTTACAGTGTCTC",
+  "partner": "GAGACACTGTAAGATC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_009",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "TTGGCACCGAAGTGCC",
+  "partner": "GGCACTTCGGTGCCAA",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_010",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "AACACTTTCTATGGCG",
+  "partner": "CGCCATAGAAAGTGTT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_011",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GGGCCAGCGAAATGGA",
+  "partner": "TCCATTTCGCTGGCCC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_012",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GGAGGATTCCCGTACA",
+  "partner": "TGTACGGGAATCCTCC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_013",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "AGACTTCAGACTGCGG",
+  "partner": "CCGCAGTCTGAAGTCT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_014",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "TTATCGGAGCGTAACC",
+  "partner": "GGTTACGCTCCGATAA",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_015",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "AAGATGGCACCTTAGG",
+  "partner": "CCTAAGGTGCCATCTT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_016",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "ATTACAAAGTTCCGGC",
+  "partner": "GCCGGAACTTTGTAAT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_017",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CAGTGTCTAGGATTAT",
+  "partner": "ATAATCCTAGACACTG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_018",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GGCCTACAATGGCACG",
+  "partner": "CGTGCCATTGTAGGCC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_019",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CTCTTCGTGACGCTAT",
+  "partner": "ATAGCGTCACGAAGAG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_020",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "TGGGAAATTCAGCCGT",
+  "partner": "ACGGCTGAATTTCCCA",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_021",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GTATAGCGGACGTGAT",
+  "partner": "ATCACGTCCGCTATAC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_022",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GTCATATCCCTGGTAC",
+  "partner": "GTACCAGGGATATGAC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_023",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GTTCAGAAACCGTTCG",
+  "partner": "CGAACGGTTTCTGAAC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_024",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CTCACTAGCGTTGGTG",
+  "partner": "CACCAACGCTAGTGAG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_025",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "TCGGCTATCCTGAACT",
+  "partner": "AGTTCAGGATAGCCGA",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_026",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GGAACAGCCGTTACGG",
+  "partner": "CCGTAACGGCTGTTCC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_027",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GCGGAGTTCTGATCGA",
+  "partner": "TCGATCAGAACTCCGC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_028",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "ATAGCGGACCAATAGG",
+  "partner": "CCTATTGGTCCGCTAT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_029",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GTTACCAATCGTTGCG",
+  "partner": "CGCAACGATTGGTAAC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_030",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "ACAAGCTCTTGGTTTC",
+  "partner": "GAAACCAAGAGCTTGT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_031",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GACCATACGGAGCATA",
+  "partner": "TATGCTCCGTATGGTC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_032",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "TAGCCGATGTCTAGCC",
+  "partner": "GGCTAGACATCGGCTA",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_033",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CGCTTGTAAACGGGCT",
+  "partner": "AGCCCGTTTACAAGCG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_034",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "TCTGTGCCAGATTCTG",
+  "partner": "CAGAATCTGGCACAGA",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_035",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GTATCCTAGAACACCC",
+  "partner": "GGGTGTTCTAGGATAC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_036",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "ACTTATCGCGTGGCTG",
+  "partner": "CAGCCACGCGATAAGT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_037",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CACCTTCCAGAACACG",
+  "partner": "CGTGTTCTGGAAGGTG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_038",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CAACGTGGGCTTAGTC",
+  "partner": "GACTAAGCCCACGTTG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_039",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "AATCAGTATGAACCCT",
+  "partner": "AGGGTTCATACTGATT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_040",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "AGATGAGCGGCCTTTC",
+  "partner": "GAAAGGCCGCTCATCT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_041",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CGGGAAATTACACGCG",
+  "partner": "CGCGTGTAATTTCCCG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_042",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "CAGTCTTCCAGCGAAT",
+  "partner": "ATTCGCTGGAAGACTG",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_043",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GACTAAATCGTGGGTA",
+  "partner": "TACCCACGATTTAGTC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_044",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GGGTATAGCCACTGGG",
+  "partner": "CCCAGTGGCTATACCC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_045",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "GACCGATTTGACAAGT",
+  "partner": "ACTTGTCAAATCGGTC",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_046",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "ACAGCGTCTGGAGTCG",
+  "partner": "CGACTCCAGACGCTGT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "RR_047",
+  "family": "rna",
+  "state": "R:R",
+  "status": "todo",
+  "seq": "AGATAACTCTGCCATG",
+  "partner": "CATGGCAGAGTTATCT",
+  "sugarA": "R",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_000",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGATAATGGTAACTGC",
+  "partner": "GCAGTTACCATTATCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_001",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CGTTAGTACCAGATCA",
+  "partner": "TGATCTGGTACTAACG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_002",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTCCATCGCTATGAGA",
+  "partner": "TCTCATAGCGATGGAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_003",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "ATGCACGCTGACCATC",
+  "partner": "GATGGTCAGCGTGCAT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_004",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CAGCGATTAGGACCGG",
+  "partner": "CCGGTCCTAATCGCTG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_005",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGCCGGATTCGGCCTT",
+  "partner": "AAGGCCGAATCCGGCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_006",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "ACCTGTTAGTGTCGTG",
+  "partner": "CACGACACTAACAGGT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_007",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GCGTGCCTCCGCAGAA",
+  "partner": "TTCTGCGGAGGCACGC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_008",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGCATACAGTTAGATG",
+  "partner": "CATCTAACTGTATGCA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_009",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AACCTGCGGATGTATA",
+  "partner": "TATACATCCGCAGGTT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_010",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GGACTTAGGTTTAACG",
+  "partner": "CGTTAAACCTAAGTCC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_011",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CAAGTCCATATCCCGC",
+  "partner": "GCGGGATATGGACTTG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_012",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TTATCAGTCCCACTAC",
+  "partner": "GTAGTGGGACTGATAA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_013",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGTTCGCCCACGCCAA",
+  "partner": "TTGGCGTGGGCGAACT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_014",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGTTCTACCACTGTGG",
+  "partner": "CCACAGTGGTAGAACT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_015",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CTTACCAACGCCGCAT",
+  "partner": "ATGCGGCGTTGGTAAG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_016",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TTTCAACGTCGTATGG",
+  "partner": "CCATACGACGTTGAAA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_017",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TTAGAGCATCGCGTCT",
+  "partner": "AGACGCGATGCTCTAA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_018",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCCGATTCAGTATTGG",
+  "partner": "CCAATACTGAATCGGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_019",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TTCCACGCGGTGTATA",
+  "partner": "TATACACCGCGTGGAA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_020",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AACTGATCGCTTGTCG",
+  "partner": "CGACAAGCGATCAGTT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_021",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TAGAGGCTTCTCCGAA",
+  "partner": "TTCGGAGAAGCCTCTA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_022",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GCTGGTCTTTCACAGT",
+  "partner": "ACTGTGAAAGACCAGC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_023",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GCTGGCCTAACGAATC",
+  "partner": "GATTCGTTAGGCCAGC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_024",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGTCTATAACCTTGCG",
+  "partner": "CGCAAGGTTATAGACA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_025",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CTAGTGAGGACCTTGG",
+  "partner": "CCAAGGTCCTCACTAG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_026",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTCCTTACGGAAATTG",
+  "partner": "CAATTTCCGTAAGGAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_027",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCCATCGACAAGGGTG",
+  "partner": "CACCCTTGTCGATGGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_028",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGATCAACTTATTGGG",
+  "partner": "CCCAATAAGTTGATCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_029",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGGCCGTCAGACGCTA",
+  "partner": "TAGCGTCTGACGGCCA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_030",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "ACAGCTACCTGATGGT",
+  "partner": "ACCATCAGGTAGCTGT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_031",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCTGCCACATGGACAA",
+  "partner": "TTGTCCATGTGGCAGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_032",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGTCAAGGTACACGCA",
+  "partner": "TGCGTGTACCTTGACA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_033",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCGGAGTCCGCGACAT",
+  "partner": "ATGTCGCGGACTCCGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_034",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CATGATACTTCTGTCT",
+  "partner": "AGACAGAAGTATCATG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_035",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CGTTACAGCTCCCGCA",
+  "partner": "TGCGGGAGCTGTAACG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_036",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TTCCGATCCAAAGATA",
+  "partner": "TATCTTTGGATCGGAA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_037",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GGATGGCCGCAGGTTC",
+  "partner": "GAACCTGCGGCCATCC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_038",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTCAGTAGACATTCAA",
+  "partner": "TTGAATGTCTACTGAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_039",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "ACGGGCTCGAACACTT",
+  "partner": "AAGTGTTCGAGCCCGT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_040",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GCCGTATATGGAACCT",
+  "partner": "AGGTTCCATATACGGC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_041",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TATCTGGGACGGTAGC",
+  "partner": "GCTACCGTCCCAGATA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_042",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AAGATTATTGGTAGTC",
+  "partner": "GACTACCAATAATCTT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_043",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CGCCTCAAACGCTTTA",
+  "partner": "TAAAGCGTTTGAGGCG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_044",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCCTCACAACTAGAGT",
+  "partner": "ACTCTAGTTGTGAGGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_045",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "ATTCCGGCGTTGCCCT",
+  "partner": "AGGGCAACGCCGGAAT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_046",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GACTCTGCCTTTCGCA",
+  "partner": "TGCGAAAGGCAGAGTC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_047",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCAACCCTTCTCTATG",
+  "partner": "CATAGAGAAGGGTTGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_048",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGGCAAACTCATCATA",
+  "partner": "TATGATGAGTTTGCCA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_049",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTGTAGTACGACCGCA",
+  "partner": "TGCGGTCGTACTACAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_050",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TATGATCTCAGAGTGC",
+  "partner": "GCACTCTGAGATCATA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_051",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CGCGACACTCGGCCAA",
+  "partner": "TTGGCCGAGTGTCGCG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_052",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTAAGATCCAGTGATC",
+  "partner": "GATCACTGGATCTTAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_053",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGAAGGTACTGCTACT",
+  "partner": "AGTAGCAGTACCTTCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_054",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GCGAGTAACATATCTT",
+  "partner": "AAGATATGTTACTCGC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_055",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CCACGCTCAGTGTCGA",
+  "partner": "TCGACACTGAGCGTGG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_056",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTTGTAGCGGTTTCAG",
+  "partner": "CTGAAACCGCTACAAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_057",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GGACTGATTATCTGAG",
+  "partner": "CTCAGATAATCAGTCC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_058",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TTATTTGGAACAGACG",
+  "partner": "CGTCTGTTCCAAATAA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_059",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CTGATCTCTACGGCAC",
+  "partner": "GTGCCGTAGAGATCAG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_060",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GGGACAAATCCTGCTA",
+  "partner": "TAGCAGGATTTGTCCC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_061",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGGGCGTTGACCCACA",
+  "partner": "TGTGGGTCAACGCCCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_062",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCGTCTGAGCAAATGG",
+  "partner": "CCATTTGCTCAGACGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_063",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CTTTCCGTCGAGGACC",
+  "partner": "GGTCCTCGACGGAAAG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_064",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGCCAAGGACTAACCT",
+  "partner": "AGGTTAGTCCTTGGCA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_065",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGTGAGAACTTGGCCT",
+  "partner": "AGGCCAAGTTCTCACA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_066",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CGGCATCTCATTCTAG",
+  "partner": "CTAGAATGAGATGCCG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_067",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TAGGACTTCCTCTGCT",
+  "partner": "AGCAGAGGAAGTCCTA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_068",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GACGGAGTTGCAGCGT",
+  "partner": "ACGCTGCAACTCCGTC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_069",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CTCGGGAATACGTGAA",
+  "partner": "TTCACGTATTCCCGAG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_070",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TACGGTGTATCTTTCT",
+  "partner": "AGAAAGATACACCGTA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_071",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CTAAGCGAAGCCACGA",
+  "partner": "TCGTGGCTTCGCTTAG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_072",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "ACGGTAGGCCAATACA",
+  "partner": "TGTATTGGCCTACCGT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_073",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGGATGTCAAAGGGCG",
+  "partner": "CGCCCTTTGACATCCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_074",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GAGTTTGCACATAAGA",
+  "partner": "TCTTATGTGCAAACTC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_075",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGGCTCGATTACTCTC",
+  "partner": "GAGAGTAATCGAGCCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_076",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CGGGCATTTCGACTAA",
+  "partner": "TTAGTCGAAATGCCCG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_077",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GGAACGTAAGGGATCG",
+  "partner": "CGATCCCTTACGTTCC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_078",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TAGGCTCCCGGTTCTG",
+  "partner": "CAGAACCGGGAGCCTA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_079",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GAGACCTTCGGCCAAC",
+  "partner": "GTTGGCCGAAGGTCTC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_080",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TCGAAACTCACTGGAT",
+  "partner": "ATCCAGTGAGTTTCGA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_081",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TTACAGTCTCCCGTGC",
+  "partner": "GCACGGGAGACTGTAA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_082",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GCACATAGCCAAACTG",
+  "partner": "CAGTTTGGCTATGTGC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_083",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GATCACGGCGAGAGTA",
+  "partner": "TACTCTCGCCGTGATC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_084",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CCTCGACTTAATCGGA",
+  "partner": "TCCGATTAAGTCGAGG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_085",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AGAAGGTCGGACTCAT",
+  "partner": "ATGAGTCCGACCTTCT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_086",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TACAGTGAAGGACGTG",
+  "partner": "CACGTCCTTCACTGTA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_087",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTCGGCCACTGGTACA",
+  "partner": "TGTACCAGTGGCCGAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_088",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TATGTAGCCAGTAATT",
+  "partner": "AATTACTGGCTACATA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_089",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "AACATGCAGTGCCACT",
+  "partner": "AGTGGCACTGCATGTT",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_090",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CCTGTTTCCGTACTAA",
+  "partner": "TTAGTACGGAAACAGG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_091",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "CAAGTCTGGTTGGAGT",
+  "partner": "ACTCCAACCAGACTTG",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_092",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GCGTCACTTCTTAGAA",
+  "partner": "TTCTAAGAAGTGACGC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_093",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TACCCGACTATCATGG",
+  "partner": "CCATGATAGTCGGGTA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_094",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "GTACCTCTGGCAATCC",
+  "partner": "GGATTGCCAGAGGTAC",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRM_095",
+  "family": "junction-rna",
+  "state": "junction-M:R",
+  "status": "todo",
+  "seq": "TGCACCAAGTCGGTTG",
+  "partner": "CAACCGACTTGGTGCA",
+  "sugarA": "MMMMMDDDDDDMMMMM",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_000",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGCAAATCTTAAATAC",
+  "partner": "GTATTTAAGATTTGCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_001",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TAACAGCCATAGATGA",
+  "partner": "TCATCTATGGCTGTTA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_002",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATCCATCGTAATTCTC",
+  "partner": "GAGAATTACGATGGAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_003",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGTTACAGACACTAAT",
+  "partner": "ATTAGTGTCTGTAACA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_004",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CAATGACTTGGATATA",
+  "partner": "TATATCCAAGTCATTG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_005",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGATGGTCTTGGGCTA",
+  "partner": "TAGCCCAAGACCATCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_006",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATCCGTTTGCGTTAAT",
+  "partner": "ATTAACGCAAACGGAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_007",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TCAAGCATGGGCACGG",
+  "partner": "CCGTGCCCATGCTTGA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_008",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TCTTTACAGGTATTCC",
+  "partner": "GGAATACCTGTAAAGA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_009",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GGCGTGGTCCTGCGAA",
+  "partner": "TTCGCAGGACCACGCC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_010",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AAAGTTATCGTTGTCT",
+  "partner": "AGACAACGATAACTTT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_011",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GGGCTCTGTATCCGTG",
+  "partner": "CACGGATACAGAGCCC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_012",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GTGGCAATCGCATTCG",
+  "partner": "CGAATGCGATTGCCAC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_013",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CAAGCGGAACCGATGG",
+  "partner": "CCATCGGTTCCGCTTG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_014",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ACGACTTTAGCTGAGG",
+  "partner": "CCTCAGCTAAAGTCGT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_015",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CTAGCCCGCACCTGAT",
+  "partner": "ATCAGGTGCGGGCTAG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_016",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CCAGAAATGCGTCCGG",
+  "partner": "CCGGACGCATTTCTGG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_017",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GGTTAGTTGTGCGACC",
+  "partner": "GGTCGCACAACTAACC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_018",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CTTAATTGCGTACTTC",
+  "partner": "GAAGTACGCAATTAAG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_019",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CTAGACACTTTGTAGG",
+  "partner": "CCTACAAAGTGTCTAG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_020",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CCATGAACGATTTCTA",
+  "partner": "TAGAAATCGTTCATGG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_021",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGAGGGAAGGTCCACG",
+  "partner": "CGTGGACCTTCCCTCA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_022",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GCACGTTACTCAGTCG",
+  "partner": "CGACTGAGTAACGTGC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_023",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGTAGCTGTACGCAAG",
+  "partner": "CTTGCGTACAGCTACA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_024",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CTTGTACCGACTATTA",
+  "partner": "TAATAGTCGGTACAAG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_025",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GGGCTGATAACCAGTG",
+  "partner": "CACTGGTTATCAGCCC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_026",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TCTATTGCATAATAGC",
+  "partner": "GCTATTATGCAATAGA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_027",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATAATCTCCGAGCGCC",
+  "partner": "GGCGCTCGGAGATTAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_028",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AGGACATGGAATAAGC",
+  "partner": "GCTTATTCCATGTCCT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_029",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TCCGCGTCGTACCAGG",
+  "partner": "CCTGGTACGACGCGGA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_030",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TACACTTTCGGACCGA",
+  "partner": "TCGGTCCGAAAGTGTA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_031",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GAAACCTGCCGGGTAT",
+  "partner": "ATACCCGGCAGGTTTC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_032",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGTAAAGAAACATCTC",
+  "partner": "GAGATGTTTCTTTACG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_033",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CCGCAGCTTACGCCTG",
+  "partner": "CAGGCGTAAGCTGCGG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_034",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GCTTATCGGCCTTGAT",
+  "partner": "ATCAAGGCCGATAAGC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_035",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AAATACCGCACCACTG",
+  "partner": "CAGTGGTGCGGTATTT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_036",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGGTGAATGTAAGCTA",
+  "partner": "TAGCTTACATTCACCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_037",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGAAGGGCCTAGCAGA",
+  "partner": "TCTGCTAGGCCCTTCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_038",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TTACGTGGAGATTACC",
+  "partner": "GGTAATCTCCACGTAA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_039",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TTAGGCGTTCACCTCG",
+  "partner": "CGAGGTGAACGCCTAA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_040",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TTTCTATGAGGACATA",
+  "partner": "TATGTCCTCATAGAAA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_041",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TAGTTGGCGCGGACAA",
+  "partner": "TTGTCCGCGCCAACTA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_042",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GCGCTTCAAGGTAGTT",
+  "partner": "AACTACCTTGAAGCGC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_043",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AGACTCCAGCGCGTGC",
+  "partner": "GCACGCGCTGGAGTCT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_044",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GGCCCACCATTAACAG",
+  "partner": "CTGTTAATGGTGGGCC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_045",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GGACCGTTTGTGCCTG",
+  "partner": "CAGGCACAAACGGTCC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_046",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CATACTACTCTTAGTG",
+  "partner": "CACTAAGAGTAGTATG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_047",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ACAACCCGGATCAGGC",
+  "partner": "GCCTGATCCGGGTTGT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_048",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ACGCAACACGATACTC",
+  "partner": "GAGTATCGTGTTGCGT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_049",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CCCGAGCTACACTCTT",
+  "partner": "AAGAGTGTAGCTCGGG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_050",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AACTATCCGGGACAAT",
+  "partner": "ATTGTCCCGGATAGTT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_051",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CTATACTGGTGGCGAA",
+  "partner": "TTCGCCACCAGTATAG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_052",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TCAGGACGCCGTTCTC",
+  "partner": "GAGAACGGCGTCCTGA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_053",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CTCAGGCACGGCCATT",
+  "partner": "AATGGCCGTGCCTGAG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_054",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AATAGTCGTGTAGCTT",
+  "partner": "AAGCTACACGACTATT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_055",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGTCGCATTCTGTCCG",
+  "partner": "CGGACAGAATGCGACA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_056",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GATTTATGGCTTTAGT",
+  "partner": "ACTAAAGCCATAAATC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_057",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CACTTGTAGATCAACT",
+  "partner": "AGTTGATCTACAAGTG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_058",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CCGATTTGTCCAAGTC",
+  "partner": "GACTTGGACAAATCGG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_059",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GTAATCTGACCGTGTG",
+  "partner": "CACACGGTCAGATTAC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_060",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TTGGCAAGTGCTGAAA",
+  "partner": "TTTCAGCACTTGCCAA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_061",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATCTCGGCGTCCCAGT",
+  "partner": "ACTGGGACGCCGAGAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_062",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TTCACTGCCGAAGGCA",
+  "partner": "TGCCTTCGGCAGTGAA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_063",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CTTACCTTGTAGAGCC",
+  "partner": "GGCTCTACAAGGTAAG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_064",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AAGAAACCGATACTCA",
+  "partner": "TGAGTATCGGTTTCTT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_065",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATGAAGTCCCTGAGTA",
+  "partner": "TACTCAGGGACTTCAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_066",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CACGATGTATTTCTAC",
+  "partner": "GTAGAAATACATCGTG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_067",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GAGGACTCATTCCCAA",
+  "partner": "TTGGGAATGAGTCCTC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_068",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGCTGAAGTACACGAA",
+  "partner": "TTCGTGTACTTCAGCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_069",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGCCGGGCTACGAGAA",
+  "partner": "TTCTCGTAGCCCGGCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_070",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GAGAGTCTTACTGCCG",
+  "partner": "CGGCAGTAAGACTCTC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_071",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GCTGGCACATCCTTCA",
+  "partner": "TGAAGGATGTGCCAGC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_072",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TACATAGAGTAACGGC",
+  "partner": "GCCGTTACTCTATGTA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_073",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TCCATGTATAAGGCAA",
+  "partner": "TTGCCTTATACATGGA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_074",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ACGCTTGTAGATGAAT",
+  "partner": "ATTCATCTACAAGCGT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_075",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GCTGTCCCTAACGCAT",
+  "partner": "ATGCGTTAGGGACAGC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_076",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "AGAGCAGCCGGACTTT",
+  "partner": "AAAGTCCGGCTGCTCT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_077",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CCTGCGCTATGGTAGA",
+  "partner": "TCTACCATAGCGCAGG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_078",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGGGCTATTGGTTGCA",
+  "partner": "TGCAACCAATAGCCCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_079",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATCTCCGCCAGCCGAC",
+  "partner": "GTCGGCTGGCGGAGAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_080",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TCCAAAGTCTCTGCGA",
+  "partner": "TCGCAGAGACTTTGGA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_081",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATCGAGTCAACCTGCG",
+  "partner": "CGCAGGTTGACTCGAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_082",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "GAACATCCTCAAGCCA",
+  "partner": "TGGCTTGAGGATGTTC",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_083",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGAGACAGGTAGGATC",
+  "partner": "GATCCTACCTGTCTCA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_084",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGGTGACTGTATCTGC",
+  "partner": "GCAGATACAGTCACCA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_085",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TTCGGGTGTGACCTAA",
+  "partner": "TTAGGTCACACCCGAA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_086",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ACCAGTTAATGAAGAT",
+  "partner": "ATCTTCATTAACTGGT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_087",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CATAGCTGCCGGTTCT",
+  "partner": "AGAACCGGCAGCTATG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_088",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGTCTACCGTGTGAAA",
+  "partner": "TTTCACACGGTAGACA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_089",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATGTTGGCTGGCCGGA",
+  "partner": "TCCGGCCAGCCAACAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_090",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "CGGCTTCGTATATTAC",
+  "partner": "GTAATATACGAAGCCG",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_091",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGTCTCTAAATGCCCA",
+  "partner": "TGGGCATTTAGAGACA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_092",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATTACACGGCTTGACA",
+  "partner": "TGTCAAGCCGTGTAAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_093",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TAAGCGATCTTCTGCC",
+  "partner": "GGCAGAAGATCGCTTA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_094",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "TGGACTCTTGCACACC",
+  "partner": "GGTGTGCAAGAGTCCA",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ },
+ {
+  "name": "JRE_095",
+  "family": "junction-rna",
+  "state": "junction-E:R",
+  "status": "todo",
+  "seq": "ATTGCCGTAACGATGA",
+  "partner": "TCATCGTTACGGCAAT",
+  "sugarA": "EEEEEDDDDDDEEEEE",
+  "sugarB": "R"
+ }
+]

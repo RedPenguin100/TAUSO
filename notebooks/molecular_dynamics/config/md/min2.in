@@ -1,0 +1,6 @@
+minimisation 2: everything free, relieve strain inside the solute itself
+ &cntrl
+  imin=1, maxcyc=2500, ncyc=1000,
+  ntb=1, cut=10.0,
+  ntr=0,
+ /
