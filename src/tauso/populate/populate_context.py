@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 # Proteins a PS-ASO has to get past in the cell it is dosed into, taken per gene. EGFR,
-# stabilin-1 and stabilin-2 are endocytic receptors for phosphorothioate oligonucleotides;
-# TREX1 is the 3'-exonuclease that degrades them. A gene total is the measure here because
+# stabilin-1 and stabilin-2 are endocytic receptors for phosphorothioate oligonucleotides.
+# A gene total is the measure here because
 # these features stand for how much of the protein a cell line carries, which does not turn on
 # which isoform the message sits in.
 # The PS-ASO protein interactome from Crooke et al. (PMC7261153), which sorts the proteins a
@@ -22,7 +22,6 @@ _SPECIAL_GENES: Dict[str, str] = {
     "expr_egfr": "EGFR",
     "expr_stab1": "STAB1",
     "expr_stab2": "STAB2",
-    "expr_trex1": "TREX1",
     # uptake and endosomal trafficking
     "expr_anxa2": "ANXA2",
     "expr_stx5": "STX5",
@@ -43,7 +42,7 @@ _SPECIAL_GENES: Dict[str, str] = {
     # Ionis' NAR 2022 study of PS-ASO innate immunity (doi:10.1093/nar/gkac618). TLR9 binds
     # PS-ASOs directly; MYD88 is its adaptor; UNC93B1 and the COPII pair traffic it to the
     # endosome; STX5 and STX6 tether it at the Golgi and so limit activation, which is why
-    # depleting them raises the response. HMGB1 and GRN bind PS-ASOs and hand them to TLR9.
+    # depleting them raises the response.
     #
     # The paper's other PS-ASO binders -- S100A8, HRG, CFHR1, ALB -- are secreted, so in cell
     # culture they arrive in the serum rather than from the cell line. Cell-line expression is
@@ -54,18 +53,16 @@ _SPECIAL_GENES: Dict[str, str] = {
     "expr_sec23a": "SEC23A",
     "expr_sec31a": "SEC31A",
     "expr_stx6": "STX6",
-    "expr_hmgb1": "HMGB1",
-    "expr_grn": "GRN",
 }
 
 TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["expr_target"]
 
-# How concentrated the target's expression is: the share of its TPM carried by its single most
-# abundant transcript, from 0 to 1. A gene at 100 TPM in one isoform and one at 100 TPM split
-# across five present the ASO with different amounts of the sequence it was designed against,
-# and expr_target alone cannot tell them apart. A share rather than an amount, so it says
-# something expr_target does not already carry. The dominant transcript is resolved per cell
-# line rather than named: the target differs from row to row.
+# How concentrated the target's expression is: the share of its TPM carried by the canonical
+# transcript, from 0 to 1. A gene at 100 TPM in one isoform and one at 100 TPM split across
+# five present the ASO with different amounts of the sequence it was designed against, and
+# expr_target alone cannot tell them apart. A share rather than an amount, so it says something
+# expr_target does not already carry. The canonical isoform is the one an ASO is designed
+# against, which the most abundant isoform in a given cell line need not be.
 TARGET_TRANSCRIPT_FEATURE_NAMES: List[str] = ["expr_target_dom_fraction"]
 
 # RNase H1 cleaves the ASO:RNA heteroduplex, and unlike the genes above it is taken per
@@ -147,18 +144,20 @@ def populate_target_expression(
 
 
 def populate_target_dominant_transcript(
-    df: pd.DataFrame, transcript_dict: Dict[str, pd.DataFrame]
+    df: pd.DataFrame, transcript_dict: Dict[str, pd.DataFrame], canonical: Dict[str, str]
 ) -> Tuple[pd.DataFrame, List[str]]:
-    """Adds the target gene's dominant-transcript share (per cell line x gene) to df.
+    """Adds the target gene's canonical-transcript share (per cell line x gene) to df.
 
-    The share is the most abundant transcript's TPM over the gene's total, so 1.0 is a gene
-    expressed as a single species and 0.2 one spread across several.
+    The share is the canonical transcript's TPM over the gene's total, so 1.0 is a gene
+    expressed as that one species and 0.2 one spread across several. A gene whose canonical
+    transcript the annotation does not name, or which carries no expression for it, is NaN.
     """
     frames = []
     for depmap_id, t_df in transcript_dict.items():
-        grouped = t_df.groupby("Gene")["expression_TPM"]
-        best = grouped.max().rename("top_tpm").to_frame()
-        best["gene_tpm"] = grouped.sum()
+        wanted = t_df["Gene"].map(canonical)
+        is_canonical = wanted.notna() & (t_df["TranscriptName"] == wanted)
+        best = t_df.groupby("Gene")["expression_TPM"].sum().rename("gene_tpm").to_frame()
+        best["top_tpm"] = t_df[is_canonical].groupby("Gene")["expression_TPM"].sum()
         best = best.reset_index().assign(**{CELL_LINE_DEPMAP: depmap_id})
         frames.append(best)
 

@@ -311,7 +311,8 @@ class Calculator:
             data, special_feats = populate_special_gene_expression(data, transcriptomes)
             target_genes = self.data[CANONICAL_GENE_NAME].dropna().unique().tolist()
             target_transcripts = self.cache.get_target_gene_transcripts(cell_lines_depmap, target_genes)
-            data, dominant_feats = populate_target_dominant_transcript(data, target_transcripts)
+            canonical = self.cache.get_canonical_transcripts(target_genes)
+            data, dominant_feats = populate_target_dominant_transcript(data, target_transcripts, canonical)
             transcript_expression = self.cache.get_transcript_transcriptomes(cell_lines_depmap)
             data, transcript_feats = populate_special_transcript_expression(data, transcript_expression)
             return data, target_feats + dominant_feats + special_feats + transcript_feats

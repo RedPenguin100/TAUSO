@@ -53,14 +53,14 @@ def test_a_step_that_changes_chemistry_uses_the_junction_cell():
 def test_cet_is_read_as_the_letter_the_tables_use():
     # The chemical_pattern column writes cEt as "C"; the weight tables name it "E".
     assert sugars(CET_GAPMER, 16)[0] == "E"
-    assert step_cell("E", "D", "AA")[0] in JUNCTION_MEAN["Roll"]
+    assert step_cell("E", "D", "AA")[0] in JUNCTION_MEAN["hIncl"]
 
 
 def test_every_junction_cell_a_gapmer_needs_is_present():
     for sugar in ("M", "E"):
         for dinucleotide in ("AA", "CG", "TT"):
-            assert step_cell(sugar, "D", dinucleotide)[0] in JUNCTION_MEAN["Roll"]
-            assert step_cell("D", sugar, dinucleotide)[0] in JUNCTION_MEAN["Roll"]
+            assert step_cell(sugar, "D", dinucleotide)[0] in JUNCTION_MEAN["hIncl"]
+            assert step_cell("D", sugar, dinucleotide)[0] in JUNCTION_MEAN["hIncl"]
 
 
 @pytest.mark.parametrize("pattern", ["CCCdoddddddddCCC", "CCCdfddddddddCCC", "LLLddddddddddLLL", "CCCdxddddddddCCC"])
@@ -105,10 +105,34 @@ def test_the_tables_carry_every_observable():
 
 
 # --- the regions ----------------------------------------------------------------------
-def test_a_boundary_step_belongs_to_no_region():
+def test_a_boundary_step_belongs_to_no_body_region():
     masks = step_regions(MOE_GAPMER, 20)
-    covered = sum(int(m.sum()) for m in masks.values())
-    assert covered == 19 - 2
+    body = masks["wing5"] | masks["gap"] | masks["wing3"]
+    assert int(body.sum()) == 19 - 2
+
+
+def test_a_junction_covers_the_boundary_step_and_its_neighbours():
+    masks = step_regions(MOE_GAPMER, 20)
+    assert int(masks["j5"].sum()) == 3
+    assert int(masks["j3"].sum()) == 3
+    body = masks["wing5"] | masks["gap"] | masks["wing3"]
+    assert ((masks["j5"] | masks["j3"]) | body).all()
+
+
+def test_a_junction_overlaps_rather_than_takes_from_its_neighbours():
+    masks = step_regions(MOE_GAPMER, 20)
+    assert (masks["j5"] & masks["wing5"]).any()
+    assert (masks["j5"] & masks["gap"]).any()
+    assert int(masks["gap"].sum()) == 9
+
+
+def test_a_gap_running_to_the_end_has_no_junction_there():
+    starts_deoxy = step_regions("d" * 16 + "M" * 4, 20)
+    assert not starts_deoxy["j5"].any()
+    assert starts_deoxy["j3"].any()
+    ends_deoxy = step_regions("M" * 4 + "d" * 16, 20)
+    assert ends_deoxy["j5"].any()
+    assert not ends_deoxy["j3"].any()
 
 
 def test_the_wing_grows_with_the_wing_length():
@@ -138,8 +162,8 @@ def test_chemistry_changes_the_answer():
 def test_the_gap_is_read_against_rna_as_dna():
     # Every gap step is deoxy on both sides, so the gap mean is a mean of D:R cells.
     scored = score(SEQ_20, MOE_GAPMER)
-    cells = [UNIFORM_MEAN["Roll"][f"D:R@{SEQ_20[i - 1] + SEQ_20[i]}"] for i in range(6, 15)]
-    assert scored["roll_gap"] == pytest.approx(float(np.mean(cells)))
+    cells = [UNIFORM_MEAN["hIncl"][f"D:R@{SEQ_20[i - 1] + SEQ_20[i]}"] for i in range(6, 15)]
+    assert scored["hincl_gap"] == pytest.approx(float(np.mean(cells)))
 
 
 def test_spread_and_mean_are_different_readings():
@@ -152,7 +176,7 @@ def test_populate_adds_every_column():
     df = pd.DataFrame({"aso_sequence": [SEQ_16, SEQ_20], "chemical_pattern": [CET_GAPMER, MOE_GAPMER]})
     out, added = populate_aso_rna_features(df)
     assert added == aso_rna_feature_names()
-    assert len(added) == 78
+    assert len(added) == 90
     assert all(c in out.columns for c in added)
 
 

@@ -1,5 +1,6 @@
 import logging
 
+from ...data.data import load_gtf_db
 from ...expression.cohort import (
     load_cohort_expression,
     load_cohort_gene_transcripts,
@@ -29,6 +30,7 @@ class AssetCache:
         self._general_expression = None
         self._transcript_transcriptomes = None
         self._target_gene_transcripts = None
+        self._canonical_transcripts = None
 
         self._gene_to_data_lean = None
         self._genes_u = None
@@ -106,6 +108,27 @@ class AssetCache:
             self._target_gene_transcripts = load_cohort_gene_transcripts(cell_lines_depmap, genes)
 
         return self._target_gene_transcripts
+
+    def get_canonical_transcripts(self, genes):
+        """Lazy getter for {gene name: canonical transcript name}, from the annotation's
+        Ensembl_canonical tag. A gene the tag does not name is absent."""
+        if self._canonical_transcripts is None:
+            logger.info("Reading canonical transcripts from the annotation (happens once)...")
+            db = load_gtf_db(self.genome)
+            wanted = set(genes)
+            canonical = {}
+            for gene in db.features_of_type("gene"):
+                name = (gene.attributes.get("gene_name") or [None])[0]
+                if name not in wanted:
+                    continue
+                for transcript in db.children(gene, featuretype=("mRNA", "transcript"), level=1):
+                    if any("Ensembl_canonical" in tag for tag in transcript.attributes.get("tag", [])):
+                        transcript_name = (transcript.attributes.get("transcript_name") or [None])[0]
+                        if transcript_name is not None:
+                            canonical[name] = transcript_name
+                        break
+            self._canonical_transcripts = canonical
+        return self._canonical_transcripts
 
     def get_general_expression(self):
         """Lazy loader for the per-gene mean expression across the cohort, which the general

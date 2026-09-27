@@ -1,5 +1,7 @@
 """An unrecognised cell line has no expression, and that is a NaN feature, not a crash."""
 
+from functools import partial
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -22,12 +24,13 @@ ROWS = pd.DataFrame(
 POPULATE_FUNCTIONS = [
     populate_target_expression,
     populate_special_gene_expression,
-    populate_target_dominant_transcript,
+    # the dominant-transcript step also takes the canonical map; nothing resolved means it is empty too
+    partial(populate_target_dominant_transcript, canonical={}),
     populate_special_transcript_expression,
 ]
 
 
-@pytest.mark.parametrize("populate", POPULATE_FUNCTIONS, ids=lambda f: f.__name__)
+@pytest.mark.parametrize("populate", POPULATE_FUNCTIONS, ids=lambda f: getattr(f, "__name__", None) or f.func.__name__)
 def test_no_expression_at_all_scores_nan(populate):
     """Nothing resolved: a missing pair is a missing pair, whether it is one of them or all."""
     data, features = populate(ROWS.copy(), {})
@@ -36,7 +39,7 @@ def test_no_expression_at_all_scores_nan(populate):
     assert np.isnan(data[features].to_numpy(dtype=float)).all()
 
 
-@pytest.mark.parametrize("populate", POPULATE_FUNCTIONS, ids=lambda f: f.__name__)
+@pytest.mark.parametrize("populate", POPULATE_FUNCTIONS, ids=lambda f: getattr(f, "__name__", None) or f.func.__name__)
 def test_the_features_are_named_either_way(populate):
     """The columns exist whether or not anything filled them, so the step's contract holds."""
     data, features = populate(ROWS.copy(), {})
