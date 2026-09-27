@@ -1,0 +1,17 @@
+Deployed model v1: SHAP over the held-out test split, n=21682
+679 features in 13 families
+
+family                    mean |sum SHAP|  features
+Sequence & motifs                   4.520       207
+Transcript context                  3.990        52
+Target accessibility                2.892        31
+RBP binding                         2.527       161
+ASO:RNA shape                       2.087        90
+Hybridization                       1.601        15
+Expression & half-life              1.460        26
+RNase H1 motifs                     1.358        12
+Off-target                          0.923        36
+Delivery & assay                    0.727         6
+Chemistry                           0.572        15
+Translational context               0.334        21
+Toxicity / liability                0.184         7
