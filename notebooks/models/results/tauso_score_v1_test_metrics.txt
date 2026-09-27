@@ -1,0 +1,6 @@
+Deployed model v1: tauso_score_v1_clean_exp_med.json
+679 features, held-out test split, n=21682
+
+TEST
+                   exp_med      exp_mean       gxc_med      gxc_mean          top5            p5           p10         globP
+v1                   0.611         0.586         0.548         0.497        76.000         0.370         0.465         0.595
