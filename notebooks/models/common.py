@@ -1,5 +1,5 @@
-"""Shared helpers for the numbered model-selection scripts (steps 1-5):
-dataset loading, the frozen train/test split, frozen gene-grouped CV folds, evaluation, and reporting.
+"""Shared helpers for the model scripts: dataset loading, the frozen train/test split, frozen
+gene-grouped CV folds, evaluation, and reporting.
 Keeps each script thin and consistent, and the split/CV definition in exactly one place.
 """
 
