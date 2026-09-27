@@ -12,7 +12,7 @@ from tauso.populate.populate_context import (
     _SPECIAL_TRANSCRIPTS,
     populate_special_gene_expression,
     populate_special_transcript_expression,
-    populate_target_dominant_transcript,
+    populate_target_canonical_transcript,
     populate_target_expression,
 )
 from tauso.timer import Timer
@@ -138,9 +138,9 @@ def canonical_transcripts(target_genes):
 
 
 @pytest.mark.parametrize("mini_sampled_data", [1000], indirect=True)
-def test_target_dominant_transcript_regression(
+def test_target_canonical_transcript_regression(
     mini_sampled_data, target_gene_transcripts, canonical_transcripts, dataframe_regression
 ):
     data = mini_sampled_data.copy()
-    result, feats = populate_target_dominant_transcript(data, target_gene_transcripts, canonical_transcripts)
+    result, feats = populate_target_canonical_transcript(data, target_gene_transcripts, canonical_transcripts)
     dataframe_regression.check(result[["index_oligo"] + feats])

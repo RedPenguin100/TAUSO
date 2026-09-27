@@ -114,7 +114,7 @@ LABEL = {
     "hybr_moe_md_gb_dg": "MOE duplex ΔG (MD, GB)",
     "expr_rnase_transcript": "RNase H1 expression",
     "expr_target": "Target mRNA expression",
-    "expr_target_dom_fraction": "Canonical isoform share",
+    "expr_target_canonical_fraction": "Canonical isoform share",
     "halflife_value": "Target mRNA half-life",
     "structure_sense_dist_to_splice_junction_exonic": "Distance to splice junction (exonic)",
     "structure_sense_dist_to_closest_splice_junction": "Distance to nearest splice junction",

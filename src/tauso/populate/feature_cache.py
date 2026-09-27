@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 ZENODO_FEATURES_RECORD = "22997684"
 FEATURE_CACHE_FILES = {
     "oligo": {
-        "filename": "atlas_v2.parquet",
-        "md5": "6cb68232f32782f061fc20ce608919b3",
+        "filename": "atlas_v3.parquet",
+        "md5": "28efe3eaaaf591b8a6d813b6b4d8cccd",
         "index_col": "index_oligo",
     },
 }
