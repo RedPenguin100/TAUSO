@@ -136,7 +136,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libcblas-3.11.0-11_h0358290_open
 https://conda.anaconda.org/conda-forge/linux-64/libgd-2.3.3-h5fbf134_12.conda#88c1c66987cd52a712eea89c27104be6
 https://conda.anaconda.org/conda-forge/linux-64/libgl-1.7.0-ha4b6fd6_5.conda#81141db127a106eb5a91df69a29c9918
 https://conda.anaconda.org/conda-forge/linux-64/libglx-devel-1.7.0-ha4b6fd6_5.conda#fb00b4fb800f2d431303a5c1625ef9d0
-https://conda.anaconda.org/conda-forge/linux-64/libhwloc-2.13.0-default_he001693_1000.conda#c197985b58bc813d26b42881f0021c82
+https://conda.anaconda.org/conda-forge/linux-64/libhwloc-2.15.0-default_hd7c4d0c_1001.conda#66c755b3bd9ec82308fa6ec7674f473f
 https://conda.anaconda.org/conda-forge/linux-64/liblapack-3.11.0-11_h47877c9_openblas.conda#5622a13917855ce4b953b9e655cf9262
 https://conda.anaconda.org/conda-forge/linux-64/libxkbcommon-1.13.2-h51789e4_1.conda#f888787e0eab7a8076a67d197e155ffc
 https://conda.anaconda.org/conda-forge/linux-64/markupsafe-3.0.3-py312h8a5da7c_1.conda#93a4752d42b12943a355b682ee43285b
@@ -208,7 +208,7 @@ https://conda.anaconda.org/conda-forge/noarch/referencing-0.37.0-pyhcf101f3_0.co
 https://conda.anaconda.org/conda-forge/noarch/rfc3339-validator-0.1.4-pyhd8ed1ab_1.conda#36de09a8d3e5d5e6f4ee63af49e59706
 https://conda.anaconda.org/conda-forge/noarch/rfc3987-syntax-1.1.0-pyhe01879c_1.conda#7234f99325263a5af6d4cd195035e8f2
 https://conda.anaconda.org/conda-forge/noarch/stack_data-0.6.3-pyhd8ed1ab_1.conda#b1b505328da7a6b246787df4b5a49fbc
-https://conda.anaconda.org/conda-forge/linux-64/tbb-2023.1.0-hfd44327_0.conda#b17ef6c181922df16e9b1330fd00fe85
+https://conda.anaconda.org/conda-forge/linux-64/tbb-2023.1.0-haa8c3ee_1.conda#129f4b9417fdc6405b16479e3017aabd
 https://conda.anaconda.org/conda-forge/noarch/terminado-0.18.1-pyhc90fa1f_1.conda#17b43cee5cc84969529d5d0b0309b2cb
 https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda#f1acf5fdefa8300de697982bcb1761c9
 https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.16.0-h69aa097_0.conda#c680b5747e8c4c8f23dca0bb7042a8fc
