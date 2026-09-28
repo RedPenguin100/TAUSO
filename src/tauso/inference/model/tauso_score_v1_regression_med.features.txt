@@ -138,7 +138,7 @@ expr_stab2
 expr_stx5
 expr_stx6
 expr_target
-expr_target_dom_fraction
+expr_target_canonical_fraction
 expr_tlr9
 expr_unc93b1
 expr_xrcc5

@@ -63,7 +63,7 @@ TARGET_EXPRESSION_FEATURE_NAMES: List[str] = ["expr_target"]
 # expr_target alone cannot tell them apart. A share rather than an amount, so it says something
 # expr_target does not already carry. The canonical isoform is the one an ASO is designed
 # against, which the most abundant isoform in a given cell line need not be.
-TARGET_TRANSCRIPT_FEATURE_NAMES: List[str] = ["expr_target_dom_fraction"]
+TARGET_TRANSCRIPT_FEATURE_NAMES: List[str] = ["expr_target_canonical_fraction"]
 
 # RNase H1 cleaves the ASO:RNA heteroduplex, and unlike the genes above it is taken per
 # transcript: RNASEH1-201 carries 90% of the gene, so the gene total and the canonical
@@ -143,7 +143,7 @@ def populate_target_expression(
     return df, TARGET_EXPRESSION_FEATURE_NAMES
 
 
-def populate_target_dominant_transcript(
+def populate_target_canonical_transcript(
     df: pd.DataFrame, transcript_dict: Dict[str, pd.DataFrame], canonical: Dict[str, str]
 ) -> Tuple[pd.DataFrame, List[str]]:
     """Adds the target gene's canonical-transcript share (per cell line x gene) to df.
@@ -157,7 +157,7 @@ def populate_target_dominant_transcript(
         wanted = t_df["Gene"].map(canonical)
         is_canonical = wanted.notna() & (t_df["TranscriptName"] == wanted)
         best = t_df.groupby("Gene")["expression_TPM"].sum().rename("gene_tpm").to_frame()
-        best["top_tpm"] = t_df[is_canonical].groupby("Gene")["expression_TPM"].sum()
+        best["canonical_tpm"] = t_df[is_canonical].groupby("Gene")["expression_TPM"].sum()
         best = best.reset_index().assign(**{CELL_LINE_DEPMAP: depmap_id})
         frames.append(best)
 
@@ -167,11 +167,11 @@ def populate_target_dominant_transcript(
         return df, TARGET_TRANSCRIPT_FEATURE_NAMES
 
     master = pd.concat(frames, ignore_index=True)
-    # A gene with no expression at all has no dominant share to speak of.
-    master["expr_target_dom_fraction"] = np.where(
-        master["gene_tpm"] > 0, master["top_tpm"] / master["gene_tpm"], np.nan
+    # A gene with no expression at all has no canonical share to speak of.
+    master["expr_target_canonical_fraction"] = np.where(
+        master["gene_tpm"] > 0, master["canonical_tpm"] / master["gene_tpm"], np.nan
     )
-    values = master.set_index([CELL_LINE_DEPMAP, "Gene"])["expr_target_dom_fraction"]
+    values = master.set_index([CELL_LINE_DEPMAP, "Gene"])["expr_target_canonical_fraction"]
     df[TARGET_TRANSCRIPT_FEATURE_NAMES[0]] = _lookup(values, df[CELL_LINE_DEPMAP], df[CANONICAL_GENE_NAME])
     return df, TARGET_TRANSCRIPT_FEATURE_NAMES
 

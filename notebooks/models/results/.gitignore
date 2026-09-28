@@ -1,5 +1,6 @@
-# Generated artifacts (regenerate via 5_final_model.py). Reports/rankings (*.txt) are tracked.
-# The deployment model is tracked so inference runs without retraining.
+# Generated artifacts: boosters, test predictions, SHAP caches and figures.
+# Reports (*.txt) are tracked, so a run's numbers stay in the repository.
 *.json
 *.npz
-!final_model_clean_exp_K450_all.json
+*.parquet
+*.png

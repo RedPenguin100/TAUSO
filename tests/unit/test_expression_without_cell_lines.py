@@ -10,7 +10,7 @@ from tauso.data.consts import CANONICAL_GENE_NAME, CELL_LINE_DEPMAP
 from tauso.populate.populate_context import (
     populate_special_gene_expression,
     populate_special_transcript_expression,
-    populate_target_dominant_transcript,
+    populate_target_canonical_transcript,
     populate_target_expression,
 )
 
@@ -24,8 +24,8 @@ ROWS = pd.DataFrame(
 POPULATE_FUNCTIONS = [
     populate_target_expression,
     populate_special_gene_expression,
-    # the dominant-transcript step also takes the canonical map; nothing resolved means it is empty too
-    partial(populate_target_dominant_transcript, canonical={}),
+    # the canonical-transcript step also takes the canonical map; nothing resolved means it is empty too
+    partial(populate_target_canonical_transcript, canonical={}),
     populate_special_transcript_expression,
 ]
 

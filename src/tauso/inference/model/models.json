@@ -1,21 +1,21 @@
 {
-  "zenodo_record": "22956592",
+  "zenodo_record": "23001613",
   "models": {
     "v1": {
       "filename": "tauso_score_v1_clean_exp_med.json",
-      "md5": "0f0364451aebbaff98115a8367510694"
+      "md5": "6a889c53517eb6352b12f807ea45d308"
     },
     "v1_clean_exp_low": {
       "filename": "tauso_score_v1_clean_exp_low.json",
-      "md5": "dfbff660d6a60819cd2dabb64e26bc57"
+      "md5": "fa3be2e3fc35d054e06479d0ce76d0b7"
     },
     "v1_regression_low": {
       "filename": "tauso_score_v1_regression_low.json",
-      "md5": "de5971c1fe67cb3a8b514dd9dc32dc8b"
+      "md5": "d085fc0e8b0de26b26132087ac3a284e"
     },
     "v1_regression_med": {
       "filename": "tauso_score_v1_regression_med.json",
-      "md5": "5bdc8406590cc4b1e10bf197c423ab26"
+      "md5": "438c8228b1a363282c26a0716a3239c1"
     }
   }
 }
