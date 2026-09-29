@@ -20,6 +20,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from scipy.stats import spearmanr
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -77,7 +78,7 @@ def family_of(feature):
         return "RNase H1 motifs"
     if f.startswith("tox_"):
         return "Toxicity / liability"
-    if f.startswith("shape_"):
+    if f.startswith("shape_") or f == "seq_internal_fold_rna":
         return "ASO:RNA shape"
     if f.startswith("hybr_") or f.startswith("on_target_total_hybridization"):
         return "Hybridization"
@@ -172,6 +173,35 @@ def family_importance(values, features):
             }
         )
     return pd.DataFrame(rows).sort_values("importance", ascending=False).reset_index(drop=True)
+
+
+def feature_importance(values, features, frame):
+    """Every feature's mean |SHAP|, with the direction its value pushes the prediction.
+
+    Direction is the Spearman correlation between a feature's value and its own SHAP value:
+    positive means a higher value argues for more knockdown. It is undefined for a feature that
+    is constant, or missing, wherever the model looked.
+    """
+    rows = []
+    for column, feature in enumerate(features):
+        shap_column = values[:, column]
+        value = pd.to_numeric(frame[feature], errors="coerce").to_numpy(dtype=float)
+        known = np.isfinite(value)
+        direction = np.nan
+        if known.sum() > 1 and len(np.unique(value[known])) > 1:
+            direction = spearmanr(value[known], shap_column[known]).correlation
+        rows.append(
+            {
+                "feature": feature,
+                "family": family_of(feature),
+                "importance": float(np.abs(shap_column).mean()),
+                "direction": float(direction),
+                "missing": float(1.0 - known.mean()),
+            }
+        )
+    out = pd.DataFrame(rows).sort_values("importance", ascending=False).reset_index(drop=True)
+    out.insert(0, "rank", np.arange(1, len(out) + 1))
+    return out
 
 
 def _swarm_offsets(x, rng, height=0.42, bins=96):
@@ -313,6 +343,27 @@ def main():
         *(f"{r.family:24}{r.importance:17.3f}{r.n_features:10d}" for r in families.itertuples()),
     ]
     common.write_report(lines, f"shap_{args.version}_family_importance.txt")
+
+    per_feature = feature_importance(values, features, test)
+    common.write_checked(
+        common.RESULTS_DIR / f"shap_{args.version}_feature_importance.txt",
+        "\n".join(
+            [
+                f"Deployed model {args.version}: SHAP over the held-out test split, n={len(test)}",
+                "importance = mean |SHAP| in percentage points of inhibition; direction = Spearman",
+                "between the feature's value and its own SHAP value; missing = fraction of rows with no value",
+                "",
+                f"{'rank':>5}  {'feature':52}{'family':24}{'importance':>11}{'direction':>11}{'missing':>9}",
+                *(
+                    f"{r.rank:5d}  {r.feature:52}{r.family:24}{r.importance:11.4f}"
+                    f"{r.direction:11.3f}{r.missing:9.3f}"
+                    for r in per_feature.itertuples()
+                ),
+            ]
+        )
+        + "\n",
+    )
+    print(f"saved -> {common.RESULTS_DIR / f'shap_{args.version}_feature_importance.txt'} ({len(per_feature)} features)")
 
     out_path = common.RESULTS_DIR / f"shap_{args.version}.png"
     draw(families, values, features, test, args.top, out_path, f"deployed model {args.version}, held-out test split")
