@@ -15,7 +15,7 @@ Starting from the 679-feature matrix, the lowest-gain features were dropped step
 | `results_by_n.csv` | one row per feature count: CV and TEST rmse, mae, exp_med, exp_mean, gxc_med, gxc_mean, and TEST top5, p5, p10, globP |
 | `curve.csv`, `test_curve.csv` | the same numbers with their sds, per feature count, for CV and TEST |
 | `drop_order.csv` | every feature, the last n it was in the model and the first n without it; features dropped in the same step share one row of n (`dropped_together_with` says how many others left in that step); 10 features are never dropped |
-| `feats/feats_<n>.json` | the exact feature list at each feature count |
+| `features_by_n.json` | the exact feature list at each feature count, as `{"679": [...], ..., "10": [...]}` |
 | `other_models_test.csv` | TEST exp_med for the LOW/MED `clean_exp` and `regression` deploy configs on the same matrix and split, 3 seeds each |
 | `oligoai_test_panel.json` | OligoAI's TEST scores |
 | `make_tables.py` | rebuilds `results_by_n.csv` and `drop_order.csv` |

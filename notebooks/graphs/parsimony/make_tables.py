@@ -1,6 +1,5 @@
-"""Builds the per-rung result table and the drop-order table from curve.csv, test_curve.csv and feats/."""
+"""Builds the per-rung result table and the drop-order table from curve.csv, test_curve.csv and features_by_n.json."""
 import json
-import re
 from pathlib import Path
 
 import pandas as pd
@@ -15,8 +14,7 @@ table = cv[["n"] + [f"cv_{c}" for c in cols]].merge(
     te[["n"] + [f"test_{c}" for c in tcols]], on="n")
 table.sort_values("n", ascending=False).round(4).to_csv(L / "results_by_n.csv", index=False)
 
-sets = {int(re.search(r"feats_(\d+)", p.name).group(1)): json.loads(p.read_text())
-        for p in (L / "feats").glob("feats_*.json")}
+sets = {int(n): feats for n, feats in json.loads((L / "features_by_n.json").read_text()).items()}
 ns = sorted(sets, reverse=True)
 rows = []
 for big, small in zip(ns, ns[1:]):
