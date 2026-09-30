@@ -1,0 +1,5 @@
+TAUSO shipped model on the held-out test of the frozen OligoAI split   test=21682   679 features
+
+HELD-OUT TEST (genome-derived features)
+                            exp_med  exp_mean   gxc_med  gxc_mean      top5        p5       p10     globP
+TAUSO tauso_score_v1          0.611     0.586     0.548     0.497    76.000     0.373     0.463     0.595

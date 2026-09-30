@@ -1,0 +1,69 @@
+OligoGym baselines vs the shipped TAUSO model -- held-out test of the frozen OligoAI split
+test rows: 21682
+
+exp_med / exp_mean: within-experiment (custom_id) Spearman, median and mean
+gxc_*:              same, grouped by cohort (gene x cell line)
+top5:               mean actual inhibition of the top 5% predicted, median over experiments
+p5 / p10:           precision@5 / @10 within an experiment
+globP:              Pearson over all test rows at once
+
+                                exp_med  exp_mean   gxc_med  gxc_mean      top5        p5       p10     globP   vs TAUSO   features
+tauso_score_v1                    0.611     0.586     0.548     0.497    76.000     0.373     0.463     0.595  reference   genome-derived
+oligo_ai_score                    0.435     0.420     0.320     0.345    67.500     0.232     0.357     0.461    -0.176   published competitor
+kmers/xgboost/clean_exp           0.345     0.329     0.330     0.294    62.500     0.195     0.289     0.346    -0.266   sequence+chemistry
+kmers/rf/clean_exp+cov            0.342     0.331     0.312     0.286    59.250     0.181     0.290     0.371    -0.269   sequence+chemistry+covariates
+kmers/xgboost/reg                 0.337     0.330     0.309     0.306    61.250     0.203     0.292     0.338    -0.274   sequence+chemistry
+thermo/rf/clean_exp+cov           0.335     0.323     0.281     0.261    61.500     0.176     0.309     0.365    -0.276   sequence+chemistry+covariates
+onehot/rf/clean_exp+cov           0.333     0.324     0.306     0.278    61.000     0.215     0.305     0.337    -0.278   sequence+chemistry+covariates
+onehot/xgboost/clean_exp          0.329     0.332     0.287     0.267    61.500     0.194     0.297     0.318    -0.282   sequence+chemistry
+thermo/xgboost/clean_exp          0.329     0.320     0.322     0.277    63.500     0.182     0.297     0.349    -0.282   sequence+chemistry
+thermo/xgboost/clean_exp+cov      0.328     0.317     0.308     0.286    63.250     0.176     0.293     0.352    -0.282   sequence+chemistry+covariates
+kmers/rf/reg                      0.325     0.323     0.283     0.264    61.500     0.189     0.287     0.337    -0.286   sequence+chemistry
+onehot/rf/reg                     0.324     0.322     0.294     0.290    60.750     0.198     0.305     0.300    -0.287   sequence+chemistry
+kmers/rf/clean_exp                0.322     0.320     0.294     0.267    63.000     0.196     0.299     0.338    -0.289   sequence+chemistry
+thermo/rf/clean_exp               0.322     0.302     0.264     0.230    64.250     0.205     0.304     0.338    -0.289   sequence+chemistry
+onehot/xgboost/reg                0.321     0.329     0.287     0.253    62.000     0.185     0.295     0.283    -0.290   sequence+chemistry
+onehot/xgboost/clean_exp+cov      0.319     0.318     0.278     0.257    60.750     0.187     0.300     0.309    -0.292   sequence+chemistry+covariates
+kmers/xgboost/clean_exp+cov       0.318     0.324     0.307     0.289    60.000     0.192     0.286     0.362    -0.292   sequence+chemistry+covariates
+kmers/rf/reg+cov                  0.316     0.320     0.228     0.239    60.500     0.194     0.287     0.348    -0.295   sequence+chemistry+covariates
+thermo/xgboost/reg                0.313     0.309     0.273     0.281    61.500     0.184     0.284     0.367    -0.298   sequence+chemistry
+onehot/rf/clean_exp               0.310     0.311     0.281     0.262    59.000     0.184     0.302     0.316    -0.300   sequence+chemistry
+onehot/rf/reg+cov                 0.290     0.290     0.258     0.256    61.214     0.209     0.280     0.242    -0.321   sequence+chemistry+covariates
+thermo/rf/reg+cov                 0.282     0.269     0.255     0.259    58.500     0.157     0.252     0.216    -0.328   sequence+chemistry+covariates
+thermo/rf/reg                     0.281     0.272     0.256     0.212    58.750     0.174     0.274     0.334    -0.330   sequence+chemistry
+kmers/xgboost/reg+cov             0.279     0.291     0.286     0.276    58.750     0.166     0.271     0.288    -0.332   sequence+chemistry+covariates
+kmers/linear/reg+cov              0.278     0.275     0.246     0.248    59.250     0.153     0.258     0.161    -0.333   sequence+chemistry+covariates
+onehot/xgboost/reg+cov            0.275     0.275     0.212     0.201    56.000     0.153     0.261     0.173    -0.336   sequence+chemistry+covariates
+kmers/linear/clean_exp            0.272     0.271     0.246     0.253    58.250     0.155     0.255     0.268    -0.339   sequence+chemistry
+kmers/linear/clean_exp+cov        0.271     0.270     0.246     0.247    57.750     0.151     0.252     0.245    -0.340   sequence+chemistry+covariates
+kmers/linear/reg                  0.244     0.252     0.246     0.220    56.000     0.149     0.241     0.272    -0.366   sequence+chemistry
+onehot/linear/reg+cov             0.243     0.239     0.161     0.157    55.750     0.183     0.256     0.085    -0.368   sequence+chemistry+covariates
+onehot/linear/clean_exp           0.236     0.235     0.162     0.153    55.750     0.178     0.257     0.225    -0.374   sequence+chemistry
+thermo/xgboost/reg+cov            0.233     0.223     0.256     0.243    56.000     0.132     0.229     0.187    -0.377   sequence+chemistry+covariates
+onehot/linear/clean_exp+cov       0.231     0.234     0.162     0.146    55.750     0.178     0.257     0.187    -0.380   sequence+chemistry+covariates
+onehot/linear/reg                 0.230     0.235     0.153     0.149    54.500     0.170     0.256     0.182    -0.380   sequence+chemistry
+onehot/knn/clean_exp              0.210     0.217     0.228     0.195    57.000     0.147     0.241     0.208    -0.401   sequence+chemistry
+kmers/knn/clean_exp+cov           0.202     0.200     0.166     0.157    54.500     0.121     0.224     0.214    -0.409   sequence+chemistry+covariates
+onehot/knn/reg                    0.202     0.200     0.224     0.186    56.000     0.127     0.227     0.200    -0.409   sequence+chemistry
+kmers/knn/reg+cov                 0.200     0.189     0.161     0.140    53.750     0.107     0.216     0.284    -0.411   sequence+chemistry+covariates
+onehot/knn/clean_exp+cov          0.198     0.198     0.179     0.160    56.250     0.149     0.228     0.224    -0.413   sequence+chemistry+covariates
+OW_Duplex                         0.198     0.135     0.009    -0.007    45.250     0.069     0.170    -0.079    -0.413   published competitor
+onehot/knn/reg+cov                0.192     0.190     0.169     0.162    53.750     0.132     0.221     0.317    -0.419   sequence+chemistry+covariates
+thermo/linear/reg+cov             0.188     0.179     0.180     0.166    52.250     0.120     0.222     0.095    -0.422   sequence+chemistry+covariates
+thermo/linear/clean_exp+cov       0.188     0.178     0.199     0.177    51.750     0.112     0.222     0.167    -0.423   sequence+chemistry+covariates
+kmers/knn/clean_exp               0.188     0.195     0.151     0.163    54.750     0.143     0.221     0.206    -0.423   sequence+chemistry
+kmers/knn/reg                     0.185     0.190     0.158     0.155    52.750     0.131     0.226     0.212    -0.425   sequence+chemistry
+OW_Intra_Oligo                    0.184     0.160     0.160     0.095    50.500     0.048     0.121     0.120    -0.427   published competitor
+thermo/knn/clean_exp+cov          0.178     0.169     0.155     0.156    52.000     0.124     0.215     0.202    -0.433   sequence+chemistry+covariates
+thermo/linear/clean_exp           0.177     0.171     0.173     0.174    51.750     0.120     0.214     0.203    -0.434   sequence+chemistry
+thermo/knn/reg+cov                0.165     0.165     0.153     0.132    52.250     0.121     0.217     0.299    -0.446   sequence+chemistry+covariates
+thermo/knn/clean_exp              0.164     0.150     0.157     0.141    52.250     0.106     0.204     0.176    -0.447   sequence+chemistry
+thermo/linear/reg                 0.153     0.150     0.195     0.180    52.250     0.112     0.194     0.213    -0.457   sequence+chemistry
+miranda_energy                    0.140     0.095    -0.025    -0.050    39.625     0.075     0.157     0.006    -0.471   published competitor
+thermo/knn/reg                    0.138     0.139     0.134     0.127    51.250     0.101     0.197     0.177    -0.472   sequence+chemistry
+OW_Overall                        0.136     0.088     0.037    -0.033    41.250     0.054     0.154    -0.117    -0.475   published competitor
+sfold_accessibility               0.112     0.115     0.098     0.090    50.125     0.121     0.192     0.105    -0.498   published competitor
+PFRED_PLS                         0.016     0.012     0.043     0.078    44.250     0.071     0.148    -0.038    -0.595   published competitor
+PFRED_SVM                        -0.005     0.001     0.092     0.113    41.125     0.061     0.132    -0.072    -0.616   published competitor
+miranda_score                    -0.124    -0.090    -0.086    -0.090    40.000     0.039     0.103     0.154    -0.735   published competitor
+OW_Tm                            -0.201    -0.140    -0.007     0.007    30.250     0.023     0.066    -0.006    -0.812   published competitor
