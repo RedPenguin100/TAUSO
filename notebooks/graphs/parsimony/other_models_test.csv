@@ -1,0 +1,5 @@
+label,color,seeds,test_exp_med
+LOW clean_exp,#3f8f5a,3,0.6035753544983856
+LOW reg,#7b4f9e,3,0.591187861036017
+MED reg,#c98a1b,3,0.5993222623755803
+MED clean_exp,#3f8f5a,3,0.6126317267633715
