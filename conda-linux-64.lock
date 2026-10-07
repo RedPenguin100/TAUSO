@@ -32,10 +32,10 @@ https://conda.anaconda.org/conda-forge/linux-64/openssl-3.6.5-h781a0a9_0.conda#5
 https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h1df4ec4_4.conda#676a2f9b1c4fcf57b70aa5c65f6c60d0
 https://conda.anaconda.org/conda-forge/linux-64/gmp-6.3.0-hfd2156b_3.conda#576e32739f323438bf69ab006c21be7b
 https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-py310h44b86e0_2.conda#72a381cbad04f24b1c2a43ef707f45b4
-https://conda.anaconda.org/conda-forge/linux-64/libedit-3.1.20250104-pl5321h373387f_1.conda#50708d3b951d0f8e2d7f2df5b5edc040
+https://conda.anaconda.org/conda-forge/linux-64/libedit-3.1.20260512-pl5321h373387f_0.conda#27dbd7e2984b8fe48e069379636ccfdd
 https://conda.anaconda.org/conda-forge/linux-64/libgfortran-16.2.0-h69a702a_7.conda#3a8d285f5f22138ef826ad54cf267e73
 https://conda.anaconda.org/conda-forge/linux-64/libnghttp2-1.68.1-h74cf4be_1.conda#75d211f04ac87506f1f43420712a69fe
-https://conda.anaconda.org/conda-forge/linux-64/libpython-3.12.14-h0c77377_3_cpython.conda#d247b7632f09324c11f24b5270361385
+https://conda.anaconda.org/conda-forge/linux-64/libpython-3.12.15-h0c77377_1_cpython.conda#3e3a9aa4380cafbbf84a039e92057ff2
 https://conda.anaconda.org/conda-forge/linux-64/libssh2-1.11.1-h6154650_1.conda#5c526561e1d2a2e071941174eae84557
 https://conda.anaconda.org/conda-forge/linux-64/perl-5.32.1-10_h7cc23a3_perl5.conda#dfa988f7a513f0f441ba36d128b5d327
 https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-hd6e31c0_1.conda#69c01c781e7c8190bbdaf79e3848c5ca
@@ -44,7 +44,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libopenblas-0.3.34-pthreads_hf13
 https://conda.anaconda.org/conda-forge/linux-64/libpsl-0.23.1-hd9e3e90_1.conda#77be60417aa572afcb48cbe0f967401d
 https://conda.anaconda.org/conda-forge/linux-64/libxml2-16-2.15.4-hf3af7cc_0.conda#b7545c57a73a51d72aa6eee5695cf051
 https://conda.anaconda.org/conda-forge/linux-64/mpfr-4.2.2-ha2cb11d_1.conda#7dcc10f6c0bc3596d5519a710a84dfd4
-https://conda.anaconda.org/conda-forge/linux-64/python-3.12.14-h5f976f7_3_cpython.conda#98be3cf76eca2e8871f907a03aed3b84
+https://conda.anaconda.org/conda-forge/linux-64/python-3.12.15-h5f976f7_1_cpython.conda#8694345e58c6418b22dcde5ccd6cb0b4
 https://conda.anaconda.org/conda-forge/linux-64/libblas-3.11.0-11_h4a7cf45_openblas.conda#b8cce1486f3c62f33291d6318c193d0d
 https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.22.0-ha042cf0_0.conda#e617deee7af8eb0c04f6296d12b54157
 https://conda.anaconda.org/conda-forge/linux-64/libxml2-2.15.4-h7df9aa5_0.conda#ea192d1ef556bf1d55de4acb8c0f5b65
