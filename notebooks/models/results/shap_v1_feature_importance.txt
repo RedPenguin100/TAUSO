@@ -1,0 +1,684 @@
+Deployed model v1: SHAP over the held-out test split, n=21682
+importance = mean |SHAP| in percentage points of inhibition; direction = Spearman
+between the feature's value and its own SHAP value; missing = fraction of rows with no value
+
+ rank  feature                                             family                   importance  direction  missing
+    1  seq_internal_fold_rna                               ASO:RNA shape                1.0286      0.795    0.000
+    2  structure_sense_junction_signed_logdist_intronic    Transcript context           0.8538      0.799    0.342
+    3  rnase_score_dinucleotide_R4a_dinuc_dynamic          RNase H1 motifs              0.7606     -0.964    0.000
+    4  ohe_pos0_G                                          Sequence & motifs            0.6189      0.753    0.000
+    5  fold_mfe_win25_flank30_step4                        Target accessibility         0.5980      0.941    0.000
+    6  flank_gc_content_20                                 Transcript context           0.5745     -0.960    0.000
+    7  seq_gc_content_3prime_end                           Sequence & motifs            0.5679      0.875    0.000
+    8  seq_entropy                                         Sequence & motifs            0.5652      0.754    0.000
+    9  selfaso_hp_dg_per_nt                                Sequence & motifs            0.5645      0.670    0.000
+   10  structure_sense_signed_dist_to_canonical_start      Transcript context           0.5508      0.119    0.129
+   11  fold_mfe_aso5end                                    Target accessibility         0.5461      0.882    0.000
+   12  mod_sugar_wing_gap_gc_delta                         Chemistry                    0.5280      0.885    0.000
+   13  structure_sense_branch_point_signed_dist            Transcript context           0.5249      0.936    0.342
+   14  interaction_selfaso_homodimer_perfect_dg_gymnosis   Delivery & assay             0.5074      0.750    0.000
+   15  structure_sense_dist_to_splice_junction_exonic      Transcript context           0.4916      0.160    0.665
+   16  structure_sense_junction_logdist_exonic             Transcript context           0.4847      0.137    0.665
+   17  rnase_krel_dinucleotide_score_R4a_krel_dinuc_dynamicRNase H1 motifs              0.4683      0.905    0.000
+   18  selfaso_homodimer_mismatched_dg                     Sequence & motifs            0.4660      0.833    0.000
+   19  shape_htip_j3                                       ASO:RNA shape                0.4636     -0.950    0.017
+   20  ohe_3p7_G                                           Sequence & motifs            0.4526      0.690    0.000
+   21  structure_sense_junction_signed_logdist_exonic      Transcript context           0.4514      0.547    0.665
+   22  rbp_hnrnpa1l2_aff_5                                 RBP binding                  0.4449     -0.862    0.000
+   23  hybr_moe_wing5_dg                                   Hybridization                0.4390     -0.568    0.696
+   24  selfaso_homodimer_perfect_dg_per_nt                 Sequence & motifs            0.4339      0.692    0.000
+   25  selfaso_homodimer_mismatched_dg_per_nt              Sequence & motifs            0.4055      0.853    0.000
+   26  structure_sense_branch_point_signed_logdist         Transcript context           0.4032      0.931    0.342
+   27  dinuc_AA_j5                                         Sequence & motifs            0.3922      0.959    0.009
+   28  expr_target_canonical_fraction                      Expression & half-life       0.3883     -0.356    0.141
+   29  structure_sense_host_exon_log_length                Transcript context           0.3828     -0.656    0.665
+   30  structure_sense_signed_dist_to_canonical_stop       Transcript context           0.3702      0.650    0.129
+   31  ohe_3p6_T                                           Sequence & motifs            0.3658     -0.786    0.000
+   32  structure_sense_signed_dist_to_closest_stop         Transcript context           0.3652      0.897    0.129
+   33  fold_mfe_win40_flank30_step5                        Target accessibility         0.3618      0.927    0.000
+   34  hybr_ps_dna_rna_dg                                  Hybridization                0.3614     -0.932    0.000
+   35  seq_gc_content                                      Sequence & motifs            0.3539      0.656    0.000
+   36  ohe_3p5_T                                           Sequence & motifs            0.3454     -0.765    0.000
+   37  structure_sense_dist_to_canonical_stop              Transcript context           0.3372     -0.573    0.129
+   38  hybr_cet_wing5_dg                                   Hybridization                0.3348      0.024    0.313
+   39  selfaso_hp_dg                                       Sequence & motifs            0.3266      0.722    0.000
+   40  access_f60_sinf_u6_a3_std                           Target accessibility         0.3196     -0.935    0.000
+   41  structure_sense_signed_dist_to_closest_start        Transcript context           0.3019     -0.365    0.129
+   42  shape_hincl_j5                                      ASO:RNA shape                0.2997     -0.908    0.014
+   43  access_f60_sinf_u10_a5                              Target accessibility         0.2914     -0.778    0.000
+   44  structure_sense_mrna_dist_to_canonical_stop         Transcript context           0.2880      0.524    0.744
+   45  shape_hrise_gap_spread                              ASO:RNA shape                0.2844     -0.942    0.005
+   46  selfaso_homodimer_perfect_dg                        Sequence & motifs            0.2791      0.535    0.000
+   47  structure_sense_dist_to_closest_start               Transcript context           0.2788     -0.569    0.129
+   48  ohe_3p6_G                                           Sequence & motifs            0.2730      0.684    0.000
+   49  dinuc_GC_j5                                         Sequence & motifs            0.2720     -0.867    0.009
+   50  selfaso_homodimer_mismatched_len                    Sequence & motifs            0.2685     -0.459    0.000
+   51  volume_nm                                           Delivery & assay             0.2648      0.768    0.036
+   52  fold_mfe_aso3end                                    Target accessibility         0.2632      0.857    0.000
+   53  selfaso_hp_modpairs                                 Sequence & motifs            0.2627     -0.760    0.000
+   54  dinuc_GT_wing5                                      Sequence & motifs            0.2625      0.258    0.009
+   55  structure_sense_dist_to_closest_stop                Transcript context           0.2619     -0.899    0.129
+   56  dinuc_GT_j3                                         Sequence & motifs            0.2586     -0.902    0.011
+   57  structure_sense_mrna_dist_to_closest_stop           Transcript context           0.2573      0.421    0.744
+   58  rbp_msi1_aff_5                                      RBP binding                  0.2566     -0.596    0.000
+   59  hybr_cet_wing3_dg                                   Hybridization                0.2530     -0.933    0.313
+   60  hybr_dna_rna_dg                                     Hybridization                0.2502     -0.943    0.000
+   61  structure_sense_dist_to_splice_junction_intronic    Transcript context           0.2476     -0.140    0.342
+   62  structure_sense_host_intron_log_length              Transcript context           0.2429     -0.514    0.342
+   63  shape_slide_j5_spread                               ASO:RNA shape                0.2427      0.915    0.014
+   64  on_target_total_hybridization_800                   Hybridization                0.2412      0.939    0.000
+   65  dinuc_GT_wing3                                      Sequence & motifs            0.2399     -0.792    0.012
+   66  structure_sense_start                               Transcript context           0.2377     -0.507    0.000
+   67  dinuc_AC_gap                                        Sequence & motifs            0.2316      0.917    0.009
+   68  access_f60_sinf_u6_a5_std                           Target accessibility         0.2290     -0.761    0.000
+   69  structure_sense_local_donor_mean                    Transcript context           0.2286      0.337    0.000
+   70  structure_sense_cryptic_acceptor_delta              Transcript context           0.2232      0.953    0.342
+   71  structure_sense_start_norm                          Transcript context           0.2218      0.480    0.000
+   72  structure_sense_start_from_end_norm                 Transcript context           0.2205     -0.487    0.000
+   73  fold_mfe_win55_flank60_step5                        Target accessibility         0.2196      0.879    0.000
+   74  shape_hy_j5_spread                                  ASO:RNA shape                0.2191      0.860    0.014
+   75  expr_xrcc5                                          Expression & half-life       0.2157     -0.293    0.141
+   76  structure_sense_start_from_end                      Transcript context           0.2154     -0.410    0.000
+   77  hybr_dna_dna_minus_dna_rna_dg                       Hybridization                0.2144      0.906    0.000
+   78  access_f60_sinf_u6_aso5end                          Target accessibility         0.2142     -0.648    0.000
+   79  shape_zp_j5                                         ASO:RNA shape                0.2077      0.479    0.014
+   80  shape_htwist_j5                                     ASO:RNA shape                0.2069     -0.840    0.014
+   81  rbp_rbm28_aff_5                                     RBP binding                  0.2067     -0.944    0.000
+   82  seq_ry_transition_fraction                          Sequence & motifs            0.2054      0.943    0.000
+   83  dinuc_CA_gap                                        Sequence & motifs            0.2033     -0.777    0.009
+   84  seq_g_count                                         Sequence & motifs            0.2028      0.888    0.000
+   85  structure_sense_junction_logdist_intronic           Transcript context           0.2018     -0.182    0.342
+   86  shape_hx_j5                                         ASO:RNA shape                0.2001      0.895    0.014
+   87  structure_sense_cryptic_donor_max                   Transcript context           0.1972     -0.553    0.000
+   88  dinuc_TG_gap                                        Sequence & motifs            0.1935      0.953    0.009
+   89  hybr_dna_dna_dg                                     Hybridization                0.1924     -0.941    0.000
+   90  structure_sense_dist_to_closest_splice_junction     Transcript context           0.1900      0.181    0.000
+   91  access_f60_sinf_u13_a5                              Target accessibility         0.1882     -0.681    0.000
+   92  rbp_srp54_aff_5                                     RBP binding                  0.1880     -0.923    0.000
+   93  structure_sense_branch_point_offset                 Transcript context           0.1871     -0.057    0.342
+   94  shape_hincl_j3_spread                               ASO:RNA shape                0.1860     -0.977    0.017
+   95  ohe_pos1_A                                          Sequence & motifs            0.1839     -0.762    0.000
+   96  on_target_total_hybridization_1000                  Hybridization                0.1826      0.941    0.000
+   97  hybr_cet_dna_rna_dg                                 Hybridization                0.1818     -0.106    0.313
+   98  dinuc_AT_gap                                        Sequence & motifs            0.1797      0.956    0.009
+   99  rbp_supv3l1_aff_5                                   RBP binding                  0.1796     -0.621    0.000
+  100  dinuc_GC_gap                                        Sequence & motifs            0.1787     -0.441    0.009
+  101  rbp_hnrnpll_aff_5                                   RBP binding                  0.1783      0.944    0.000
+  102  expr_stx6                                           Expression & half-life       0.1781      0.650    0.141
+  103  shape_zp_wing5                                      ASO:RNA shape                0.1778      0.816    0.014
+  104  structure_sense_branch_point_score                  Transcript context           0.1776     -0.877    0.342
+  105  rbp_fxr1_aff_5                                      RBP binding                  0.1771      0.931    0.000
+  106  selfaso_homodimer_perfect_modpairs                  Sequence & motifs            0.1764     -0.536    0.000
+  107  dinuc_CA_j5                                         Sequence & motifs            0.1755     -0.888    0.009
+  108  dinuc_CT_j3                                         Sequence & motifs            0.1752      0.938    0.011
+  109  expr_egfr                                           Expression & half-life       0.1752      0.209    0.141
+  110  rbp_eri1_aff_5                                      RBP binding                  0.1722     -0.962    0.000
+  111  rnase_score_R4a_dynamic                             RNase H1 motifs              0.1709     -0.869    0.000
+  112  shape_htwist_j3                                     ASO:RNA shape                0.1707     -0.712    0.017
+  113  rbp_fxr2_aff_5                                      RBP binding                  0.1702     -0.926    0.000
+  114  rbp_rbm5_aff_5                                      RBP binding                  0.1686     -0.870    0.000
+  115  rbp_igf2bp3_aff_5                                   RBP binding                  0.1666      0.955    0.000
+  116  expr_myd88                                          Expression & half-life       0.1606     -0.423    0.141
+  117  rbp_igf2bp2_aff_5                                   RBP binding                  0.1580      0.913    0.000
+  118  rnase_krel_score_R4b_krel_dynamic                   RNase H1 motifs              0.1573      0.908    0.000
+  119  structure_sense_dist_to_canonical_start             Transcript context           0.1562     -0.310    0.129
+  120  rbp_rbfox2_aff_5                                    RBP binding                  0.1561     -0.456    0.000
+  121  shape_shift_j5                                      ASO:RNA shape                0.1556      0.623    0.014
+  122  structure_sense_junction_logdist_closest            Transcript context           0.1522      0.246    0.000
+  123  cai_score_global                                    Translational context        0.1512      0.025    0.129
+  124  ohe_pos5_T                                          Sequence & motifs            0.1487      0.802    0.000
+  125  hybr_moe_wing3_dg                                   Hybridization                0.1477     -0.931    0.696
+  126  seq_a_count                                         Sequence & motifs            0.1471     -0.633    0.000
+  127  dinuc_CA_wing3                                      Sequence & motifs            0.1466      0.168    0.012
+  128  structure_sense_branch_point_strong_count           Transcript context           0.1453     -0.811    0.342
+  129  rbp_samd4a_aff_5                                    RBP binding                  0.1441     -0.715    0.000
+  130  flank_at_skew_20                                    Transcript context           0.1404      0.061    0.000
+  131  seq_homooligo_count                                 Sequence & motifs            0.1396     -0.944    0.000
+  132  shape_slide_wing5                                   ASO:RNA shape                0.1393     -0.633    0.014
+  133  rbp_tut1_aff_5                                      RBP binding                  0.1384      0.469    0.000
+  134  dinuc_GG_wing3                                      Sequence & motifs            0.1375      0.726    0.012
+  135  shape_shift_j5_spread                               ASO:RNA shape                0.1374      0.927    0.014
+  136  tox_g4hunter_max                                    Toxicity / liability         0.1353      0.606    0.000
+  137  access_f60_sinf_u8_a5                               Target accessibility         0.1351     -0.862    0.000
+  138  rbp_matr3_aff_5                                     RBP binding                  0.1346     -0.184    0.000
+  139  shape_hincl_wing3_spread                            ASO:RNA shape                0.1346     -0.728    0.017
+  140  tox_3prime_g_free_len                               Toxicity / liability         0.1344      0.888    0.000
+  141  access_f60_sinf_u16_a5                              Target accessibility         0.1342     -0.661    0.000
+  142  seq_dinucleotide_entropy                            Sequence & motifs            0.1323      0.879    0.000
+  143  rbp_nudt21_aff_5                                    RBP binding                  0.1318      0.565    0.000
+  144  rnase_krel_dinucleotide_score_R7_krel_dinuc_dynamic RNase H1 motifs              0.1311      0.804    0.000
+  145  rbp_a1cf_aff_5                                      RBP binding                  0.1305     -0.091    0.000
+  146  shape_hincl_j3                                      ASO:RNA shape                0.1300     -0.903    0.017
+  147  rbp_pprc1_aff_5                                     RBP binding                  0.1293     -0.930    0.000
+  148  hybr_moe_md_gb_dg                                   Hybridization                0.1292     -0.783    0.696
+  149  halflife_value                                      Expression & half-life       0.1285      0.697    0.000
+  150  structure_sense_cryptic_donor_delta                 Transcript context           0.1272      0.832    0.342
+  151  structure_sense_local_acceptor_mean                 Transcript context           0.1267     -0.155    0.000
+  152  selfaso_homodimer_mismatched_nmm                    Sequence & motifs            0.1265     -0.718    0.000
+  153  shape_htip_gap_spread                               ASO:RNA shape                0.1264     -0.961    0.005
+  154  shape_hy_j3                                         ASO:RNA shape                0.1259      0.304    0.017
+  155  shape_zp_wing3_spread                               ASO:RNA shape                0.1251     -0.946    0.017
+  156  seq_at_skew                                         Sequence & motifs            0.1245     -0.012    0.000
+  157  rbp_pabpc1_aff_5                                    RBP binding                  0.1241      0.774    0.000
+  158  shape_hx_j5_spread                                  ASO:RNA shape                0.1236      0.452    0.014
+  159  on_target_log_number_of_sites_800                   Transcript context           0.1233      0.705    0.000
+  160  selfaso_homodimer_perfect_minus_hp                  Sequence & motifs            0.1218     -0.045    0.000
+  161  shape_hy_wing3_spread                               ASO:RNA shape                0.1215     -0.769    0.017
+  162  fold_mfe_std                                        Target accessibility         0.1214     -0.756    0.000
+  163  rbp_srp14_aff_5                                     RBP binding                  0.1213     -0.935    0.000
+  164  enc_score_global                                    Translational context        0.1213     -0.311    0.129
+  165  seq_gc_longest                                      Sequence & motifs            0.1212     -0.266    0.000
+  166  shape_hincl_wing5_spread                            ASO:RNA shape                0.1207     -0.336    0.014
+  167  shape_slide_gap_spread                              ASO:RNA shape                0.1197      0.782    0.005
+  168  expr_rnase_transcript                               Expression & half-life       0.1192     -0.219    0.141
+  169  shape_zp_wing3                                      ASO:RNA shape                0.1191      0.386    0.017
+  170  shape_htwist_wing3                                  ASO:RNA shape                0.1187      0.576    0.017
+  171  rbp_nova1_aff_5                                     RBP binding                  0.1183     -0.428    0.000
+  172  rbp_dhx58_aff_5                                     RBP binding                  0.1181     -0.727    0.000
+  173  ohe_3p0_A                                           Sequence & motifs            0.1180      0.757    0.000
+  174  shape_hrise_j5_spread                               ASO:RNA shape                0.1153     -0.925    0.014
+  175  rbp_dazap1_aff_5                                    RBP binding                  0.1150     -0.685    0.000
+  176  hybr_ps_delta_dg                                    Hybridization                0.1142      0.500    0.000
+  177  rbp_rbm8a_aff_5                                     RBP binding                  0.1140     -0.945    0.000
+  178  off_target_score_specific_BOLTZ_n200_c1000          Off-target                   0.1137     -0.918    0.141
+  179  dinuc_AT_wing3                                      Sequence & motifs            0.1133     -0.925    0.012
+  180  structure_sense_cryptic_acceptor_max                Transcript context           0.1125     -0.537    0.000
+  181  ohe_3p9_C                                           Sequence & motifs            0.1112     -0.746    0.703
+  182  expr_anxa2                                          Expression & half-life       0.1106      0.212    0.141
+  183  selfaso_homodimer_mismatched_full_dg                Sequence & motifs            0.1098      0.704    0.000
+  184  rbp_rbm3_aff_5                                      RBP binding                  0.1084      0.959    0.000
+  185  off_target_score_specific_BOLTZ_n100_c800           Off-target                   0.1053     -0.846    0.141
+  186  dinuc_GC_wing5                                      Sequence & motifs            0.1038     -0.107    0.009
+  187  rbp_zranb2_aff_5                                    RBP binding                  0.1037      0.700    0.000
+  188  seq_gc_skew_ends                                    Sequence & motifs            0.1031     -0.818    0.000
+  189  shape_htwist_j5_spread                              ASO:RNA shape                0.1029      0.294    0.014
+  190  off_target_score_specific_BOLTZ_n200_c800           Off-target                   0.1029     -0.933    0.141
+  191  shape_shift_wing5_spread                            ASO:RNA shape                0.1022      0.138    0.014
+  192  rbp_pcbp1_aff_5                                     RBP binding                  0.1021     -0.874    0.000
+  193  rbp_pcbp2_aff_5                                     RBP binding                  0.1016     -0.925    0.000
+  194  sense_internal_fold                                 Transcript context           0.1011      0.608    0.000
+  195  rbp_srsf4_aff_5                                     RBP binding                  0.1008      0.811    0.000
+  196  rbp_enox1_aff_5                                     RBP binding                  0.1007     -0.870    0.000
+  197  rbp_g3bp1_aff_5                                     RBP binding                  0.1005     -0.848    0.000
+  198  selfaso_hp_stem                                     Sequence & motifs            0.1003     -0.452    0.000
+  199  dinuc_TG_wing3                                      Sequence & motifs            0.1002     -0.957    0.012
+  200  shape_hrise_wing5_spread                            ASO:RNA shape                0.0992      0.571    0.014
+  201  expr_sec31a                                         Expression & half-life       0.0979     -0.121    0.141
+  202  fold_mfe_win70_flank60_step5                        Target accessibility         0.0978      0.774    0.000
+  203  tai_score_global                                    Translational context        0.0978      0.511    0.129
+  204  expr_ap2m1                                          Expression & half-life       0.0975     -0.233    0.141
+  205  dinuc_GC_j3                                         Sequence & motifs            0.0968     -0.894    0.011
+  206  ohe_pos3_A                                          Sequence & motifs            0.0968      0.792    0.000
+  207  on_target_total_hybridization_1200                  Hybridization                0.0965      0.879    0.000
+  208  shape_shift_j3_spread                               ASO:RNA shape                0.0962     -0.705    0.017
+  209  rbp_rbm14_aff_5                                     RBP binding                  0.0962     -0.867    0.000
+  210  shape_shift_wing3_spread                            ASO:RNA shape                0.0961     -0.932    0.017
+  211  rbp_znf346_aff_5                                    RBP binding                  0.0959     -0.462    0.000
+  212  expr_npm1                                           Expression & half-life       0.0958     -0.175    0.141
+  213  dinuc_TT_gap                                        Sequence & motifs            0.0958      0.653    0.009
+  214  shape_hrise_j3                                      ASO:RNA shape                0.0957      0.808    0.017
+  215  dinuc_AG_gap                                        Sequence & motifs            0.0955     -0.905    0.009
+  216  expr_stab1                                          Expression & half-life       0.0944     -0.535    0.141
+  217  dinuc_TC_gap                                        Sequence & motifs            0.0940     -0.920    0.009
+  218  dinuc_CC_j3                                         Sequence & motifs            0.0938      0.907    0.011
+  219  shape_slide_j3_spread                               ASO:RNA shape                0.0937     -0.173    0.017
+  220  rbp_sf1_aff_5                                       RBP binding                  0.0937      0.912    0.000
+  221  rbp_fmr1_aff_5                                      RBP binding                  0.0934     -0.906    0.000
+  222  rnase_score_R4b_dynamic                             RNase H1 motifs              0.0926     -0.741    0.000
+  223  seq_terminal_gc_fraction                            Sequence & motifs            0.0923      0.918    0.000
+  224  off_target_score_general_BOLTZ_n200_c1000           Off-target                   0.0918     -0.856    0.000
+  225  shape_hy_gap                                        ASO:RNA shape                0.0915      0.739    0.005
+  226  rbp_zfp36l2_aff_5                                   RBP binding                  0.0913      0.844    0.000
+  227  on_target_duplication_near1                         Transcript context           0.0908      0.232    0.000
+  228  ohe_3p4_C                                           Sequence & motifs            0.0907      0.745    0.000
+  229  rbp_nono_aff_5                                      RBP binding                  0.0903     -0.851    0.000
+  230  shape_shift_gap_spread                              ASO:RNA shape                0.0894      0.849    0.005
+  231  expr_m6pr                                           Expression & half-life       0.0891     -0.760    0.141
+  232  rbp_g3bp2_aff_5                                     RBP binding                  0.0888     -0.782    0.000
+  233  dinuc_CA_wing5                                      Sequence & motifs            0.0885      0.129    0.009
+  234  expr_target                                         Expression & half-life       0.0885     -0.336    0.141
+  235  rbp_nova2_aff_5                                     RBP binding                  0.0876      0.853    0.000
+  236  ohe_pos1_G                                          Sequence & motifs            0.0874      0.698    0.000
+  237  dinuc_TA_wing5                                      Sequence & motifs            0.0873     -0.905    0.009
+  238  rbp_snrpa_aff_5                                     RBP binding                  0.0872     -0.010    0.000
+  239  rbp_srsf5_aff_5                                     RBP binding                  0.0870     -0.376    0.000
+  240  rbp_eif4b_aff_5                                     RBP binding                  0.0868     -0.762    0.000
+  241  shape_hincl_j5_spread                               ASO:RNA shape                0.0867     -0.199    0.014
+  242  density_cells_per_well                              Delivery & assay             0.0862     -0.624    0.058
+  243  ohe_pos6_T                                          Sequence & motifs            0.0861      0.806    0.000
+  244  rbp_ifih1_aff_5                                     RBP binding                  0.0861     -0.855    0.000
+  245  dinuc_GG_j5                                         Sequence & motifs            0.0853     -0.910    0.009
+  246  dinuc_TA_gap                                        Sequence & motifs            0.0852      0.608    0.009
+  247  off_target_score_specific_BOLTZ_n50_c800            Off-target                   0.0848     -0.897    0.141
+  248  rbp_hnrnpu_aff_5                                    RBP binding                  0.0846     -0.923    0.000
+  249  rbp_grsf1_aff_5                                     RBP binding                  0.0838     -0.755    0.000
+  250  rnase_krel_score_R7_krel_dynamic                    RNase H1 motifs              0.0836      0.837    0.000
+  251  ohe_3p2_A                                           Sequence & motifs            0.0831     -0.732    0.000
+  252  shape_zp_gap                                        ASO:RNA shape                0.0829      0.730    0.005
+  253  rbp_dhx9_aff_5                                      RBP binding                  0.0828      0.666    0.000
+  254  rbp_snrpb2_aff_5                                    RBP binding                  0.0825      0.498    0.000
+  255  rbp_srp68_aff_5                                     RBP binding                  0.0825      0.802    0.000
+  256  shape_slide_j3                                      ASO:RNA shape                0.0824     -0.920    0.017
+  257  rnase_score_dinucleotide_R7_dinuc_dynamic           RNase H1 motifs              0.0822     -0.602    0.000
+  258  off_target_score_specific_BOLTZ_n100_c1000          Off-target                   0.0819     -0.911    0.141
+  259  mod_ps_end_score                                    Chemistry                    0.0819     -0.090    0.000
+  260  ohe_pos0_T                                          Sequence & motifs            0.0816     -0.751    0.000
+  261  rbp_srsf3_aff_5                                     RBP binding                  0.0811     -0.612    0.000
+  262  shape_hy_wing5_spread                               ASO:RNA shape                0.0807      0.041    0.014
+  263  access_f60_sinf_u26_a5                              Target accessibility         0.0805      0.827    0.001
+  264  dinuc_CC_wing3                                      Sequence & motifs            0.0804      0.912    0.012
+  265  ohe_3p6_A                                           Sequence & motifs            0.0795      0.781    0.000
+  266  transfection_gymnosis                               Delivery & assay             0.0792     -0.664    0.038
+  267  rbp_celf6_aff_5                                     RBP binding                  0.0792     -0.874    0.000
+  268  dinuc_AA_gap                                        Sequence & motifs            0.0783     -0.844    0.009
+  269  seq_c_count                                         Sequence & motifs            0.0780      0.789    0.000
+  270  rbp_rbms3_aff_5                                     RBP binding                  0.0778      0.918    0.000
+  271  rbp_ago2_aff_5                                      RBP binding                  0.0777      0.701    0.000
+  272  rbp_oas1_aff_5                                      RBP binding                  0.0761      0.534    0.000
+  273  shape_htip_gap                                      ASO:RNA shape                0.0755     -0.927    0.005
+  274  rbp_srp19_aff_5                                     RBP binding                  0.0752      0.640    0.000
+  275  mod_ps_wing3_count                                  Chemistry                    0.0750     -0.556    0.011
+  276  seq_gc_skew                                         Sequence & motifs            0.0750      0.288    0.000
+  277  rbp_khdrbs1_aff_5                                   RBP binding                  0.0749     -0.615    0.000
+  278  rbp_rbm42_aff_5                                     RBP binding                  0.0749      0.348    0.000
+  279  shape_zp_j5_spread                                  ASO:RNA shape                0.0746      0.614    0.014
+  280  access_f60_sinf_u8_a3                               Target accessibility         0.0745     -0.781    0.000
+  281  on_target_log_number_of_sites_1000                  Transcript context           0.0741      0.863    0.000
+  282  shape_hrise_j5                                      ASO:RNA shape                0.0732      0.803    0.014
+  283  ohe_3p9_A                                           Sequence & motifs            0.0730      0.788    0.703
+  284  dinuc_GT_gap                                        Sequence & motifs            0.0730      0.777    0.009
+  285  rbp_xpo5_aff_5                                      RBP binding                  0.0729     -0.801    0.000
+  286  rbp_aco1_aff_5                                      RBP binding                  0.0726     -0.659    0.000
+  287  on_target_duplication_exact                         Transcript context           0.0726      0.193    0.000
+  288  shape_zp_j3_spread                                  ASO:RNA shape                0.0717     -0.779    0.017
+  289  shape_hrise_j3_spread                               ASO:RNA shape                0.0715      0.551    0.017
+  290  shape_hx_wing5_spread                               ASO:RNA shape                0.0714      0.222    0.014
+  291  rbp_tra2b_aff_5                                     RBP binding                  0.0711      0.253    0.000
+  292  dinuc_AA_j3                                         Sequence & motifs            0.0709      0.603    0.011
+  293  shape_shift_j3                                      ASO:RNA shape                0.0708      0.482    0.017
+  294  expr_ssb                                            Expression & half-life       0.0707      0.424    0.141
+  295  off_target_score_general_BOLTZ_n50_c800             Off-target                   0.0706     -0.774    0.000
+  296  shape_shift_gap                                     ASO:RNA shape                0.0705      0.399    0.005
+  297  rbp_hnrnpl_aff_5                                    RBP binding                  0.0704      0.848    0.000
+  298  off_target_score_general_BOLTZ_n100_c800            Off-target                   0.0703     -0.623    0.000
+  299  shape_slide_gap                                     ASO:RNA shape                0.0701     -0.796    0.005
+  300  ohe_pos5_C                                          Sequence & motifs            0.0695      0.691    0.000
+  301  shape_hincl_gap_spread                              ASO:RNA shape                0.0691     -0.830    0.005
+  302  ohe_3p8_C                                           Sequence & motifs            0.0691     -0.756    0.702
+  303  seq_keto_amino_skew                                 Sequence & motifs            0.0689      0.580    0.000
+  304  dinuc_GT_j5                                         Sequence & motifs            0.0683     -0.888    0.009
+  305  shape_hx_gap_spread                                 ASO:RNA shape                0.0681     -0.336    0.005
+  306  rbp_rbmy1a1_aff_5                                   RBP binding                  0.0678     -0.299    0.000
+  307  shape_zp_j3                                         ASO:RNA shape                0.0676      0.840    0.017
+  308  rbp_esrp2_aff_5                                     RBP binding                  0.0675      0.337    0.000
+  309  shape_htwist_gap                                    ASO:RNA shape                0.0673      0.381    0.005
+  310  off_target_score_general_BOLTZ_n200_c800            Off-target                   0.0670     -0.518    0.000
+  311  shape_htip_wing5                                    ASO:RNA shape                0.0668     -0.828    0.014
+  312  ohe_3p6_C                                           Sequence & motifs            0.0666     -0.732    0.000
+  313  rbp_hnrnpa3_aff_5                                   RBP binding                  0.0664     -0.895    0.000
+  314  rbp_hnrnpc_aff_5                                    RBP binding                  0.0662      0.276    0.000
+  315  dinuc_AC_wing5                                      Sequence & motifs            0.0661     -0.951    0.009
+  316  rbp_phax_aff_5                                      RBP binding                  0.0661      0.334    0.000
+  317  ohe_pos5_A                                          Sequence & motifs            0.0658     -0.794    0.000
+  318  off_target_score_specific_BOLTZ_n50_c1000           Off-target                   0.0657     -0.853    0.141
+  319  rbp_zcrb1_aff_5                                     RBP binding                  0.0657     -0.769    0.000
+  320  expr_stab2                                          Expression & half-life       0.0657     -0.414    0.141
+  321  rbp_hnrnpa0_aff_5                                   RBP binding                  0.0649      0.308    0.000
+  322  rbp_pabpn1_aff_5                                    RBP binding                  0.0649      0.273    0.000
+  323  shape_hx_gap                                        ASO:RNA shape                0.0646      0.347    0.005
+  324  rbp_hnrnpdl_aff_5                                   RBP binding                  0.0641     -0.662    0.000
+  325  shape_hx_wing5                                      ASO:RNA shape                0.0640     -0.662    0.014
+  326  dinuc_CC_j5                                         Sequence & motifs            0.0637     -0.882    0.009
+  327  shape_slide_j5                                      ASO:RNA shape                0.0635     -0.357    0.014
+  328  rbp_ybx2_aff_5                                      RBP binding                  0.0635      0.611    0.000
+  329  off_target_single_rRNA_28S_c800                     Off-target                   0.0626     -0.784    0.000
+  330  access_f60_sinf_u26_a3                              Target accessibility         0.0625      0.793    0.000
+  331  shape_shift_wing5                                   ASO:RNA shape                0.0623     -0.140    0.014
+  332  rbp_snrnp70_aff_5                                   RBP binding                  0.0618     -0.171    0.000
+  333  expr_tlr9                                           Expression & half-life       0.0617      0.108    0.141
+  334  rnase_krel_dinucleotide_score_R4b_krel_dinuc_dynamicRNase H1 motifs              0.0616      0.546    0.000
+  335  shape_hincl_wing3                                   ASO:RNA shape                0.0616      0.822    0.017
+  336  struct_sense_in_cds_non_exclusive                   Transcript context           0.0609      0.756    0.000
+  337  rbp_rbfox1_aff_5                                    RBP binding                  0.0608      0.666    0.000
+  338  rbp_ddx58_aff_5                                     RBP binding                  0.0607     -0.751    0.000
+  339  rbp_khsrp_aff_5                                     RBP binding                  0.0604     -0.754    0.000
+  340  rbp_ankhd1_aff_5                                    RBP binding                  0.0603     -0.004    0.000
+  341  shape_htip_wing5_spread                             ASO:RNA shape                0.0601      0.018    0.014
+  342  dinuc_CT_j5                                         Sequence & motifs            0.0600      0.811    0.009
+  343  rbp_rbm24_aff_5                                     RBP binding                  0.0600      0.423    0.000
+  344  rbp_tardbp_aff_5                                    RBP binding                  0.0591      0.578    0.000
+  345  shape_htip_j5_spread                                ASO:RNA shape                0.0590      0.717    0.014
+  346  ohe_pos3_G                                          Sequence & motifs            0.0589     -0.649    0.000
+  347  rbp_esrp1_aff_5                                     RBP binding                  0.0585     -0.483    0.000
+  348  rbp_srsf6_aff_5                                     RBP binding                  0.0585      0.611    0.000
+  349  ohe_3p3_C                                           Sequence & motifs            0.0584      0.755    0.000
+  350  fold_mfe_win150_flank120_step10                     Target accessibility         0.0584     -0.115    0.002
+  351  dinuc_CT_wing3                                      Sequence & motifs            0.0581      0.420    0.012
+  352  shape_slide_wing5_spread                            ASO:RNA shape                0.0581      0.637    0.014
+  353  rbp_hnrnph3_aff_5                                   RBP binding                  0.0577     -0.796    0.000
+  354  rbp_nxf1_aff_5                                      RBP binding                  0.0569     -0.234    0.000
+  355  rbp_rbm4_aff_5                                      RBP binding                  0.0569     -0.702    0.000
+  356  seq_4_palindromic                                   Sequence & motifs            0.0565     -0.419    0.000
+  357  rbp_rnasel_aff_5                                    RBP binding                  0.0560      0.871    0.000
+  358  rbp_igf2bp1_aff_5                                   RBP binding                  0.0559     -0.709    0.000
+  359  expr_unc93b1                                        Expression & half-life       0.0552      0.672    0.141
+  360  shape_hy_j5                                         ASO:RNA shape                0.0552     -0.399    0.014
+  361  rbp_nelfe_aff_5                                     RBP binding                  0.0551     -0.308    0.000
+  362  access_f60_sinf_u10_a3                              Target accessibility         0.0547     -0.635    0.000
+  363  selfaso_homodimer_perfect_helix                     Sequence & motifs            0.0541      0.303    0.000
+  364  ohe_3p2_C                                           Sequence & motifs            0.0541      0.762    0.000
+  365  rbp_cstf2_aff_5                                     RBP binding                  0.0530      0.788    0.000
+  366  ohe_pos3_C                                          Sequence & motifs            0.0529     -0.724    0.000
+  367  expr_eea1                                           Expression & half-life       0.0527      0.055    0.141
+  368  rbp_cnot4_aff_5                                     RBP binding                  0.0527     -0.082    0.000
+  369  dinuc_CA_j3                                         Sequence & motifs            0.0526     -0.646    0.011
+  370  rbp_pabpc3_aff_5                                    RBP binding                  0.0522      0.318    0.000
+  371  rbp_rbm25_aff_5                                     RBP binding                  0.0520      0.040    0.000
+  372  rbp_hnrnpk_aff_5                                    RBP binding                  0.0517      0.109    0.000
+  373  struct_sense_in_3utr                                Transcript context           0.0511      0.474    0.000
+  374  access_f60_sinf_u32_a5                              Target accessibility         0.0511      0.432    0.001
+  375  shape_htwist_wing5_spread                           ASO:RNA shape                0.0510      0.550    0.014
+  376  rbp_rbm41_aff_5                                     RBP binding                  0.0510      0.686    0.000
+  377  rbp_ptbp2_aff_5                                     RBP binding                  0.0510     -0.015    0.000
+  378  shape_hy_j3_spread                                  ASO:RNA shape                0.0507      0.084    0.017
+  379  shape_hrise_wing3                                   ASO:RNA shape                0.0504     -0.695    0.017
+  380  rbp_rbms1_aff_5                                     RBP binding                  0.0502      0.514    0.000
+  381  rbp_hnrnpf_aff_5                                    RBP binding                  0.0501     -0.783    0.000
+  382  rbp_zfp36_aff_5                                     RBP binding                  0.0501      0.417    0.000
+  383  dinuc_GC_wing3                                      Sequence & motifs            0.0500     -0.167    0.012
+  384  access_f60_sinf_u6_aso3end                          Target accessibility         0.0496     -0.770    0.000
+  385  rbp_rc3h1_aff_5                                     RBP binding                  0.0494      0.296    0.000
+  386  ohe_pos2_G                                          Sequence & motifs            0.0491      0.690    0.000
+  387  rbp_hnrnpa2b1_aff_5                                 RBP binding                  0.0491     -0.632    0.000
+  388  expr_xrcc6                                          Expression & half-life       0.0488     -0.038    0.141
+  389  shape_hy_gap_spread                                 ASO:RNA shape                0.0487      0.508    0.005
+  390  ohe_3p5_C                                           Sequence & motifs            0.0486      0.739    0.000
+  391  mod_ps_wing5_count                                  Chemistry                    0.0485      0.517    0.011
+  392  ohe_3p0_G                                           Sequence & motifs            0.0482     -0.670    0.000
+  393  dinuc_AG_wing5                                      Sequence & motifs            0.0481      0.227    0.009
+  394  seq_t_count                                         Sequence & motifs            0.0480     -0.859    0.000
+  395  rbp_hnrnpd_aff_5                                    RBP binding                  0.0478      0.235    0.000
+  396  dinuc_TC_wing3                                      Sequence & motifs            0.0476      0.001    0.012
+  397  dinuc_GG_wing5                                      Sequence & motifs            0.0475      0.189    0.009
+  398  ohe_pos4_A                                          Sequence & motifs            0.0474      0.248    0.000
+  399  shape_htwist_j3_spread                              ASO:RNA shape                0.0473      0.165    0.017
+  400  rbp_adar_aff_5                                      RBP binding                  0.0471     -0.476    0.000
+  401  shape_hrise_wing5                                   ASO:RNA shape                0.0470     -0.273    0.014
+  402  rbp_ythdc1_aff_5                                    RBP binding                  0.0469      0.612    0.000
+  403  expr_sfpq                                           Expression & half-life       0.0468     -0.111    0.141
+  404  dinuc_AC_wing3                                      Sequence & motifs            0.0467     -0.939    0.012
+  405  rbp_tra2a_aff_5                                     RBP binding                  0.0465      0.907    0.000
+  406  rbp_tial1_aff_5                                     RBP binding                  0.0465      0.449    0.000
+  407  seq_dispersed_repeats_score                         Sequence & motifs            0.0464     -0.537    0.000
+  408  expr_rab7a                                          Expression & half-life       0.0464      0.494    0.141
+  409  rnase_score_dinucleotide_R4b_dinuc_dynamic          RNase H1 motifs              0.0464      0.160    0.000
+  410  shape_htwist_gap_spread                             ASO:RNA shape                0.0463     -0.591    0.005
+  411  expr_rab5c                                          Expression & half-life       0.0463     -0.644    0.141
+  412  access_f60_sinf_u32_a3                              Target accessibility         0.0461      0.646    0.001
+  413  struct_sense_in_exon_non_exclusive                  Transcript context           0.0461      0.817    0.000
+  414  rbp_ssb_aff_5                                       RBP binding                  0.0460      0.466    0.000
+  415  rnase_krel_score_R4a_krel_dynamic                   RNase H1 motifs              0.0460      0.514    0.000
+  416  access_f60_sinf_u20_a3                              Target accessibility         0.0455      0.537    0.000
+  417  rbp_f2_aff_5                                        RBP binding                  0.0453      0.688    0.000
+  418  cai_score_60                                        Translational context        0.0452     -0.893    0.830
+  419  dinuc_CC_gap                                        Sequence & motifs            0.0452     -0.779    0.009
+  420  access_f60_sinf_u4_a5                               Target accessibility         0.0450      0.582    0.000
+  421  dinuc_GA_j3                                         Sequence & motifs            0.0450     -0.775    0.011
+  422  shape_htip_wing3                                    ASO:RNA shape                0.0448     -0.111    0.017
+  423  shape_shift_wing3                                   ASO:RNA shape                0.0445      0.528    0.017
+  424  shape_hy_wing5                                      ASO:RNA shape                0.0444      0.200    0.014
+  425  seq_at_rich_longest                                 Sequence & motifs            0.0442     -0.508    0.000
+  426  dinuc_GG_j3                                         Sequence & motifs            0.0441     -0.749    0.011
+  427  shape_hx_wing3                                      ASO:RNA shape                0.0439     -0.745    0.017
+  428  dinuc_AT_wing5                                      Sequence & motifs            0.0438     -0.535    0.009
+  429  dinuc_GA_wing5                                      Sequence & motifs            0.0436      0.730    0.009
+  430  rbp_rbm6_aff_5                                      RBP binding                  0.0435     -0.174    0.000
+  431  rbp_cmtr1_aff_5                                     RBP binding                  0.0435      0.690    0.000
+  432  rbp_sart3_aff_5                                     RBP binding                  0.0432      0.838    0.000
+  433  access_f60_sinf_u6_a5                               Target accessibility         0.0431     -0.455    0.000
+  434  shape_htip_j3_spread                                ASO:RNA shape                0.0431      0.675    0.017
+  435  dinuc_CG_j5                                         Sequence & motifs            0.0429     -0.638    0.009
+  436  dinuc_TT_j5                                         Sequence & motifs            0.0428     -0.740    0.009
+  437  rbp_hnrnpab_aff_5                                   RBP binding                  0.0427      0.126    0.000
+  438  mod_ps_frac_mod                                     Chemistry                    0.0426      0.015    0.011
+  439  shape_hincl_wing5                                   ASO:RNA shape                0.0424      0.286    0.014
+  440  shape_htwist_wing5                                  ASO:RNA shape                0.0424     -0.460    0.014
+  441  ohe_pos5_G                                          Sequence & motifs            0.0422     -0.672    0.000
+  442  dinuc_TT_wing5                                      Sequence & motifs            0.0421      0.771    0.009
+  443  shape_hx_wing3_spread                               ASO:RNA shape                0.0421     -0.793    0.017
+  444  shape_htip_j5                                       ASO:RNA shape                0.0420      0.396    0.014
+  445  rbp_elavl4_aff_5                                    RBP binding                  0.0419      0.746    0.000
+  446  seq_cg_dinucleotide_fraction                        Sequence & motifs            0.0413      0.689    0.000
+  447  rbp_zc3h10_aff_5                                    RBP binding                  0.0412      0.579    0.000
+  448  rbp_mbnl1_aff_5                                     RBP binding                  0.0409     -0.065    0.000
+  449  rbp_piwil1_aff_5                                    RBP binding                  0.0409     -0.418    0.000
+  450  rbp_qki_aff_5                                       RBP binding                  0.0408      0.743    0.000
+  451  rbp_cpeb1_aff_5                                     RBP binding                  0.0406     -0.423    0.000
+  452  rbp_srsf7_aff_5                                     RBP binding                  0.0403      0.385    0.000
+  453  rbp_hnrnpm_aff_5                                    RBP binding                  0.0400     -0.839    0.000
+  454  rbp_rbm46_aff_5                                     RBP binding                  0.0399     -0.236    0.000
+  455  shape_hrise_wing3_spread                            ASO:RNA shape                0.0396      0.402    0.017
+  456  access_f60_sinf_u20_a5                              Target accessibility         0.0395      0.073    0.000
+  457  selfaso_homodimer_mismatched_full_nmm               Sequence & motifs            0.0394      0.707    0.000
+  458  access_f60_sinf_u13_a3                              Target accessibility         0.0393     -0.794    0.000
+  459  rbp_pum1_aff_5                                      RBP binding                  0.0392      0.496    0.000
+  460  dinuc_AA_wing5                                      Sequence & motifs            0.0384      0.907    0.009
+  461  dinuc_GG_gap                                        Sequence & motifs            0.0384     -0.290    0.009
+  462  dinuc_CT_wing5                                      Sequence & motifs            0.0382      0.069    0.009
+  463  shape_zp_wing5_spread                               ASO:RNA shape                0.0382      0.074    0.014
+  464  rbp_celf1_aff_5                                     RBP binding                  0.0382      0.397    0.000
+  465  ohe_3p7_T                                           Sequence & motifs            0.0382     -0.782    0.000
+  466  rbp_ago1_aff_5                                      RBP binding                  0.0379      0.547    0.000
+  467  rbp_ybx1_aff_5                                      RBP binding                  0.0378     -0.747    0.000
+  468  shape_htwist_wing3_spread                           ASO:RNA shape                0.0374     -0.049    0.017
+  469  dinuc_AG_j5                                         Sequence & motifs            0.0371      0.442    0.009
+  470  dinuc_AA_wing3                                      Sequence & motifs            0.0371      0.682    0.012
+  471  dinuc_TG_wing5                                      Sequence & motifs            0.0370     -0.919    0.009
+  472  rbp_ptbp1_aff_5                                     RBP binding                  0.0370      0.307    0.000
+  473  ohe_pos4_T                                          Sequence & motifs            0.0366      0.769    0.000
+  474  rnase_score_R7_dynamic                              RNase H1 motifs              0.0366     -0.321    0.000
+  475  rbp_pum2_aff_5                                      RBP binding                  0.0365      0.321    0.000
+  476  rbp_pabpc5_aff_5                                    RBP binding                  0.0363      0.646    0.000
+  477  fold_mfe_win100_flank120_step7                      Target accessibility         0.0361     -0.051    0.000
+  478  seq_flexible_dinucleotide_fraction                  Sequence & motifs            0.0361     -0.678    0.000
+  479  ohe_3p2_G                                           Sequence & motifs            0.0359      0.721    0.000
+  480  rbp_pabpc4_aff_5                                    RBP binding                  0.0358      0.626    0.000
+  481  shape_slide_wing3                                   ASO:RNA shape                0.0358     -0.340    0.017
+  482  ohe_3p3_T                                           Sequence & motifs            0.0356     -0.775    0.000
+  483  off_target_score_general_BOLTZ_n50_c1000            Off-target                   0.0352     -0.766    0.000
+  484  shape_hx_j3_spread                                  ASO:RNA shape                0.0351      0.359    0.017
+  485  rbp_elavl3_aff_5                                    RBP binding                  0.0350     -0.304    0.000
+  486  rbp_rbmx_aff_5                                      RBP binding                  0.0345      0.369    0.000
+  487  dinuc_AC_j5                                         Sequence & motifs            0.0344      0.004    0.009
+  488  ohe_3p7_C                                           Sequence & motifs            0.0343     -0.431    0.000
+  489  rbp_khdrbs2_aff_5                                   RBP binding                  0.0343      0.367    0.000
+  490  expr_stx5                                           Expression & half-life       0.0341      0.526    0.141
+  491  expr_sec23a                                         Expression & half-life       0.0339      0.100    0.141
+  492  rbp_raly_aff_5                                      RBP binding                  0.0338      0.614    0.000
+  493  off_target_score_general_BOLTZ_n100_c1000           Off-target                   0.0337     -0.862    0.000
+  494  rbp_hnrnpcl1_aff_5                                  RBP binding                  0.0336     -0.418    0.000
+  495  shape_hy_wing3                                      ASO:RNA shape                0.0335     -0.367    0.017
+  496  dinuc_AG_j3                                         Sequence & motifs            0.0333     -0.918    0.011
+  497  shape_slide_wing3_spread                            ASO:RNA shape                0.0331      0.027    0.017
+  498  shape_zp_gap_spread                                 ASO:RNA shape                0.0329      0.279    0.005
+  499  rbp_srsf10_aff_5                                    RBP binding                  0.0328     -0.716    0.000
+  500  rbp_srsf9_aff_5                                     RBP binding                  0.0326      0.491    0.000
+  501  rbp_u2af2_aff_5                                     RBP binding                  0.0326      0.719    0.000
+  502  dinuc_TC_wing5                                      Sequence & motifs            0.0322      0.869    0.009
+  503  rbp_fus_aff_5                                       RBP binding                  0.0319     -0.238    0.000
+  504  rbp_lin28a_aff_5                                    RBP binding                  0.0314      0.317    0.000
+  505  rbp_ddx19b_aff_5                                    RBP binding                  0.0313     -0.273    0.000
+  506  rbp_cpeb4_aff_5                                     RBP binding                  0.0312     -0.148    0.000
+  507  off_target_single_RNASEH1_c800                      Off-target                   0.0312     -0.762    0.000
+  508  transfection_electroporation                        Delivery & assay             0.0311      0.778    0.038
+  509  access_f60_sinf_u6_a3                               Target accessibility         0.0309     -0.438    0.000
+  510  rbp_znf638_aff_5                                    RBP binding                  0.0308     -0.357    0.000
+  511  rbp_khdrbs3_aff_5                                   RBP binding                  0.0308     -0.481    0.000
+  512  off_target_single_rRNA_total_c800                   Off-target                   0.0308     -0.496    0.000
+  513  dinuc_TA_j3                                         Sequence & motifs            0.0308      0.688    0.011
+  514  dinuc_AT_j5                                         Sequence & motifs            0.0306      0.492    0.009
+  515  hybr_moe_md_pb_dg                                   Hybridization                0.0305     -0.454    0.696
+  516  dinuc_TG_j5                                         Sequence & motifs            0.0303      0.548    0.009
+  517  rbp_celf2_aff_5                                     RBP binding                  0.0302      0.516    0.000
+  518  dinuc_GA_j5                                         Sequence & motifs            0.0300      0.918    0.009
+  519  ohe_3p7_A                                           Sequence & motifs            0.0298     -0.473    0.000
+  520  seq_5_prime_clamp                                   Sequence & motifs            0.0295      0.866    0.000
+  521  off_target_single_RNASEH1_c1000                     Off-target                   0.0295      0.298    0.000
+  522  tai_score_70                                        Translational context        0.0291      0.074    0.830
+  523  rbp_cpeb2_aff_5                                     RBP binding                  0.0290     -0.429    0.000
+  524  rbp_ppie_aff_5                                      RBP binding                  0.0290      0.084    0.000
+  525  ohe_pos6_G                                          Sequence & motifs            0.0289     -0.687    0.000
+  526  mod_ps_max_consecutive_po                           Chemistry                    0.0288     -0.269    0.000
+  527  rbp_srsf2_aff_5                                     RBP binding                  0.0287     -0.452    0.000
+  528  rbp_elavl2_aff_5                                    RBP binding                  0.0286     -0.258    0.000
+  529  access_f60_sinf_u4_a3                               Target accessibility         0.0285     -0.225    0.000
+  530  access_f60_sinf_u16_a3                              Target accessibility         0.0283     -0.582    0.000
+  531  rbp_akap1_aff_5                                     RBP binding                  0.0281      0.601    0.000
+  532  dinuc_GA_wing3                                      Sequence & motifs            0.0281     -0.418    0.012
+  533  mod_ps_po_percentage                                Chemistry                    0.0280     -0.395    0.000
+  534  rbp_tia1_aff_5                                      RBP binding                  0.0279     -0.768    0.000
+  535  seq_3_prime_clamp                                   Sequence & motifs            0.0277     -0.858    0.000
+  536  shape_hrise_gap                                     ASO:RNA shape                0.0276      0.771    0.005
+  537  cai_score_70                                        Translational context        0.0273     -0.857    0.830
+  538  ohe_pos9_G                                          Sequence & motifs            0.0272     -0.568    0.703
+  539  rbp_elavl1_aff_5                                    RBP binding                  0.0271      0.228    0.000
+  540  dinuc_CT_gap                                        Sequence & motifs            0.0269     -0.105    0.009
+  541  ohe_3p0_T                                           Sequence & motifs            0.0268     -0.767    0.000
+  542  dinuc_CG_gap                                        Sequence & motifs            0.0267     -0.457    0.009
+  543  ohe_3p8_G                                           Sequence & motifs            0.0265      0.574    0.702
+  544  seq_tandem_repeats_score                            Sequence & motifs            0.0263      0.678    0.000
+  545  shape_htip_wing3_spread                             ASO:RNA shape                0.0260     -0.619    0.017
+  546  cai_score_20                                        Translational context        0.0259     -0.879    0.830
+  547  ohe_3p4_G                                           Sequence & motifs            0.0256     -0.707    0.000
+  548  on_target_log_number_of_sites_1200                  Transcript context           0.0255      0.322    0.000
+  549  rbp_ighmbp2_aff_5                                   RBP binding                  0.0253      0.700    0.000
+  550  seq_at_rich_run_count                               Sequence & motifs            0.0253     -0.343    0.000
+  551  dinuc_AG_wing3                                      Sequence & motifs            0.0252      0.529    0.012
+  552  rbp_hnrnph2_aff_5                                   RBP binding                  0.0250     -0.586    0.000
+  553  expr_nono                                           Expression & half-life       0.0248      0.010    0.141
+  554  ohe_pos8_T                                          Sequence & motifs            0.0246      0.818    0.691
+  555  off_target_score_general_BOLTZ_n100_c1200           Off-target                   0.0246     -0.470    0.000
+  556  dinuc_CG_j3                                         Sequence & motifs            0.0244     -0.630    0.011
+  557  seq_ta_dinucleotide_fraction                        Sequence & motifs            0.0244     -0.869    0.000
+  558  rbp_eif4a3_aff_5                                    RBP binding                  0.0239     -0.361    0.000
+  559  rbp_sfpq_aff_5                                      RBP binding                  0.0238     -0.373    0.000
+  560  dinuc_CG_wing5                                      Sequence & motifs            0.0236     -0.137    0.009
+  561  enc_score_60                                        Translational context        0.0235     -0.066    0.830
+  562  dinuc_TG_j3                                         Sequence & motifs            0.0232      0.427    0.011
+  563  rbp_srsf11_aff_5                                    RBP binding                  0.0231      0.584    0.000
+  564  dinuc_GA_gap                                        Sequence & motifs            0.0231     -0.487    0.009
+  565  dinuc_TC_j3                                         Sequence & motifs            0.0226      0.293    0.011
+  566  rbp_diversity_global_5_generic                      RBP binding                  0.0223     -0.120    0.000
+  567  rbp_celf4_aff_5                                     RBP binding                  0.0219     -0.094    0.000
+  568  rbp_interaction_total_5_generic                     RBP binding                  0.0219     -0.551    0.000
+  569  struct_sense_in_utr                                 Transcript context           0.0215      0.486    0.000
+  570  rbp_hnrnpa1_aff_5                                   RBP binding                  0.0213     -0.240    0.000
+  571  ohe_pos7_A                                          Sequence & motifs            0.0213     -0.133    0.000
+  572  dinuc_CC_wing5                                      Sequence & motifs            0.0212      0.073    0.009
+  573  cai_score_30                                        Translational context        0.0210     -0.760    0.830
+  574  dinuc_TA_j5                                         Sequence & motifs            0.0210      0.301    0.009
+  575  rbp_celf5_aff_5                                     RBP binding                  0.0210      0.175    0.000
+  576  tox_3prime_g_fraction                               Toxicity / liability         0.0203      0.002    0.000
+  577  tai_score_20                                        Translational context        0.0201     -0.417    0.830
+  578  shape_hx_j3                                         ASO:RNA shape                0.0200      0.256    0.017
+  579  ohe_pos8_G                                          Sequence & motifs            0.0198     -0.555    0.691
+  580  ohe_pos9_A                                          Sequence & motifs            0.0198      0.756    0.703
+  581  tox_cpg_count                                       Toxicity / liability         0.0196      0.687    0.000
+  582  tai_score_60                                        Translational context        0.0191     -0.180    0.830
+  583  shape_hincl_gap                                     ASO:RNA shape                0.0191     -0.457    0.005
+  584  cai_score_50                                        Translational context        0.0186     -0.596    0.830
+  585  rbp_syncrip_aff_5                                   RBP binding                  0.0186     -0.514    0.000
+  586  tai_score_50                                        Translational context        0.0183      0.167    0.830
+  587  seq_dinucleotide_diversity                          Sequence & motifs            0.0178      0.657    0.000
+  588  ohe_3p0_C                                           Sequence & motifs            0.0176      0.760    0.000
+  589  dinuc_TT_j3                                         Sequence & motifs            0.0174     -0.039    0.011
+  590  rbp_hnrnph1_aff_5                                   RBP binding                  0.0173     -0.457    0.000
+  591  dinuc_AT_j3                                         Sequence & motifs            0.0172     -0.167    0.011
+  592  cai_score_40                                        Translational context        0.0170     -0.789    0.830
+  593  seq_poly_pyrimidine_longest                         Sequence & motifs            0.0168     -0.139    0.000
+  594  seq_purine_content                                  Sequence & motifs            0.0166      0.542    0.000
+  595  dinuc_TT_wing3                                      Sequence & motifs            0.0164      0.144    0.012
+  596  tai_score_40                                        Translational context        0.0162      0.592    0.830
+  597  ohe_pos7_G                                          Sequence & motifs            0.0158     -0.674    0.000
+  598  enc_score_20                                        Translational context        0.0156     -0.152    0.830
+  599  mod_sugar_gap_gc_content                            Chemistry                    0.0156      0.232    0.000
+  600  off_target_score_specific_BOLTZ_n200_c1200          Off-target                   0.0150      0.406    0.141
+  601  enc_score_30                                        Translational context        0.0149     -0.298    0.830
+  602  ohe_3p1_T                                           Sequence & motifs            0.0149      0.770    0.000
+  603  dinuc_AC_j3                                         Sequence & motifs            0.0144     -0.085    0.011
+  604  transfection_lipofection                            Delivery & assay             0.0144     -0.162    0.038
+  605  dinuc_TA_wing3                                      Sequence & motifs            0.0143     -0.177    0.012
+  606  enc_score_70                                        Translational context        0.0141     -0.280    0.830
+  607  ohe_pos4_C                                          Sequence & motifs            0.0141     -0.666    0.000
+  608  dinuc_TC_j5                                         Sequence & motifs            0.0135      0.252    0.009
+  609  off_target_score_specific_BOLTZ_n100_c1200          Off-target                   0.0133      0.168    0.141
+  610  off_target_score_specific_BOLTZ_n50_c1200           Off-target                   0.0133     -0.445    0.141
+  611  ohe_3p1_C                                           Sequence & motifs            0.0131      0.769    0.000
+  612  dinuc_CG_wing3                                      Sequence & motifs            0.0130     -0.393    0.012
+  613  ohe_3p2_T                                           Sequence & motifs            0.0129     -0.774    0.000
+  614  ohe_3p1_A                                           Sequence & motifs            0.0128     -0.728    0.000
+  615  ohe_3p5_G                                           Sequence & motifs            0.0127      0.690    0.000
+  616  off_target_single_rRNA_total_c1000                  Off-target                   0.0122     -0.605    0.000
+  617  off_target_single_rRNA_5S_c800                      Off-target                   0.0121     -0.287    0.000
+  618  ohe_pos0_A                                          Sequence & motifs            0.0119      0.756    0.000
+  619  ohe_pos2_A                                          Sequence & motifs            0.0118     -0.778    0.000
+  620  tai_score_30                                        Translational context        0.0116      0.592    0.830
+  621  ohe_pos9_C                                          Sequence & motifs            0.0115      0.716    0.703
+  622  tox_cpg_ps_count                                    Toxicity / liability         0.0115      0.675    0.000
+  623  ohe_pos1_C                                          Sequence & motifs            0.0109      0.753    0.000
+  624  enc_score_50                                        Translational context        0.0105     -0.017    0.830
+  625  off_target_single_rRNA_18S_c800                     Off-target                   0.0103     -0.305    0.000
+  626  off_target_single_rRNA_total_c1200                  Off-target                   0.0101      0.332    0.000
+  627  enc_score_40                                        Translational context        0.0099     -0.364    0.830
+  628  ohe_3p3_G                                           Sequence & motifs            0.0098      0.708    0.000
+  629  ohe_3p4_A                                           Sequence & motifs            0.0096      0.734    0.000
+  630  rbp_srsf1_aff_5                                     RBP binding                  0.0094     -0.053    0.000
+  631  off_target_score_general_BOLTZ_n200_c1200           Off-target                   0.0093     -0.110    0.000
+  632  ohe_pos3_T                                          Sequence & motifs            0.0093      0.752    0.000
+  633  off_target_score_general_BOLTZ_n50_c1200            Off-target                   0.0090     -0.466    0.000
+  634  ohe_pos7_T                                          Sequence & motifs            0.0089      0.720    0.000
+  635  off_target_single_rRNA_18S_c1000                    Off-target                   0.0085      0.265    0.000
+  636  ohe_3p8_T                                           Sequence & motifs            0.0084      0.808    0.702
+  637  ohe_3p9_T                                           Sequence & motifs            0.0082      0.594    0.703
+  638  ohe_pos2_C                                          Sequence & motifs            0.0080      0.455    0.000
+  639  ohe_3p3_A                                           Sequence & motifs            0.0079     -0.735    0.000
+  640  ohe_pos8_C                                          Sequence & motifs            0.0077      0.739    0.691
+  641  seq_poly_pyrimidine_run_count                       Sequence & motifs            0.0076     -0.269    0.000
+  642  ohe_pos9_T                                          Sequence & motifs            0.0071     -0.360    0.703
+  643  ohe_pos4_G                                          Sequence & motifs            0.0067      0.548    0.000
+  644  ohe_3p4_T                                           Sequence & motifs            0.0067     -0.773    0.000
+  645  ohe_pos1_T                                          Sequence & motifs            0.0065     -0.635    0.000
+  646  ohe_pos8_A                                          Sequence & motifs            0.0064     -0.080    0.691
+  647  ohe_pos0_C                                          Sequence & motifs            0.0061     -0.566    0.000
+  648  off_target_single_rRNA_28S_c1000                    Off-target                   0.0056     -0.473    0.000
+  649  ohe_pos7_C                                          Sequence & motifs            0.0056      0.340    0.000
+  650  ohe_3p1_G                                           Sequence & motifs            0.0055     -0.519    0.000
+  651  off_target_single_rRNA_5_8S_c800                    Off-target                   0.0051      0.297    0.000
+  652  ohe_pos6_C                                          Sequence & motifs            0.0051      0.537    0.000
+  653  ohe_pos2_T                                          Sequence & motifs            0.0050     -0.186    0.000
+  654  seq_6_palindromic                                   Sequence & motifs            0.0046     -0.531    0.000
+  655  struct_sense_in_intron                              Transcript context           0.0045      0.759    0.000
+  656  ohe_3p8_A                                           Sequence & motifs            0.0045     -0.018    0.702
+  657  off_target_single_rRNA_18S_c1200                    Off-target                   0.0045      0.230    0.000
+  658  structure_sense_length                              Transcript context           0.0044     -0.280    0.000
+  659  ohe_pos6_A                                          Sequence & motifs            0.0043     -0.497    0.000
+  660  off_target_single_rRNA_28S_c1200                    Off-target                   0.0042      0.242    0.000
+  661  mod_sugar_max_block_length                          Chemistry                    0.0041     -0.699    0.000
+  662  ohe_3p9_G                                           Sequence & motifs            0.0037     -0.027    0.703
+  663  ohe_3p5_A                                           Sequence & motifs            0.0034     -0.057    0.000
+  664  mod_ps_gap_count                                    Chemistry                    0.0029     -0.149    0.000
+  665  tox_gggg_motif_count                                Toxicity / liability         0.0023     -0.017    0.000
+  666  off_target_single_rRNA_5S_c1000                     Off-target                   0.0020     -0.186    0.000
+  667  off_target_single_RNASEH1_c1200                     Off-target                   0.0017     -0.012    0.000
+  668  struct_sense_in_exon                                Transcript context           0.0009     -0.624    0.000
+  669  off_target_single_rRNA_5_8S_c1000                   Off-target                   0.0005      0.115    0.000
+  670  struct_sense_in_5utr                                Transcript context           0.0005      0.057    0.000
+  671  struct_sense_in_cds                                 Transcript context           0.0003     -0.632    0.000
+  672  chem_2nd_gen                                        Chemistry                    0.0003      0.778    0.000
+  673  mod_sugar_block_count                               Chemistry                    0.0002     -0.159    0.000
+  674  off_target_single_rRNA_5_8S_c1200                   Off-target                   0.0001     -0.002    0.000
+  675  mod_ps_frac_dna                                     Chemistry                    0.0001      0.068    0.000
+  676  chem_3rd_gen                                        Chemistry                    0.0001      0.786    0.000
+  677  tox_tlr9_gtcgtt                                     Toxicity / liability         0.0000        nan    0.000
+  678  off_target_single_rRNA_5S_c1200                     Off-target                   0.0000        nan    0.000
+  679  chem_1st_gen                                        Chemistry                    0.0000        nan    0.000
