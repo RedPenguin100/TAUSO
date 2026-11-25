@@ -69,7 +69,7 @@ https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.49-h8b3dc9c_0.conda#db7
 https://conda.anaconda.org/conda-forge/linux-64/perl-5.32.1-10_h7cc23a3_perl5.conda#dfa988f7a513f0f441ba36d128b5d327
 https://conda.anaconda.org/conda-forge/linux-64/pixman-0.46.4-h54a6638_3.conda#0ee5bb30034b081a1386c1e2c98ab0a7
 https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-hd6e31c0_1.conda#69c01c781e7c8190bbdaf79e3848c5ca
-https://conda.anaconda.org/conda-forge/linux-64/uv-0.13.9-h779873d_0.conda#29f42ed4b59daa19d0d894dcc0a21f6e
+https://conda.anaconda.org/conda-forge/linux-64/uv-0.13.10-h779873d_0.conda#aafba96056c3722110e499e868b281c8
 https://conda.anaconda.org/conda-forge/linux-64/wayland-1.26.0-hc1c935e_2.conda#88a47e22b53e50865b1cabe2eb648352
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libsm-1.2.6-h0d788c3_1.conda#aa7459ed9ad086ba11dda843d764b33d
 https://conda.anaconda.org/conda-forge/linux-64/cudatoolkit-11.8.0-h4ba93d1_13.conda#eb43f5f1f16e2fad2eba22219c3e499b
@@ -130,7 +130,7 @@ https://conda.anaconda.org/conda-forge/linux-64/libxkbcommon-1.13.2-h59c2f34_2.c
 https://conda.anaconda.org/conda-forge/linux-64/markupsafe-3.0.4-py312h8b7ec3f_5.conda#24b9617c5570806c654908e3cc97788c
 https://conda.anaconda.org/conda-forge/noarch/mistune-3.4.0-pyh5ded981_0.conda#9f6bfe0b839624745c75bd2b01b2f8b1
 https://conda.anaconda.org/conda-forge/noarch/nest-asyncio2-1.7.4-pyh5ded981_0.conda#35c982da7a815a0de896d2c313e2c4bb
-https://conda.anaconda.org/conda-forge/noarch/packaging-26.3-pyhc364b38_0.conda#936687ed80f295a1f5dbcf8bd34c252c
+https://conda.anaconda.org/conda-forge/noarch/packaging-26.4-pyhc364b38_0.conda#df83250ef4f2a8c4ed3a3fea9f13f96f
 https://conda.anaconda.org/conda-forge/noarch/pandocfilters-1.5.1-pyh5ded981_0.conda#1e8073dc7a11d5041a4c2bd60054bebc
 https://conda.anaconda.org/conda-forge/noarch/parso-0.8.7-pyhcf101f3_0.conda#39894c952938276405a1bd30e4ce2caf
 https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.14.8-pyh5ded981_0.conda#931c5dbcadedadde154b21fddc8c951d
