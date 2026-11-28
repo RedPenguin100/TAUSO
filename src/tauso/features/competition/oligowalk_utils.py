@@ -17,17 +17,25 @@ from ...util import dna_to_rna, get_antisense_rna
 # =====================================================================
 # MULTIPROCESSING GLOBALS
 # =====================================================================
+FLAGS_DEFAULT = ("-m", "1")
+"""RNA oligomer parameters; the target is scored unfolded, so OW_Break_Target is 0 for every ASO."""
+
+FLAGS_DNA_TARGET_STRUCTURE = ("-d", "-m", "2", "-s", "2")
+"""DNA oligomer parameters; the target is refolded with the partition function after the oligo binds."""
+
 _WORKER_GENE_DATA: dict = {}
 _WINDOW_SIZE = 800
 _DATAPATH = ""
+_FLAGS = FLAGS_DEFAULT
 
 
-def _init_worker(gene_data, window_size, datapath):
+def _init_worker(gene_data, window_size, datapath, flags=FLAGS_DEFAULT):
     """Initializes global variables once per worker process."""
-    global _WORKER_GENE_DATA, _WINDOW_SIZE, _DATAPATH
+    global _WORKER_GENE_DATA, _WINDOW_SIZE, _DATAPATH, _FLAGS
     _WORKER_GENE_DATA = gene_data
     _WINDOW_SIZE = window_size
     _DATAPATH = datapath
+    _FLAGS = flags
 
 
 # =====================================================================
@@ -106,7 +114,11 @@ def _run_single_aso_worker(row_tuple):
     tmp_out_name = tmp_in_name + ".out"
 
     # 4. Run Tool
-    cmd = ["OligoWalk", tmp_in_name, tmp_out_name, "-m", "1", "-l", str(len(aso_seq))]
+    # -ss/-se bound the scan to the ASO's own start position; -se is the end of the last oligo.
+    cmd = [
+        "OligoWalk", tmp_in_name, tmp_out_name, *_FLAGS, "-l", str(len(aso_seq)),
+        "-ss", str(expected_pos), "-se", str(expected_pos + len(aso_seq) - 1),
+    ]
 
     my_env = os.environ.copy()
     my_env["DATAPATH"] = _DATAPATH
@@ -147,7 +159,13 @@ def _run_single_aso_worker(row_tuple):
     return idx, metrics
 
 
-def populate_oligowalk(df: pd.DataFrame, gene_data: dict, window_size: int = 800, num_workers: int | None = None):
+def populate_oligowalk(
+    df: pd.DataFrame,
+    gene_data: dict,
+    window_size: int = 800,
+    num_workers: int | None = None,
+    flags: tuple[str, ...] = FLAGS_DEFAULT,
+):
     """
     Runs OligoWalk sequentially across a DataFrame and appends the features.
 
@@ -156,6 +174,8 @@ def populate_oligowalk(df: pd.DataFrame, gene_data: dict, window_size: int = 800
         gene_data (dict): Mapping of gene names to gene objects.
         window_size (int): Size of the mRNA window to query.
         num_workers (int): Cores to use (Defaults to cpu_count - 2).
+        flags (tuple[str, ...]): OligoWalk options for oligomer type and target structure,
+            e.g. FLAGS_DEFAULT or FLAGS_DNA_TARGET_STRUCTURE.
 
     Returns:
         tuple: (updated_dataframe, list_of_new_features)
@@ -178,7 +198,7 @@ def populate_oligowalk(df: pd.DataFrame, gene_data: dict, window_size: int = 800
 
     # Execute Parallel Pool
     with ProcessPoolExecutor(
-        max_workers=num_workers, initializer=_init_worker, initargs=(gene_data, window_size, datapath)
+        max_workers=num_workers, initializer=_init_worker, initargs=(gene_data, window_size, datapath, flags)
     ) as executor:
         for idx, metrics in tqdm(
             executor.map(_run_single_aso_worker, rows_to_process), total=len(rows_to_process), desc="OligoWalk Progress"
